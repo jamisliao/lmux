@@ -1,0 +1,4 @@
+#!/bin/bash
+# `claude` for the README visuals: argv[0] is "claude" (what lmux reads from ps), the
+# replay itself is fake_claude.py next to this file.
+exec -a claude /usr/bin/python3 "$(dirname "$0")/fake_claude.py" "$@"

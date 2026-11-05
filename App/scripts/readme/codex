@@ -1,0 +1,4 @@
+#!/bin/bash
+# `codex` for the README visuals: argv[0] is "codex" (what lmux reads from ps), the replay is
+# fake_claude.py in its Codex mode (FAKE_AGENT=codex).
+FAKE_AGENT=codex exec -a codex /usr/bin/python3 "$(dirname "$0")/fake_claude.py" "$@"

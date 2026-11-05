@@ -1,0 +1,10 @@
+.DS_Store
+.omc/
+/.tools
+/vendor
+.build/
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+release/out/

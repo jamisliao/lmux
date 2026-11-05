@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Running Claude Code in lmux, a macOS terminal for many sessions · lmux docs</title>
+  <meta name="description" content="lmux is a light macOS terminal built for living in Claude Code. It shows which session needs you, lets you take back a turn, and brings every session back…">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://lmux.dev/docs/claude-code/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lmux">
+  <meta property="og:title" content="Running Claude Code in lmux, a macOS terminal for many sessions · lmux docs">
+  <meta property="og:description" content="lmux is a light macOS terminal built for living in Claude Code. It shows which session needs you, lets you take back a turn, and brings every session back…">
+  <meta property="og:url" content="https://lmux.dev/docs/claude-code/">
+  <meta property="og:image" content="https://lmux.dev/site/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Running Claude Code in lmux, a macOS terminal for many sessions · lmux docs">
+  <meta name="twitter:description" content="lmux is a light macOS terminal built for living in Claude Code. It shows which session needs you, lets you take back a turn, and brings every session back…">
+  <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "lmux", "item": "https://lmux.dev/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lmux.dev/docs/"}, {"@type": "ListItem", "position": 3, "name": "Claude Code", "item": "https://lmux.dev/docs/claude-code/"}]}</script>
+  <link rel="icon" href="../../site/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../../site/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../../site/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="../../site/css/site.css">
+  <link rel="stylesheet" href="../../site/css/docs.css">
+  <script>
+    document.documentElement.classList.add("js");
+    try { var t = localStorage.getItem("lmux-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="../../site/js/docs.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="nav">
+    <div class="nav__inner docs-bar">
+      <button class="icon-btn docs-menu" type="button" data-menu aria-controls="docs-nav" aria-expanded="false" aria-label="Show the docs menu" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h13M3.5 10h13M3.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <a class="brand" href="../../" aria-label="lmux home"><svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nav-cursor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#88C0D0"/><stop offset="1" stop-color="#5E81AC"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8.5" class="brand__body"/><path d="M9.6 11.4 L14.2 16 L9.6 20.6" class="brand__chev" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18.3" y="9.2" width="3.2" height="13.6" rx="1.6" fill="url(#nav-cursor)"/></svg><span class="brand__word">lmux</span></a>
+      <a class="docs-tag" href="../">docs</a>
+      <div class="nav__end">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Theme: automatic. Switch theme" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 3.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+        <a class="icon-btn" href="https://github.com/sooftware/lmux" aria-label="lmux on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+        <a class="btn btn--small btn--primary docs-dl" href="https://github.com/sooftware/lmux/releases/latest">Download</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-shell">
+    <nav class="docs-nav" id="docs-nav" aria-label="Docs">
+      <p class="docs-nav__group">Start</p><ul><li><a href="../">Overview</a></li><li><a href="../install/">Install</a></li><li><a href="../quick-start/">Quick start</a></li></ul><p class="docs-nav__group">Using lmux</p><ul><li><a href="../workspaces/">Workspaces &amp; panes</a></li><li><a href="../shortcuts/">Shortcuts</a></li><li><a href="../configuration/">Configuration</a></li><li><a href="../korean-input/">Korean input</a></li><li><a href="../ko/">한글 입력 (한국어)</a></li></ul><p class="docs-nav__group">Agents</p><ul><li><a href="./" aria-current="page">Claude Code</a></li><li><a href="../codex/">Codex</a></li><li><a href="../any-agent/">Any agent (OSC 7501)</a></li><li><a href="../cli/">The lmux CLI</a></li></ul><p class="docs-nav__group">Moving in</p><ul><li><a href="../vs-cmux/">lmux vs cmux</a></li><li><a href="../from-cmux/">Switching from cmux</a></li></ul><p class="docs-nav__group">Reference</p><ul><li><a href="../performance/">Performance</a></li><li><a href="../privacy/">Privacy &amp; files on disk</a></li><li><a href="../troubleshooting/">Troubleshooting</a></li><li><a href="../faq/">FAQ</a></li></ul>
+    </nav>
+    <main class="docs-main" id="content" tabindex="-1">
+      <article class="prose">
+<h1>Claude Code</h1>
+<p>lmux is a light macOS terminal built for living in Claude Code. It shows which session needs you, lets you take back a turn, and brings every session back after a relaunch, all without wrapping <code>claude</code>.</p>
+<h2 id="the-hooks">The hooks<a class="h-anchor" href="#the-hooks" aria-label="Link to this section">#</a></h2>
+<p>On first launch lmux offers to add a few hooks to Claude Code's <code>~/.claude/settings.json</code>. <strong>Show the exact change</strong> shows the diff first, and the diff only adds lines: lmux splices its entries into your file as it is, in its indentation and line endings.</p>
+<ul><li>Each hook runs lmux's small <code>lmux-hook</code> helper, and only inside an lmux pane. In any other terminal, or once lmux is deleted, the hook exits without running anything.</li><li>The original file is kept, so <strong>lmux → Uninstall Claude Code Hooks…</strong> puts it back byte for byte. If you edited it since, only lmux's lines come out.</li><li>Install, update or uninstall them any time from <strong>lmux → Install Claude Code Hooks…</strong> or Settings → General.</li></ul>
+<p>If <code>claude</code> uses another config folder (<code>CLAUDE_CONFIG_DIR</code>), lmux notices; see <a href="../troubleshooting/#the-sidebar-never-updates-for-a-claude">Troubleshooting</a>.</p>
+<h2 id="status">Status<a class="h-anchor" href="#status" aria-label="Link to this section">#</a></h2>
+<p>Each pane's state comes straight from Claude Code's hooks:</p>
+<ul><li><strong>running</strong>: a spinner on the row.</li><li><strong>needs you</strong>: a permission or a question. A ring on the pane and a badge on the row, and <code>⇧⌘J</code> jumps to it (it cycles through every pane that needs you).</li><li><strong>done</strong>: a check. <strong>failed</strong>: an ×.</li></ul>
+<p>The row and header add a few details, and only when there's something to say:</p>
+<ul><li><strong>Subagents.</strong> While Claude runs subagents, the row's second line counts them on the right ("3 subagents"). The count starts over with each turn.</li><li><strong>Bypass mode.</strong> In bypass permissions or auto mode, the pane's tab bar shows a small <strong>bypass</strong> or <strong>auto</strong> badge for the tab you're looking at. With the tab bar off, the pane's header shows it (with one pane, the header at the top). It never goes on the row. Claude reports its mode with each hook, so after <code>⇧Tab</code> the badge changes with your next prompt or Claude's next tool call, before that tool runs.</li><li><strong>Usage limits.</strong> When Claude hits a usage limit and says when it resets, the row shows a still clock and "waiting for usage limit · resets 3pm" instead of turning failed: Claude Code continues the task by itself once the limit resets. If it won't (it asks you to press Enter), or 15 minutes after the reset time it still hasn't, you get the usual done alert. A plain 429 with no reset time still shows as failed.</li><li><strong>No output.</strong> A running row with no hook event and no output for ten minutes says "no output for 12m", even when the pane is hidden. It's a hint, not a state: the row stays running, and the next hook clears it at once, new output within a minute.</li></ul>
+<p>Stop Claude with Esc or <code>⌃C</code> and its row goes idle within about a second, with no alert. Claude sends no hook when it's interrupted, so lmux takes one look at what Claude just wrote to its transcript when you press the key; nothing polls. An Esc that only closed a menu leaves the row running.</p>
+<p>A <code>claude -p</code> that Claude itself starts inside the pane (through its Bash tool) never changes the pane's session, state or title.</p>
+<h2 id="notifications">Notifications<a class="h-anchor" href="#notifications" aria-label="Link to this section">#</a></h2>
+<p>One notification per event, never one per subagent, and never for the pane you're looking at. The bell in the titlebar keeps the last 50; <code>⇧⌘U</code> jumps to the latest unread.</p>
+<p>A row that's been done or waiting for three minutes while you looked elsewhere breathes (its check dims and brightens with a soft glow) until you come back. Pick the delay, turn it off, or add a reminder notification in Settings → Notifications. With Reduce Motion on it gets a still ring instead.</p>
+<p>If a hook ever gets missed, right-click the row and choose <strong>Clear Status</strong>. It resets the badge and ring to idle without touching the process, and the next hook updates it again.</p>
+<h2 id="hover-a-turn">Hover a turn<a class="h-anchor" href="#hover-a-turn" aria-label="Link to this section">#</a></h2>
+<p>Hover any turn of a Claude session in its pane:</p>
+<ul><li><code>⧉</code> copies the original markdown of a reply, not terminal soup. <code>⌥⌘C</code> does the same for the last reply.</li><li><code>✎</code> rewinds to just before that prompt and puts it back in the input for you to edit.</li><li><code>×</code> rewinds to just before that prompt and leaves the input empty.</li></ul>
+<h3 id="rewind-to-a-turn">Rewind to a turn<a class="h-anchor" href="#rewind-to-a-turn" aria-label="Link to this section">#</a></h3>
+<p><code>✎</code> and <code>×</code> use Claude Code's own rewind, the menu Esc Esc opens, in the <code>claude</code> that's already running. Nothing restarts, so background shells and MCP servers keep running.</p>
+<ol><li>A card asks first. If it isn't the last turn, the card says the turns after it go too, just as they would in Claude's own rewind menu. Files changed in those turns stay as they are.</li><li>lmux presses Esc Esc and moves up the menu one message at a time, reading the screen after every key. It only presses Return on the prompt it's looking for, and only picks <strong>Restore conversation</strong>, never an option that restores code.</li><li>Claude drops that turn and any after it. With <code>✎</code> the prompt is back in the input, ready to edit and send. With <code>×</code> the input is left empty.</li></ol>
+<p>If Claude is working, lmux presses Esc first to stop it. If the input holds text you haven't sent, lmux leaves it alone and does nothing; send or clear it first. If the menu doesn't look the way lmux expects, it backs out with Esc, changes nothing, and shows "Couldn't rewind; use Esc Esc in Claude Code".</p>
+<p>You can't take one turn out of the middle and keep the ones after it: Claude Code's rewind only goes back to a point in the conversation, and that's all lmux uses. You can't rewind to a turn Claude has already compacted.</p>
+<h3 id="undo-send">Undo send<a class="h-anchor" href="#undo-send" aria-label="Link to this section">#</a></h3>
+<p>Sent a prompt to the wrong session? A "Sent to …" toast shows for three seconds. Press <code>⌘Z</code> while it's up: lmux stops Claude if it started working, rewinds to just before that prompt, and puts it back in the input.</p>
+<p>With two or more workspaces, the line above Claude's input shows the workspace's color and title, so you see where a prompt will go before you press Return.</p>
+<h2 id="never-wraps-never-edits-a-session">Never wraps, never edits a session<a class="h-anchor" href="#never-wraps-never-edits-a-session" aria-label="Link to this section">#</a></h2>
+<p><code>claude</code> starts, runs and prints exactly as it does without lmux. lmux only listens: to the hooks, and to the transcript files Claude Code already writes.</p>
+<p><code>✎</code>, <code>×</code> and <code>⌘Z</code> don't touch those files either. They press keys in Claude's own rewind menu, so the result is what you'd get doing it by hand: Claude forks the conversation, and the turns you rewound past stay in the session file as an unused branch.</p>
+<h2 id="history">History<a class="h-anchor" href="#history" aria-label="Link to this section">#</a></h2>
+<p><code>⇧⌘H</code> opens History, a search field at the bottom of the sidebar. Every past session (not open in a pane) is searchable, Korean included, with highlighted snippets. Return or a click resumes it in a new workspace in its own folder, with the right CLI. Codex sessions are in there too, marked "Codex". Right-click a result to hide it or move it to the Trash.</p>
+<p>Claude Code deletes old sessions after <code>cleanupPeriodDays</code> (30 by default). Once you've opened History, lmux quietly archives the sessions that are about to go, so nothing vanishes as long as you open lmux now and then. Until you first open History, lmux indexes nothing.</p>
+<h2 id="session-titles">Session titles<a class="h-anchor" href="#session-titles" aria-label="Link to this section">#</a></h2>
+<p>Each row shows the title Claude Code gives the session (or the name you set with <code>/rename</code>), and follows it when Claude writes a new one. lmux never calls a model for it. A name you type yourself is never touched.</p>
+<h2 id="after-a-relaunch">After a relaunch<a class="h-anchor" href="#after-a-relaunch" aria-label="Link to this section">#</a></h2>
+<p>Quit lmux and every Claude session comes back in its pane as <code>claude … --resume &lt;id&gt;</code>, with the flags it was started with. Settings that hold secrets (keys, tokens, URLs) are never carried over or typed. See <a href="../workspaces/#after-a-relaunch">Workspaces &amp; panes</a>.</p>
+<h2 id="limits">Limits<a class="h-anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<ul><li>A wrapped <code>claude</code> (inside <code>script</code>, or inside tmux or screen running in a pane) shows no agent state: lmux can't tell it's the pane's own. Run <code>claude</code> directly in the pane.</li><li>If Claude Code's theme is dark, its prompt row is a dark band on a light lmux theme. Run <code>/theme</code> in Claude and pick Auto (<a href="../troubleshooting/#why-is-claudes-prompt-a-dark-band-on-a-light-theme">more</a>).</li></ul>
+      </article>
+      <footer class="docs-foot">
+        <a class="docs-edit" href="https://github.com/sooftware/lmux/blob/main/docs/src/claude-code.md">Edit this page on GitHub</a>
+        <nav class="pns" aria-label="Previous and next page"><a class="pn pn--prev" href="../ko/" rel="prev"><span>Previous</span>한글 입력 (한국어)</a><a class="pn pn--next" href="../codex/" rel="next"><span>Next</span>Codex</a></nav>
+      </footer>
+    </main>
+    <aside class="docs-toc" aria-labelledby="toc-title"><p id="toc-title">On this page</p><ul><li class="toc--2"><a href="#the-hooks">The hooks</a></li><li class="toc--2"><a href="#status">Status</a></li><li class="toc--2"><a href="#notifications">Notifications</a></li><li class="toc--2"><a href="#hover-a-turn">Hover a turn</a></li><li class="toc--3"><a href="#rewind-to-a-turn">Rewind to a turn</a></li><li class="toc--3"><a href="#undo-send">Undo send</a></li><li class="toc--2"><a href="#never-wraps-never-edits-a-session">Never wraps, never edits a session</a></li><li class="toc--2"><a href="#history">History</a></li><li class="toc--2"><a href="#session-titles">Session titles</a></li><li class="toc--2"><a href="#after-a-relaunch">After a relaunch</a></li><li class="toc--2"><a href="#limits">Limits</a></li></ul></aside>
+  </div>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p class="footer__brand"><img src="../../site/img/icon.svg" alt="" width="24" height="24" loading="lazy"> lmux <span>light mux.</span></p>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="https://github.com/sooftware/lmux">GitHub</a>
+        <a href="https://github.com/sooftware/lmux/releases">Releases</a>
+        <a href="https://github.com/sooftware/lmux/blob/main/LICENSE">MIT License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,69 @@
+name: Set up lmux build
+description: >
+  Select the newest stable Xcode on the runner, then restore GhosttyKit.xcframework (+ libghostty's
+  terminfo / shell-integration in zig-out) from the cache, or build it with scripts/bootstrap.sh on a miss.
+  Cache key: GHOSTTY_COMMIT + scripts/ghostty.patch + the Zig version pinned in bootstrap.sh + the Xcode build.
+  Release builds pass use-cache: 'false' so GhosttyKit is always built from source there (a poisoned
+  cache entry from another workflow can't reach a signed release).
+inputs:
+  use-cache:
+    description: "'false' skips the cache entirely (no restore, no save) and builds GhosttyKit from source"
+    required: false
+    default: 'true'
+outputs:
+  cache-hit:
+    description: "'true' when GhosttyKit came from the cache"
+    value: ${{ steps.cache.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - name: Select Xcode
+      id: xcode
+      shell: bash
+      run: |
+        # Newest stable Xcode_X.Y[.Z].app (no betas / release candidates).
+        XCODE="$(ls -d /Applications/Xcode_*.app | grep -E '/Xcode_[0-9]+(\.[0-9]+)*\.app$' | sort -V | tail -1)"
+        echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+        export DEVELOPER_DIR="$XCODE/Contents/Developer"
+        sw_vers; uname -m
+        xcodebuild -version
+        swift --version
+        echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
+        echo "zig=$(sed -n 's/^ZIG_VERSION="\(.*\)"$/\1/p' scripts/bootstrap.sh)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore GhosttyKit
+      id: cache
+      if: inputs.use-cache != 'false'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          vendor/ghostty/macos/GhosttyKit.xcframework
+          vendor/ghostty/zig-out
+        key: ghosttykit-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('GHOSTTY_COMMIT', 'scripts/ghostty.patch') }}-zig${{ steps.xcode.outputs.zig }}-xcode${{ steps.xcode.outputs.build }}
+
+    - name: Build GhosttyKit (cache miss)
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        # zig build compiles Ghostty's Metal shaders; Xcode 26 ships the Metal toolchain separately.
+        if ! xcrun metal --version >/dev/null 2>&1; then
+          xcodebuild -downloadComponent MetalToolchain
+        fi
+        xcrun metal --version
+        scripts/bootstrap.sh
+
+    - name: Save GhosttyKit
+      if: inputs.use-cache != 'false' && steps.cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          vendor/ghostty/macos/GhosttyKit.xcframework
+          vendor/ghostty/zig-out
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+
+    - name: Check GhosttyKit
+      shell: bash
+      run: |
+        test -f App/Frameworks/GhosttyKit.xcframework/Info.plist
+        test -d vendor/ghostty/zig-out/share/terminfo
+        test -d vendor/ghostty/zig-out/share/ghostty/shell-integration

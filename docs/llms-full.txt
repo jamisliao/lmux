@@ -1,0 +1,1066 @@
+# lmux docs, in full
+
+Every page of https://lmux.dev/docs/ as Markdown, in reading order. Summary: https://lmux.dev/llms.txt
+
+---
+
+URL: https://lmux.dev/docs/
+
+# lmux docs
+
+lmux is a light, native macOS terminal for living in Claude Code and Codex all day. It's a 25 MB app on libghostty with a sidebar of workspaces and splits in any direction. It shows which agent is running, done or waiting for you, lets you take back a prompt you sent to the wrong session, and brings every session back after a relaunch. It never wraps `claude` or `codex`. It only listens to their hooks and reads the files they already write.
+
+## Pick your path
+
+- [New to lmux](https://lmux.dev/docs/install/): Install it, say yes to the hooks, run claude in a pane.
+- [Coming from cmux](https://lmux.dev/docs/from-cmux/): One click brings over your theme, fonts, shortcuts and open workspaces.
+- [Coming from Ghostty or tmux](https://lmux.dev/docs/configuration/): Your Ghostty config is read as is. Workspaces and splits replace tmux sessions.
+
+## Let your agent set it up
+
+Already in Claude Code or Codex? Paste this, and it reads the [agent guide](https://lmux.dev/agent-guide.md) (one plain Markdown file) and walks you through installing and setting up lmux:
+
+```
+Help me set up lmux. Read https://lmux.dev/agent-guide.md first, then walk me through it step by step.
+```
+
+## What's in here
+
+- **Start**: [Install](https://lmux.dev/docs/install/), then [Quick start](https://lmux.dev/docs/quick-start/) for the first launch and five things to try.
+- **Using lmux**: [Workspaces & panes](https://lmux.dev/docs/workspaces/), every [shortcut](https://lmux.dev/docs/shortcuts/), [configuration](https://lmux.dev/docs/configuration/) and [Korean input](https://lmux.dev/docs/korean-input/).
+- **Moving in**: how [lmux compares to cmux](https://lmux.dev/docs/vs-cmux/), and [moving over from cmux](https://lmux.dev/docs/from-cmux/) in one click.
+- **Agents**: [Claude Code](https://lmux.dev/docs/claude-code/) (status, rewind, History), [Codex](https://lmux.dev/docs/codex/), [other agents](https://lmux.dev/docs/any-agent/) and the [`lmux` CLI](https://lmux.dev/docs/cli/).
+- **Reference**: [performance](https://lmux.dev/docs/performance/), [privacy and every file lmux writes](https://lmux.dev/docs/privacy/), [troubleshooting](https://lmux.dev/docs/troubleshooting/) and the [FAQ](https://lmux.dev/docs/faq/).
+
+---
+
+URL: https://lmux.dev/docs/install/
+
+# Install
+
+lmux, a light terminal for Claude Code and Codex, runs on macOS 14 (Sonoma) or later, on Apple silicon. It's one app, with the `lmux` command line tool inside it.
+
+## Homebrew
+
+```sh
+brew install --cask sooftware/tap/lmux
+```
+
+The cask puts lmux.app in Applications and links the `lmux` command onto your `PATH`. Inside an lmux pane, `lmux` is always on the `PATH` anyway.
+
+## Download
+
+Download [lmux-arm64.dmg](https://github.com/sooftware/lmux/releases/latest/download/lmux-arm64.dmg), open it and drag lmux.app to Applications. The zip and older versions are on [GitHub Releases](https://github.com/sooftware/lmux/releases).
+
+To use `lmux` from other terminals too, link it into any folder on your `PATH`, for example:
+
+```sh
+ln -s /Applications/lmux.app/Contents/Resources/bin/lmux ~/.local/bin/lmux
+```
+
+## Build from source
+
+`scripts/bootstrap.sh` fetches the pinned Ghostty and Zig and builds the terminal framework, then `App/scripts/bundle.sh` builds `App/build/lmux.app`. The details, and the test harnesses, are in [App/README.md](https://github.com/sooftware/lmux/blob/main/App/README.md) and [CONTRIBUTING.md](https://github.com/sooftware/lmux/blob/main/CONTRIBUTING.md).
+
+## Updating
+
+lmux never checks for updates itself (it makes no network calls at all). Homebrew does:
+
+```sh
+brew upgrade --cask lmux
+```
+
+With a download, replace lmux.app with the new one. Either way, quitting for the update loses nothing: lmux reopens the same workspaces, splits and folders, and every Claude Code or Codex session resumes where it was (see [Workspaces & panes](https://lmux.dev/docs/workspaces/#after-a-relaunch)).
+
+## Uninstalling cleanly
+
+lmux adds a few hooks to your agents' settings. Take those out first, while lmux is still there:
+
+1. In lmux, choose **lmux → Uninstall Claude Code Hooks…**, and **Uninstall Codex Hooks…** if you installed those. If you haven't edited the file since, it goes back byte for byte; if you have, only lmux's lines come out.
+2. Quit lmux and delete the app:
+
+   ```sh
+   brew uninstall --zap --cask lmux   # also deletes the state dir and lmux's preferences
+   ```
+
+   With a download, drag lmux.app to the Trash.
+3. Delete what's left:
+
+   ```sh
+   rm -rf ~/Library/Application\ Support/lmux ~/.config/lmux
+   defaults delete dev.lmux.app 2>/dev/null
+   ```
+
+That's everything lmux writes. The full list, file by file, is in [Privacy & files on disk](https://lmux.dev/docs/privacy/).
+
+---
+
+URL: https://lmux.dev/docs/quick-start/
+
+# Quick start
+
+lmux is a light macOS terminal for Claude Code and Codex. Its first launch takes a minute: two offers, each with one button, and then it's a terminal.
+
+## First launch
+
+1. **Coming from cmux?** If cmux is on your Mac, lmux first shows what it found ("Theme, font, 12 shortcuts and 5 open workspaces") and one button: **Bring over my cmux setup**. Nothing is imported until you click it, and cmux's own files are never changed. See [Switching from cmux](https://lmux.dev/docs/from-cmux/).
+2. **The Claude Code hooks.** Next lmux offers to install a few Claude Code hooks, which is how it knows what each `claude` is doing. **Show the exact change** shows the diff to your `settings.json` before anything is touched. Say yes.
+3. **The Codex hooks**, if Codex CLI is on your Mac: the same offer, with the diff to `~/.codex/hooks.json`. The next time Codex starts it asks once to trust the new hooks: choose **Trust all and continue**.
+
+You can say no to all of it. lmux is then a plain Ghostty-based terminal with a sidebar and splits, and both offers stay in the app menu and in Settings (`⌘,` → General) for later.
+
+## Your first workspace
+
+lmux opens with one workspace in your home folder. A workspace is a row in the sidebar holding one or more panes:
+
+- `⌘N` opens another workspace. `⌘1`–`⌘8` switch between them.
+- `⌘D` splits the focused pane right, `⇧⌘D` splits it down. `⌘[` / `⌘]` move between panes.
+- `⌘W` closes a pane, `⇧⌘W` the whole workspace.
+
+Run `claude` (or `codex`) in a pane. The row starts telling you what it's doing: a spinner while it works, a ring and a badge when it needs you, a check when it's done.
+
+## Five things to try
+
+1. **Let an agent wait for you.** Start a task in one workspace that will ask for a permission, switch to another, and keep working. When it asks, its row gets a badge and its pane a ring. `⇧⌘J` jumps straight to it.
+2. **Take a prompt back.** Send something to the wrong session, then press `⌘Z` while the "Sent to …" toast is up. Or hover an earlier turn and press `×`: Claude rewinds to just before it, and that turn and everything after it are gone. (Claude Code only; see [Claude Code](https://lmux.dev/docs/claude-code/#rewind-to-a-turn).)
+3. **Copy a reply as real markdown.** `⌥⌘C` copies Claude's last reply as the markdown it wrote, not the terminal's wrapped text. Hovering a reply and pressing `⧉` does the same for any reply.
+4. **Find last week's session.** `⇧⌘H` opens History. Type a word you remember, press Return, and the session resumes in a new workspace in its own folder.
+5. **Quit and come back.** Quit lmux with sessions running, then open it again. The same workspaces, splits and folders come back, and every session resumes.
+
+Next: everything about [workspaces & panes](https://lmux.dev/docs/workspaces/), or the full list of [shortcuts](https://lmux.dev/docs/shortcuts/).
+
+---
+
+URL: https://lmux.dev/docs/workspaces/
+
+# Workspaces & panes
+
+lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in other terminals. Panes are the parts of a split, and each pane holds one or more terminals as tabs.
+
+## The sidebar
+
+Each row is a workspace, with its title, git branch and folder, and the state of the agents in it: a spinner while one works, a badge when one needs you, a check when it's done, an × when it failed.
+
+- **Select** a row with a click, or `⌘1`–`⌘8` (`⌘9` is the last one). `⌃⌘[` / `⌃⌘]` go to the previous and next.
+- **Select several** with `⌘`-click or `⇧`-click. Closing, Clear Status and dragging then act on the whole selection.
+- **Hide the sidebar** with `⌃⌘S`.
+- **Right-click** a row for Rename Workspace…, Clear Status and Close Workspace.
+
+## New workspaces
+
+`⌘N`, the `+` button and **Workspace → New Workspace** all open a workspace in your home folder, or in Ghostty's `working-directory` if you set it (a path, `~/…`, or `home`).
+
+To start a new workspace in the focused pane's folder instead, set either of these in your Ghostty config:
+
+```
+working-directory = inherit
+window-inherit-working-directory = true
+```
+
+Ghostty itself inherits by default; lmux doesn't unless you say so. See [Configuration](https://lmux.dev/docs/configuration/#where-new-workspaces-and-splits-start).
+
+## Splits
+
+- `⌘D` splits the focused pane right, `⇧⌘D` splits it down. Splits nest in any direction.
+- `⌘[` / `⌘]` (or `⌥⌘` and an arrow) move between panes. `⌃⌘` and an arrow resizes, `⌃⌘=` makes them equal.
+- A split starts in its pane's folder, unless you set `split-inherit-working-directory = false`.
+- Click anywhere on a pane to focus it. After any click, the keyboard is on a visible pane of the selected workspace, never the sidebar or a hidden pane.
+
+## Tabs
+
+Every pane has a tab bar, and each tab is its own terminal. It works like cmux's.
+
+- `⌘T` opens a tab in the focused pane, right after the one you're on. So does the terminal button at the right end of the tab bar, or double-clicking an empty spot on it. The two buttons next to it split the pane right and down.
+- `⇧⌘[` / `⇧⌘]` (or `⌃⇧⇥` / `⌃⇥`) go to the previous and next tab. `⌃1`–`⌃8` pick a tab by its place, `⌃9` the last one. `⌥⇧⌘[` / `⌥⇧⌘]` move the tab left or right.
+- Drag a tab to reorder it. Drop it on another pane's tab bar to move it there, on the middle of a pane to add it to that pane's tabs, or near a pane's edge to split that pane with the tab on that side.
+- Double-click a tab to zoom its pane. Double-click again, or click the arrows on the tab, to unzoom.
+- `⌘W`, the tab's `×` or a middle-click closes the tab. It asks first unless the tab is an idle shell. The tab to its right comes forward, or the one to its left if it was the last. Closing a pane's last tab closes the pane.
+- Right-click a tab for the rest, including Rename Tab… (`⌘R`), Close Other Tabs (`⌥⌘T`), Move Tab (to a new workspace or another one), Pin Tab and Mark Tab as Unread.
+- A pinned tab moves to the front of the bar, shows a pin instead of `×`, and stays open until you unpin it. Close Other Tabs leaves it alone.
+- A tab that needs you, or has an alert you haven't looked at, gets a blue dot where its `×` goes. The workspace's row in the sidebar shows the state of all its tabs, and `⇧⌘J` or a notification brings the right tab to the front.
+- Tabs you can't see don't render, like a workspace you're not on. They keep running, and after a relaunch they come back in order, pinned ones still pinned, with the one you were on in front.
+- `lmux new-tab` opens a tab from a script, and `lmux list` shows each tab with its place. See [CLI](https://lmux.dev/docs/cli/).
+
+To show the tab bar only once a pane has two tabs, turn off **Settings → Appearance → Tab bar on panes with one tab**. Split panes then get a plain title bar, and double-clicking it renames the pane.
+
+## Zoom
+
+`⇧⌘↩` (**View → Zoom Split**) makes the focused pane fill its workspace. The other panes stop rendering until you press it again. Closing or splitting while zoomed unzooms first, and a relaunch brings each workspace back zoomed as you left it.
+
+## Reorder
+
+Press and drag a row to move it. The row lifts and follows the pointer and the others slide out of the way. A small threshold keeps clicks, multi-select and rename working, dragging a row that's part of a selection moves the whole selection in order, and Esc cancels. The order is saved, and `⌘1`–`⌘8` follow it.
+
+## Close
+
+- `⌘W` closes the focused tab; closing a pane's last tab closes the pane. It asks first unless the tab is an idle shell.
+- `⇧⌘W` closes the workspace. So does the `×` that appears when you hover a row.
+- The window's red button closes the window, not your sessions: panes keep running, and the Dock icon, `⌘N` or opening lmux again bring it back.
+- `⌘Q` asks first while something is running (Ghostty's `confirm-close-surface`). Settings → General has the switch.
+
+## Rename
+
+Double-click a workspace's title in the sidebar, or use **Rename Workspace…** from the row's menu. Rename a tab with `⌘R` or **Rename Tab…** from its menu. A name you type stays until you clear it; an empty name goes back to the agent's own title. Without a name, a row shows the title Claude Code or Codex gives the session, else the running command's title, else the folder.
+
+## After a relaunch
+
+Quit lmux (for an update, say), or restart your Mac, and it reopens the same workspaces, splits, folders and window.
+
+- Every Claude Code session resumes with the flags it was started with. A Codex session comes back as `codex resume <id>` with its model, sandbox, approval, profile and `-c` flags.
+- A plain shell pane shows its last output (up to 2,000 lines, as plain text) above the new prompt, under a dim "restored from your last session" line. lmux saves it only when you quit, privately, and deletes it once shown. Panes running a full-screen program (vim, less, a TUI) or a command, and agent panes that resume, save nothing.
+- Running processes don't survive a quit. A long-running command (a build, a dev server) isn't started again; only Claude Code and Codex sessions resume.
+- Whatever was on screen is saved, so if that's ever secrets, turn it off in **Settings → General → Restore terminal output after relaunch**.
+
+If a state file (the layout, the History index, settings) is ever unreadable, lmux keeps it aside as `<name>.bad-<time>` and starts that part fresh instead of writing over it.
+
+## Scrollback and find
+
+`⌘F` searches the focused pane's scrollback, `⌘G` / `⇧⌘G` go to the next and previous match, and Esc closes the search. **View → Clear Screen** clears the pane.
+
+## Drag and drop, images
+
+Drop files on a pane and their paths are inserted, shell-escaped, as in Ghostty. Paste or drop an image (a screenshot, say) and lmux saves it as a private temporary PNG and pastes its path, which Claude Code attaches as an image.
+
+## Displays
+
+Unplug or rearrange displays and the window comes back onto a screen, keeping its size when it fits.
+
+---
+
+URL: https://lmux.dev/docs/shortcuts/
+
+# Shortcuts
+
+lmux is a macOS terminal on libghostty, and these are its default shortcuts. A `keybind` in your Ghostty config wins over them, and the menus always show whatever is bound.
+
+## Every day
+
+| to do this | press |
+|---|---|
+| new workspace | `⌘N` |
+| split right / down | `⌘D` / `⇧⌘D` |
+| close a tab / a workspace | `⌘W` / `⇧⌘W`, or `×` on a hovered row |
+| new tab in the pane | `⌘T` |
+| switch tab | `⇧⌘[` / `⇧⌘]` or `⌃⇧⇥` / `⌃⇥`, `⌃1`–`⌃8`, `⌃9` for the last |
+| switch workspace | `⌘1`–`⌘8`, `⌘9` for the last, `⌃⌘[` / `⌃⌘]` |
+| reorder workspaces | drag a row |
+| move between panes | `⌘[` / `⌘]` |
+| zoom the focused pane (hide the rest) | `⇧⌘↩` |
+| jump to the agent that needs you | `⇧⌘J` |
+| latest unread / recent notifications | `⇧⌘U` / click the bell |
+| reset a row's status by hand | right-click it, then **Clear Status** |
+| search past sessions | `⇧⌘H` |
+| copy / edit & resend / remove a turn | hover it, then `⧉` / `✎` / `×` |
+| copy the last reply as markdown | `⌥⌘C` |
+| undo the prompt you just sent | `⌘Z` while the "Sent to …" toast is up |
+| find in scrollback | `⌘F` |
+| toggle the sidebar | `⌃⌘S` |
+| theme, font and the rest | `⌘,` |
+
+`✎`, `×` and `⌘Z` are Claude Code only; a Codex turn shows just `⧉`.
+
+## More
+
+| to do this | press |
+|---|---|
+| move between panes by direction | `⌥⌘` + arrow |
+| resize the focused pane | `⌃⌘` + arrow |
+| make the panes equal | `⌃⌘=` |
+| next / previous match in find | `⌘G` / `⇧⌘G` |
+| font size bigger / smaller / reset | **View** menu (Ghostty's keys) |
+| full screen | `⌃⌘F` |
+| rename the tab / the workspace | `⌘R` / double-click the workspace's row |
+| move the tab left / right | `⌥⇧⌘[` / `⌥⇧⌘]`, or drag it |
+| close the pane's other tabs | `⌥⌘T` |
+| zoom a tab's pane | double-click the tab |
+
+## Changing a shortcut
+
+Add a `keybind` line to `~/.config/ghostty/config`, in Ghostty's syntax. lmux maps Ghostty's actions onto its own: `new_window` is New Workspace, `new_tab` is a new tab in the pane, `new_split:right` and `new_split:down` split, `close_surface` closes a tab, `close_window` a workspace, `next_tab` / `previous_tab` switch tabs, `goto_tab:N` still switches workspaces (`⌘1`–`⌘9`), `goto_split:next` / `goto_split:previous` move between panes and `toggle_split_zoom` zooms.
+
+```
+keybind = super+shift+n=new_window
+```
+
+`⇧⌘J` is lmux's own; Ghostty's default binding for it stays off unless your config binds it.
+
+With the Korean input source (or another non-Latin one) on, shortcuts with `⌘` or `⌃` still work: a key the menus miss is retried as the key a Latin layout types there. See [Korean input](https://lmux.dev/docs/korean-input/).
+
+---
+
+URL: https://lmux.dev/docs/configuration/
+
+# Configuration
+
+lmux is a macOS terminal on libghostty, and it's configured the way Ghostty is: one plain-text file in Ghostty's syntax. It reads your Ghostty config as it is, and its own Settings window covers the rest, about ten settings in all.
+
+## Your Ghostty config
+
+lmux reads the files Ghostty reads on macOS, in this order:
+
+1. `~/.config/ghostty/config` (or `$XDG_CONFIG_HOME/ghostty/config`), and `config.ghostty` next to it
+2. `~/Library/Application Support/com.mitchellh.ghostty/config`, and `config.ghostty` next to it
+3. `~/.config/lmux/config`, which lmux's Settings writes. It's loaded last, so a key set here wins.
+
+Themes, fonts, `keybind`, colors, padding and the rest of Ghostty's options work as they do in Ghostty ([reference](https://ghostty.org/docs/config/reference)). Settings applies a change to every pane at once.
+
+Where your config says nothing, lmux's defaults are:
+
+```
+theme = light:Nord Light,dark:Nord
+window-padding-x = 14
+window-padding-y = 10
+minimum-contrast = 2
+unfocused-split-opacity = 1
+```
+
+`minimum-contrast = 2` draws text black or white where a theme pair would make it unreadable (Claude Code's dark theme on a light terminal, say).
+
+The font is Ghostty's default (JetBrains Mono), or D2Coding on a Mac whose system language is Korean. Hangul always renders in D2Coding at exactly two cells unless you map it yourself (see [Korean input](https://lmux.dev/docs/korean-input/)).
+
+## Where new workspaces and splits start
+
+| key | what lmux does |
+|---|---|
+| `working-directory` | A new workspace starts here: an absolute path or `~/…` that exists. `home`, unset or anything else: your home folder. |
+| `working-directory = inherit` | A new workspace starts in the focused pane's folder. |
+| `window-inherit-working-directory = true` | The same, set explicitly. (`tab-inherit-working-directory = true` works too.) |
+| `split-inherit-working-directory = false` | A split starts in `working-directory` instead of its pane's folder. |
+
+Ghostty's own default for the inherit keys is true; lmux's, when they're unset, is home. lmux reads these four keys from the files above itself and doesn't follow `config-file` includes for them. A relaunch, History and the cmux import always use each session's own saved folder.
+
+## Settings
+
+`⌘,` opens Settings. Theme, font and size go into `~/.config/lmux/config` (other lines and comments there are kept as you left them); the rest are lmux's own and live in `~/Library/Application Support/lmux/settings.plist`.
+
+| tab | setting | default |
+|---|---|---|
+| Appearance | Appearance: System, Light or Dark | System |
+| Appearance | Theme for light mode and for dark mode, from a gallery of 26 (Catppuccin, Tokyo Night, Gruvbox, Solarized, Dracula and more) | Nord Light / Nord |
+| Appearance | Sidebar matches the terminal background | off |
+| Appearance | Tab bar on panes with one tab (off: shown only once a pane has two tabs) | on |
+| Font | Family, size and fallbacks (for glyphs the font lacks, such as Nerd Font icons) | JetBrains Mono, or D2Coding on Korean systems |
+| Notifications | Sound | Off |
+| Notifications | Unread count on the Dock icon | off |
+| Notifications | Ring around a pane that needs you | on |
+| Notifications | Remind me after (a done or waiting row you haven't looked at breathes) | 3 minutes |
+| Notifications | Remind again via notification | off |
+| General | Ask before quitting while something runs | on |
+| General | Restore terminal output after relaunch | on |
+| General | Allow other apps to send input to lmux | off |
+
+General also has the Claude Code and Codex hooks (install, update, uninstall), **Import from cmux…** and **Open config file**.
+
+**Allow other apps to send input to lmux** lets scripts like Raycast or Hammerspoon use `lmux send` and `lmux new-workspace --cmd` from outside lmux. It's stored as `defaults write dev.lmux.app allowExternalSend -bool true`. Leave it off unless you need it; from inside a pane those commands always work. See [The lmux CLI](https://lmux.dev/docs/cli/).
+
+## An example `~/.config/lmux/config`
+
+```
+# Loaded after ~/.config/ghostty/config, so a key set here wins.
+theme = light:Nord Light,dark:Nord
+font-family = D2Coding
+font-family = Symbols Nerd Font Mono
+font-size = 13
+```
+
+A second `font-family` line is a fallback, tried for glyphs the first one lacks.
+
+---
+
+URL: https://lmux.dev/docs/korean-input/
+
+# Korean input
+
+I'm a Korean developer, so this one's personal. Upstream Ghostty drops or mangles Hangul in a few places while you're composing a syllable. lmux, a macOS terminal on libghostty, fixes them, so fast typing in a shell or in Claude Code arrives whole.
+
+한국어로 쓴 자세한 설명은 [한국어 안내](https://lmux.dev/docs/ko/)에 있어요.
+
+## What's fixed
+
+- **Enter mid-syllable.** Press Return while the last syllable is still composing and the whole line arrives, last syllable included.
+- **Shift+Enter, Esc, Backspace on the last jamo**, and `⌘T` or `⌘V` while composing: none of them eats or duplicates the syllable in progress.
+- **The first syllable after a pause** composes properly (하이, not ㅎㅏ이), and the first jamo never commits on its own.
+- **Shortcuts with the Korean input source on.** `⌃⌘S`, `⌥⌘C`, `⌘C` and the rest work without switching to English first: a `⌘` or `⌃` key the menus miss is retried as the key a Latin layout types there. `⌃C` reaches Claude Code as Ctrl+C, not a typed "ㅊ".
+
+## How Hangul looks
+
+Hangul renders in D2Coding at exactly two cells, whatever Latin font you use, so Korean text lines up with the grid. D2Coding ships inside lmux (you don't need to install it) and is the default font on a Mac whose system language is Korean.
+
+To use another font for Hangul, map it yourself in your config with Ghostty's `font-codepoint-map`.
+
+## History in Korean
+
+History (`⇧⌘H`) searches past sessions in Korean too, with highlighted snippets. See [Claude Code](https://lmux.dev/docs/claude-code/#history).
+
+## Chinese and Japanese input
+
+Pinyin, Zhuyin and Japanese (Romaji and Kana Typing) get the same tests as Korean. Each key is checked in a plain shell and in the keyboard modes Claude Code and Codex turn on, and the bytes have to match what the ABC layout sends.
+
+- **Committing.** Space, a number key or Return commits the candidate once. The pinyin, bopomofo or romaji you typed never reaches the program, and neither does the digit, the tone key or the key itself. Return on unconverted pinyin types the letters. Return on a Japanese conversion or a Zhuyin buffer commits it without sending a newline, as in other Mac apps.
+- **Editing.** Esc cancels the composition and Backspace edits it, and neither touches the line. In a Japanese conversion, Backspace deletes one character instead of the whole conversion. Full-width punctuation (，。、) arrives as typed.
+- **Arrow keys.** While you're composing, they move through the composition or the candidates, and the caret is drawn where you are. When you're not, they move the cursor as usual.
+- **Shortcuts.** `⌃C`, `⌘C`, `⌘V` and `⌘T` work as they do with ABC, idle or mid-composition. With Kana Typing or Zhuyin, `⌃C` reaches Claude Code as Ctrl+C, not Ctrl+そ or Ctrl+ㄏ.
+- **The candidate window** opens at the cursor. In a longer conversion, it opens at the part being converted.
+- **`font-thicken`** applies to the text you're composing as well as to committed text.
+
+These checks run against a simulated input method. Some things still need checking with Apple's own Chinese and Japanese input methods: Shift switching between Chinese and English mid-word, `⌃C` and `⌘` keys mid-composition, and moving to another pane while composing.
+
+---
+
+URL: https://lmux.dev/docs/ko/
+
+# 한글 입력
+
+저도 Claude Code와 Codex에 하루 종일 한글로 작업을 시킵니다. 그래서 이 페이지는 특히 신경 써서 정리했습니다.
+
+cmux를 쓸 때 한글 입력 문제가 자주 있었습니다. 빨리 치면 자모가 따로 입력되고, Enter를 누르면 마지막 글자가 다음 줄로 넘어갔습니다. 한글 상태에서 Ctrl+C를 누르면 멈추지 않고 `ㅊ`만 입력됐습니다. 모두 터미널이 한글 IME를 처리하는 방식에서 생기는 문제라서, lmux를 만들면서 하나씩 고쳤습니다.
+
+lmux 전체 소개는 [한국어 README](https://github.com/sooftware/lmux/blob/main/README.ko.md)에 있습니다. 이 페이지에는 한글로 입력할 때 달라지는 내용만 모았습니다.
+
+## 고친 문제
+
+- **빨리 치거나 잠깐 멈췄다 치면 자모가 깨지는 문제**: 잠깐 멈췄다가 다시 치면 첫 글자가 `ㅎㅏ이`처럼 따로 입력되곤 했습니다. 이제 `하이`로 입력됩니다. 첫 자모가 혼자 확정되는 일도 없습니다.
+- **Enter를 누르면 마지막 글자가 다음 줄로 넘어가는 문제**: 조합 중인 글자가 있을 때 Enter를 누르면 그 글자만 다음 프롬프트로 넘어갔습니다. 이제 Enter 한 번에 마지막 글자까지 같이 입력됩니다.
+- **조합 중에 다른 키를 누르면 글자가 사라지는 문제**: 이제 Shift+Enter, Esc, Backspace, `⌘T`, `⌘V`를 눌러도 조합 중이던 글자가 그대로 입력됩니다. Backspace는 `한 → 하 → ㅎ → (없음)` 순서로 자모를 하나씩 지웁니다.
+- **한글 상태에서 Ctrl+C가 동작하지 않는 문제**: Claude Code에서 입력을 지우거나 작업을 멈추려고 Ctrl+C를 눌렀는데 `ㅊ`만 입력된 경험이 한 번쯤 있을 겁니다. [Claude Code 이슈](https://github.com/anthropics/claude-code/issues/81929)와 [Ghostty 논의](https://github.com/ghostty-org/ghostty/discussions/10775)에도 올라와 있는 문제입니다. lmux에서는 한글 상태에서도 Ctrl+C가 정상적으로 동작합니다. 조합 중인 글자가 있으면 먼저 확정한 뒤 멈춥니다.
+- **`⌘C`를 누르면 `ㅊ`이 같이 입력되는 문제**: Claude Code 안에서 복사했는데 프롬프트에 `ㅊ`이 남는 것도 같은 원인이었습니다. 이제 복사만 되고 아무것도 입력되지 않습니다.
+- **Ctrl+I, Ctrl+M, Ctrl+Shift+A가 자모로 입력되는 문제**: 이제 영문 자판일 때와 같은 바이트를 보냅니다.
+- **한글 상태에서 `⌃⌘S`, `⌥⌘C` 같은 단축키가 동작하지 않는 문제**: 이제 한/영 전환 없이 바로 누르면 됩니다.
+- **조합 중에 다른 pane을 클릭하면 글자가 사라지는 문제**: `가`를 입력하다가 다른 pane에 갔다 와도 글자가 그대로 남아 있습니다.
+- **한글 폭이 두 칸에 맞지 않는 문제**: 영문 폰트와 상관없이 한글은 D2Coding으로 정확히 두 칸에 표시됩니다. D2Coding은 lmux에 들어 있어서 따로 설치할 필요가 없고, 시스템 언어가 한국어면 lmux 기본 폰트도 D2Coding입니다. 다른 폰트를 쓰려면 Ghostty의 `font-codepoint-map`으로 바꾸면 됩니다.
+- **History에서 한글 검색이 안 되는 문제**: 이제 `⇧⌘H`에서 지난 세션을 한글로 검색할 수 있습니다.
+
+## 테스트 방법
+
+- 한글 상태에서 lmux 메뉴 단축키와 Ghostty 바인딩 전부, Ctrl+A~Z, Shift·`⌥` 조합을 하나씩 눌러 보는 테스트가 있습니다. 그냥 누르는 경우와 `가`를 조합하는 중에 누르는 경우를 legacy 모드와 kitty 키보드 프로토콜(플래그 1 / 5 / 31, Claude Code와 Codex가 켜는 값)에서 각각 실행합니다. 전체 549개 케이스이고, 단축키가 정상적으로 동작하면서 pty로 자모가 하나도 새지 않아야 통과입니다.
+- CI에서는 매번 mock IME로 실행하고, 같은 케이스를 macOS의 실제 두벌식 IME로 한 번 더 확인합니다. GitHub Actions 러너에서 두벌식을 켜고 실제 키 이벤트를 보냅니다.
+- 릴리스 전에는 Claude Code 입력창에서 [체크리스트](https://github.com/sooftware/lmux/blob/main/App/IME_CHECKLIST.md)에 따라 직접 확인합니다. 커서 위치, 후보창, Shift+Enter 줄바꿈처럼 자동화로 확인할 수 없는 부분만 봅니다.
+
+## 아직 안 되는 것
+
+`macos-option-as-alt = true`를 켠 상태에서 한글로 `⌥B`, `⌥F`를 누르면 `ESC b` 대신 자모(`ㅠ`)가 입력됩니다. 업스트림 Ghostty에서도 똑같이 발생합니다. 0.1.x에서 고칠 예정이고, 그 전까지는 한/영 전환 후에 누르면 됩니다.
+
+## 문제가 있으면
+
+[GitHub 이슈](https://github.com/sooftware/lmux/issues)로 알려 주시기 바랍니다. 어떤 키를 눌렀고 무엇이 입력됐는지만 적어 주시면 됩니다. 한국어로 쓰셔도 괜찮습니다.
+
+영어 요약은 [Korean input](https://lmux.dev/docs/korean-input/)에 있습니다.
+
+---
+
+URL: https://lmux.dev/docs/claude-code/
+
+# Claude Code
+
+lmux is a light macOS terminal built for living in Claude Code. It shows which session needs you, lets you take back a turn, and brings every session back after a relaunch, all without wrapping `claude`.
+
+## The hooks
+
+On first launch lmux offers to add a few hooks to Claude Code's `~/.claude/settings.json`. **Show the exact change** shows the diff first, and the diff only adds lines: lmux splices its entries into your file as it is, in its indentation and line endings.
+
+- Each hook runs lmux's small `lmux-hook` helper, and only inside an lmux pane. In any other terminal, or once lmux is deleted, the hook exits without running anything.
+- The original file is kept, so **lmux → Uninstall Claude Code Hooks…** puts it back byte for byte. If you edited it since, only lmux's lines come out.
+- Install, update or uninstall them any time from **lmux → Install Claude Code Hooks…** or Settings → General.
+
+If `claude` uses another config folder (`CLAUDE_CONFIG_DIR`), lmux notices; see [Troubleshooting](https://lmux.dev/docs/troubleshooting/#the-sidebar-never-updates-for-a-claude).
+
+## Status
+
+Each pane's state comes straight from Claude Code's hooks:
+
+- **running**: a spinner on the row.
+- **needs you**: a permission or a question. A ring on the pane and a badge on the row, and `⇧⌘J` jumps to it (it cycles through every pane that needs you).
+- **done**: a check. **failed**: an ×.
+
+The row and header add a few details, and only when there's something to say:
+
+- **Subagents.** While Claude runs subagents, the row's second line counts them on the right ("3 subagents"). The count starts over with each turn.
+- **Bypass mode.** In bypass permissions or auto mode, the pane's tab bar shows a small **bypass** or **auto** badge for the tab you're looking at. With the tab bar off, the pane's header shows it (with one pane, the header at the top). It never goes on the row. Claude reports its mode with each hook, so after `⇧Tab` the badge changes with your next prompt or Claude's next tool call, before that tool runs.
+- **Usage limits.** When Claude hits a usage limit and says when it resets, the row shows a still clock and "waiting for usage limit · resets 3pm" instead of turning failed: Claude Code continues the task by itself once the limit resets. If it won't (it asks you to press Enter), or 15 minutes after the reset time it still hasn't, you get the usual done alert. A plain 429 with no reset time still shows as failed.
+- **No output.** A running row with no hook event and no output for ten minutes says "no output for 12m", even when the pane is hidden. It's a hint, not a state: the row stays running, and the next hook clears it at once, new output within a minute.
+
+Stop Claude with Esc or `⌃C` and its row goes idle within about a second, with no alert. Claude sends no hook when it's interrupted, so lmux takes one look at what Claude just wrote to its transcript when you press the key; nothing polls. An Esc that only closed a menu leaves the row running.
+
+A `claude -p` that Claude itself starts inside the pane (through its Bash tool) never changes the pane's session, state or title.
+
+## Notifications
+
+One notification per event, never one per subagent, and never for the pane you're looking at. The bell in the titlebar keeps the last 50; `⇧⌘U` jumps to the latest unread.
+
+A row that's been done or waiting for three minutes while you looked elsewhere breathes (its check dims and brightens with a soft glow) until you come back. Pick the delay, turn it off, or add a reminder notification in Settings → Notifications. With Reduce Motion on it gets a still ring instead.
+
+If a hook ever gets missed, right-click the row and choose **Clear Status**. It resets the badge and ring to idle without touching the process, and the next hook updates it again.
+
+## Hover a turn
+
+Hover any turn of a Claude session in its pane:
+
+- `⧉` copies the original markdown of a reply, not terminal soup. `⌥⌘C` does the same for the last reply.
+- `✎` rewinds to just before that prompt and puts it back in the input for you to edit.
+- `×` rewinds to just before that prompt and leaves the input empty.
+
+### Rewind to a turn
+
+`✎` and `×` use Claude Code's own rewind, the menu Esc Esc opens, in the `claude` that's already running. Nothing restarts, so background shells and MCP servers keep running.
+
+1. A card asks first. If it isn't the last turn, the card says the turns after it go too, just as they would in Claude's own rewind menu. Files changed in those turns stay as they are.
+2. lmux presses Esc Esc and moves up the menu one message at a time, reading the screen after every key. It only presses Return on the prompt it's looking for, and only picks **Restore conversation**, never an option that restores code.
+3. Claude drops that turn and any after it. With `✎` the prompt is back in the input, ready to edit and send. With `×` the input is left empty.
+
+If Claude is working, lmux presses Esc first to stop it. If the input holds text you haven't sent, lmux leaves it alone and does nothing; send or clear it first. If the menu doesn't look the way lmux expects, it backs out with Esc, changes nothing, and shows "Couldn't rewind; use Esc Esc in Claude Code".
+
+You can't take one turn out of the middle and keep the ones after it: Claude Code's rewind only goes back to a point in the conversation, and that's all lmux uses. You can't rewind to a turn Claude has already compacted.
+
+### Undo send
+
+Sent a prompt to the wrong session? A "Sent to …" toast shows for three seconds. Press `⌘Z` while it's up: lmux stops Claude if it started working, rewinds to just before that prompt, and puts it back in the input.
+
+With two or more workspaces, the line above Claude's input shows the workspace's color and title, so you see where a prompt will go before you press Return.
+
+## Never wraps, never edits a session
+
+`claude` starts, runs and prints exactly as it does without lmux. lmux only listens: to the hooks, and to the transcript files Claude Code already writes.
+
+`✎`, `×` and `⌘Z` don't touch those files either. They press keys in Claude's own rewind menu, so the result is what you'd get doing it by hand: Claude forks the conversation, and the turns you rewound past stay in the session file as an unused branch.
+
+## History
+
+`⇧⌘H` opens History, a search field at the bottom of the sidebar. Every past session (not open in a pane) is searchable, Korean included, with highlighted snippets. Return or a click resumes it in a new workspace in its own folder, with the right CLI. Codex sessions are in there too, marked "Codex". Right-click a result to hide it or move it to the Trash.
+
+Claude Code deletes old sessions after `cleanupPeriodDays` (30 by default). Once you've opened History, lmux quietly archives the sessions that are about to go, so nothing vanishes as long as you open lmux now and then. Until you first open History, lmux indexes nothing.
+
+## Session titles
+
+Each row shows the title Claude Code gives the session (or the name you set with `/rename`), and follows it when Claude writes a new one. lmux never calls a model for it. A name you type yourself is never touched.
+
+## After a relaunch
+
+Quit lmux and every Claude session comes back in its pane as `claude … --resume <id>`, with the flags it was started with. Settings that hold secrets (keys, tokens, URLs) are never carried over or typed. See [Workspaces & panes](https://lmux.dev/docs/workspaces/#after-a-relaunch).
+
+## Limits
+
+- A wrapped `claude` (inside `script`, or inside tmux or screen running in a pane) shows no agent state: lmux can't tell it's the pane's own. Run `claude` directly in the pane.
+- If Claude Code's theme is dark, its prompt row is a dark band on a light lmux theme. Run `/theme` in Claude and pick Auto ([more](https://lmux.dev/docs/troubleshooting/#why-is-claudes-prompt-a-dark-band-on-a-light-theme)).
+
+---
+
+URL: https://lmux.dev/docs/codex/
+
+# Codex
+
+Codex CLI gets most of what Claude Code gets in lmux, a light macOS terminal on libghostty, by listening only: status, notifications, resume on restart, session titles, History and copy as markdown.
+
+## Setup
+
+If Codex is on your Mac, lmux offers its hooks right after Claude Code's, the same way: **Show the exact change** shows the diff to `~/.codex/hooks.json` (or `$CODEX_HOME/hooks.json`) first. lmux adds its group after yours, so the hooks you already trusted stay trusted.
+
+**Codex asks once.** Codex runs a new hook only after you trust it. The next time it starts it shows "Hooks need review": choose **Trust all and continue**. If you skip it, Codex runs without them and lmux says so in the pane, once. Settings → General shows whether they're installed and trusted.
+
+Install, update or uninstall them any time from **lmux → Install Codex Hooks…** / **Uninstall Codex Hooks…** or Settings → General.
+
+## Status, from Codex itself
+
+Running, needs you ("Permission: Bash"), done and failed, with the same ring, badge and `⇧⌘J` as Claude Code. They come from Codex itself: its terminal UI reports its state in its own pane with an escape sequence (OSC 7501), so each pane's status is that codex's own. lmux takes it only while `codex` is the pane's foreground program; a codex inside ssh or tmux reports through hooks only.
+
+Stopping Codex yourself (Esc) just sets the row back to idle, with no alert.
+
+Run Codex with approvals bypassed (`--yolo`) and the pane's tab bar shows a small **bypass** badge, as it does for [Claude Code](https://lmux.dev/docs/claude-code/#status). A running row that goes ten minutes with no output says so ("no output for 12m").
+
+## Notifications, no floods
+
+lmux notifies only when Codex is really waiting for you (an approval it asks you for) and when a turn ends. Auto-approved commands, `--yolo` runs and subagents never ping you.
+
+## Sessions, from the hooks
+
+Resume, History and titles need to know which session runs in which pane, and Codex's hooks tell lmux that. Codex runs every session on one shared background server by default, whose hooks name the pane that started it, so lmux matches a new session, when it starts a turn, to the pane whose codex started a turn at that moment, and only one to one. Two panes prompted in the same second stay unmatched rather than mixed up: their status is still right, and the next prompt matches them.
+
+A Codex background server started outside lmux sends lmux no hooks. Status still works; the session just isn't remembered for resume, and lmux says so once.
+
+## Resume, titles, History
+
+- **Resume on restart**: quit lmux and each Codex pane comes back as `codex resume <id>`, with its model, sandbox, approval, profile and `-c` flags. cmux's Codex panes come back the same way when you import them.
+- **Session titles** come from Codex's own thread name.
+- **History** (`⇧⌘H`) lists Codex sessions next to Claude's, marked "Codex". lmux only reads them; Codex keeps its own sessions.
+- **Copy as markdown**: hover a reply and press `⧉`, or `⌥⌘C` for the last one.
+
+## Limits
+
+Edit and resend (`✎`), remove (`×`) and `⌘Z` undo send are Claude Code only: they drive Claude Code's rewind menu. A Codex turn shows just `⧉`.
+
+---
+
+URL: https://lmux.dev/docs/any-agent/
+
+# Any agent (OSC 7501)
+
+Any CLI runs in lmux, a light macOS terminal on libghostty. Status, rewind, resume and History are built for Claude Code and Codex. This page is about the one piece another agent can plug into: reporting its own state, the way Codex does.
+
+## What OSC 7501 is
+
+OSC 7501 is an escape sequence a terminal program prints to say what it's doing: working, waiting for the user, done. Codex's terminal UI prints it in its own pane, and that's where lmux's Codex status comes from ([Codex](https://lmux.dev/docs/codex/#status-from-codex-itself)). lmux only takes it from the pane's foreground program, so a report can't come from a file shown with `cat` or from another program.
+
+## Reporting your state
+
+Any program reports its state with one line. lmux shows it on the row and the pane, with the same ring, badge, `⇧⌘J` and one notification per wait as Claude Code and Codex, and its name in `lmux list`:
+
+```sh
+printf '\033]7501;state=working:app=my-agent\033\\'
+```
+
+- `state` is `working`, `blocked`, `done`, `idle`, `error` or `clear` (the program stopped reporting).
+- `blocked` takes a kind: `state=blocked:kind=permission:app=my-agent` (or `kind=question`, `kind=auth`). The row says "my-agent needs you", "my-agent has a question" or "my-agent needs you to sign in".
+- `app` names the program, up to 15 bytes. A report counts only while the pane's foreground program is the one it names: its executable, or the script a shell or interpreter runs (`./my-agent`, `node …/bin/my-agent`, `python3 -m my-agent`). Another program's argument never names it (`sort notes` isn't `notes`), and programs that show other bytes or run other programs (`cat`, `less`, `sort`, `curl`, `ssh`, `docker`, `xargs`, `sudo`, task runners like `npm` or `make`…) never count. That list is best effort. So the line above does nothing typed at a prompt: `my-agent` has to print it. The last report a program prints just before it quits still counts, once, if it ends the turn (`done`, `error`, `idle`, `clear`) and the shell has the terminal back.
+- The same report again changes nothing. After an answer (Return, or `lmux send` with a newline), the next `blocked` is a new ask and notifies again. Arrow keys in a menu aren't an answer.
+- Hooks win: a pane where Claude Code's (or Codex's) hooks bound a session ignores these reports, so nothing notifies twice.
+- It's status only: no resume, History or rewind. A program that quits without `clear` keeps a done or failed row; a running or waiting one goes back to idle as soon as it exits.
+
+Another agent can then wait for yours with [`lmux wait`](https://lmux.dev/docs/cli/#lmux-wait).
+
+## Hooks
+
+If your agent has hooks of its own, or you'd like status, resume or History for it, [open an issue](https://github.com/sooftware/lmux/issues) and say which agent and how it reports its state.
+
+## Without any of it
+
+An agent with no reporting still gets everything that isn't agent-specific: workspaces, splits, restore after a relaunch (as a shell in the same folder), and the [`lmux` CLI](https://lmux.dev/docs/cli/), including `lmux notify` to post a notification from a script or a hook.
+
+---
+
+URL: https://lmux.dev/docs/cli/
+
+# The lmux CLI
+
+lmux, a macOS terminal for Claude Code and Codex, ships a small command line tool, `lmux`, for scripts and agents. It's on the `PATH` in every lmux pane; the Homebrew cask also links it for other terminals ([Install](https://lmux.dev/docs/install/)). It talks to the running lmux app over a local socket.
+
+## `lmux list`
+
+Lists workspaces and their panes: ids, titles, folders, each pane's agent state (`idle`, `running`, `needs input`, `done`, `failed`) and agent (`claude`, `codex`, or [another agent's name](https://lmux.dev/docs/any-agent/)). `--json` also has each pane's `session` and `workspaceTitle`. The selected workspace is marked with `*`. Each tab is listed as its own pane, with its position (`tab 2/3`) and `*` on the visible one. In JSON: `tab`, `tabs` and `tabShown`.
+
+```sh
+lmux list
+lmux list --json   # the same, as JSON
+```
+
+## `lmux send`
+
+Types text into a pane. `\n` presses Return (`\t` and `\\` work too).
+
+```sh
+lmux send "npm test\n"            # into this pane
+lmux send --pane <id> "y\n"       # into a pane by id (lmux list shows them)
+```
+
+Without `--pane`, it's the pane it runs in (`$LMUX_PANE_ID`). From inside a pane, `send` may only target that same pane, so an agent can't type into the wrong one by mistake. To lift that:
+
+```sh
+defaults write dev.lmux.app allowCrossPaneSend -bool true
+```
+
+## `lmux new-workspace`
+
+Opens a workspace and prints its id and its pane's id.
+
+```sh
+lmux new-workspace                         # in your home folder (or Ghostty's working-directory)
+lmux new-workspace --cwd ~/code/app        # in that folder
+lmux new-workspace --cwd . --cmd "claude"  # and run a command in it
+lmux new-workspace --background --cmd "codex"  # without switching to it
+```
+
+## `lmux new-tab`
+
+Opens a tab and prints the workspace id and the new tab's id. `lmux send --pane` takes that id.
+
+```sh
+lmux new-tab                                  # after this tab, or in the focused pane from outside lmux
+lmux new-tab --pane <id> --cmd "npm test"     # in that pane, running a command
+lmux new-tab --background                     # behind the current tab, without switching to it
+```
+
+## `lmux notify`
+
+Posts a notification, attributed to the pane it runs in. At most one per pane every 5 seconds; a burst becomes one, with the latest text.
+
+```sh
+lmux notify --title "Build" "done in 42 s"
+```
+
+## `lmux wait`
+
+Blocks until a pane's agent (or a workspace, as its row shows it) gets somewhere, then prints its state and, for a done turn, its last reply (otherwise what the row says: the question asked, the error).
+
+```sh
+lmux wait <id>                          # until it's no longer running
+lmux wait <id> --until done --timeout 1800 --json
+```
+
+- `--until`: `done` (done or failed), `needs-you`, `idle`, or `any` (the next change). By default, anything but running.
+- Only a state reached after the last input lmux typed there with a Return (`lmux send "…\n"`, `new-workspace --cmd`) counts, so `send` then `wait` never returns the previous turn. If that input starts nothing, the state never changes: always pass `--timeout`.
+- `--json` gives `state`, `pane`, `workspace`, `agent`, `session`, `reply` and `detail`.
+- Exit 0 when it got there, 1 on timeout, 2 when the pane or workspace is gone (or lmux quit), 3 on other errors (lmux not running or not answering too).
+- The CLI just waits on lmux's socket: nothing polls, in the CLI or in the app.
+
+An agent starting another one: `lmux new-workspace --background --cwd . --cmd "codex 'Review the diff. Write your findings to .review.md.'"`, then `lmux wait <pane> --until done --timeout 1800 && cat .review.md`. `--background` adds the workspace's row without switching your screen to it. [Worked example](https://github.com/sooftware/lmux/blob/main/docs/agents.md#worked-example-claude-asks-codex-for-a-review).
+
+## From outside lmux
+
+From another terminal, Raycast or Hammerspoon, `lmux list` and `lmux notify` just work. `lmux send`, `lmux new-workspace --cmd` and `lmux new-tab --cmd` type into a shell, so they're refused from outside lmux unless you turn on **Settings → General → Allow other apps to send input to lmux** (the same as `defaults write dev.lmux.app allowExternalSend -bool true`). Leave it off unless you need it.
+
+Outside lmux the CLI finds the app's socket in `~/Library/Application Support/lmux/control.sock` (or `$LMUX_CONTROL_SOCKET`). It only talks to lmux running as the same user.
+
+These rules guard against mistakes, like an agent typing into the wrong pane. They aren't a security boundary.
+
+---
+
+URL: https://lmux.dev/docs/vs-cmux/
+
+# lmux vs cmux
+
+lmux is a lightweight alternative to [cmux](https://github.com/manaflow-ai/cmux). I used cmux every day and liked it a lot, but I only ever touched a small part of it. So I wrote a terminal with just that part. If most of your day is Claude Code or Codex in a handful of panes, lmux is probably enough. If you want everything else cmux does, stay with cmux.
+
+## What's the same
+
+- **The layout.** A sidebar of workspaces on the left and your panes on the right.
+- **Splits** in any direction, with shortcuts to move between them.
+- **Notifications.** The workspace that needs you lights up in the sidebar, and `⇧⌘U` jumps to the latest unread one.
+- **libghostty.** Both are native Swift apps on Ghostty's terminal core, and both read your Ghostty config.
+- **Your cmux setup.** On first launch lmux offers to bring over your theme, fonts, shortcuts and open workspaces from cmux.
+
+## What's different
+
+| | cmux 0.65.2 | lmux 0.0.102 |
+|---|---|---|
+| App size | 242 MB | 25 MB |
+| Memory, 20 idle workspaces | 661 MB | 99 MB (235 MB frontmost) |
+| CPU, 20 idle workspaces | 8.10% | 0.00% (0.10% frontmost) |
+| Settings | about 200 | about 10 |
+| Browser panes | Yes, and agents can drive them | No |
+| SSH workspaces | Yes | No |
+| Scripting | A CLI and a socket API for every action | A [small CLI](https://lmux.dev/docs/cli/): list panes, send input, open a workspace, post a notification |
+| Edit, remove or undo a sent turn (`✎`, `×`, `⌘Z`) | No | Yes, in Claude Code |
+| Korean input | Input method fixes listed in its [changelog](https://github.com/manaflow-ai/cmux/blob/main/CHANGELOG.md) | Fixes for Enter, Backspace, Esc and shortcuts mid-syllable, and `⌃C` with the Korean input source on ([details](https://lmux.dev/docs/korean-input/)) |
+| Search past sessions | A [Conversations sidebar](https://github.com/manaflow-ai/cmux/pull/13322), in beta | History (`⇧⌘H`) for every past Claude Code and Codex session |
+
+The numbers are medians of 5 runs on an M4 Pro, with 2 live shells per workspace. lmux frees its GPU memory when it's in the background. The screen was locked during the runs, which puts cmux in the background, so compare it with lmux's background numbers. The full table and the method are on [Performance](https://lmux.dev/docs/performance/).
+
+## When cmux is the better pick
+
+cmux does a lot that lmux leaves out on purpose. If you need any of this, use cmux:
+
+- **A browser next to your terminal.** cmux opens a real browser in a split, and agents can click, fill in forms, run JavaScript and read the console in it. See its [browser automation](https://cmux.com/docs/browser-automation) docs.
+- **SSH workspaces.** `cmux ssh user@remote` opens a workspace on another machine and can attach to tmux sessions there ([SSH and remote](https://cmux.com/docs/ssh)).
+- **Agents on a Linux box.** Over SSH, or on a [cmux Cloud](https://github.com/manaflow-ai/cmux/pull/10478) machine (in beta), your agents run on Linux while you drive them from your Mac.
+- **Your phone.** The cmux iOS app, in beta on TestFlight, attaches to the terminals on your Mac ([iOS docs](https://cmux.com/docs/ios)).
+- **Scripting and automation.** cmux's CLI and socket API can do everything the app can, down to reading the screen and taking screenshots ([CLI reference](https://cmux.com/docs/api)).
+- **Claude Code teams.** `cmux claude-teams` opens each teammate in its own split, with its own status in the sidebar.
+- **The command palette and sidebar extras.** cmux has a command palette, and its sidebar shows ports, pull requests, logs and progress. It also has a right sidebar for files, pane flash and a custom sidebar tint.
+- **Knobs.** cmux has about two hundred settings. lmux has about ten.
+
+lmux isn't planning to add any of these. A browser engine or a remote daemon alone would make it a much bigger app.
+
+## Moving over
+
+[Switching from cmux](https://lmux.dev/docs/from-cmux/) covers the one-click import, what comes over, what doesn't and how to undo it.
+
+## Coming from Ghostty and tmux
+
+Before cmux, I ran Claude Code in Ghostty with tmux. If that's your setup today, lmux should feel familiar.
+
+- **Your Ghostty config works as is.** Themes, fonts, `keybind` lines and the rest behave the same, and any `keybind` you set overrides lmux's defaults. See [Configuration](https://lmux.dev/docs/configuration/).
+- **No prefix key.** Workspaces replace tmux sessions and windows, and splits replace panes. `⌘D` and `⇧⌘D` split, `⌘[` and `⌘]` move between panes, and `⌘1` to `⌘8` pick a workspace. See [Workspaces & panes](https://lmux.dev/docs/workspaces/).
+- **There's no server.** Running processes don't survive a quit the way they do in a detached tmux session. Claude Code and Codex sessions resume on the next launch, and a plain shell shows its last output above a new prompt, but a build or a dev server has to be started again.
+- **Don't run `claude` inside tmux in an lmux pane.** lmux can't tell the session belongs to that pane, so you lose its status in the sidebar. If you need processes that outlive the app, keeping tmux for those is fine.
+
+## FAQ
+
+### Is lmux a fork of cmux?
+
+No. It was written from scratch, it's MIT licensed, and there's no cmux code in it.
+
+### Can I keep cmux installed?
+
+Yes. The import only reads cmux's files and never changes them, and **Undo Import** puts lmux back the way it was.
+
+### Will lmux ever get a browser or SSH workspaces?
+
+No. Claude Code can already drive a browser through an MCP server like Playwright, or through Claude in Chrome, and that works the same in any terminal. You can still run `ssh` in an lmux pane. You just don't get cmux's remote workspaces.
+
+---
+
+URL: https://lmux.dev/docs/from-cmux/
+
+# Switching from cmux
+
+lmux is a lightweight alternative to cmux that borrows its layout, so the sidebar and splits work the way you're used to. Moving over should feel like setting up a new browser that offers to import everything from Chrome.
+
+## Import
+
+On first launch, if cmux is on your Mac, lmux shows what it found ("Theme, font, 12 shortcuts and 5 open workspaces") and one button: **Bring over my cmux setup** (or press Return). Nothing is imported until you click it, and cmux's own files are never changed. The same sheet is under **lmux → Import from cmux…** and Settings → General.
+
+What comes over:
+
+- your theme, fonts (Nerd Font fallbacks included), shortcuts, appearance and notification settings
+- your open workspaces, from every cmux window, with their names, colors, folders and splits
+- the Claude Code and Codex sessions in them, which resume where they were
+
+The empty shell lmux opened on first launch steps aside so your cmux workspaces start at the top (only if you haven't typed in it).
+
+**Choose what to import…** shows a checkbox per part if you want only some of it. Afterwards the sheet says what came over and, in one line, what lmux doesn't have, so nothing disappears silently.
+
+## Undo Import
+
+Changed your mind? **Undo Import** (in the sheet, and as **lmux → Undo cmux Import** until you quit) puts `~/.config/lmux/config` back exactly as it was, restores lmux's settings and closes the imported workspaces. Any you've changed since (split, renamed) stay open.
+
+## What isn't supported
+
+lmux leaves these out on purpose. The import tells you which of them you were using:
+
+- browser panes and the browser's settings
+- SSH and remote workspaces
+- custom commands and automation (lmux has a [small CLI](https://lmux.dev/docs/cli/) instead)
+- the command palette
+- sidebar extras: ports, pull requests, logs, progress
+- the right sidebar (files), pane flash and a custom sidebar tint
+- the telemetry setting (lmux has no telemetry to set)
+
+A browser pane doesn't come over; the rest of its workspace does, including terminal tabs, in order and still pinned.
+
+## What's the same, what's different
+
+- **Shortcuts**: the ones you changed in cmux come over as Ghostty `keybind` lines in `~/.config/lmux/config`. lmux's defaults are in [Shortcuts](https://lmux.dev/docs/shortcuts/). Tabs use cmux's keys: `⌘T`, `⇧⌘[` / `⇧⌘]`, `⌃1`–`⌃8` (`⌃9` for the last), and `⌃⌘[` / `⌃⌘]` for workspaces.
+- **Tabs in a pane** look and work like cmux's: the same tab bar, buttons, drag and drop, and right-click menu, minus the browser and remote items.
+- **One window.** lmux has one window; workspaces from all your cmux windows land in its sidebar, in order.
+- **Settings**: about ten instead of about two hundred. See [Configuration](https://lmux.dev/docs/configuration/).
+- **Agent status** comes from Claude Code's hooks and from Codex itself, and lmux never wraps either. See [Claude Code](https://lmux.dev/docs/claude-code/).
+- What lmux adds: edit, remove or undo a turn you've already sent, without restarting Claude. The rest is in [lmux vs cmux](https://lmux.dev/docs/vs-cmux/).
+
+If you rely on what lmux leaves out, cmux is the better fit, and it's a great app.
+
+---
+
+URL: https://lmux.dev/docs/performance/
+
+# Performance
+
+lmux's one rule is to stay light. It's a 25 MB native macOS terminal that idles near 0% CPU, whether you have one workspace open or twenty.
+
+## The numbers
+
+Both apps on the same Mac, opened with 1, 10 and 20 workspaces (2 live shells each) and left idle. Lower is better. lmux lets go of its GPU memory when it isn't the app you're looking at, so it's measured twice: in front, and in the background behind another app.
+
+| | cmux 0.65.2 | lmux, in front | lmux, in the background |
+|---|---:|---:|---:|
+| App size | 242 MB | **25 MB** | **25 MB** |
+| Memory, 1 workspace | 398 MB | **182 MB** | **45 MB** |
+| Memory, 10 workspaces | 548 MB | **207 MB** | **71 MB** |
+| Memory, 20 workspaces | 661 MB | **235 MB** | **99 MB** |
+| Idle CPU, 1 workspace | 7.16 % | **0.07 %** | **0.00 %** |
+| Idle CPU, 10 workspaces | 7.39 % | **0.12 %** | **0.00 %** |
+| Idle CPU, 20 workspaces | 8.10 % | **0.10 %** | **0.00 %** |
+| Settings | ~200 | **~10** | **~10** |
+
+Idle CPU is the one you feel: that's your battery, with twenty agents sitting there waiting for you to read what they wrote.
+
+## How it was measured
+
+- An M4 Pro Mac on macOS 26.6.2, lmux 0.0.102 vs cmux 0.65.2, with `scripts/bench.sh`.
+- 2 panes per workspace, every pane's shell live before measuring (a command is typed into each; the run stops unless the count is exact).
+- For each size, 5 interleaved rounds of lmux in front, lmux in the background and cmux, each a fresh launch with 15 s to settle and 60 s of sampling. The table shows the medians.
+- Memory is the physical footprint of all of the app's processes. App size is the Apple-silicon `.app` on disk. The shells and agents inside the panes are the same on both sides and aren't counted: this is the terminal's own cost.
+- The screen was locked during the run, so cmux was in the background too, and its memory moves a lot with window state: read its column as one snapshot. lmux's 0.07–0.12 % spread is within run-to-run noise.
+
+The full method, and how to run it yourself (locally or on a GitHub-hosted Mac), is in [scripts/BENCH.md](https://github.com/sooftware/lmux/blob/main/scripts/BENCH.md).
+
+## Why it stays light
+
+- Native Swift on libghostty: no browser engine, no Electron.
+- Windows that are hidden, minimized or covered stop drawing. Nothing animates unless it means something, and what does animate runs on Core Animation, off the main thread.
+- An unfocused pane that hasn't drawn for 3 seconds releases its GPU resources, and rebuilds them in about 3 ms when it's needed again.
+- Nothing polls: agent state comes from hooks and from the agents' own reports.
+- History's first index runs in a short-lived helper process, so indexing thousands of sessions never grows the app's memory.
+
+## Budgets in CI
+
+CI fails any change that pushes idle CPU over budget: under 1% CPU and 300 MB, with 1 pane and with 10 panes across 5 workspaces. Busy cases have budgets too: 20 idle workspaces, agents working in hidden panes, CPU per hook event, spinner titles, memory of hidden panes, restoring 120 workspaces and History's first index.
+
+---
+
+URL: https://lmux.dev/docs/privacy/
+
+# Privacy & files on disk
+
+lmux, a macOS terminal for Claude Code and Codex, makes no network calls at all: no telemetry, no crash reports, not even an update check (Homebrew does that). Everything it knows stays in a few files on your Mac, listed here with how to remove each one.
+
+## What lmux writes
+
+### Its state folder
+
+`~/Library/Application Support/lmux/`, readable only by you (the folder is 0700, the files 0600):
+
+| file | what it is |
+|---|---|
+| `layout.json` | your workspaces, splits, folders, titles and which session runs in each pane |
+| `settings.plist` | lmux's own settings (see [Configuration](https://lmux.dev/docs/configuration/#settings)) |
+| `sessions.db` | the History index, made once you first open History |
+| `archive/` | compressed copies of sessions Claude Code is about to clean up, so History keeps them |
+| `forgotten/` | transcript backups from older lmux versions, which edited transcripts to forget a turn; deleted 7 days after they were made |
+| `hooks-pristine/` | your hook files as they were before lmux's hooks went in, for an exact uninstall |
+| `scrollback/` | your shell panes' last output, only between a quit and the next launch |
+| `lmux.sock`, `control.sock` | the sockets the hooks and the CLI talk to |
+| `<name>.bad-<time>` | a state file lmux couldn't read, kept aside instead of written over |
+
+### Elsewhere
+
+- `~/.config/lmux/config`: the theme, font and size from Settings, and what a cmux import brings, in Ghostty's syntax.
+- `~/Library/Preferences/dev.lmux.app.plist`: macOS preferences, such as **Allow other apps to send input to lmux**.
+- Pasted or dropped images, saved as temporary PNGs in your user's temp folder (`lmux-paste`), and removed after a day.
+
+## What lmux changes in your agents' files
+
+- **Hooks**: a few entries in Claude Code's `~/.claude/settings.json` (or the folder your `CLAUDE_CONFIG_DIR` names), and in `~/.codex/hooks.json` (or `$CODEX_HOME/hooks.json`) if you use Codex. Only after you say yes to a diff you can read, and they come out exactly with **lmux → Uninstall Claude Code Hooks…** and **Uninstall Codex Hooks…**.
+- **`✎`, `×` and `⌘Z` undo**: lmux changes no files for these. They drive Claude Code's own rewind menu, so Claude forks the conversation as it does when you rewind by hand, and the turns rewound past stay in the session file. See [Claude Code](https://lmux.dev/docs/claude-code/#never-wraps-never-edits-a-session).
+- **History**: resuming a session Claude Code already deleted puts it back from lmux's archive first. **Move to Trash** on a History result moves that session's file to the Trash.
+
+lmux only reads Codex's sessions; it never changes them.
+
+## Removing it all
+
+1. **lmux → Uninstall Claude Code Hooks…** (and **Uninstall Codex Hooks…**).
+2. Delete the app, then the two folders and the preferences:
+
+```sh
+rm -rf ~/Library/Application\ Support/lmux ~/.config/lmux
+defaults delete dev.lmux.app 2>/dev/null
+```
+
+`brew uninstall --zap --cask lmux` deletes the app, the state folder and the preferences in one go; `~/.config/lmux` and the hooks are still yours to remove. See [Install](https://lmux.dev/docs/install/#uninstalling-cleanly).
+
+## What macOS asks about
+
+lmux needs no privacy permissions for its own features. When macOS asks about lmux (Accessibility, Screen Recording, Full Disk Access…), it's for a program you started in a pane, which borrows the terminal's identity; see [Troubleshooting](https://lmux.dev/docs/troubleshooting/#why-does-macos-ask-lmux-for-permissions).
+
+---
+
+URL: https://lmux.dev/docs/troubleshooting/
+
+# Troubleshooting
+
+Fixes for the few things that go wrong in lmux, the macOS terminal for Claude Code and Codex.
+
+## Why is Claude's prompt a dark band on a light theme?
+
+Claude Code's own theme defaults to dark, so it paints its prompt row dark whatever your terminal looks like. Run `/theme` in Claude and pick Auto. It then follows lmux's colors, light or dark.
+
+## The sidebar never updates for a `claude`
+
+Usually the hooks aren't where that `claude` looks for them. If you export `CLAUDE_CONFIG_DIR` in your shell rc and open lmux from the Dock, lmux installs the hooks into `~/.claude/settings.json` while `claude` reads another folder.
+
+lmux notices. If a `claude` has run in a pane for about ten seconds and no hook has arrived from it, the pane gets one calm card ("lmux isn't receiving Claude Code hooks from this pane") with the likely reason and a button:
+
+- the hooks aren't installed: **Install Hooks…**
+- they're in `~/.claude` while this `claude` uses another `CLAUDE_CONFIG_DIR`: **Install There…** or **Choose Folder…**
+- this `claude` started before you installed them: restart it
+
+Once a hook arrives from a pane, it never asks again.
+
+A `claude` inside `script`, tmux or screen in a pane shows no state at all, because lmux can't tell it's the pane's own. Run it directly in the pane.
+
+## Codex shows no status, or isn't remembered for resume
+
+- Codex runs new hooks only after you trust them. The next time it starts, choose **Trust all and continue** at "Hooks need review". Settings → General says whether they're installed and trusted.
+- Status comes from Codex itself while `codex` is the pane's foreground program; inside ssh or tmux it only comes through hooks.
+- A Codex background server started outside lmux sends no hooks: status works, but the session isn't remembered for resume. lmux says so in the pane, once.
+
+## A row is stuck on "needs you" or "running"
+
+If a hook got missed, right-click the row and choose **Clear Status** (it works on a multi-selection too). It resets the badge and ring to idle without touching the agent, and the next hook updates it normally.
+
+## Why does macOS ask lmux for permissions?
+
+Programs you start in a terminal borrow its identity for macOS privacy prompts (Accessibility, Automation, Contacts, Full Disk Access…), so when a script or app you launch from lmux wants one, macOS asks about lmux. That's macOS, and Terminal, iTerm2 and Ghostty work the same way. lmux needs none of these for its own features, so grant only what the program you're running needs, or start that program outside the terminal.
+
+## macOS keeps asking even though lmux is already allowed
+
+macOS remembers a permission together with the app's signature. If an older lmux with a different signature (a build from source, say) was allowed, System Settings still shows lmux as on, but the lmux you run now doesn't match it, so macOS asks again. Reset that entry once and allow it at the next prompt:
+
+```sh
+tccutil reset Accessibility dev.lmux.app   # or ScreenCapture, AppleEvents…
+```
+
+The same goes for Screen Recording: after switching from a dev build, lmux can keep asking for it although it's on in System Settings. Reset it and allow it once:
+
+```sh
+tccutil reset ScreenCapture dev.lmux.app
+```
+
+## `lmux send` says it's refused
+
+From inside a pane, `lmux send` may only type into that same pane. From outside lmux (another terminal, Raycast), `send` and `new-workspace --cmd` need **Settings → General → Allow other apps to send input to lmux**. See [The lmux CLI](https://lmux.dev/docs/cli/).
+
+## "lmux is not running"
+
+The CLI talks to the running app. Open lmux, or if you run it with a custom `LMUX_STATE_DIR`, set the same one (or `LMUX_CONTROL_SOCKET`) for the CLI.
+
+## A setting or the layout came back empty
+
+If a state file is ever unreadable, lmux keeps it aside as `<name>.bad-<time>` in `~/Library/Application Support/lmux/` and starts that part fresh, instead of writing over it. The old file is still there to look at.
+
+## Still stuck?
+
+[Open an issue](https://github.com/sooftware/lmux/issues) with what you did, what you expected, and your macOS and lmux versions. **Help → Report an Issue…** in lmux opens the same page.
+
+---
+
+URL: https://lmux.dev/docs/faq/
+
+# FAQ
+
+Questions people ask about lmux, a light, native macOS terminal for Claude Code and Codex built on libghostty.
+
+## Is lmux a cmux alternative?
+
+Yes, a lightweight one: the same idea with a smaller scope. It isn't a fork, though. lmux was written from scratch, it's MIT licensed, and there's no cmux code in it. Here's [how lmux and cmux differ](https://lmux.dev/docs/vs-cmux/).
+
+## Why not Ghostty and tmux?
+
+That's what I used before cmux, and it's a fine setup. But it can't give you a sidebar that knows which agent is waiting on you, a prompt you can take back, or Claude and Codex sessions that resume by themselves after a relaunch. lmux is basically libghostty plus those three things. Your Ghostty config comes along as is ([Configuration](https://lmux.dev/docs/configuration/)).
+
+## Why not send PRs to cmux instead?
+
+It's a scope thing. lmux is mostly about leaving things out, and you can't send that as a PR to a project that wants them in. I think cmux is right to want them; I just don't use them.
+
+## Does it work without Claude Code?
+
+Yes. Say no to the hooks and it's a plain Ghostty-based terminal with a sidebar and splits. Agent status and the hover actions only wake up when a `claude` (or `codex`) is running in a pane.
+
+## Does it work with Codex?
+
+Yes. The Codex CLI gets status, notifications, resume on restart, its own session titles, History and copy as markdown. Edit, remove and undo send are Claude Code only. Codex asks once to trust lmux's hooks ("Trust all and continue"); until you do, it runs without them. See [Codex](https://lmux.dev/docs/codex/).
+
+## Other agents? Linux?
+
+Any CLI runs in it. Resume, History and the hover actions are built for Claude Code and Codex, the two I live in, but any agent gets status and notifications by reporting its state the way Codex does, with one escape sequence (OSC 7501): `printf '\e]7501;state=blocked:app=my-agent\e\\'`, printed by `my-agent` itself ([Any agent](https://lmux.dev/docs/any-agent/)). Linux and Windows, no. lmux is native AppKit on libghostty, and a port would be a different app.
+
+## Does it phone home?
+
+No. lmux makes no network calls at all. No telemetry, no crash reports, not even an update check (Homebrew does that). Everything it writes to disk, and how to remove it, is in [Privacy & files on disk](https://lmux.dev/docs/privacy/).
+
+## Will lmux get an in-app browser or computer use?
+
+No. Putting a browser engine in the terminal would defeat the whole point. Claude Code already drives browsers and your screen through MCP servers (Playwright, for one) and Claude in Chrome, and lmux is just the terminal Claude Code runs in. If you want to script lmux itself, the bundled [`lmux` CLI](https://lmux.dev/docs/cli/) can list panes, send input to them and wait for an agent to finish ([`lmux wait`](https://lmux.dev/docs/cli/#lmux-wait)), so Claude can start a Codex review in a new workspace and read the result. See [lmux for agents](https://github.com/sooftware/lmux/blob/main/docs/agents.md).
+
+## Why "lmux"?
+
+The l is for light. Say it "el-mux."
+
+## Will you add feature X?
+
+Only if it stays light. Either way, [open an issue](https://github.com/sooftware/lmux/issues) and tell me who it's for.
+
+## When is lmux not for me?
+
+- You use cmux's in-app browser, SSH workspaces, ports and PR widgets, custom commands, or more scripting than `lmux send` and `lmux new-workspace` give you.
+- You need Linux or Windows.
+- You want the knobs. cmux has about two hundred of them.
+
+Then use cmux. It's great.

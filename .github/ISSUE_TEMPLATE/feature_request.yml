@@ -1,0 +1,52 @@
+name: Feature request
+description: Suggest something lmux doesn't do yet.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        lmux stays light: features many people use stay; things that are mostly weight go.
+        Please describe how many people would use this and what it costs — in app size, idle
+        CPU/memory, settings, or complexity. See the README's
+        ["Things That Are Missing on Purpose"](../../README.md#things-that-are-missing-on-purpose)
+        section for what's already been left out on purpose, and why.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What are you trying to do that lmux doesn't help with today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed feature
+      description: What would you want lmux to do instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: who
+    attributes:
+      label: Who would use this?
+      description: Is this a "most people who use lmux" thing, or a niche workflow? Be honest — this is the main thing that decides whether it fits.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cost
+    attributes:
+      label: What does it cost?
+      description: New dependency, settings, background work, app size, idle CPU/memory, UI surface — whatever you can estimate.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Can this be done today with existing lmux/Ghostty config, a shell alias, or another tool?
+    validations:
+      required: false

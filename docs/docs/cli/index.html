@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The lmux CLI · lmux docs</title>
+  <meta name="description" content="lmux, a macOS terminal for Claude Code and Codex, ships a small command line tool, lmux, for scripts and agents. It&#x27;s on the PATH in every lmux pane; the…">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://lmux.dev/docs/cli/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lmux">
+  <meta property="og:title" content="The lmux CLI · lmux docs">
+  <meta property="og:description" content="lmux, a macOS terminal for Claude Code and Codex, ships a small command line tool, lmux, for scripts and agents. It&#x27;s on the PATH in every lmux pane; the…">
+  <meta property="og:url" content="https://lmux.dev/docs/cli/">
+  <meta property="og:image" content="https://lmux.dev/site/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="The lmux CLI · lmux docs">
+  <meta name="twitter:description" content="lmux, a macOS terminal for Claude Code and Codex, ships a small command line tool, lmux, for scripts and agents. It&#x27;s on the PATH in every lmux pane; the…">
+  <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "lmux", "item": "https://lmux.dev/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lmux.dev/docs/"}, {"@type": "ListItem", "position": 3, "name": "The lmux CLI", "item": "https://lmux.dev/docs/cli/"}]}</script>
+  <link rel="icon" href="../../site/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../../site/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../../site/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="../../site/css/site.css">
+  <link rel="stylesheet" href="../../site/css/docs.css">
+  <script>
+    document.documentElement.classList.add("js");
+    try { var t = localStorage.getItem("lmux-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="../../site/js/docs.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="nav">
+    <div class="nav__inner docs-bar">
+      <button class="icon-btn docs-menu" type="button" data-menu aria-controls="docs-nav" aria-expanded="false" aria-label="Show the docs menu" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h13M3.5 10h13M3.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <a class="brand" href="../../" aria-label="lmux home"><svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nav-cursor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#88C0D0"/><stop offset="1" stop-color="#5E81AC"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8.5" class="brand__body"/><path d="M9.6 11.4 L14.2 16 L9.6 20.6" class="brand__chev" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18.3" y="9.2" width="3.2" height="13.6" rx="1.6" fill="url(#nav-cursor)"/></svg><span class="brand__word">lmux</span></a>
+      <a class="docs-tag" href="../">docs</a>
+      <div class="nav__end">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Theme: automatic. Switch theme" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 3.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+        <a class="icon-btn" href="https://github.com/sooftware/lmux" aria-label="lmux on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+        <a class="btn btn--small btn--primary docs-dl" href="https://github.com/sooftware/lmux/releases/latest">Download</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-shell">
+    <nav class="docs-nav" id="docs-nav" aria-label="Docs">
+      <p class="docs-nav__group">Start</p><ul><li><a href="../">Overview</a></li><li><a href="../install/">Install</a></li><li><a href="../quick-start/">Quick start</a></li></ul><p class="docs-nav__group">Using lmux</p><ul><li><a href="../workspaces/">Workspaces &amp; panes</a></li><li><a href="../shortcuts/">Shortcuts</a></li><li><a href="../configuration/">Configuration</a></li><li><a href="../korean-input/">Korean input</a></li><li><a href="../ko/">한글 입력 (한국어)</a></li></ul><p class="docs-nav__group">Agents</p><ul><li><a href="../claude-code/">Claude Code</a></li><li><a href="../codex/">Codex</a></li><li><a href="../any-agent/">Any agent (OSC 7501)</a></li><li><a href="./" aria-current="page">The lmux CLI</a></li></ul><p class="docs-nav__group">Moving in</p><ul><li><a href="../vs-cmux/">lmux vs cmux</a></li><li><a href="../from-cmux/">Switching from cmux</a></li></ul><p class="docs-nav__group">Reference</p><ul><li><a href="../performance/">Performance</a></li><li><a href="../privacy/">Privacy &amp; files on disk</a></li><li><a href="../troubleshooting/">Troubleshooting</a></li><li><a href="../faq/">FAQ</a></li></ul>
+    </nav>
+    <main class="docs-main" id="content" tabindex="-1">
+      <article class="prose">
+<h1>The lmux CLI</h1>
+<p>lmux, a macOS terminal for Claude Code and Codex, ships a small command line tool, <code>lmux</code>, for scripts and agents. It's on the <code>PATH</code> in every lmux pane; the Homebrew cask also links it for other terminals (<a href="../install/">Install</a>). It talks to the running lmux app over a local socket.</p>
+<h2 id="lmux-list"><code>lmux list</code><a class="h-anchor" href="#lmux-list" aria-label="Link to this section">#</a></h2>
+<p>Lists workspaces and their panes: ids, titles, folders, each pane's agent state (<code>idle</code>, <code>running</code>, <code>needs input</code>, <code>done</code>, <code>failed</code>) and agent (<code>claude</code>, <code>codex</code>, or <a href="../any-agent/">another agent's name</a>). <code>--json</code> also has each pane's <code>session</code> and <code>workspaceTitle</code>. The selected workspace is marked with <code>*</code>. Each tab is listed as its own pane, with its position (<code>tab 2/3</code>) and <code>*</code> on the visible one. In JSON: <code>tab</code>, <code>tabs</code> and <code>tabShown</code>.</p>
+<pre tabindex="0"><code class="lang-sh">lmux list
+lmux list --json   # the same, as JSON</code></pre>
+<h2 id="lmux-send"><code>lmux send</code><a class="h-anchor" href="#lmux-send" aria-label="Link to this section">#</a></h2>
+<p>Types text into a pane. <code>\n</code> presses Return (<code>\t</code> and <code>\\</code> work too).</p>
+<pre tabindex="0"><code class="lang-sh">lmux send "npm test\n"            # into this pane
+lmux send --pane &lt;id&gt; "y\n"       # into a pane by id (lmux list shows them)</code></pre>
+<p>Without <code>--pane</code>, it's the pane it runs in (<code>$LMUX_PANE_ID</code>). From inside a pane, <code>send</code> may only target that same pane, so an agent can't type into the wrong one by mistake. To lift that:</p>
+<pre tabindex="0"><code class="lang-sh">defaults write dev.lmux.app allowCrossPaneSend -bool true</code></pre>
+<h2 id="lmux-new-workspace"><code>lmux new-workspace</code><a class="h-anchor" href="#lmux-new-workspace" aria-label="Link to this section">#</a></h2>
+<p>Opens a workspace and prints its id and its pane's id.</p>
+<pre tabindex="0"><code class="lang-sh">lmux new-workspace                         # in your home folder (or Ghostty's working-directory)
+lmux new-workspace --cwd ~/code/app        # in that folder
+lmux new-workspace --cwd . --cmd "claude"  # and run a command in it
+lmux new-workspace --background --cmd "codex"  # without switching to it</code></pre>
+<h2 id="lmux-new-tab"><code>lmux new-tab</code><a class="h-anchor" href="#lmux-new-tab" aria-label="Link to this section">#</a></h2>
+<p>Opens a tab and prints the workspace id and the new tab's id. <code>lmux send --pane</code> takes that id.</p>
+<pre tabindex="0"><code class="lang-sh">lmux new-tab                                  # after this tab, or in the focused pane from outside lmux
+lmux new-tab --pane &lt;id&gt; --cmd "npm test"     # in that pane, running a command
+lmux new-tab --background                     # behind the current tab, without switching to it</code></pre>
+<h2 id="lmux-notify"><code>lmux notify</code><a class="h-anchor" href="#lmux-notify" aria-label="Link to this section">#</a></h2>
+<p>Posts a notification, attributed to the pane it runs in. At most one per pane every 5 seconds; a burst becomes one, with the latest text.</p>
+<pre tabindex="0"><code class="lang-sh">lmux notify --title "Build" "done in 42 s"</code></pre>
+<h2 id="lmux-wait"><code>lmux wait</code><a class="h-anchor" href="#lmux-wait" aria-label="Link to this section">#</a></h2>
+<p>Blocks until a pane's agent (or a workspace, as its row shows it) gets somewhere, then prints its state and, for a done turn, its last reply (otherwise what the row says: the question asked, the error).</p>
+<pre tabindex="0"><code class="lang-sh">lmux wait &lt;id&gt;                          # until it's no longer running
+lmux wait &lt;id&gt; --until done --timeout 1800 --json</code></pre>
+<ul><li><code>--until</code>: <code>done</code> (done or failed), <code>needs-you</code>, <code>idle</code>, or <code>any</code> (the next change). By default, anything but running.</li><li>Only a state reached after the last input lmux typed there with a Return (<code>lmux send "…\n"</code>, <code>new-workspace --cmd</code>) counts, so <code>send</code> then <code>wait</code> never returns the previous turn. If that input starts nothing, the state never changes: always pass <code>--timeout</code>.</li><li><code>--json</code> gives <code>state</code>, <code>pane</code>, <code>workspace</code>, <code>agent</code>, <code>session</code>, <code>reply</code> and <code>detail</code>.</li><li>Exit 0 when it got there, 1 on timeout, 2 when the pane or workspace is gone (or lmux quit), 3 on other errors (lmux not running or not answering too).</li><li>The CLI just waits on lmux's socket: nothing polls, in the CLI or in the app.</li></ul>
+<p>An agent starting another one: <code>lmux new-workspace --background --cwd . --cmd "codex 'Review the diff. Write your findings to .review.md.'"</code>, then <code>lmux wait &lt;pane&gt; --until done --timeout 1800 &amp;&amp; cat .review.md</code>. <code>--background</code> adds the workspace's row without switching your screen to it. <a href="https://github.com/sooftware/lmux/blob/main/docs/agents.md#worked-example-claude-asks-codex-for-a-review">Worked example</a>.</p>
+<h2 id="from-outside-lmux">From outside lmux<a class="h-anchor" href="#from-outside-lmux" aria-label="Link to this section">#</a></h2>
+<p>From another terminal, Raycast or Hammerspoon, <code>lmux list</code> and <code>lmux notify</code> just work. <code>lmux send</code>, <code>lmux new-workspace --cmd</code> and <code>lmux new-tab --cmd</code> type into a shell, so they're refused from outside lmux unless you turn on <strong>Settings → General → Allow other apps to send input to lmux</strong> (the same as <code>defaults write dev.lmux.app allowExternalSend -bool true</code>). Leave it off unless you need it.</p>
+<p>Outside lmux the CLI finds the app's socket in <code>~/Library/Application Support/lmux/control.sock</code> (or <code>$LMUX_CONTROL_SOCKET</code>). It only talks to lmux running as the same user.</p>
+<p>These rules guard against mistakes, like an agent typing into the wrong pane. They aren't a security boundary.</p>
+      </article>
+      <footer class="docs-foot">
+        <a class="docs-edit" href="https://github.com/sooftware/lmux/blob/main/docs/src/cli.md">Edit this page on GitHub</a>
+        <nav class="pns" aria-label="Previous and next page"><a class="pn pn--prev" href="../any-agent/" rel="prev"><span>Previous</span>Any agent (OSC 7501)</a><a class="pn pn--next" href="../vs-cmux/" rel="next"><span>Next</span>lmux vs cmux</a></nav>
+      </footer>
+    </main>
+    <aside class="docs-toc" aria-labelledby="toc-title"><p id="toc-title">On this page</p><ul><li class="toc--2"><a href="#lmux-list">lmux list</a></li><li class="toc--2"><a href="#lmux-send">lmux send</a></li><li class="toc--2"><a href="#lmux-new-workspace">lmux new-workspace</a></li><li class="toc--2"><a href="#lmux-new-tab">lmux new-tab</a></li><li class="toc--2"><a href="#lmux-notify">lmux notify</a></li><li class="toc--2"><a href="#lmux-wait">lmux wait</a></li><li class="toc--2"><a href="#from-outside-lmux">From outside lmux</a></li></ul></aside>
+  </div>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p class="footer__brand"><img src="../../site/img/icon.svg" alt="" width="24" height="24" loading="lazy"> lmux <span>light mux.</span></p>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="https://github.com/sooftware/lmux">GitHub</a>
+        <a href="https://github.com/sooftware/lmux/releases">Releases</a>
+        <a href="https://github.com/sooftware/lmux/blob/main/LICENSE">MIT License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

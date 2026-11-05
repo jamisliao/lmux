@@ -1,0 +1,144 @@
+name: Bench
+
+# lmux vs the latest cmux release on the same runner, as a scaling series: 1, 10 and 20 workspaces x 2
+# idle login-shell panes, in that order, lmux then cmux at each step, each with 5 reps (--reps 5): lmux
+# gets a fresh launch per rep; cmux is launched/primed once per step by .github/scripts/cmux-workload.sh
+# and bench.sh (never launching/signaling it) takes 5 fresh settle+sample windows against that one
+# instance. Every pane has a live shell before any rep measures (checked: exactly one per pane, or the
+# step fails), each rep is 15s settle + 60s sample. Both with a real window: lmux via scripts/bench.sh
+# --visible, cmux measured by scripts/bench.sh (attach-only). If a step fails, the series stops there and
+# keeps the steps before it. The JSONs (every rep plus median/min/max), the series table + scaling chart,
+# and the 10-workspace README table + assets/bench-chart*.svg are uploaded as an artifact; nothing is
+# committed. Not part of PR CI (macOS minutes).
+#
+# Runtime estimate (5 reps/step, 1/10/20 workspaces): per step, lmux is ~5 x (settle 15s + sample 60s +
+# ~10-15s launch/workload overhead) =~ 7-8 min, cmux is one workload build (~15-40s, bigger at 20 ws) plus
+# 5 x (settle 15s + sample 60s) =~ 6-7 min, so each step is roughly 14-16 min; three steps plus checkout/
+# bundle/cmux-download overhead =~ 50-60 min total. timeout-minutes below is set to 90 for headroom.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 19 * * 0'   # Sundays 19:41 UTC (Monday 04:41 KST)
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  bench:
+    # Skipped on private copies, where macOS runners are billed; run scripts/test-local.sh there.
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      OUT: ${{ github.workspace }}/bench-out
+      STEPS: '1 10 20'
+      REPS: '5'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-lmux
+      - name: Bundle lmux.app
+        run: App/scripts/bundle.sh
+
+      - name: Download the latest cmux release
+        id: cmux
+        run: |
+          mkdir -p "$OUT"
+          TAG="$(gh release view -R manaflow-ai/cmux --json tagName --jq .tagName)"
+          gh release download "$TAG" -R manaflow-ai/cmux --pattern 'cmux-macos-arm64.dmg' --dir "$RUNNER_TEMP"
+          MNT="$RUNNER_TEMP/cmux-dmg"
+          hdiutil attach "$RUNNER_TEMP/cmux-macos-arm64.dmg" -mountpoint "$MNT" -nobrowse -readonly -quiet
+          APP="$(find "$MNT" -maxdepth 1 -name '*.app' | head -1)"
+          ditto "$APP" /Applications/cmux.app
+          hdiutil detach "$MNT" -quiet
+          VER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' /Applications/cmux.app/Contents/Info.plist)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "cmux $TAG ($VER)"
+
+      - name: Series (lmux then cmux, at 1, 10, 20 workspaces x 2 panes)
+        id: series
+        env:
+          CMUX_VERSION: ${{ steps.cmux.outputs.version }}
+        run: |
+          CMUX_LABEL="cmux $CMUX_VERSION"
+          ok=""; failed=""
+          for N in $STEPS; do
+            echo "::group::$N workspaces x 2 panes: lmux ($REPS reps)"
+            if ! scripts/bench.sh App/build/lmux.app --label lmux --workspaces "$N" --reps "$REPS" --visible --out "$OUT/lmux-$N.json"; then
+              echo "::endgroup::"; echo "::error::lmux failed at $N workspaces"; failed="$N"; break
+            fi
+            echo "::endgroup::"
+            sleep 10
+            echo "::group::$N workspaces x 2 panes: cmux ($REPS reps)"
+            if ! .github/scripts/cmux-workload.sh start /Applications/cmux.app "$N" | tee "$OUT/cmux-workload-$N.txt" \
+               || ! scripts/bench.sh /Applications/cmux.app --label "$CMUX_LABEL" --workspaces "$N" --reps "$REPS" --out "$OUT/cmux-$N.json"; then
+              .github/scripts/cmux-workload.sh stop
+              echo "::endgroup::"; echo "::error::cmux failed at $N workspaces"; failed="$N"; break
+            fi
+            .github/scripts/cmux-workload.sh stop
+            echo "::endgroup::"
+            sleep 10
+            ok="$ok $N"
+          done
+          echo "ok=${ok# }" >> "$GITHUB_OUTPUT"
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          echo "steps measured:${ok:- none}${failed:+; failed at $failed}"
+
+      - name: Stop cmux
+        if: always()
+        run: .github/scripts/cmux-workload.sh stop
+
+      - name: Compare
+        if: steps.series.outputs.ok != ''
+        env:
+          CMUX_TAG: ${{ steps.cmux.outputs.tag }}
+          CMUX_VERSION: ${{ steps.cmux.outputs.version }}
+          SERIES_OK: ${{ steps.series.outputs.ok }}
+          SERIES_FAILED: ${{ steps.series.outputs.failed }}
+        run: |
+          shopt -s nullglob
+          scripts/bench-compare.sh --series "$OUT" "$OUT"/lmux-*.json "$OUT"/cmux-*.json | tee "$OUT/series.md"
+          if [ -f "$OUT/cmux-10.json" ] && [ -f "$OUT/lmux-10.json" ]; then
+            scripts/bench-compare.sh "$OUT/cmux-10.json" "$OUT/lmux-10.json" | tee "$OUT/table.md"
+            cp assets/bench-chart.svg assets/bench-chart-dark.svg "$OUT/"
+          fi
+          jq -n --arg cmux_tag "$CMUX_TAG" --arg cmux_version "$CMUX_VERSION" \
+                --arg image "${ImageOS:-?} ${ImageVersion:-?}" --arg os "$(sw_vers -productVersion)" \
+                --arg xcode "$(xcodebuild -version | head -1)" --arg commit "$GITHUB_SHA" \
+                --arg steps "$SERIES_OK" --arg failed "$SERIES_FAILED" \
+                '{cmux_tag: $cmux_tag, cmux_version: $cmux_version, runner_image: $image, macos: $os, xcode: $xcode,
+                  lmux_commit: $commit, steps_measured: $steps, failed_at: $failed}' \
+                | tee "$OUT/meta.json"
+          {
+            echo "## lmux vs cmux $CMUX_VERSION: 1 / 10 / 20 workspaces x 2 panes"
+            echo ""
+            echo "Runner: ${ImageOS:-?} ${ImageVersion:-?}, macOS $(sw_vers -productVersion)"
+            echo ""
+            cat "$OUT/series.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if the series stopped early
+        if: steps.series.outputs.failed != ''
+        env:
+          SERIES_OK: ${{ steps.series.outputs.ok }}
+          SERIES_FAILED: ${{ steps.series.outputs.failed }}
+        run: |
+          echo "::error::series stopped at $SERIES_FAILED workspaces (measured: $SERIES_OK)"
+          exit 1
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: bench-${{ github.run_id }}
+          path: bench-out/
+          retention-days: 30
+          if-no-files-found: ignore

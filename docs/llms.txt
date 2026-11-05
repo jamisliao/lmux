@@ -1,0 +1,58 @@
+# lmux
+
+> lmux is a light, native macOS terminal for running Claude Code and Codex CLI all day. It's a 25 MB app
+> built on libghostty (Ghostty's terminal core) with a sidebar of workspaces, splits in any direction, and
+> agent status in the sidebar, so you can see which of many Claude Code or Codex sessions is working, done
+> or waiting for you. It's free, MIT licensed, and makes no network calls. A lightweight alternative to cmux.
+
+Key facts:
+
+- What it is: a terminal emulator app for macOS, written in Swift (AppKit) on libghostty. Not a wrapper: it
+  never wraps `claude` or `codex`, it listens to Claude Code's hooks and to the state Codex reports itself.
+- Platforms: macOS 14 (Sonoma) or later, Apple silicon only. No Linux or Windows version.
+- License: MIT. Author: Soohwan Kim ([sooftware](https://github.com/sooftware)). Source: https://github.com/sooftware/lmux
+- Install: `brew install --cask sooftware/tap/lmux`, or download the app from https://github.com/sooftware/lmux/releases/latest
+- Agent features: per-session status (running, needs you, done, failed) with a jump to the one waiting
+  (`⇧⌘J`), rewinding a turn and undo send (Claude Code only), History search across past sessions, and every
+  Claude Code and Codex session resumed after a quit, update or reboot. Any other CLI runs as in any terminal.
+- vs cmux: same sidebar-and-splits idea with a smaller scope, written from scratch (not a fork, no cmux code).
+  lmux leaves out cmux's browser panes, SSH workspaces, custom commands, command palette and sidebar widgets,
+  and has about 10 settings instead of about 200. Measured on an M4 Pro with 20 idle workspaces: 25 MB app vs
+  242 MB, 235 MB memory vs 661 MB, 0.10% idle CPU vs 8.10% (lmux 0.0.102 vs cmux 0.65.2, method in
+  scripts/BENCH.md). It can import a cmux setup (theme, fonts, shortcuts, open workspaces) in one click, with
+  Undo Import.
+- vs Ghostty: lmux reads your Ghostty config as is and adds the agent-aware sidebar, rewind and resume.
+- vs tmux: workspaces and splits replace tmux sessions and panes, with Mac shortcuts and no prefix key. There's
+  no server, so running processes don't survive a quit; Claude Code and Codex sessions resume instead.
+- Korean input: fixes upstream Ghostty's Hangul IME problems (Enter, Backspace, Esc and shortcuts
+  mid-syllable), and `⌃C` reaches Claude Code as Ctrl+C with the Korean input source on.
+
+- [Agent guide](https://lmux.dev/agent-guide.md): everything an agent needs to set lmux up for someone, in one Markdown file
+- [Full docs as plain text](https://lmux.dev/llms-full.txt): every docs page below in one file
+
+## Docs
+
+- [Overview](https://lmux.dev/docs/): lmux is a light, native macOS terminal for living in Claude Code and Codex all day. It's a 25 MB app on libghostty with a sidebar of workspaces and splits…
+- [Install](https://lmux.dev/docs/install/): lmux, a light terminal for Claude Code and Codex, runs on macOS 14 (Sonoma) or later, on Apple silicon. It's one app, with the lmux command line tool inside it.
+- [Quick start](https://lmux.dev/docs/quick-start/): lmux is a light macOS terminal for Claude Code and Codex. Its first launch takes a minute: two offers, each with one button, and then it's a terminal.
+- [Workspaces & panes](https://lmux.dev/docs/workspaces/): lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in…
+- [Shortcuts](https://lmux.dev/docs/shortcuts/): lmux is a macOS terminal on libghostty, and these are its default shortcuts. A keybind in your Ghostty config wins over them, and the menus always show…
+- [Configuration](https://lmux.dev/docs/configuration/): lmux is a macOS terminal on libghostty, and it's configured the way Ghostty is: one plain-text file in Ghostty's syntax. It reads your Ghostty config as it…
+- [Korean input](https://lmux.dev/docs/korean-input/): What lmux fixes for Korean input: Enter, Backspace, Esc and shortcuts mid-syllable, and Hangul at exactly two cells in D2Coding.
+- [한글 입력 (한국어)](https://lmux.dev/docs/ko/): Claude Code와 Codex에 한글로 작업을 시킬 때 터미널 IME에서 생기는 문제, lmux에서 고친 내용, 테스트 방법을 정리했습니다.
+- [Claude Code](https://lmux.dev/docs/claude-code/): lmux is a light macOS terminal built for living in Claude Code. It shows which session needs you, lets you take back a turn, and brings every session back…
+- [Codex](https://lmux.dev/docs/codex/): Codex CLI gets most of what Claude Code gets in lmux, a light macOS terminal on libghostty, by listening only: status, notifications, resume on restart,…
+- [Any agent (OSC 7501)](https://lmux.dev/docs/any-agent/): Any CLI runs in lmux, a light macOS terminal on libghostty. Status, rewind, resume and History are built for Claude Code and Codex. This page is about the…
+- [The lmux CLI](https://lmux.dev/docs/cli/): lmux, a macOS terminal for Claude Code and Codex, ships a small command line tool, lmux, for scripts and agents. It's on the PATH in every lmux pane; the…
+- [lmux vs cmux](https://lmux.dev/docs/vs-cmux/): lmux is a lightweight alternative to cmux: the same sidebar and splits, built on libghostty, in a 25 MB app with about ten settings. Here's when to pick which.
+- [Switching from cmux](https://lmux.dev/docs/from-cmux/): lmux is a lightweight alternative to cmux that borrows its layout, so the sidebar and splits work the way you're used to. Moving over should feel like…
+- [Performance](https://lmux.dev/docs/performance/): lmux's one rule is to stay light. It's a 25 MB native macOS terminal that idles near 0% CPU, whether you have one workspace open or twenty.
+- [Privacy & files on disk](https://lmux.dev/docs/privacy/): lmux, a macOS terminal for Claude Code and Codex, makes no network calls at all: no telemetry, no crash reports, not even an update check (Homebrew does…
+- [Troubleshooting](https://lmux.dev/docs/troubleshooting/): Fixes for the few things that go wrong: Claude's dark prompt band, a sidebar that never updates, Codex hooks, macOS permission prompts, CLI errors.
+- [FAQ](https://lmux.dev/docs/faq/): Is lmux a cmux alternative, why not Ghostty and tmux, does it work with Codex or without Claude Code, does it phone home, and more.
+
+## Optional
+
+- [All features on one page](https://github.com/sooftware/lmux/blob/main/docs/features.md)
+- [Benchmark method](https://github.com/sooftware/lmux/blob/main/scripts/BENCH.md)
+- [Source](https://github.com/sooftware/lmux)

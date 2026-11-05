@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  pull_request:
+    paths-ignore: ['**/*.md', 'assets/**', 'design/**']
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'assets/**', 'design/**']
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: "Also run the e2e job (the real Claude Code binary against a local mock API; no key, no cost)"
+        type: boolean
+        default: false
+  # nightly.yml reuses this whole suite.
+  workflow_call:
+    inputs:
+      e2e:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LOGS: ${{ github.workspace }}/ci-logs
+
+jobs:
+  core:
+    name: Core (swift test)
+    # Skipped on private copies, where macOS runners are billed; run scripts/test-local.sh there.
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Select Xcode
+        run: |
+          XCODE="$(ls -d /Applications/Xcode_*.app | grep -E '/Xcode_[0-9]+(\.[0-9]+)*\.app$' | sort -V | tail -1)"
+          echo "DEVELOPER_DIR=$XCODE/Contents/Developer" >> "$GITHUB_ENV"
+          DEVELOPER_DIR="$XCODE/Contents/Developer" xcodebuild -version
+          DEVELOPER_DIR="$XCODE/Contents/Developer" swift --version
+      - name: swift test
+        working-directory: Core
+        run: swift test
+
+  app:
+    name: App (bundle, apptest, imetest, real IME, idle budget)
+    # Skipped on private copies, where macOS runners are billed; run scripts/test-local.sh there.
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-lmux
+      - run: mkdir -p "$LOGS"
+
+      - name: Bundle lmux.app
+        id: bundle
+        run: App/scripts/bundle.sh 2>&1 | tee "$LOGS/bundle.log"
+
+      - name: apptest (headless)
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        env: { LMUX_HEADLESS: '1' }
+        run: App/scripts/apptest.sh 2>&1 | tee "$LOGS/apptest.log"
+
+      - name: imetest (headless, simulated 2-Set IME)
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        env: { LMUX_HEADLESS: '1' }
+        run: App/scripts/imetest.sh 2>&1 | tee "$LOGS/imetest.log"
+
+      # The runner is a throwaway VM with a logged-in GUI session, so the real Korean IME can be driven
+      # here: enable 2-Set (CI-only helper, refuses outside GitHub Actions), then the same checklist runs
+      # against the real input method in a visible, focused window. A SKIP counts as a failure here.
+      # The first syllable after an idle key used to commit as loose jamo (안 -> ㅇㅏㄴ, also on real Macs,
+      # ghostty-org/ghostty#13235); fixed by SurfaceInputContext. This step must stay blocking.
+      - name: imetest --visible (REAL Korean 2-Set IME)
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        run: |
+          swift .github/scripts/enable-korean-ime.swift 2>&1 | tee "$LOGS/enable-korean-ime.log"
+          App/scripts/imetest.sh --visible --probe > "$LOGS/imetest-probe.log" 2>&1 || true
+          App/scripts/imetest.sh --visible 2>&1 | tee "$LOGS/imetest-visible.log"
+          if grep -q '^SKIP  real-IME' "$LOGS/imetest-visible.log"; then echo "::error::real-IME checks were skipped"; exit 1; fi
+
+      - name: Idle budget, 1 pane
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        run: App/scripts/measure_idle.sh 20 1 2>&1 | tee "$LOGS/measure-idle-1.log"
+
+      - name: Idle budget, 10 panes (5 workspaces x 2)
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        run: App/scripts/measure_idle.sh 20 10 2 2>&1 | tee "$LOGS/measure-idle-10.log"
+
+      - name: Perf budgets (idle 20x2, footprint incl. GPU, running agents, per hook event, spinner titles, hidden panes, restore 100, History index)
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        run: python3 App/scripts/perf_budget.py 2>&1 | tee "$LOGS/perf-budget.log"
+
+      - name: Zip lmux.app
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        run: ditto -c -k --keepParent App/build/lmux.app "$LOGS/lmux.app.zip"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: app-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  real-window:
+    name: "Real window (CGEvents: drag, traffic lights, titlebar buttons, clicks)"
+    # Skipped on private copies, where macOS runners are billed; run scripts/test-local.sh there.
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-lmux
+      - run: mkdir -p "$LOGS/shots"
+      # The runner is a throwaway VM with a logged-in GUI session: a visible window, real mouse and
+      # key events posted to the HID event tap (apptest.sh refuses this mode outside GitHub Actions).
+      - name: apptest --real-window
+        run: App/scripts/apptest.sh --real-window "$LOGS/shots" 2>&1 | tee "$LOGS/realwindow.log"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: real-window-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-logs/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  e2e:
+    name: e2e (real Claude Code, mock API)
+    if: ${{ inputs.e2e && !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-lmux
+      - name: Install Claude Code (official installer)
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          "$HOME/.local/bin/claude" --version
+      # The real binary against a local stand-in for the API, with its own temp HOME and config:
+      # no key, no login, no network calls (scripts/claude-api-mock.py).
+      - name: e2etest (edit & resend, remove, undo send, copy)
+        run: |
+          mkdir -p "$LOGS"
+          App/scripts/bundle.sh > "$LOGS/bundle.log" 2>&1
+          LMUX_E2E_CLAUDE="$HOME/.local/bin/claude" App/scripts/e2etest.sh 2>&1 | tee "$LOGS/e2etest.log"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: e2e-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore

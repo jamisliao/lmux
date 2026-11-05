@@ -1,0 +1,662 @@
+lmux's changes to libghostty (ghostty-org/ghostty at GHOSTTY_COMMIT), applied by scripts/bootstrap.sh.
+
+Release idle GPU memory: an unfocused surface that hasn't drawn for 3 s releases its swap chain
+(atlas copies, cell buffers, the render targets but the one last presented, which the layer keeps
+showing: releasing it would empty its IOSurface) and its Metal command queue. On Apple silicon
+(macOS 26) the process's first GPU submission makes Metal set up ~80-110 MB of driver memory that
+lives as long as the queue that submitted it: with every surface idle it is freed. The next frame
+rebuilds both (~3 ms), the same path a surface takes when it becomes visible again. The focused
+surface keeps everything (the next key pays nothing), and so does a surface whose frames fail.
+Files: src/renderer/{Metal,generic,Thread}.zig.
+
+No per-thread alternate signal stack (std_options.signal_stack_size = null, src/main_ghostty.zig):
+Zig's default puts 256 KB in every thread's TLS, 5 threads per pane. Without it the Sentry/Zig
+handlers can't run on a stack overflow in a libghostty thread; macOS still writes the crash report.
+Program status (OSC 7501) to the embedder: Ghostty parses it but dropped it in termio
+(`.program_status => {}`). Now a report (state, blocked kind, app name) reaches the apprt as
+GHOSTTY_ACTION_PROGRAM_STATUS; queries still get no reply. Codex's TUI reports its state this way
+in its own terminal, which lmux uses as each pane's Codex status. Files: include/ghostty.h,
+src/apprt/{action,surface}.zig, src/termio/stream_handler.zig, src/Surface.zig.
+
+Input method caret in the preedit (ghostty_surface_preedit_caret): the host passes the IME's caret
+as a UTF-8 byte offset with the preedit text, and the renderer draws a bar cursor before that
+codepoint when it is inside the preedit (moving through a Chinese or Japanese composition with the
+arrow keys); at either end nothing is drawn, as before. Files: include/ghostty.h, src/Surface.zig,
+src/apprt/embedded.zig, src/renderer/{State,generic}.zig.
+
+Every change is marked "lmux:".
+
+diff --git a/include/ghostty.h b/include/ghostty.h
+index 9a12b9c..83d59a2 100644
+--- a/include/ghostty.h
++++ b/include/ghostty.h
+@@ -914,6 +914,31 @@ typedef struct {
+   int8_t progress;
+ } ghostty_action_progress_report_s;
+ 
++// apprt.action.ProgramStatus (lmux: OSC 7501)
++typedef enum {
++  GHOSTTY_PROGRAM_STATUS_IDLE,
++  GHOSTTY_PROGRAM_STATUS_WORKING,
++  GHOSTTY_PROGRAM_STATUS_DONE,
++  GHOSTTY_PROGRAM_STATUS_BLOCKED,
++  GHOSTTY_PROGRAM_STATUS_ERROR,
++  GHOSTTY_PROGRAM_STATUS_CLEAR,
++} ghostty_action_program_status_state_e;
++
++typedef enum {
++  GHOSTTY_PROGRAM_STATUS_KIND_NONE,
++  GHOSTTY_PROGRAM_STATUS_KIND_PERMISSION,
++  GHOSTTY_PROGRAM_STATUS_KIND_QUESTION,
++  GHOSTTY_PROGRAM_STATUS_KIND_AUTH,
++} ghostty_action_program_status_kind_e;
++
++// apprt.action.ProgramStatus.C
++typedef struct {
++  ghostty_action_program_status_state_e state;
++  ghostty_action_program_status_kind_e kind;
++  // The reporting program's name ("codex", up to 15 bytes), NUL-terminated; empty if none.
++  char app[16];
++} ghostty_action_program_status_s;
++
+ // apprt.action.CommandFinished.C
+ typedef struct {
+   // -1 if no exit code was reported, otherwise 0-255
+@@ -1016,6 +1041,7 @@ typedef enum {
+   GHOSTTY_ACTION_COPY_TITLE_TO_CLIPBOARD,
+   GHOSTTY_ACTION_MOVE_TAB_TO_NEW_WINDOW,
+   GHOSTTY_ACTION_RESIZE_WINDOW,
++  GHOSTTY_ACTION_PROGRAM_STATUS,
+ } ghostty_action_tag_e;
+ 
+ typedef union {
+@@ -1054,6 +1080,7 @@ typedef union {
+   ghostty_action_close_tab_mode_e close_tab_mode;
+   ghostty_surface_message_childexited_s child_exited;
+   ghostty_action_progress_report_s progress_report;
++  ghostty_action_program_status_s program_status;
+   ghostty_action_command_finished_s command_finished;
+   ghostty_action_start_search_s start_search;
+   ghostty_action_search_total_s search_total;
+@@ -1204,6 +1231,8 @@ GHOSTTY_API bool ghostty_surface_key_is_binding(ghostty_surface_t,
+ GHOSTTY_API void ghostty_surface_text(ghostty_surface_t, const char*, uintptr_t);
+ GHOSTTY_API void ghostty_surface_paste_text(ghostty_surface_t, const char*, uintptr_t);
+ GHOSTTY_API void ghostty_surface_preedit(ghostty_surface_t, const char*, uintptr_t);
++// lmux: the preedit with the input method's caret (a UTF-8 byte offset into it).
++GHOSTTY_API void ghostty_surface_preedit_caret(ghostty_surface_t, const char*, uintptr_t, uintptr_t);
+ GHOSTTY_API bool ghostty_surface_mouse_captured(ghostty_surface_t);
+ GHOSTTY_API bool ghostty_surface_mouse_button(ghostty_surface_t,
+                                                  ghostty_input_mouse_state_e,
+diff --git a/src/Surface.zig b/src/Surface.zig
+index 369bb23..2bea978 100644
+--- a/src/Surface.zig
++++ b/src/Surface.zig
+@@ -1186,6 +1186,17 @@ pub fn handleMessage(self: *Surface, msg: Message) !void {
+             };
+         },
+ 
++        // lmux
++        .program_status => |v| {
++            _ = self.rt_app.performAction(
++                .{ .surface = self },
++                .program_status,
++                v,
++            ) catch |err| {
++                log.warn("apprt failed to report program status err={}", .{err});
++            };
++        },
++
+         .selection_scroll_tick => |active| {
+             self.selection_scroll_active = active;
+             try self.selectionScrollTick();
+@@ -2667,6 +2678,12 @@ fn balancePaddingIfNeeded(self: *Surface) void {
+ ///
+ /// The preedit input must be UTF-8 encoded.
+ pub fn preeditCallback(self: *Surface, preedit_: ?[]const u8) !void {
++    return self.preeditCaretCallback(preedit_, null);
++}
++
++/// lmux: `preeditCallback` with the input method's caret, a UTF-8 byte offset into the
++/// preedit (null: none). See `renderer.State.Preedit.caret`.
++pub fn preeditCaretCallback(self: *Surface, preedit_: ?[]const u8, caret_byte: ?usize) !void {
+     // log.debug("text preeditCallback value={any}", .{preedit_});
+ 
+     // Crash metadata in case we crash in here
+@@ -2711,7 +2728,13 @@ pub fn preeditCallback(self: *Surface, preedit_: ?[]const u8) !void {
+     const Codepoint = rendererpkg.State.Preedit.Codepoint;
+     var codepoints: std.ArrayList(Codepoint) = .empty;
+     defer codepoints.deinit(self.alloc);
+-    while (it.nextCodepoint()) |cp| {
++    var caret: ?usize = null;
++    while (true) {
++        const at = it.i;
++        const cp = it.nextCodepoint() orelse break;
++        if (caret_byte) |c| if (caret == null and at >= c) {
++            caret = codepoints.items.len;
++        };
+         const width: usize = @intCast(unicode.table.get(cp).width);
+ 
+         // I've never seen a preedit text with a zero-width character. In
+@@ -2733,6 +2756,7 @@ pub fn preeditCallback(self: *Surface, preedit_: ?[]const u8) !void {
+ 
+     self.renderer_state.preedit = .{
+         .codepoints = try codepoints.toOwnedSlice(self.alloc),
++        .caret = caret,
+     };
+     try self.queueRender();
+ }
+diff --git a/src/apprt/action.zig b/src/apprt/action.zig
+index 708898e..69776ac 100644
+--- a/src/apprt/action.zig
++++ b/src/apprt/action.zig
+@@ -364,6 +364,9 @@ pub const Action = union(Key) {
+     /// split or the window is fullscreen.
+     resize_window: ResizeWindow,
+ 
++    /// lmux: the running program reported its status (OSC 7501).
++    program_status: ProgramStatus,
++
+     /// Sync with: ghostty_action_tag_e
+     pub const Key = enum(c_int) {
+         quit,
+@@ -436,6 +439,7 @@ pub const Action = union(Key) {
+         copy_title_to_clipboard,
+         move_tab_to_new_window,
+         resize_window,
++        program_status,
+ 
+         test "ghostty.h Action.Key" {
+             try lib.checkGhosttyHEnum(Key, "GHOSTTY_ACTION_");
+@@ -1087,3 +1091,27 @@ pub const OpenConfig = enum(c_int) {
+ test {
+     _ = compat_testing.refAllDeclsRecursive(@This());
+ }
++
++/// lmux: an OSC 7501 program status report (what the running program says it is
++/// doing; `clear`: it stopped reporting). `app` is its name ("codex", up to 15 bytes), empty if none.
++pub const ProgramStatus = struct {
++    pub const State = enum(c_int) { idle, working, done, blocked, @"error", clear };
++    pub const Kind = enum(c_int) { none, permission, question, auth };
++
++    state: State,
++    kind: Kind = .none,
++    app: [15]u8 = @splat(0),
++
++    // Sync with: ghostty_action_program_status_s
++    pub const C = extern struct {
++        state: State,
++        kind: Kind,
++        app: [16]u8,
++    };
++
++    pub fn cval(self: ProgramStatus) C {
++        var c: C = .{ .state = self.state, .kind = self.kind, .app = @splat(0) };
++        @memcpy(c.app[0..self.app.len], &self.app);
++        return c;
++    }
++};
+diff --git a/src/apprt/embedded.zig b/src/apprt/embedded.zig
+index 697f0a7..22699cf 100644
+--- a/src/apprt/embedded.zig
++++ b/src/apprt/embedded.zig
+@@ -1122,7 +1122,12 @@ pub const Surface = struct {
+     }
+ 
+     pub fn preeditCallback(self: *Surface, preedit_: ?[]const u8) void {
+-        _ = self.core_surface.preeditCallback(preedit_) catch |err| {
++        self.preeditCaretCallback(preedit_, null);
++    }
++
++    /// lmux: see CoreSurface.preeditCaretCallback.
++    pub fn preeditCaretCallback(self: *Surface, preedit_: ?[]const u8, caret_byte: ?usize) void {
++        _ = self.core_surface.preeditCaretCallback(preedit_, caret_byte) catch |err| {
+             log.err("error in preedit callback err={}", .{err});
+             return;
+         };
+@@ -2138,6 +2143,17 @@ pub const CAPI = struct {
+         surface.preeditCallback(if (len == 0) null else ptr[0..len]);
+     }
+ 
++    /// lmux: `ghostty_surface_preedit` with the input method's caret, a UTF-8 byte offset
++    /// into the text; drawn as a bar when it is inside the preedit.
++    export fn ghostty_surface_preedit_caret(
++        surface: *Surface,
++        ptr: [*]const u8,
++        len: usize,
++        caret: usize,
++    ) void {
++        surface.preeditCaretCallback(if (len == 0) null else ptr[0..len], caret);
++    }
++
+     /// Returns true if the surface currently has mouse capturing
+     /// enabled.
+     export fn ghostty_surface_mouse_captured(surface: *Surface) bool {
+diff --git a/src/apprt/surface.zig b/src/apprt/surface.zig
+index 3b1a04d..21e2ab3 100644
+--- a/src/apprt/surface.zig
++++ b/src/apprt/surface.zig
+@@ -140,6 +140,9 @@ pub const Message = union(enum) {
+     /// Report the progress of an action using a GUI element
+     progress_report: terminal.osc.Command.ProgressReport,
+ 
++    /// lmux: the running program reported its status (OSC 7501).
++    program_status: apprt.action.ProgramStatus,
++
+     /// A command has started in the shell, start a timer.
+     start_command,
+ 
+diff --git a/src/main_ghostty.zig b/src/main_ghostty.zig
+index edc7d28..a0ffb4f 100644
+--- a/src/main_ghostty.zig
++++ b/src/main_ghostty.zig
+@@ -212,6 +212,12 @@ pub const std_options: std.Options = .{
+ 
+     .logFn = logFn,
+ 
++    // lmux: no 256 KB alternate signal stack in every thread's TLS (a pane
++    // has 5 threads: ~6-10 MB of footprint at 40 panes). Without it the
++    // Sentry/Zig handlers can't run on a stack overflow in a libghostty
++    // thread; macOS still writes the crash report.
++    .signal_stack_size = null,
++
+     // If are building for a non-MacOS Darwin target (e.g., iOS), we need to
+     // disable stack tracing for the time being. This is due to the fact that
+     // Zig switched to using _dyld_get_image_header_containing_address and some
+diff --git a/src/renderer/Metal.zig b/src/renderer/Metal.zig
+index 581b0ce..d87db9f 100644
+--- a/src/renderer/Metal.zig
++++ b/src/renderer/Metal.zig
+@@ -44,8 +44,12 @@ layer: IOSurfaceLayer,
+ /// The shared render device.
+ device: *const Device,
+ 
+-/// MTLCommandQueue
+-queue: objc.Object,
++/// MTLCommandQueue. lmux: null after `releaseIdle`; `beginFrame` makes a new one.
++queue: ?objc.Object,
++
++/// lmux: the IOSurface of the target last handed to the layer (see
++/// `isPresented`); written on Metal's completion thread.
++presented: std.atomic.Value(usize) = .init(0),
+ 
+ /// Alpha blending mode
+ blending: configpkg.Config.AlphaBlending,
+@@ -137,7 +141,7 @@ pub fn init(
+ }
+ 
+ pub fn deinit(self: *Metal) void {
+-    self.queue.release();
++    if (self.queue) |q| q.release();
+ 
+     // The MTLDevice is app-scoped and destroyed
+     // by the render device, not by us.
+@@ -235,6 +239,7 @@ pub fn initTarget(self: *const Metal, width: usize, height: usize) !Target {
+ 
+ /// Present the provided target.
+ pub inline fn present(self: *Metal, target: Target, sync: bool) !void {
++    self.presented.store(@intFromPtr(target.surface), .seq_cst);
+     if (sync) {
+         self.layer.setSurfaceSync(target.surface);
+     } else {
+@@ -374,14 +379,36 @@ pub fn initAtlasTexture(
+     );
+ }
+ 
++/// lmux: release the command queue of a surface that stopped drawing (the renderer
++/// releases its swap chain first, which waits for in-flight frames). The process's first
++/// GPU submission makes Metal set up ~80-110 MB of driver memory (Apple silicon, macOS
++/// 26) that lives as long as the queue that submitted it; with every queue gone it is
++/// freed, and the next frame sets it up again (~3 ms).
++pub fn releaseIdle(self: *Metal) void {
++    if (self.queue) |q| q.release();
++    self.queue = null;
++}
++
++/// lmux: whether `target` is the one last handed to the layer.
++pub fn isPresented(self: *const Metal, target: Target) bool {
++    return self.presented.load(.seq_cst) == @intFromPtr(target.surface);
++}
++
+ /// Begin a frame.
+ pub inline fn beginFrame(
+-    self: *const Metal,
++    self: *Metal,
+     /// Once the frame has been completed, the `frameCompleted` method
+     /// on the renderer is called with the health status of the frame.
+     renderer: *Renderer,
+     /// The target is presented via the provided renderer's API when completed.
+     target: *Target,
+ ) !Frame {
+-    return try Frame.begin(.{ .queue = self.queue }, renderer, target);
++    const queue = self.queue orelse queue: {
++        const id = self.device.device.msgSend(?*anyopaque, objc.sel("newCommandQueue"), .{}) orelse
++            return error.MetalFailed;
++        const q = objc.Object.fromId(id);
++        self.queue = q;
++        break :queue q;
++    };
++    return try Frame.begin(.{ .queue = queue }, renderer, target);
+ }
+diff --git a/src/renderer/State.zig b/src/renderer/State.zig
+index 1184221..ed8475a 100644
+--- a/src/renderer/State.zig
++++ b/src/renderer/State.zig
+@@ -121,6 +121,10 @@ pub const Preedit = struct {
+     /// The codepoints to render as preedit text.
+     codepoints: []const Codepoint = &.{},
+ 
++    /// lmux: the input method's caret, as the index of the codepoint it sits before, when it
++    /// is inside the preedit (moving through a composition with the arrow keys). null: none.
++    caret: ?usize = null,
++
+     /// A single codepoint to render as preedit text.
+     pub const Codepoint = struct {
+         codepoint: u21,
+@@ -136,6 +140,7 @@ pub const Preedit = struct {
+     pub fn clone(self: *const Preedit, alloc: Allocator) !Preedit {
+         return .{
+             .codepoints = try alloc.dupe(Codepoint, self.codepoints),
++            .caret = self.caret,
+         };
+     }
+ 
+@@ -149,6 +154,23 @@ pub const Preedit = struct {
+         return result;
+     }
+ 
++    /// lmux: the cell (x) the caret is drawn at for a preedit starting at `start`, or null
++    /// (no caret, at the end, or scrolled out of the visible part of the preedit).
++    pub fn caretCell(
++        self: *const Preedit,
++        start: terminalpkg.size.CellCountInt,
++        max: terminalpkg.size.CellCountInt,
++    ) ?terminalpkg.size.CellCountInt {
++        const caret = self.caret orelse return null;
++        if (caret == 0 or caret >= self.codepoints.len) return null;
++        const r = self.range(start, max);
++        if (caret < r.cp_offset) return null;
++        var x = r.start;
++        for (self.codepoints[r.cp_offset..caret]) |cp| x += if (cp.wide) 2 else 1;
++        if (x > max) return null;
++        return x;
++    }
++
+     /// Range returns the start and end x position of the preedit text
+     /// along with any codepoint offset necessary to fit the preedit
+     /// into the available space.
+diff --git a/src/renderer/Thread.zig b/src/renderer/Thread.zig
+index 19d43f5..142dc2b 100644
+--- a/src/renderer/Thread.zig
++++ b/src/renderer/Thread.zig
+@@ -19,6 +19,10 @@ const log = std.log.scoped(.renderer_thread);
+ 
+ const CURSOR_BLINK_INTERVAL = 600;
+ 
++/// lmux: a surface that hasn't drawn for this long releases its GPU
++/// resources (see `Renderer.releaseIdleGpuResources`).
++const IDLE_GPU_RELEASE_MS = 3000;
++
+ /// Whether calls to `drawFrame` must be done from the app thread.
+ ///
+ /// The type used for sending messages to the IO thread. For now this is
+@@ -63,6 +67,10 @@ cursor_h: xev.Timer,
+ cursor_c: xev.Completion = .{},
+ cursor_c_cancel: xev.Completion = .{},
+ 
++/// lmux: the timer that releases GPU resources after drawing stops.
++idle_h: xev.Timer,
++idle_c: xev.Completion = .{},
++
+ /// Incremental scrollback compression scheduling.
+ compression: Compression = undefined,
+ 
+@@ -144,6 +152,9 @@ pub fn init(
+     var cursor_timer = try xev.Timer.init();
+     errdefer cursor_timer.deinit();
+ 
++    var idle_timer = try xev.Timer.init();
++    errdefer idle_timer.deinit();
++
+     // The mailbox for messaging this thread
+     var mailbox = try Mailbox.create(alloc);
+     errdefer mailbox.destroy(alloc);
+@@ -157,6 +168,7 @@ pub fn init(
+         .render_h = render_h,
+         .draw_now = draw_now,
+         .cursor_h = cursor_timer,
++        .idle_h = idle_timer,
+         .surface = surface,
+         .renderer = renderer_impl,
+         .state = state,
+@@ -180,6 +192,7 @@ pub fn deinit(self: *Thread) void {
+     self.render_h.deinit();
+     self.draw_now.deinit();
+     self.cursor_h.deinit();
++    self.idle_h.deinit();
+     if (comptime terminalpkg.compression_enabled)
+         self.compression.deinit();
+     self.loop.deinit();
+@@ -469,6 +482,42 @@ fn drawFrame(self: *Thread, now: bool) void {
+ 
+     self.renderer.drawFrame(false) catch |err|
+         log.warn("error drawing err={}", .{err});
++
++    self.armIdleTimer();
++}
++
++/// lmux: one idle timer per burst of drawing, not one per frame. Also armed
++/// after every wakeup: a sync draw on the main thread (layer display, resize)
++/// doesn't come through here.
++fn armIdleTimer(self: *Thread) void {
++    if (self.idle_c.state() != .active) self.idle_h.run(
++        &self.loop,
++        &self.idle_c,
++        IDLE_GPU_RELEASE_MS,
++        Thread,
++        self,
++        idleGpuCallback,
++    );
++}
++
++fn idleGpuCallback(
++    self_: ?*Thread,
++    _: *xev.Loop,
++    _: *xev.Completion,
++    r: xev.Timer.RunError!void,
++) xev.CallbackAction {
++    _ = r catch return .disarm;
++    const t = self_ orelse return .disarm;
++    // Drawn since the timer was armed: wait out the rest of the idle time.
++    if (t.renderer.releaseIdleGpuResources(IDLE_GPU_RELEASE_MS)) |left| t.idle_h.run(
++        &t.loop,
++        &t.idle_c,
++        @intCast(@max(left, 1)),
++        Thread,
++        t,
++        idleGpuCallback,
++    );
++    return .disarm;
+ }
+ 
+ fn wakeupCallback(
+@@ -496,6 +545,8 @@ fn wakeupCallback(
+     // it here covers output, resize, and viewport scrolling uniformly.
+     t.compression.wake(t);
+ 
++    t.armIdleTimer();
++
+     // The below is not used anymore but if we ever want to introduce
+     // a configuration to introduce a delay to coalesce renders, we can
+     // use this.
+diff --git a/src/renderer/generic.zig b/src/renderer/generic.zig
+index df70aa3..da9a3b4 100644
+--- a/src/renderer/generic.zig
++++ b/src/renderer/generic.zig
+@@ -191,6 +191,15 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
+         /// Custom shader uniform values.
+         custom_shader_uniforms: shadertoy.Uniforms,
+ 
++        /// lmux: when the last frame was drawn (see `releaseIdleGpuResources`);
++        /// null once the idle resources have been released.
++        last_gpu_frame: ?std.Io.Timestamp = null,
++
++        /// lmux: the render target of the frame on screen, kept when the
++        /// swap chain is released while visible: `Target.deinit` empties the
++        /// IOSurface (purgeable) and the layer would show a blank frame.
++        idle_target: ?Target = null,
++
+         /// Timestamp we rendered out first frame.
+         ///
+         /// This is used when updating custom shader uniforms.
+@@ -459,6 +468,11 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
+ 
+             pub fn deinit(self: *FrameState) void {
+                 self.target.deinit();
++                self.deinitExceptTarget();
++            }
++
++            /// lmux: everything but the render target (see `idle_target`).
++            fn deinitExceptTarget(self: *FrameState) void {
+                 self.uniforms.deinit();
+                 self.cells.deinit();
+                 self.cells_bg.deinit();
+@@ -1242,6 +1256,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
+         /// Caller must lock the draw mutex before calling this function.
+         /// Resources that are already released are skipped.
+         pub fn releaseGpuResources(self: *Self) void {
++            self.releaseIdleTarget();
+             if (self.swap_chain) |*sc| {
+                 // Waits for any in-flight frames to complete, then
+                 // frees all GPU resources.
+@@ -1255,6 +1270,59 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
+             }
+         }
+ 
++        /// lmux: once nothing has been drawn for `idle_ms`, release the swap
++        /// chain (the layer keeps showing the last frame, which it retains) and
++        /// the graphics API's per-surface objects (Metal: the command queue, see
++        /// `Metal.releaseIdle`). The next draw rebuilds both, like a surface that
++        /// becomes visible again. Returns the ms left until idle when it isn't
++        /// yet, null when released (or nothing was drawn since). Render thread.
++        pub fn releaseIdleGpuResources(self: *Self, idle_ms: i64) ?i64 {
++            if (comptime !@hasDecl(GraphicsAPI, "releaseIdle")) return null;
++            self.draw_mutex.lockUncancelable(global.io());
++            defer self.draw_mutex.unlock(global.io());
++            const last = self.last_gpu_frame orelse return null;
++            // The focused surface keeps everything: the next key must not pay
++            // for a new queue (with a blinking cursor it never idles anyway).
++            // Unfocusing redraws it, which arms the idle timer again.
++            if (self.focused) return null;
++            // Keep everything while frames fail: which one is on screen is unknown.
++            if (self.health.load(.seq_cst) != .healthy) return null;
++            const elapsed = last.untilNow(global.io(), .awake).toMilliseconds();
++            if (elapsed < idle_ms) return idle_ms - elapsed;
++            if (self.swap_chain) |*sc| {
++                // Every frame completes first (as in `SwapChain.deinit`), then
++                // the target last presented (the one on screen) is kept.
++                if (self.idle_target != null) return null;
++                for (0..SwapChain.buf_count) |_| sc.frame_sema.waitUncancelable(global.io());
++                const shown = for (&sc.frames, 0..) |*frame, i| {
++                    if (self.api.isPresented(frame.target)) break i;
++                } else {
++                    for (0..SwapChain.buf_count) |_| sc.frame_sema.post(global.io());
++                    return null;
++                };
++                for (&sc.frames, 0..) |*frame, i| {
++                    if (i == shown) {
++                        self.idle_target = frame.target;
++                        frame.deinitExceptTarget();
++                    } else frame.deinit();
++                }
++                self.swap_chain = null;
++            }
++            self.api.releaseIdle();
++            self.last_gpu_frame = null;
++            return null;
++        }
++
++        /// lmux: let go of `idle_target` without emptying its IOSurface: the
++        /// layer keeps it until a new frame replaces it (or lmux clears it).
++        fn releaseIdleTarget(self: *Self) void {
++            if (comptime !@hasDecl(GraphicsAPI, "releaseIdle")) return;
++            const t = self.idle_target orelse return;
++            t.texture.release();
++            t.surface.release();
++            self.idle_target = null;
++        }
++
+         /// Create the display link if needed, then ask it to match the
+         /// current surface state: bound to `display_id` if one is given,
+         /// and running only while the surface is visible and has
+@@ -1779,6 +1847,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
+                         self.api,
+                         self.has_custom_shaders,
+                     );
++                    self.releaseIdleTarget();
+                     break :rebuild .{ &self.swap_chain.?, true };
+                 };
+ 
+@@ -1807,6 +1876,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
+             }
+             self.cells_rebuilt = false;
+             self.images_rebuilt = false;
++            self.last_gpu_frame = .now(global.io(), .awake);
+ 
+             // Wait for a frame to be available.
+             const frame = swap_chain.nextFrame();
+@@ -2780,7 +2850,16 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
+                 };
+ 
+                 // If we have preedit text, we don't setup a cursor
+-                if (preedit != null) break :cursor;
++                // lmux: unless the input method's caret is inside the preedit: a bar there.
++                if (preedit) |p| {
++                    if (p.caretCell(cursor_vp.x, state.cols - 1)) |x| {
++                        var caret = state.cursor;
++                        caret.viewport = .{ .x = x, .y = cursor_vp.y, .wide_tail = false };
++                        caret.cell = .{};
++                        self.addCursor(&caret, .bar, state.colors.foreground);
++                    }
++                    break :cursor;
++                }
+ 
+                 // If there isn't a cursor visual style requested then
+                 // we don't render a cursor.
+diff --git a/src/termio/stream_handler.zig b/src/termio/stream_handler.zig
+index 7fbd442..f605534 100644
+--- a/src/termio/stream_handler.zig
++++ b/src/termio/stream_handler.zig
+@@ -389,8 +389,8 @@ pub const StreamHandler = struct {
+             .title_pop,
+             .kitty_dnd,
+             .osc_unknown,
+-            .program_status,
+             => {},
++            .program_status => self.programStatus(value),
+         }
+     }
+ 
+@@ -1956,6 +1956,23 @@ pub const StreamHandler = struct {
+     fn progressReport(self: *StreamHandler, report: terminal.osc.Command.ProgressReport) void {
+         self.surfaceMessageWriter(.{ .progress_report = report });
+     }
++
++    /// lmux: pass a program status report (OSC 7501) on to the apprt. Queries
++    /// get no reply (programs may report anyway, as Codex does).
++    fn programStatus(self: *StreamHandler, cmd: terminal.osc.Command.ProgramStatus) void {
++        const report = switch (cmd) {
++            .report => |r| r,
++            .query => return,
++        };
++        const S = apprt.action.ProgramStatus;
++        var v: S = .{ .state = std.meta.stringToEnum(S.State, @tagName(report.state)) orelse return };
++        if (report.readOption(.kind)) |k| v.kind = std.meta.stringToEnum(S.Kind, @tagName(k)) orelse .none;
++        if (report.readOption(.app)) |a| {
++            const n = @min(a.len, v.app.len);
++            @memcpy(v.app[0..n], a[0..n]);
++        }
++        self.surfaceMessageWriter(.{ .program_status = v });
++    }
+ };
+ 
+ test "kitty clipboard read: targets-only never consumes a one-time grant" {

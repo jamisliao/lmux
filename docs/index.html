@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lmux – a light, native macOS terminal for Claude Code and Codex</title>
+  <meta name="description" content="lmux is a native macOS terminal for Claude Code and Codex, built on libghostty. See which agent needs you. A lightweight alternative to cmux.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://lmux.dev/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lmux">
+  <meta property="og:title" content="lmux – a light, native macOS terminal for Claude Code and Codex">
+  <meta property="og:description" content="lmux is a native macOS terminal for Claude Code and Codex, built on libghostty. See which agent needs you. A lightweight alternative to cmux.">
+  <meta property="og:url" content="https://lmux.dev/">
+  <meta property="og:image" content="https://lmux.dev/site/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="lmux – a light, native macOS terminal for Claude Code and Codex">
+  <meta name="twitter:description" content="lmux is a native macOS terminal for Claude Code and Codex, built on libghostty. See which agent needs you. A lightweight alternative to cmux.">
+  <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
+  <meta name="twitter:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+
+  <script type="application/ld+json">{
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "lmux",
+    "alternateName": "light mux",
+    "description": "A light, native macOS terminal for living in Claude Code and Codex all day. Built on libghostty, with a sidebar of workspaces, splits and agent status.",
+    "url": "https://lmux.dev/",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "Terminal emulator",
+    "operatingSystem": "macOS 14+",
+    "processorRequirements": "Apple silicon",
+    "softwareVersion": "0.1.0",
+    "downloadUrl": "https://lmux.dev/docs/install/",
+    "installUrl": "https://lmux.dev/docs/install/",
+    "license": "https://opensource.org/licenses/MIT",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "image": "https://lmux.dev/site/img/og.png",
+    "screenshot": "https://lmux.dev/site/img/hero-light.webp",
+    "codeRepository": "https://github.com/sooftware/lmux",
+    "sameAs": [
+      "https://github.com/sooftware/lmux"
+    ],
+    "author": {
+      "@type": "Person",
+      "name": "Soohwan Kim",
+      "url": "https://github.com/sooftware"
+    }
+  }</script>
+  <!-- faq-jsonld: written by scripts/build-docs.py from the FAQ below -->
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Is this a cmux fork?", "acceptedAnswer": {"@type": "Answer", "text": "No. It's the same idea with a smaller scope, written from scratch and MIT licensed. There's no cmux code in this repo. Here's how lmux and cmux differ."}}, {"@type": "Question", "name": "Why not Ghostty and tmux?", "acceptedAnswer": {"@type": "Answer", "text": "That's what I used before cmux, and it's a fine setup. But it can't give you a sidebar that knows which agent is waiting on you, a prompt you can take back, or Claude and Codex sessions that resume by themselves after a relaunch. lmux is basically libghostty plus those three things."}}, {"@type": "Question", "name": "Why not send PRs to cmux instead?", "acceptedAnswer": {"@type": "Answer", "text": "It's a scope thing. lmux is mostly about leaving things out, and you can't send that as a PR to a project that wants them in. I think cmux is right to want them; I just don't use them."}}, {"@type": "Question", "name": "Does it work without Claude Code?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Say no to the hooks and it's a plain Ghostty-based terminal with a sidebar and splits. Agent status and the hover actions only wake up when a claude (or codex) is running in a pane."}}, {"@type": "Question", "name": "Does it work with Codex?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The Codex CLI gets status, notifications, resume on restart, its own session titles, History and copy as markdown. Edit, remove and undo send are Claude Code only. Codex asks once to trust lmux's hooks (“Trust all and continue”); until you do, it runs without them."}}, {"@type": "Question", "name": "Other agents? Linux?", "acceptedAnswer": {"@type": "Answer", "text": "Any CLI runs in it. Resume, History and the hover actions are built for Claude Code and Codex, the two I live in, but any agent gets status and notifications by reporting its state the way Codex does, with one escape sequence (OSC 7501); see any agent. Linux and Windows, no. lmux is native AppKit on libghostty, and a port would be a different app."}}, {"@type": "Question", "name": "Does it phone home?", "acceptedAnswer": {"@type": "Answer", "text": "No. lmux makes no network calls at all. No telemetry, no crash reports, not even an update check (Homebrew does that). Everything it writes to disk, and how to remove it, is listed in one paragraph on the features page."}}, {"@type": "Question", "name": "Will lmux get an in-app browser or computer use?", "acceptedAnswer": {"@type": "Answer", "text": "No. Putting a browser engine in the terminal would defeat the whole point. Claude Code already drives browsers and your screen through MCP servers (Playwright, for one) and Claude in Chrome, and lmux is just the terminal Claude Code runs in. If you want to script lmux itself, the bundled lmux CLI can list panes, send input to them and wait for an agent to finish (lmux wait), so Claude can start a Codex review in a new workspace and read the result. See lmux for agents."}}, {"@type": "Question", "name": "Why “lmux”?", "acceptedAnswer": {"@type": "Answer", "text": "The l is for light. Say it “el-mux.”"}}, {"@type": "Question", "name": "Will you add feature X?", "acceptedAnswer": {"@type": "Answer", "text": "Only if it stays light. Either way, open an issue and tell me who it's for."}}]}</script>
+  <!-- /faq-jsonld -->
+
+  <link rel="icon" href="site/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="site/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="site/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="site/css/site.css">
+  <script>
+    // Apply a saved theme before first paint, so there is no flash. Mark JS as on for progressive bits.
+    document.documentElement.classList.add("js");
+    try { var t = localStorage.getItem("lmux-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="site/js/site.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="nav">
+    <div class="wrap nav__inner">
+      <a class="brand" href="#top" aria-label="lmux, back to top">
+        <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true">
+          <defs><linearGradient id="nav-cursor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#88C0D0"/><stop offset="1" stop-color="#5E81AC"/></linearGradient></defs>
+          <rect x="1" y="1" width="30" height="30" rx="8.5" class="brand__body"/>
+          <path d="M9.6 11.4 L14.2 16 L9.6 20.6" class="brand__chev" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="18.3" y="9.2" width="3.2" height="13.6" rx="1.6" fill="url(#nav-cursor)"/>
+        </svg>
+        <span class="brand__word">lmux</span>
+      </a>
+      <nav class="nav__links" aria-label="Primary">
+        <a href="#light">vs cmux</a>
+        <a href="#tour">Tour</a>
+        <a href="#cmux">From cmux</a>
+        <a href="#install">Install</a>
+        <a href="#faq">FAQ</a>
+        <a href="docs/">Docs</a>
+      </nav>
+      <div class="nav__end">
+        <a class="nav__docs" href="docs/">Docs</a>
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Theme: automatic. Switch theme" hidden>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 3.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg>
+        </button>
+        <a class="icon-btn" href="https://github.com/sooftware/lmux" aria-label="lmux on GitHub">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+        <a class="btn btn--small btn--primary" href="https://github.com/sooftware/lmux/releases/latest">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" id="top" aria-labelledby="hero-title">
+      <div class="wrap hero__inner">
+        <p class="hero__kicker"><span class="pulse" aria-hidden="true"></span>Idles near 0% CPU · native, on libghostty · MIT</p>
+        <h1 id="hero-title" class="hero__title">light mux<span class="dot">.</span><span class="cursor" aria-hidden="true"></span></h1>
+        <p class="hero__lede">A light, native macOS terminal for living in Claude&nbsp;Code and Codex all day.</p>
+
+        <div class="hero__ctas">
+          <div class="cmd" aria-label="Install with Homebrew">
+            <pre><code><span class="pr" aria-hidden="true">$ </span><span data-copy-text>brew install --cask sooftware/tap/lmux</span></code></pre>
+            <button class="copy" type="button" data-copy hidden aria-label="Copy the Homebrew command">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8.5" height="8.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.2V3a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+              <span data-copy-label>Copy</span>
+            </button>
+          </div>
+          <div class="hero__btns">
+            <a class="btn btn--primary" href="https://github.com/sooftware/lmux/releases/latest">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9.5m0 0 3.75-3.75M10 12.5 6.25 8.75M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Download for Mac
+            </a>
+            <a class="btn btn--ghost" href="https://github.com/sooftware/lmux">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+              GitHub
+            </a>
+          </div>
+        </div>
+        <p class="hero__req">macOS 14+ on Apple silicon</p>
+      </div>
+
+      <div class="wrap wrap--wide">
+        <!--
+          Hero media. The <picture> is the poster: what shows first, without JS, and under reduced motion.
+          site.js adds <video autoplay muted loop playsinline> on top after load (light or dark, swapped on theme change),
+          so the video bytes never count toward the first view. Sources: site/video/hero-{light,dark}.{webm,mp4}.
+        -->
+        <figure class="stage" data-hero-video="site/video/hero" data-video="on"
+                data-video-label="lmux: five workspaces in different states; Claude Code and Codex work side by side in a split, zoomed with ⇧⌘↩; ⇧⌘J jumps to a permission prompt; a prompt sent to the wrong workspace is taken back; a row is dragged to the top; History resumes an old session">
+          <div class="stage__frame">
+            <picture>
+              <source srcset="site/img/hero-dark-1000.webp 1000w, site/img/hero-dark.webp 1600w, site/img/hero-dark-2400.webp 2400w" sizes="(max-width: 1248px) 100vw, 1192px" media="(prefers-color-scheme: dark)" data-dark-source>
+              <img class="stage__poster" src="site/img/hero-light.webp" srcset="site/img/hero-light-1000.webp 1000w, site/img/hero-light.webp 1600w, site/img/hero-light-2400.webp 2400w" sizes="(max-width: 1248px) 100vw, 1192px"
+                   width="1600" height="1000" fetchpriority="high" decoding="async"
+                   alt="lmux: five workspaces in the sidebar, each in a different state, and a split with Claude Code and Codex side by side">
+            </picture>
+          </div>
+        </figure>
+
+        <dl class="specs" aria-label="lmux at a glance, measured against cmux 0.65.2">
+          <div><dt>App size</dt><dd><b>25 MB</b><span>cmux: 242 MB</span></dd></div>
+          <div><dt>Memory, 20 workspaces</dt><dd><b>235 MB</b><span>99 MB in the background · cmux: 661 MB</span></dd></div>
+          <div><dt>Idle CPU, 20 workspaces</dt><dd><b>0.10 %</b><span>cmux: 8.10 %</span></dd></div>
+          <div><dt>Settings</dt><dd><b>~10</b><span>cmux: ~200</span></dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- Why -->
+    <section class="section section--note" aria-labelledby="why-title">
+      <div class="wrap note">
+        <h2 id="why-title" class="sr">Why lmux exists</h2>
+        <p class="note__lead">The other day I was working in the terminal and caught myself wondering:</p>
+        <p><em>When did terminals get this heavy? And do they really need to be?</em></p>
+        <p>Terminal apps these days ship with a browser, SSH workspaces, even PR badges. With that much built in, of course they're heavy. AI has changed a lot about how I work, but to me a terminal is still just text in, text out. Personally, I don't browse the web or open SSH workspaces in it. I'm also a defaults person: I barely touch the settings. The only real difference is that I used to keep one terminal open, and now I'm talking to several agents across a bunch of sessions at once. Meanwhile my terminal kept getting heavier with features I never touched, and the little annoyances added up. So I built <strong>lmux</strong>: just the parts I actually use, plus a few things I'd always wanted.</p>
+      </div>
+    </section>
+
+    <!-- Highlights -->
+    <section class="section" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <header class="head">
+          <p class="eyebrow">Highlights</p>
+          <h2 id="features-title">What lmux does</h2>
+        </header>
+
+        <ul class="hl">
+          <li class="hl__item hl__item--lead">
+            <span class="hl__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3c-4.5 4-6.5 7.2-6.5 10a6.5 6.5 0 0 0 13 0c0-2.8-2-6-6.5-10Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 14.5a3 3 0 0 0 3 3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+            <h3>Light.</h3>
+            <p>A 25 MB app that idles near 0% CPU, whether you have one workspace open or twenty. It's native Swift on libghostty. No Electron, no browser engine, and about ten settings.</p>
+          </li>
+          <li class="hl__item">
+            <span class="hl__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M4.5 4.5v3.2h3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8.2V12l2.6 1.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <h3>Quit, update, reboot. It all comes back.</h3>
+            <p>Same workspaces, splits and folders, and every Claude Code or Codex session resumes where it left off. Closed one last week? History (<span class="chord"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>H</kbd></span>) finds it and brings it back.</p>
+          </li>
+          <li class="hl__item">
+            <span class="hl__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/></svg></span>
+            <h3>Know which agent needs you.</h3>
+            <p>Status comes straight from Claude Code's hooks and from Codex itself: running, needs you, done or failed. You get a ring on the pane, a badge on the row and one notification per event, and <span class="chord"><kbd>⇧</kbd><kbd>⌘</kbd><kbd>J</kbd></span> jumps to whoever is waiting. lmux never wraps <code>claude</code> or <code>codex</code>; it only listens.</p>
+          </li>
+          <li class="hl__item">
+            <span class="hl__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7 4.5 11.5 9 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11.5h9.5a5 5 0 0 1 0 10H12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+            <h3>Take back a prompt.</h3>
+            <p>You hit Enter, see which pane it went to, and think, &ldquo;oh, no.&rdquo; Hover the turn and press <kbd>×</kbd>, and Claude rewinds to just before it, without restarting, like it never happened. <kbd>✎</kbd> does the same but hands you the prompt back to fix and resend. (Claude Code only.)</p>
+          </li>
+          <li class="hl__item">
+            <span class="hl__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h12m0 0-4.5-4.5M16 12l-4.5 4.5M20 5v14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            <h3>Bring your cmux setup.</h3>
+            <p>One click brings over your theme, fonts, shortcuts and even your open workspaces. Think of a new browser importing your bookmarks from Chrome. <a class="arrow-link" href="#cmux">What comes over <span aria-hidden="true">→</span></a></p>
+          </li>
+          <li class="hl__item">
+            <span class="hl__icon hl__icon--ko" aria-hidden="true" lang="ko">한</span>
+            <h3>Korean input that just works.</h3>
+            <p>I'm a Korean developer, so this one's personal. No dropped or mangled syllables while you type, and Hangul takes up exactly two cells. Japanese and Chinese (Pinyin, Zhuyin) <a href="/docs/korean-input/#chinese-and-japanese-input">got the same treatment</a>: the caret shows inside the text you're composing, arrow keys stay with the IME, and <kbd>⌃C</kbd> is still Ctrl+C.</p>
+          </li>
+        </ul>
+        <p class="hl__more"><span>It also has tabs in every pane, session titles from Claude Code, 26 themes and copy-as-markdown.</span> <a class="arrow-link" href="https://github.com/sooftware/lmux/blob/main/docs/features.md">All features <span aria-hidden="true">→</span></a></p>
+      </div>
+    </section>
+
+    <!-- Bench -->
+    <section class="section section--tint" id="light" aria-labelledby="light-title">
+      <div class="wrap">
+        <header class="head">
+          <p class="eyebrow">lmux vs cmux</p>
+          <h2 id="light-title">Memory and idle CPU</h2>
+          <p class="head__lede">Both apps on the same Mac, opened with 1, 10 and 20 workspaces (2 live shells each) and left idle. Lower is better. lmux lets go of its GPU memory when it's not the app you're looking at, so it's measured twice, in front and in the background behind another app. See the <a href="https://github.com/sooftware/lmux/blob/main/scripts/BENCH.md">methodology</a>.</p>
+        </header>
+
+        <div class="bench" data-reveal>
+          <p class="legend" aria-hidden="true">
+            <span><i class="sw sw--lmux"></i>lmux, in front</span>
+            <span><i class="sw sw--lmux sw--bg"></i>lmux, in the background</span>
+            <span><i class="sw sw--cmux"></i>cmux 0.65.2</span>
+          </p>
+
+          <figure class="chart" style="--max: 700">
+            <figcaption class="chart__title">Memory <span>MB, lower is better</span></figcaption>
+            <table role="table">
+              <caption class="sr">Memory in MB at 1, 10 and 20 workspaces, lmux in front and in the background vs cmux 0.65.2</caption>
+              <thead class="sr" role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Workspaces</th><th scope="col" role="columnheader">lmux, in front</th><th scope="col" role="columnheader">lmux, in the background</th><th scope="col" role="columnheader">cmux 0.65.2</th></tr></thead>
+              <tbody role="rowgroup">
+                <tr role="row"><th scope="row" role="rowheader">1 workspace</th>
+                  <td role="cell" class="bar bar--lmux" style="--v: 182"><i></i><span>182 MB</span></td>
+                  <td role="cell" class="bar bar--lmux bar--bg" style="--v: 45"><i></i><span>45 MB</span></td>
+                  <td role="cell" class="bar bar--cmux" style="--v: 398"><i></i><span>398 MB</span></td></tr>
+                <tr role="row"><th scope="row" role="rowheader">10 workspaces</th>
+                  <td role="cell" class="bar bar--lmux" style="--v: 207"><i></i><span>207 MB</span></td>
+                  <td role="cell" class="bar bar--lmux bar--bg" style="--v: 71"><i></i><span>71 MB</span></td>
+                  <td role="cell" class="bar bar--cmux" style="--v: 548"><i></i><span>548 MB</span></td></tr>
+                <tr role="row"><th scope="row" role="rowheader">20 workspaces</th>
+                  <td role="cell" class="bar bar--lmux" style="--v: 235"><i></i><span>235 MB</span></td>
+                  <td role="cell" class="bar bar--lmux bar--bg" style="--v: 99"><i></i><span>99 MB</span></td>
+                  <td role="cell" class="bar bar--cmux" style="--v: 661"><i></i><span>661 MB</span></td></tr>
+              </tbody>
+            </table>
+          </figure>
+
+          <figure class="chart" style="--max: 9">
+            <figcaption class="chart__title">Idle CPU <span>%, lower is better</span></figcaption>
+            <table role="table">
+              <caption class="sr">Idle CPU in percent at 1, 10 and 20 workspaces, lmux in front and in the background vs cmux 0.65.2</caption>
+              <thead class="sr" role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Workspaces</th><th scope="col" role="columnheader">lmux, in front</th><th scope="col" role="columnheader">lmux, in the background</th><th scope="col" role="columnheader">cmux 0.65.2</th></tr></thead>
+              <tbody role="rowgroup">
+                <tr role="row"><th scope="row" role="rowheader">1 workspace</th>
+                  <td role="cell" class="bar bar--lmux" style="--v: 0.07"><i></i><span>0.07 %</span></td>
+                  <td role="cell" class="bar bar--lmux bar--bg" style="--v: 0.00"><i></i><span>0.00 %</span></td>
+                  <td role="cell" class="bar bar--cmux" style="--v: 7.16"><i></i><span>7.16 %</span></td></tr>
+                <tr role="row"><th scope="row" role="rowheader">10 workspaces</th>
+                  <td role="cell" class="bar bar--lmux" style="--v: 0.12"><i></i><span>0.12 %</span></td>
+                  <td role="cell" class="bar bar--lmux bar--bg" style="--v: 0.00"><i></i><span>0.00 %</span></td>
+                  <td role="cell" class="bar bar--cmux" style="--v: 7.39"><i></i><span>7.39 %</span></td></tr>
+                <tr role="row"><th scope="row" role="rowheader">20 workspaces</th>
+                  <td role="cell" class="bar bar--lmux" style="--v: 0.10"><i></i><span>0.10 %</span></td>
+                  <td role="cell" class="bar bar--lmux bar--bg" style="--v: 0.00"><i></i><span>0.00 %</span></td>
+                  <td role="cell" class="bar bar--cmux" style="--v: 8.10"><i></i><span>8.10 %</span></td></tr>
+              </tbody>
+            </table>
+          </figure>
+
+          <p class="bench__cond">M4 Pro, macOS 26.6.2, lmux 0.0.102 vs cmux 0.65.2. 2 panes per workspace, every shell live, 5 interleaved runs, medians. Memory is the physical footprint of all app processes; app size is the Apple-silicon <code>.app</code> on disk. The screen was locked during the run, so cmux was in the background too. Its memory moves a lot with window state, so treat its numbers as a single snapshot. The shells and agents inside the panes are the same on both sides and aren't counted; this is the terminal's own cost. lmux's 0.07–0.12&nbsp;% spread across workspace counts is within run-to-run noise.</p>
+        </div>
+
+        <p class="bench__note">Idle CPU is the number I care about most, because it's what drains your battery while twenty agents sit there waiting for you to read what they wrote.</p>
+
+        <div class="fit">
+          <div class="fit__col fit__col--not">
+            <h3>Why not lmux?</h3>
+            <ul>
+              <li>You use cmux's in-app browser, SSH workspaces, ports and PR widgets, custom commands, or more scripting than <code>lmux send</code> and <code>lmux new-workspace</code> give you.</li>
+              <li>You need Linux or Windows.</li>
+              <li>You want the knobs. cmux has about two hundred of them.</li>
+            </ul>
+            <p>Then use cmux. It's great, and I'll keep learning from it. The full comparison is in <a href="docs/vs-cmux/">lmux vs cmux</a>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tour -->
+    <section class="section" id="tour" aria-labelledby="tour-title">
+      <div class="wrap">
+        <header class="head">
+          <p class="eyebrow">Tour</p>
+          <h2 id="tour-title">See it work</h2>
+          <p class="head__lede">Four short clips. The Claude Code sessions are replayed, so no tokens were spent.</p>
+        </header>
+
+        <div class="tour" data-tabs>
+          <div class="tour__list" role="tablist" aria-label="Tour" aria-orientation="vertical" hidden data-tablist>
+            <button role="tab" id="tab-needs" aria-controls="clip-needs" aria-selected="true">
+              <b>An agent needs you</b><span>A ring, a badge, <kbd>⇧</kbd><kbd>⌘</kbd><kbd>J</kbd></span>
+            </button>
+            <button role="tab" id="tab-history" aria-controls="clip-history" aria-selected="false" tabindex="-1">
+              <b>That session from last week</b><span>History, <kbd>⇧</kbd><kbd>⌘</kbd><kbd>H</kbd></span>
+            </button>
+            <button role="tab" id="tab-forget" aria-controls="clip-forget" aria-selected="false" tabindex="-1">
+              <b>Oops, wrong session</b><span>Hover, <kbd>×</kbd>, confirm</span>
+            </button>
+            <button role="tab" id="tab-ko" aria-controls="clip-ko" aria-selected="false" tabindex="-1">
+              <b>Fast Korean typing</b><span>Enter mid-syllable, no lost characters</span>
+            </button>
+          </div>
+
+          <div class="tour__clips">
+            <figure class="clip" id="clip-needs" role="tabpanel" aria-labelledby="tab-needs" tabindex="0">
+              <div class="clip__media">
+                <picture>
+                  <source srcset="site/media/needs-input-still.webp" media="(prefers-reduced-motion: reduce)">
+                  <img src="site/media/needs-input-still.webp" data-anim="site/media/needs-input.webp" width="1200" height="750" loading="lazy" decoding="async"
+                       alt="A background agent starts waiting for a permission prompt, and ⇧⌘J jumps to it">
+                </picture>
+              </div>
+              <figcaption><b>An agent needs you.</b> A ring on the pane, a badge on the workspace, and <kbd>⇧</kbd><kbd>⌘</kbd><kbd>J</kbd> takes you straight there.</figcaption>
+            </figure>
+            <figure class="clip" id="clip-history" role="tabpanel" aria-labelledby="tab-history" tabindex="0">
+              <div class="clip__media">
+                <picture>
+                  <source srcset="site/media/history-still.webp" media="(prefers-reduced-motion: reduce)">
+                  <img src="site/media/history-still.webp" data-anim="site/media/history.webp" width="1200" height="750" loading="lazy" decoding="async"
+                       alt="Searching History for token and resuming a past session">
+                </picture>
+              </div>
+              <figcaption><b>That session from last week.</b> Type a word, see where you said it, press Enter, and you're back in it.</figcaption>
+            </figure>
+            <figure class="clip" id="clip-forget" role="tabpanel" aria-labelledby="tab-forget" tabindex="0">
+              <div class="clip__media">
+                <picture>
+                  <source srcset="site/media/forget-still.webp" media="(prefers-reduced-motion: reduce)">
+                  <img src="site/media/forget-still.webp" data-anim="site/media/forget.webp" width="1200" height="750" loading="lazy" decoding="async"
+                       alt="Taking back a prompt sent to the wrong session, then continuing">
+                </picture>
+              </div>
+              <figcaption><b>Oops, wrong session.</b> Hover, press <kbd>×</kbd>, confirm. Claude rewinds to just before it, and the session carries on as if you never sent it. (Claude Code only.)</figcaption>
+            </figure>
+            <figure class="clip" id="clip-ko" role="tabpanel" aria-labelledby="tab-ko" tabindex="0">
+              <div class="clip__media">
+                <picture>
+                  <source srcset="site/media/korean-ime-still.webp" media="(prefers-reduced-motion: reduce)">
+                  <img src="site/media/korean-ime-still.webp" data-anim="site/media/korean-ime.webp" width="1200" height="750" loading="lazy" decoding="async"
+                       alt="Fast Korean typing with Enter pressed mid-composition, the whole prompt arrives">
+                </picture>
+              </div>
+              <figcaption><b>Fast Korean typing.</b> Hit Enter while you're still in the middle of a syllable, and nothing gets eaten.</figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- cmux import -->
+    <section class="section section--tint" id="cmux" aria-labelledby="cmux-title">
+      <div class="wrap split">
+        <div class="split__copy">
+          <p class="eyebrow">Coming from cmux</p>
+          <h2 id="cmux-title">Bring your cmux setup.</h2>
+          <p class="head__lede">On first launch, lmux shows you what it found in cmux and brings it over in one click. It doesn't touch cmux itself. Run it again any time from <b>lmux → Import from cmux…</b></p>
+          <ul class="ticks">
+            <li>Theme, fonts (Nerd Font fallbacks included), shortcuts, appearance and notifications</li>
+            <li>Your open workspaces from every cmux window, with their names, colors, directories and splits, and their Claude Code / Codex sessions resumed</li>
+            <li>If you change your mind, <b>Undo Import</b> puts your config and settings back exactly as they were and closes the imported workspaces</li>
+            <li>Anything lmux doesn't have (the browser, SSH workspaces…) is listed, so nothing disappears silently</li>
+          </ul>
+        </div>
+
+        <figure class="sheet-fig">
+          <div class="sheet" aria-hidden="true">
+            <p class="sheet__title">Bring over your cmux setup</p>
+            <p class="sheet__sub">lmux found cmux on this Mac: theme, font, app settings, 12 shortcuts and 5 open workspaces. cmux itself isn’t changed.</p>
+            <p class="ws sheet__ws"><i style="--c: var(--ws-teal)"></i>api <i style="--c: var(--ws-orange)"></i>ios <i style="--c: var(--ws-purple)"></i>docs <span>+2</span></p>
+            <span class="mbtn mbtn--primary mbtn--wide">Bring over my cmux setup</span>
+            <div class="sheet__row"><span class="sheet__link">Choose what to import…</span><span class="mbtn">Not Now</span></div>
+          </div>
+          <div class="sheet sheet--after" aria-hidden="true">
+            <p class="sheet__done"><span class="check"></span>Brought over your theme, font, app settings, 12 shortcuts and 5 open workspaces.</p>
+            <p class="sheet__foot"><span class="chev"></span>lmux doesn’t have: Browser panes, SSH and remote workspaces and 7 more</p>
+            <div class="sheet__btns"><span class="mbtn">Undo Import</span><span class="sheet__spacer"></span><span class="mbtn mbtn--primary">Done</span></div>
+          </div>
+          <figcaption>Illustration of the import and what comes after, not a screenshot.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Shortcuts -->
+    <section class="section" id="keys" aria-labelledby="keys-title">
+      <div class="wrap">
+        <header class="head">
+          <p class="eyebrow">Every day</p>
+          <h2 id="keys-title">Default shortcuts</h2>
+          <p class="head__lede">These are the defaults. A <code>keybind</code> in your Ghostty config overrides them, and the menus show whatever is bound.</p>
+        </header>
+
+        <dl class="keys">
+          <div><dt>New workspace</dt><dd><kbd>⌘</kbd><kbd>N</kbd></dd></div>
+          <div><dt>Split right / down</dt><dd><kbd>⌘</kbd><kbd>D</kbd><i>/</i><kbd>⇧</kbd><kbd>⌘</kbd><kbd>D</kbd></dd></div>
+          <div><dt>Switch workspace</dt><dd><kbd>⌘</kbd><kbd>1</kbd><i>–</i><kbd>⌘</kbd><kbd>8</kbd><i>,</i> <kbd>⌘</kbd><kbd>9</kbd> <i>for the last</i></dd></div>
+          <div><dt>Move between panes</dt><dd><kbd>⌘</kbd><kbd>[</kbd><i>/</i><kbd>⌘</kbd><kbd>]</kbd></dd></div>
+          <div class="keys__hot"><dt>Jump to the agent that needs you</dt><dd><kbd>⇧</kbd><kbd>⌘</kbd><kbd>J</kbd></dd></div>
+          <div><dt>Search past sessions</dt><dd><kbd>⇧</kbd><kbd>⌘</kbd><kbd>H</kbd></dd></div>
+          <div><dt>Copy / edit &amp; resend / remove a turn</dt><dd><i>hover, then</i> <kbd>⧉</kbd><kbd>✎</kbd><kbd>×</kbd></dd></div>
+          <div class="keys__hot"><dt>Undo the prompt you just sent</dt><dd><kbd>⌘</kbd><kbd>Z</kbd> <i>while the “Sent to …” toast is up</i></dd></div>
+        </dl>
+        <p class="keys__more"><a class="arrow-link" href="https://github.com/sooftware/lmux#usage">All shortcuts <span aria-hidden="true">→</span></a></p>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section class="section section--tint" id="install" aria-labelledby="install-title">
+      <div class="wrap">
+        <header class="head">
+          <p class="eyebrow">Install</p>
+          <h2 id="install-title">Homebrew or a download</h2>
+          <p class="head__lede">Requires <b>macOS 14+ on Apple silicon</b>. To build from source, see <a href="https://github.com/sooftware/lmux/blob/main/App/README.md">App/README.md</a>.</p>
+        </header>
+
+        <div class="install">
+          <div class="way way--a">
+            <h3><span class="way__n" aria-hidden="true">A</span>Homebrew</h3>
+            <div class="cmd cmd--block">
+              <pre><code><span class="pr" aria-hidden="true">$ </span><span data-copy-text>brew install --cask sooftware/tap/lmux</span></code></pre>
+              <button class="copy" type="button" data-copy hidden aria-label="Copy the Homebrew command">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8.5" height="8.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.2V3a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+                <span data-copy-label>Copy</span>
+              </button>
+            </div>
+          </div>
+          <div class="way way--b">
+            <h3><span class="way__n" aria-hidden="true">B</span>Download</h3>
+            <p>Open the <b>.dmg</b> and drag <b>lmux.app</b> to Applications. The zip and older versions are on <a href="https://github.com/sooftware/lmux/releases">GitHub Releases</a>.</p>
+            <a class="btn btn--ghost" href="https://github.com/sooftware/lmux/releases/latest/download/lmux-arm64.dmg">Download for macOS</a>
+          </div>
+          <div class="way way--then">
+            <h3>Then</h3>
+            <ol class="steps">
+              <li><b>If you're coming from cmux,</b> lmux offers to bring over your setup and your open workspaces.</li>
+              <li><b>If you use Claude Code,</b> lmux offers to install a few hooks and shows you the exact diff to your <code>settings.json</code> before touching anything.</li>
+              <li><b>If you use Codex,</b> lmux offers to install Codex hooks too (this time the diff is against <code>~/.codex/hooks.json</code>). Codex asks once to trust them. Choose <b>Trust all and continue</b>.</li>
+              <li><b>Run <code>claude</code> in any pane.</b> The sidebar starts telling you which agent is running, which is done, and which one is waiting for you.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq" aria-labelledby="faq-title">
+      <div class="wrap">
+        <header class="head">
+          <p class="eyebrow">FAQ</p>
+          <h2 id="faq-title">Common questions</h2>
+        </header>
+        <dl class="faq">
+          <div><dt>Is this a cmux fork?</dt><dd>No. It's the same idea with a smaller scope, written from scratch and MIT licensed. There's no cmux code in this repo. Here's <a href="docs/vs-cmux/">how lmux and cmux differ</a>.</dd></div>
+          <div><dt>Why not Ghostty and tmux?</dt><dd>That's what I used before cmux, and it's a fine setup. But it can't give you a sidebar that knows which agent is waiting on you, a prompt you can take back, or Claude and Codex sessions that resume by themselves after a relaunch. lmux is basically libghostty plus those three things.</dd></div>
+          <div><dt>Why not send PRs to cmux instead?</dt><dd>It's a scope thing. lmux is mostly about leaving things out, and you can't send that as a PR to a project that wants them in. I think cmux is right to want them; I just don't use them.</dd></div>
+          <div><dt>Does it work without Claude Code?</dt><dd>Yes. Say no to the hooks and it's a plain Ghostty-based terminal with a sidebar and splits. Agent status and the hover actions only wake up when a <code>claude</code> (or <code>codex</code>) is running in a pane.</dd></div>
+          <div><dt>Does it work with Codex?</dt><dd>Yes. The Codex CLI gets status, notifications, resume on restart, its own session titles, History and copy as markdown. Edit, remove and undo send are Claude Code only. Codex asks once to trust lmux's hooks (“Trust all and continue”); until you do, it runs without them.</dd></div>
+          <div><dt>Other agents? Linux?</dt><dd>Any CLI runs in it. Resume, History and the hover actions are built for Claude Code and Codex, the two I live in, but any agent gets status and notifications by reporting its state the way Codex does, with one escape sequence (OSC 7501); see <a href="/docs/any-agent/">any agent</a>. Linux and Windows, no. lmux is native AppKit on libghostty, and a port would be a different app.</dd></div>
+          <div><dt>Does it phone home?</dt><dd>No. lmux makes no network calls at all. No telemetry, no crash reports, not even an update check (Homebrew does that). Everything it writes to disk, and how to remove it, is listed in <a href="https://github.com/sooftware/lmux/blob/main/docs/features.md#what-does-lmux-write-to-disk-and-how-do-i-remove-it">one paragraph on the features page</a>.</dd></div>
+          <div><dt>Will lmux get an in-app browser or computer use?</dt><dd>No. Putting a browser engine in the terminal would defeat the whole point. Claude Code already drives browsers and your screen through MCP servers (Playwright, for one) and Claude in Chrome, and lmux is just the terminal Claude Code runs in. If you want to script lmux itself, the bundled <code>lmux</code> CLI can list panes, send input to them and wait for an agent to finish (<code>lmux wait</code>), so Claude can start a Codex review in a new workspace and read the result. See <a href="https://github.com/sooftware/lmux/blob/main/docs/agents.md">lmux for agents</a>.</dd></div>
+          <div><dt>Why “lmux”?</dt><dd>The l is for light. Say it “el-mux.”</dd></div>
+          <div><dt>Will you add feature X?</dt><dd>Only if it stays light. Either way, open an issue and tell me who it's for.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- Install, again -->
+    <section class="section section--end" aria-label="Install lmux">
+      <div class="wrap end">
+        <div class="hero__ctas">
+          <div class="cmd" aria-label="Install with Homebrew">
+            <pre><code><span class="pr" aria-hidden="true">$ </span><span data-copy-text>brew install --cask sooftware/tap/lmux</span></code></pre>
+            <button class="copy" type="button" data-copy hidden aria-label="Copy the Homebrew command">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5" y="5" width="8.5" height="8.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.2V3a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+              <span data-copy-label>Copy</span>
+            </button>
+          </div>
+          <a class="btn btn--primary" href="https://github.com/sooftware/lmux/releases/latest">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9.5m0 0 3.75-3.75M10 12.5 6.25 8.75M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Download for Mac
+          </a>
+        </div>
+        <p class="hero__req">macOS 14+ on Apple silicon</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p class="footer__brand"><img src="site/img/icon.svg" alt="" width="24" height="24" loading="lazy"> lmux <span>light mux.</span></p>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="docs/">Docs</a>
+        <a href="https://github.com/sooftware/lmux">GitHub</a>
+        <a href="https://github.com/sooftware/lmux/releases">Releases</a>
+        <a href="https://github.com/sooftware/lmux/blob/main/LICENSE">MIT License</a>
+      </nav>
+      <p class="footer__meta">Built on <a href="https://github.com/ghostty-org/ghostty">Ghostty</a>. The idea comes from <a href="https://github.com/manaflow-ai/cmux">cmux</a>.</p>
+    </div>
+  </footer>
+</body>
+</html>

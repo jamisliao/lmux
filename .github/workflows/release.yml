@@ -1,0 +1,168 @@
+name: Release
+
+# Tag vX.Y.Z (or run by hand) -> build lmux.app, package zip/dmg/sha256, sign + notarize when the
+# secrets exist, verify, and publish a GitHub release on THIS repository (the dev repo now, the public
+# repo later). Without signing secrets the build is ad-hoc signed, published as a prerelease, and the
+# notes say loudly that Gatekeeper will block it.
+#
+# Secrets (all optional; environment secrets of the `release` environment, not repository secrets):
+#   MACOS_CERT_P12_BASE64, MACOS_CERT_PASSWORD   Developer ID Application certificate (.p12, base64)
+#   APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD  notarytool credentials (app-specific password)
+#   TAP_GITHUB_TOKEN                             push the updated cask to <repo owner>/homebrew-tap
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to package, X.Y.Z (tag vX.Y.Z is created when the release is published)"
+        required: true
+      draft:
+        description: "Create the release as a draft (no tag, no cask update)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    # Secrets live in the `release` environment (required reviewers + v* tag policy; see
+    # release/RELEASING.md), not as repository secrets, so no other workflow or branch can read them.
+    environment: release
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      HAS_CERT: ${{ secrets.MACOS_CERT_P12_BASE64 != '' && secrets.MACOS_CERT_PASSWORD != '' }}
+      HAS_NOTARY: ${{ secrets.APPLE_ID != '' && secrets.APPLE_TEAM_ID != '' && secrets.APPLE_APP_PASSWORD != '' }}
+      HAS_TAP: ${{ secrets.TAP_GITHUB_TOKEN != '' }}
+    steps:
+      - name: Version
+        id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_DRAFT: ${{ inputs.draft }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then V="${GITHUB_REF_NAME#v}"; DRAFT=false; else V="$INPUT_VERSION"; DRAFT="$INPUT_DRAFT"; fi
+          [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must be X.Y.Z (got '$V')"; exit 1; }
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "draft=$DRAFT" >> "$GITHUB_OUTPUT"
+          # Later run blocks read these from the environment, never via expression interpolation.
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+          echo "DRAFT=$DRAFT" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-lmux
+        with:
+          use-cache: 'false'   # release: GhosttyKit from source, never from the shared cache
+
+      - name: Bundle lmux.app
+        run: App/scripts/bundle.sh
+
+      - name: Import Developer ID certificate (temporary keychain)
+        if: env.HAS_CERT == 'true'
+        env:
+          P12: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/lmux-signing.keychain-db"
+          KC_PASS="$(uuidgen)"
+          echo "::add-mask::$KC_PASS"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PASS" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PASS" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          # notarytool store-credentials / --keychain-profile use the default keychain.
+          security default-keychain -d user -s "$KC"
+          ID="$(security find-identity -v -p codesigning "$KC" | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p' | head -1)"
+          [ -n "$ID" ] || { echo "::error::no Developer ID Application identity in the certificate"; exit 1; }
+          echo "LMUX_SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
+          echo "KEYCHAIN=$KC" >> "$GITHUB_ENV"
+
+      - name: Store notarytool credentials
+        if: env.HAS_CERT == 'true' && env.HAS_NOTARY == 'true'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials lmux-notary --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+          echo "LMUX_NOTARY_PROFILE=lmux-notary" >> "$GITHUB_ENV"
+
+      - name: Package (release/package.sh)
+        run: release/package.sh --version "$VERSION"
+
+      - name: Verify (release/check.sh)
+        run: |
+          V="$VERSION"
+          release/check.sh "release/out/lmux-$V-arm64.zip"
+          release/check.sh "release/out/lmux-$V-arm64.dmg"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}   # this step only: no other step (or what it runs) gets it
+        run: |
+          V="$VERSION"
+          NOTES="$RUNNER_TEMP/notes.md"
+          FLAGS=()
+          if [ -n "${LMUX_SIGN_IDENTITY:-}" ] && [ -n "${LMUX_NOTARY_PROFILE:-}" ]; then
+            echo "lmux $V — Developer ID signed and notarized." > "$NOTES"
+          else
+            FLAGS+=(--prerelease)
+            {
+              echo "> [!WARNING]"
+              if [ -n "${LMUX_SIGN_IDENTITY:-}" ]; then
+                echo "> **This build is signed but NOT notarized.** macOS will say \"lmux cannot be opened because the developer cannot be verified\"."
+              else
+                echo "> **This build is ad-hoc signed only (no Developer ID, not notarized).** Gatekeeper will refuse to open it (\"lmux.app is damaged and can't be opened\")."
+              fi
+              echo "> To run it anyway: right-click lmux.app > Open, or \`xattr -dr com.apple.quarantine /Applications/lmux.app\`."
+              echo ""
+              echo "lmux $V"
+            } > "$NOTES"
+          fi
+          [ "$DRAFT" = "true" ] && FLAGS+=(--draft)
+          # What changed for users of the previous version (release/notes.md; emptied after each release).
+          if [ -s release/notes.md ]; then echo "" >> "$NOTES"; cat release/notes.md >> "$NOTES"; fi
+          echo "" >> "$NOTES"; echo '```' >> "$NOTES"; cat "release/out/lmux-$V-arm64.sha256.txt" >> "$NOTES"; echo '```' >> "$NOTES"
+          gh release create "v$V" \
+            "release/out/lmux-$V-arm64.zip" "release/out/lmux-$V-arm64.dmg" "release/out/lmux-$V-arm64.sha256.txt" \
+            release/out/lmux-arm64.dmg \
+            -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "v$V" --notes-file "$NOTES" "${FLAGS[@]}"
+
+      - name: Update Homebrew cask (<owner>/homebrew-tap)
+        if: env.HAS_TAP == 'true' && steps.v.outputs.draft != 'true'
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          V="$VERSION"
+          release/update-cask.sh "$V"
+          TAP="$RUNNER_TEMP/homebrew-tap"
+          git clone "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY_OWNER}/homebrew-tap.git" "$TAP"
+          mkdir -p "$TAP/Casks"
+          cp release/lmux.rb "$TAP/Casks/lmux.rb"
+          cd "$TAP"
+          git add Casks/lmux.rb
+          if git diff --cached --quiet; then echo "cask unchanged"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "lmux $V"
+          git push origin HEAD
+
+      - name: Clean up keychain
+        if: always() && env.KEYCHAIN != ''
+        run: |
+          security default-keychain -d user -s login.keychain-db || true
+          security delete-keychain "$KEYCHAIN" || true

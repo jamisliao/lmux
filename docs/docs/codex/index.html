@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex CLI in lmux, a macOS terminal for coding agents · lmux docs</title>
+  <meta name="description" content="Codex CLI gets most of what Claude Code gets in lmux, a light macOS terminal on libghostty, by listening only: status, notifications, resume on restart,…">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://lmux.dev/docs/codex/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lmux">
+  <meta property="og:title" content="Codex CLI in lmux, a macOS terminal for coding agents · lmux docs">
+  <meta property="og:description" content="Codex CLI gets most of what Claude Code gets in lmux, a light macOS terminal on libghostty, by listening only: status, notifications, resume on restart,…">
+  <meta property="og:url" content="https://lmux.dev/docs/codex/">
+  <meta property="og:image" content="https://lmux.dev/site/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Codex CLI in lmux, a macOS terminal for coding agents · lmux docs">
+  <meta name="twitter:description" content="Codex CLI gets most of what Claude Code gets in lmux, a light macOS terminal on libghostty, by listening only: status, notifications, resume on restart,…">
+  <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "lmux", "item": "https://lmux.dev/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lmux.dev/docs/"}, {"@type": "ListItem", "position": 3, "name": "Codex", "item": "https://lmux.dev/docs/codex/"}]}</script>
+  <link rel="icon" href="../../site/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../../site/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../../site/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="../../site/css/site.css">
+  <link rel="stylesheet" href="../../site/css/docs.css">
+  <script>
+    document.documentElement.classList.add("js");
+    try { var t = localStorage.getItem("lmux-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="../../site/js/docs.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="nav">
+    <div class="nav__inner docs-bar">
+      <button class="icon-btn docs-menu" type="button" data-menu aria-controls="docs-nav" aria-expanded="false" aria-label="Show the docs menu" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h13M3.5 10h13M3.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <a class="brand" href="../../" aria-label="lmux home"><svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nav-cursor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#88C0D0"/><stop offset="1" stop-color="#5E81AC"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8.5" class="brand__body"/><path d="M9.6 11.4 L14.2 16 L9.6 20.6" class="brand__chev" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18.3" y="9.2" width="3.2" height="13.6" rx="1.6" fill="url(#nav-cursor)"/></svg><span class="brand__word">lmux</span></a>
+      <a class="docs-tag" href="../">docs</a>
+      <div class="nav__end">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Theme: automatic. Switch theme" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 3.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+        <a class="icon-btn" href="https://github.com/sooftware/lmux" aria-label="lmux on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+        <a class="btn btn--small btn--primary docs-dl" href="https://github.com/sooftware/lmux/releases/latest">Download</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-shell">
+    <nav class="docs-nav" id="docs-nav" aria-label="Docs">
+      <p class="docs-nav__group">Start</p><ul><li><a href="../">Overview</a></li><li><a href="../install/">Install</a></li><li><a href="../quick-start/">Quick start</a></li></ul><p class="docs-nav__group">Using lmux</p><ul><li><a href="../workspaces/">Workspaces &amp; panes</a></li><li><a href="../shortcuts/">Shortcuts</a></li><li><a href="../configuration/">Configuration</a></li><li><a href="../korean-input/">Korean input</a></li><li><a href="../ko/">한글 입력 (한국어)</a></li></ul><p class="docs-nav__group">Agents</p><ul><li><a href="../claude-code/">Claude Code</a></li><li><a href="./" aria-current="page">Codex</a></li><li><a href="../any-agent/">Any agent (OSC 7501)</a></li><li><a href="../cli/">The lmux CLI</a></li></ul><p class="docs-nav__group">Moving in</p><ul><li><a href="../vs-cmux/">lmux vs cmux</a></li><li><a href="../from-cmux/">Switching from cmux</a></li></ul><p class="docs-nav__group">Reference</p><ul><li><a href="../performance/">Performance</a></li><li><a href="../privacy/">Privacy &amp; files on disk</a></li><li><a href="../troubleshooting/">Troubleshooting</a></li><li><a href="../faq/">FAQ</a></li></ul>
+    </nav>
+    <main class="docs-main" id="content" tabindex="-1">
+      <article class="prose">
+<h1>Codex</h1>
+<p>Codex CLI gets most of what Claude Code gets in lmux, a light macOS terminal on libghostty, by listening only: status, notifications, resume on restart, session titles, History and copy as markdown.</p>
+<h2 id="setup">Setup<a class="h-anchor" href="#setup" aria-label="Link to this section">#</a></h2>
+<p>If Codex is on your Mac, lmux offers its hooks right after Claude Code's, the same way: <strong>Show the exact change</strong> shows the diff to <code>~/.codex/hooks.json</code> (or <code>$CODEX_HOME/hooks.json</code>) first. lmux adds its group after yours, so the hooks you already trusted stay trusted.</p>
+<p><strong>Codex asks once.</strong> Codex runs a new hook only after you trust it. The next time it starts it shows "Hooks need review": choose <strong>Trust all and continue</strong>. If you skip it, Codex runs without them and lmux says so in the pane, once. Settings → General shows whether they're installed and trusted.</p>
+<p>Install, update or uninstall them any time from <strong>lmux → Install Codex Hooks…</strong> / <strong>Uninstall Codex Hooks…</strong> or Settings → General.</p>
+<h2 id="status-from-codex-itself">Status, from Codex itself<a class="h-anchor" href="#status-from-codex-itself" aria-label="Link to this section">#</a></h2>
+<p>Running, needs you ("Permission: Bash"), done and failed, with the same ring, badge and <code>⇧⌘J</code> as Claude Code. They come from Codex itself: its terminal UI reports its state in its own pane with an escape sequence (OSC 7501), so each pane's status is that codex's own. lmux takes it only while <code>codex</code> is the pane's foreground program; a codex inside ssh or tmux reports through hooks only.</p>
+<p>Stopping Codex yourself (Esc) just sets the row back to idle, with no alert.</p>
+<p>Run Codex with approvals bypassed (<code>--yolo</code>) and the pane's tab bar shows a small <strong>bypass</strong> badge, as it does for <a href="../claude-code/#status">Claude Code</a>. A running row that goes ten minutes with no output says so ("no output for 12m").</p>
+<h2 id="notifications-no-floods">Notifications, no floods<a class="h-anchor" href="#notifications-no-floods" aria-label="Link to this section">#</a></h2>
+<p>lmux notifies only when Codex is really waiting for you (an approval it asks you for) and when a turn ends. Auto-approved commands, <code>--yolo</code> runs and subagents never ping you.</p>
+<h2 id="sessions-from-the-hooks">Sessions, from the hooks<a class="h-anchor" href="#sessions-from-the-hooks" aria-label="Link to this section">#</a></h2>
+<p>Resume, History and titles need to know which session runs in which pane, and Codex's hooks tell lmux that. Codex runs every session on one shared background server by default, whose hooks name the pane that started it, so lmux matches a new session, when it starts a turn, to the pane whose codex started a turn at that moment, and only one to one. Two panes prompted in the same second stay unmatched rather than mixed up: their status is still right, and the next prompt matches them.</p>
+<p>A Codex background server started outside lmux sends lmux no hooks. Status still works; the session just isn't remembered for resume, and lmux says so once.</p>
+<h2 id="resume-titles-history">Resume, titles, History<a class="h-anchor" href="#resume-titles-history" aria-label="Link to this section">#</a></h2>
+<ul><li><strong>Resume on restart</strong>: quit lmux and each Codex pane comes back as <code>codex resume &lt;id&gt;</code>, with its model, sandbox, approval, profile and <code>-c</code> flags. cmux's Codex panes come back the same way when you import them.</li><li><strong>Session titles</strong> come from Codex's own thread name.</li><li><strong>History</strong> (<code>⇧⌘H</code>) lists Codex sessions next to Claude's, marked "Codex". lmux only reads them; Codex keeps its own sessions.</li><li><strong>Copy as markdown</strong>: hover a reply and press <code>⧉</code>, or <code>⌥⌘C</code> for the last one.</li></ul>
+<h2 id="limits">Limits<a class="h-anchor" href="#limits" aria-label="Link to this section">#</a></h2>
+<p>Edit and resend (<code>✎</code>), remove (<code>×</code>) and <code>⌘Z</code> undo send are Claude Code only: they drive Claude Code's rewind menu. A Codex turn shows just <code>⧉</code>.</p>
+      </article>
+      <footer class="docs-foot">
+        <a class="docs-edit" href="https://github.com/sooftware/lmux/blob/main/docs/src/codex.md">Edit this page on GitHub</a>
+        <nav class="pns" aria-label="Previous and next page"><a class="pn pn--prev" href="../claude-code/" rel="prev"><span>Previous</span>Claude Code</a><a class="pn pn--next" href="../any-agent/" rel="next"><span>Next</span>Any agent (OSC 7501)</a></nav>
+      </footer>
+    </main>
+    <aside class="docs-toc" aria-labelledby="toc-title"><p id="toc-title">On this page</p><ul><li class="toc--2"><a href="#setup">Setup</a></li><li class="toc--2"><a href="#status-from-codex-itself">Status, from Codex itself</a></li><li class="toc--2"><a href="#notifications-no-floods">Notifications, no floods</a></li><li class="toc--2"><a href="#sessions-from-the-hooks">Sessions, from the hooks</a></li><li class="toc--2"><a href="#resume-titles-history">Resume, titles, History</a></li><li class="toc--2"><a href="#limits">Limits</a></li></ul></aside>
+  </div>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p class="footer__brand"><img src="../../site/img/icon.svg" alt="" width="24" height="24" loading="lazy"> lmux <span>light mux.</span></p>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="https://github.com/sooftware/lmux">GitHub</a>
+        <a href="https://github.com/sooftware/lmux/releases">Releases</a>
+        <a href="https://github.com/sooftware/lmux/blob/main/LICENSE">MIT License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

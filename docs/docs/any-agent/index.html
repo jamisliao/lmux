@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Any agent (OSC 7501) · lmux docs</title>
+  <meta name="description" content="Any CLI runs in lmux, a light macOS terminal on libghostty. Status, rewind, resume and History are built for Claude Code and Codex. This page is about the…">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://lmux.dev/docs/any-agent/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lmux">
+  <meta property="og:title" content="Any agent (OSC 7501) · lmux docs">
+  <meta property="og:description" content="Any CLI runs in lmux, a light macOS terminal on libghostty. Status, rewind, resume and History are built for Claude Code and Codex. This page is about the…">
+  <meta property="og:url" content="https://lmux.dev/docs/any-agent/">
+  <meta property="og:image" content="https://lmux.dev/site/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Any agent (OSC 7501) · lmux docs">
+  <meta name="twitter:description" content="Any CLI runs in lmux, a light macOS terminal on libghostty. Status, rewind, resume and History are built for Claude Code and Codex. This page is about the…">
+  <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "lmux", "item": "https://lmux.dev/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lmux.dev/docs/"}, {"@type": "ListItem", "position": 3, "name": "Any agent (OSC 7501)", "item": "https://lmux.dev/docs/any-agent/"}]}</script>
+  <link rel="icon" href="../../site/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../../site/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../../site/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="../../site/css/site.css">
+  <link rel="stylesheet" href="../../site/css/docs.css">
+  <script>
+    document.documentElement.classList.add("js");
+    try { var t = localStorage.getItem("lmux-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="../../site/js/docs.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="nav">
+    <div class="nav__inner docs-bar">
+      <button class="icon-btn docs-menu" type="button" data-menu aria-controls="docs-nav" aria-expanded="false" aria-label="Show the docs menu" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h13M3.5 10h13M3.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <a class="brand" href="../../" aria-label="lmux home"><svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nav-cursor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#88C0D0"/><stop offset="1" stop-color="#5E81AC"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8.5" class="brand__body"/><path d="M9.6 11.4 L14.2 16 L9.6 20.6" class="brand__chev" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18.3" y="9.2" width="3.2" height="13.6" rx="1.6" fill="url(#nav-cursor)"/></svg><span class="brand__word">lmux</span></a>
+      <a class="docs-tag" href="../">docs</a>
+      <div class="nav__end">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Theme: automatic. Switch theme" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 3.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+        <a class="icon-btn" href="https://github.com/sooftware/lmux" aria-label="lmux on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+        <a class="btn btn--small btn--primary docs-dl" href="https://github.com/sooftware/lmux/releases/latest">Download</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-shell">
+    <nav class="docs-nav" id="docs-nav" aria-label="Docs">
+      <p class="docs-nav__group">Start</p><ul><li><a href="../">Overview</a></li><li><a href="../install/">Install</a></li><li><a href="../quick-start/">Quick start</a></li></ul><p class="docs-nav__group">Using lmux</p><ul><li><a href="../workspaces/">Workspaces &amp; panes</a></li><li><a href="../shortcuts/">Shortcuts</a></li><li><a href="../configuration/">Configuration</a></li><li><a href="../korean-input/">Korean input</a></li><li><a href="../ko/">한글 입력 (한국어)</a></li></ul><p class="docs-nav__group">Agents</p><ul><li><a href="../claude-code/">Claude Code</a></li><li><a href="../codex/">Codex</a></li><li><a href="./" aria-current="page">Any agent (OSC 7501)</a></li><li><a href="../cli/">The lmux CLI</a></li></ul><p class="docs-nav__group">Moving in</p><ul><li><a href="../vs-cmux/">lmux vs cmux</a></li><li><a href="../from-cmux/">Switching from cmux</a></li></ul><p class="docs-nav__group">Reference</p><ul><li><a href="../performance/">Performance</a></li><li><a href="../privacy/">Privacy &amp; files on disk</a></li><li><a href="../troubleshooting/">Troubleshooting</a></li><li><a href="../faq/">FAQ</a></li></ul>
+    </nav>
+    <main class="docs-main" id="content" tabindex="-1">
+      <article class="prose">
+<h1>Any agent (OSC 7501)</h1>
+<p>Any CLI runs in lmux, a light macOS terminal on libghostty. Status, rewind, resume and History are built for Claude Code and Codex. This page is about the one piece another agent can plug into: reporting its own state, the way Codex does.</p>
+<h2 id="what-osc-7501-is">What OSC 7501 is<a class="h-anchor" href="#what-osc-7501-is" aria-label="Link to this section">#</a></h2>
+<p>OSC 7501 is an escape sequence a terminal program prints to say what it's doing: working, waiting for the user, done. Codex's terminal UI prints it in its own pane, and that's where lmux's Codex status comes from (<a href="../codex/#status-from-codex-itself">Codex</a>). lmux only takes it from the pane's foreground program, so a report can't come from a file shown with <code>cat</code> or from another program.</p>
+<h2 id="reporting-your-state">Reporting your state<a class="h-anchor" href="#reporting-your-state" aria-label="Link to this section">#</a></h2>
+<p>Any program reports its state with one line. lmux shows it on the row and the pane, with the same ring, badge, <code>⇧⌘J</code> and one notification per wait as Claude Code and Codex, and its name in <code>lmux list</code>:</p>
+<pre tabindex="0"><code class="lang-sh">printf '\033]7501;state=working:app=my-agent\033\\'</code></pre>
+<ul><li><code>state</code> is <code>working</code>, <code>blocked</code>, <code>done</code>, <code>idle</code>, <code>error</code> or <code>clear</code> (the program stopped reporting).</li><li><code>blocked</code> takes a kind: <code>state=blocked:kind=permission:app=my-agent</code> (or <code>kind=question</code>, <code>kind=auth</code>). The row says "my-agent needs you", "my-agent has a question" or "my-agent needs you to sign in".</li><li><code>app</code> names the program, up to 15 bytes. A report counts only while the pane's foreground program is the one it names: its executable, or the script a shell or interpreter runs (<code>./my-agent</code>, <code>node …/bin/my-agent</code>, <code>python3 -m my-agent</code>). Another program's argument never names it (<code>sort notes</code> isn't <code>notes</code>), and programs that show other bytes or run other programs (<code>cat</code>, <code>less</code>, <code>sort</code>, <code>curl</code>, <code>ssh</code>, <code>docker</code>, <code>xargs</code>, <code>sudo</code>, task runners like <code>npm</code> or <code>make</code>…) never count. That list is best effort. So the line above does nothing typed at a prompt: <code>my-agent</code> has to print it. The last report a program prints just before it quits still counts, once, if it ends the turn (<code>done</code>, <code>error</code>, <code>idle</code>, <code>clear</code>) and the shell has the terminal back.</li><li>The same report again changes nothing. After an answer (Return, or <code>lmux send</code> with a newline), the next <code>blocked</code> is a new ask and notifies again. Arrow keys in a menu aren't an answer.</li><li>Hooks win: a pane where Claude Code's (or Codex's) hooks bound a session ignores these reports, so nothing notifies twice.</li><li>It's status only: no resume, History or rewind. A program that quits without <code>clear</code> keeps a done or failed row; a running or waiting one goes back to idle as soon as it exits.</li></ul>
+<p>Another agent can then wait for yours with <a href="../cli/#lmux-wait"><code>lmux wait</code></a>.</p>
+<h2 id="hooks">Hooks<a class="h-anchor" href="#hooks" aria-label="Link to this section">#</a></h2>
+<p>If your agent has hooks of its own, or you'd like status, resume or History for it, <a href="https://github.com/sooftware/lmux/issues">open an issue</a> and say which agent and how it reports its state.</p>
+<h2 id="without-any-of-it">Without any of it<a class="h-anchor" href="#without-any-of-it" aria-label="Link to this section">#</a></h2>
+<p>An agent with no reporting still gets everything that isn't agent-specific: workspaces, splits, restore after a relaunch (as a shell in the same folder), and the <a href="../cli/"><code>lmux</code> CLI</a>, including <code>lmux notify</code> to post a notification from a script or a hook.</p>
+      </article>
+      <footer class="docs-foot">
+        <a class="docs-edit" href="https://github.com/sooftware/lmux/blob/main/docs/src/any-agent.md">Edit this page on GitHub</a>
+        <nav class="pns" aria-label="Previous and next page"><a class="pn pn--prev" href="../codex/" rel="prev"><span>Previous</span>Codex</a><a class="pn pn--next" href="../cli/" rel="next"><span>Next</span>The lmux CLI</a></nav>
+      </footer>
+    </main>
+    <aside class="docs-toc" aria-labelledby="toc-title"><p id="toc-title">On this page</p><ul><li class="toc--2"><a href="#what-osc-7501-is">What OSC 7501 is</a></li><li class="toc--2"><a href="#reporting-your-state">Reporting your state</a></li><li class="toc--2"><a href="#hooks">Hooks</a></li><li class="toc--2"><a href="#without-any-of-it">Without any of it</a></li></ul></aside>
+  </div>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p class="footer__brand"><img src="../../site/img/icon.svg" alt="" width="24" height="24" loading="lazy"> lmux <span>light mux.</span></p>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="https://github.com/sooftware/lmux">GitHub</a>
+        <a href="https://github.com/sooftware/lmux/releases">Releases</a>
+        <a href="https://github.com/sooftware/lmux/blob/main/LICENSE">MIT License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in lmux is broken or behaving wrong.
+labels: [bug]
+body:
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: "System Settings > General > About, or `sw_vers`"
+      placeholder: "macOS 15.1 (24B83)"
+    validations:
+      required: true
+
+  - type: input
+    id: lmux-version
+    attributes:
+      label: lmux version
+      description: "lmux menu > About lmux, or `lmux-cli --version` if you have the CLI"
+      placeholder: "0.2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: claude-code-version
+    attributes:
+      label: Claude Code version
+      description: "`claude --version`, if this involves hooks, agent status, or a Claude Code session at all"
+      placeholder: "1.x.x (or N/A)"
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What did you do, in order?
+      placeholder: |
+        1. Open lmux, open two workspaces
+        2. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: input
+    id: ime-locale
+    attributes:
+      label: Input method / locale
+      description: Keyboard input source(s) in use when this happened (e.g. "2-Set Korean", "ABC", "Japanese Kana"). Especially important for anything involving typing, composition, or dropped/garbled characters.
+      placeholder: "2-Set Korean"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: ghostty-repro
+    attributes:
+      label: Does it reproduce in plain Ghostty?
+      description: If you can, try the same steps in a vanilla Ghostty window (no lmux). This helps tell apart a libghostty/terminal issue from something lmux itself did.
+      options:
+        - "Not tested"
+        - "Yes, happens in plain Ghostty too"
+        - "No, only happens in lmux"
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Logs, screenshots, or context. Please redact anything private from Claude Code transcripts before pasting.
+    validations:
+      required: false

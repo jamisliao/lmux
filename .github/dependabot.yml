@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    # "/" covers .github/workflows; the local composite action is listed explicitly.
+    directories: ["/", "/.github/actions/setup-lmux"]
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

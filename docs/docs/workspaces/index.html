@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workspaces &amp; panes · lmux docs</title>
+  <meta name="description" content="lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in…">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://lmux.dev/docs/workspaces/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lmux">
+  <meta property="og:title" content="Workspaces &amp; panes · lmux docs">
+  <meta property="og:description" content="lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in…">
+  <meta property="og:url" content="https://lmux.dev/docs/workspaces/">
+  <meta property="og:image" content="https://lmux.dev/site/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Workspaces &amp; panes · lmux docs">
+  <meta name="twitter:description" content="lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in…">
+  <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "lmux", "item": "https://lmux.dev/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lmux.dev/docs/"}, {"@type": "ListItem", "position": 3, "name": "Workspaces & panes", "item": "https://lmux.dev/docs/workspaces/"}]}</script>
+  <link rel="icon" href="../../site/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../../site/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../../site/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="../../site/css/site.css">
+  <link rel="stylesheet" href="../../site/css/docs.css">
+  <script>
+    document.documentElement.classList.add("js");
+    try { var t = localStorage.getItem("lmux-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="../../site/js/docs.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="nav">
+    <div class="nav__inner docs-bar">
+      <button class="icon-btn docs-menu" type="button" data-menu aria-controls="docs-nav" aria-expanded="false" aria-label="Show the docs menu" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h13M3.5 10h13M3.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <a class="brand" href="../../" aria-label="lmux home"><svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nav-cursor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#88C0D0"/><stop offset="1" stop-color="#5E81AC"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8.5" class="brand__body"/><path d="M9.6 11.4 L14.2 16 L9.6 20.6" class="brand__chev" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18.3" y="9.2" width="3.2" height="13.6" rx="1.6" fill="url(#nav-cursor)"/></svg><span class="brand__word">lmux</span></a>
+      <a class="docs-tag" href="../">docs</a>
+      <div class="nav__end">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Theme: automatic. Switch theme" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 3.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+        <a class="icon-btn" href="https://github.com/sooftware/lmux" aria-label="lmux on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+        <a class="btn btn--small btn--primary docs-dl" href="https://github.com/sooftware/lmux/releases/latest">Download</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-shell">
+    <nav class="docs-nav" id="docs-nav" aria-label="Docs">
+      <p class="docs-nav__group">Start</p><ul><li><a href="../">Overview</a></li><li><a href="../install/">Install</a></li><li><a href="../quick-start/">Quick start</a></li></ul><p class="docs-nav__group">Using lmux</p><ul><li><a href="./" aria-current="page">Workspaces &amp; panes</a></li><li><a href="../shortcuts/">Shortcuts</a></li><li><a href="../configuration/">Configuration</a></li><li><a href="../korean-input/">Korean input</a></li><li><a href="../ko/">한글 입력 (한국어)</a></li></ul><p class="docs-nav__group">Agents</p><ul><li><a href="../claude-code/">Claude Code</a></li><li><a href="../codex/">Codex</a></li><li><a href="../any-agent/">Any agent (OSC 7501)</a></li><li><a href="../cli/">The lmux CLI</a></li></ul><p class="docs-nav__group">Moving in</p><ul><li><a href="../vs-cmux/">lmux vs cmux</a></li><li><a href="../from-cmux/">Switching from cmux</a></li></ul><p class="docs-nav__group">Reference</p><ul><li><a href="../performance/">Performance</a></li><li><a href="../privacy/">Privacy &amp; files on disk</a></li><li><a href="../troubleshooting/">Troubleshooting</a></li><li><a href="../faq/">FAQ</a></li></ul>
+    </nav>
+    <main class="docs-main" id="content" tabindex="-1">
+      <article class="prose">
+<h1>Workspaces &amp; panes</h1>
+<p>lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in other terminals. Panes are the parts of a split, and each pane holds one or more terminals as tabs.</p>
+<h2 id="the-sidebar">The sidebar<a class="h-anchor" href="#the-sidebar" aria-label="Link to this section">#</a></h2>
+<p>Each row is a workspace, with its title, git branch and folder, and the state of the agents in it: a spinner while one works, a badge when one needs you, a check when it's done, an × when it failed.</p>
+<ul><li><strong>Select</strong> a row with a click, or <code>⌘1</code>–<code>⌘8</code> (<code>⌘9</code> is the last one). <code>⌃⌘[</code> / <code>⌃⌘]</code> go to the previous and next.</li><li><strong>Select several</strong> with <code>⌘</code>-click or <code>⇧</code>-click. Closing, Clear Status and dragging then act on the whole selection.</li><li><strong>Hide the sidebar</strong> with <code>⌃⌘S</code>.</li><li><strong>Right-click</strong> a row for Rename Workspace…, Clear Status and Close Workspace.</li></ul>
+<h2 id="new-workspaces">New workspaces<a class="h-anchor" href="#new-workspaces" aria-label="Link to this section">#</a></h2>
+<p><code>⌘N</code>, the <code>+</code> button and <strong>Workspace → New Workspace</strong> all open a workspace in your home folder, or in Ghostty's <code>working-directory</code> if you set it (a path, <code>~/…</code>, or <code>home</code>).</p>
+<p>To start a new workspace in the focused pane's folder instead, set either of these in your Ghostty config:</p>
+<pre tabindex="0"><code>working-directory = inherit
+window-inherit-working-directory = true</code></pre>
+<p>Ghostty itself inherits by default; lmux doesn't unless you say so. See <a href="../configuration/#where-new-workspaces-and-splits-start">Configuration</a>.</p>
+<h2 id="splits">Splits<a class="h-anchor" href="#splits" aria-label="Link to this section">#</a></h2>
+<ul><li><code>⌘D</code> splits the focused pane right, <code>⇧⌘D</code> splits it down. Splits nest in any direction.</li><li><code>⌘[</code> / <code>⌘]</code> (or <code>⌥⌘</code> and an arrow) move between panes. <code>⌃⌘</code> and an arrow resizes, <code>⌃⌘=</code> makes them equal.</li><li>A split starts in its pane's folder, unless you set <code>split-inherit-working-directory = false</code>.</li><li>Click anywhere on a pane to focus it. After any click, the keyboard is on a visible pane of the selected workspace, never the sidebar or a hidden pane.</li></ul>
+<h2 id="tabs">Tabs<a class="h-anchor" href="#tabs" aria-label="Link to this section">#</a></h2>
+<p>Every pane has a tab bar, and each tab is its own terminal. It works like cmux's.</p>
+<ul><li><code>⌘T</code> opens a tab in the focused pane, right after the one you're on. So does the terminal button at the right end of the tab bar, or double-clicking an empty spot on it. The two buttons next to it split the pane right and down.</li><li><code>⇧⌘[</code> / <code>⇧⌘]</code> (or <code>⌃⇧⇥</code> / <code>⌃⇥</code>) go to the previous and next tab. <code>⌃1</code>–<code>⌃8</code> pick a tab by its place, <code>⌃9</code> the last one. <code>⌥⇧⌘[</code> / <code>⌥⇧⌘]</code> move the tab left or right.</li><li>Drag a tab to reorder it. Drop it on another pane's tab bar to move it there, on the middle of a pane to add it to that pane's tabs, or near a pane's edge to split that pane with the tab on that side.</li><li>Double-click a tab to zoom its pane. Double-click again, or click the arrows on the tab, to unzoom.</li><li><code>⌘W</code>, the tab's <code>×</code> or a middle-click closes the tab. It asks first unless the tab is an idle shell. The tab to its right comes forward, or the one to its left if it was the last. Closing a pane's last tab closes the pane.</li><li>Right-click a tab for the rest, including Rename Tab… (<code>⌘R</code>), Close Other Tabs (<code>⌥⌘T</code>), Move Tab (to a new workspace or another one), Pin Tab and Mark Tab as Unread.</li><li>A pinned tab moves to the front of the bar, shows a pin instead of <code>×</code>, and stays open until you unpin it. Close Other Tabs leaves it alone.</li><li>A tab that needs you, or has an alert you haven't looked at, gets a blue dot where its <code>×</code> goes. The workspace's row in the sidebar shows the state of all its tabs, and <code>⇧⌘J</code> or a notification brings the right tab to the front.</li><li>Tabs you can't see don't render, like a workspace you're not on. They keep running, and after a relaunch they come back in order, pinned ones still pinned, with the one you were on in front.</li><li><code>lmux new-tab</code> opens a tab from a script, and <code>lmux list</code> shows each tab with its place. See <a href="../cli/">CLI</a>.</li></ul>
+<p>To show the tab bar only once a pane has two tabs, turn off <strong>Settings → Appearance → Tab bar on panes with one tab</strong>. Split panes then get a plain title bar, and double-clicking it renames the pane.</p>
+<h2 id="zoom">Zoom<a class="h-anchor" href="#zoom" aria-label="Link to this section">#</a></h2>
+<p><code>⇧⌘↩</code> (<strong>View → Zoom Split</strong>) makes the focused pane fill its workspace. The other panes stop rendering until you press it again. Closing or splitting while zoomed unzooms first, and a relaunch brings each workspace back zoomed as you left it.</p>
+<h2 id="reorder">Reorder<a class="h-anchor" href="#reorder" aria-label="Link to this section">#</a></h2>
+<p>Press and drag a row to move it. The row lifts and follows the pointer and the others slide out of the way. A small threshold keeps clicks, multi-select and rename working, dragging a row that's part of a selection moves the whole selection in order, and Esc cancels. The order is saved, and <code>⌘1</code>–<code>⌘8</code> follow it.</p>
+<h2 id="close">Close<a class="h-anchor" href="#close" aria-label="Link to this section">#</a></h2>
+<ul><li><code>⌘W</code> closes the focused tab; closing a pane's last tab closes the pane. It asks first unless the tab is an idle shell.</li><li><code>⇧⌘W</code> closes the workspace. So does the <code>×</code> that appears when you hover a row.</li><li>The window's red button closes the window, not your sessions: panes keep running, and the Dock icon, <code>⌘N</code> or opening lmux again bring it back.</li><li><code>⌘Q</code> asks first while something is running (Ghostty's <code>confirm-close-surface</code>). Settings → General has the switch.</li></ul>
+<h2 id="rename">Rename<a class="h-anchor" href="#rename" aria-label="Link to this section">#</a></h2>
+<p>Double-click a workspace's title in the sidebar, or use <strong>Rename Workspace…</strong> from the row's menu. Rename a tab with <code>⌘R</code> or <strong>Rename Tab…</strong> from its menu. A name you type stays until you clear it; an empty name goes back to the agent's own title. Without a name, a row shows the title Claude Code or Codex gives the session, else the running command's title, else the folder.</p>
+<h2 id="after-a-relaunch">After a relaunch<a class="h-anchor" href="#after-a-relaunch" aria-label="Link to this section">#</a></h2>
+<p>Quit lmux (for an update, say), or restart your Mac, and it reopens the same workspaces, splits, folders and window.</p>
+<ul><li>Every Claude Code session resumes with the flags it was started with. A Codex session comes back as <code>codex resume &lt;id&gt;</code> with its model, sandbox, approval, profile and <code>-c</code> flags.</li><li>A plain shell pane shows its last output (up to 2,000 lines, as plain text) above the new prompt, under a dim "restored from your last session" line. lmux saves it only when you quit, privately, and deletes it once shown. Panes running a full-screen program (vim, less, a TUI) or a command, and agent panes that resume, save nothing.</li><li>Running processes don't survive a quit. A long-running command (a build, a dev server) isn't started again; only Claude Code and Codex sessions resume.</li><li>Whatever was on screen is saved, so if that's ever secrets, turn it off in <strong>Settings → General → Restore terminal output after relaunch</strong>.</li></ul>
+<p>If a state file (the layout, the History index, settings) is ever unreadable, lmux keeps it aside as <code>&lt;name&gt;.bad-&lt;time&gt;</code> and starts that part fresh instead of writing over it.</p>
+<h2 id="scrollback-and-find">Scrollback and find<a class="h-anchor" href="#scrollback-and-find" aria-label="Link to this section">#</a></h2>
+<p><code>⌘F</code> searches the focused pane's scrollback, <code>⌘G</code> / <code>⇧⌘G</code> go to the next and previous match, and Esc closes the search. <strong>View → Clear Screen</strong> clears the pane.</p>
+<h2 id="drag-and-drop-images">Drag and drop, images<a class="h-anchor" href="#drag-and-drop-images" aria-label="Link to this section">#</a></h2>
+<p>Drop files on a pane and their paths are inserted, shell-escaped, as in Ghostty. Paste or drop an image (a screenshot, say) and lmux saves it as a private temporary PNG and pastes its path, which Claude Code attaches as an image.</p>
+<h2 id="displays">Displays<a class="h-anchor" href="#displays" aria-label="Link to this section">#</a></h2>
+<p>Unplug or rearrange displays and the window comes back onto a screen, keeping its size when it fits.</p>
+      </article>
+      <footer class="docs-foot">
+        <a class="docs-edit" href="https://github.com/sooftware/lmux/blob/main/docs/src/workspaces.md">Edit this page on GitHub</a>
+        <nav class="pns" aria-label="Previous and next page"><a class="pn pn--prev" href="../quick-start/" rel="prev"><span>Previous</span>Quick start</a><a class="pn pn--next" href="../shortcuts/" rel="next"><span>Next</span>Shortcuts</a></nav>
+      </footer>
+    </main>
+    <aside class="docs-toc" aria-labelledby="toc-title"><p id="toc-title">On this page</p><ul><li class="toc--2"><a href="#the-sidebar">The sidebar</a></li><li class="toc--2"><a href="#new-workspaces">New workspaces</a></li><li class="toc--2"><a href="#splits">Splits</a></li><li class="toc--2"><a href="#tabs">Tabs</a></li><li class="toc--2"><a href="#zoom">Zoom</a></li><li class="toc--2"><a href="#reorder">Reorder</a></li><li class="toc--2"><a href="#close">Close</a></li><li class="toc--2"><a href="#rename">Rename</a></li><li class="toc--2"><a href="#after-a-relaunch">After a relaunch</a></li><li class="toc--2"><a href="#scrollback-and-find">Scrollback and find</a></li><li class="toc--2"><a href="#drag-and-drop-images">Drag and drop, images</a></li><li class="toc--2"><a href="#displays">Displays</a></li></ul></aside>
+  </div>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p class="footer__brand"><img src="../../site/img/icon.svg" alt="" width="24" height="24" loading="lazy"> lmux <span>light mux.</span></p>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="https://github.com/sooftware/lmux">GitHub</a>
+        <a href="https://github.com/sooftware/lmux/releases">Releases</a>
+        <a href="https://github.com/sooftware/lmux/blob/main/LICENSE">MIT License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="330" viewBox="0 0 760 330" role="img" aria-labelledby="t d">
+  <title id="t">lmux vs cmux: memory and idle CPU vs workspace count</title>
+  <desc id="d">cmux 0.65.2 at 1 workspaces: 398 MB, 7.2% CPU; cmux 0.65.2 at 10 workspaces: 548 MB, 7.4% CPU; cmux 0.65.2 at 20 workspaces: 661 MB, 8.1% CPU; lmux (front) at 1 workspaces: 182 MB, 0.1% CPU; lmux (front) at 10 workspaces: 207 MB, 0.1% CPU; lmux (front) at 20 workspaces: 235 MB, 0.1% CPU; lmux (background) at 1 workspaces: 45 MB, 0.0% CPU; lmux (background) at 10 workspaces: 71 MB, 0.0% CPU; lmux (background) at 20 workspaces: 99 MB, 0.0% CPU. 2 idle shells per workspace. Lower is better. Median of 5 runs, bars show min–max.</desc>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="0" y="20" font-size="15" font-weight="600" fill="#ECEFF4">Same Mac, more workspaces</text>
+    <text x="0" y="40" font-size="12" fill="#99A2B3">2 idle shells per workspace, each step a fresh launch. Lower is better. Median of 5 runs, bars show min–max.</text>
+    <rect x="610" y="11" width="12" height="12" rx="3" fill="#5E81AC"/><text x="628" y="21" font-size="12" fill="#C4CBD7">lmux (background)</text>
+    <rect x="493" y="11" width="12" height="12" rx="3" fill="#88C0D0"/><text x="511" y="21" font-size="12" fill="#C4CBD7">lmux (front)</text>
+    <rect x="382" y="11" width="12" height="12" rx="3" fill="#D8DEE9"/><text x="400" y="21" font-size="12" fill="#C4CBD7">cmux 0.65.2</text>
+    <text x="0" y="68" font-size="13" font-weight="600" fill="#ECEFF4">Memory<tspan font-size="11" font-weight="400" fill="#99A2B3" dx="8">all app processes, MB</tspan></text>
+    <line x1="44" x2="344" y1="262.0" y2="262.0" stroke="#3B4252" stroke-width="1"/>
+    <text x="38" y="266.0" font-size="10" text-anchor="end" fill="#99A2B3">0</text>
+    <line x1="44" x2="344" y1="219.5" y2="219.5" stroke="#3B4252" stroke-width="1"/>
+    <text x="38" y="223.5" font-size="10" text-anchor="end" fill="#99A2B3">200</text>
+    <line x1="44" x2="344" y1="177.0" y2="177.0" stroke="#3B4252" stroke-width="1"/>
+    <text x="38" y="181.0" font-size="10" text-anchor="end" fill="#99A2B3">400</text>
+    <line x1="44" x2="344" y1="134.5" y2="134.5" stroke="#3B4252" stroke-width="1"/>
+    <text x="38" y="138.5" font-size="10" text-anchor="end" fill="#99A2B3">600</text>
+    <line x1="44" x2="344" y1="92.0" y2="92.0" stroke="#3B4252" stroke-width="1"/>
+    <text x="38" y="96.0" font-size="10" text-anchor="end" fill="#99A2B3">800</text>
+    <text x="59.0" y="278" font-size="10" text-anchor="middle" fill="#99A2B3">1</text>
+    <text x="194.0" y="278" font-size="10" text-anchor="middle" fill="#99A2B3">10</text>
+    <text x="344.0" y="278" font-size="10" text-anchor="middle" fill="#99A2B3">20</text>
+    <text x="194" y="296" font-size="11" text-anchor="middle" fill="#C4CBD7">workspaces</text>
+    <polyline points="59.0,177.4 194.0,145.6 344.0,121.6" fill="none" stroke="#D8DEE9" stroke-width="2"/>
+    <line x1="59.0" x2="59.0" y1="177.0" y2="179.1" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="55.0" x2="63.0" y1="177.0" y2="177.0" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="55.0" x2="63.0" y1="179.1" y2="179.1" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="59.0" cy="177.4" r="3.5" fill="#D8DEE9"/>
+    <text x="65.0" y="170.4" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">398</text>
+    <line x1="194.0" x2="194.0" y1="144.9" y2="145.8" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="190.0" x2="198.0" y1="144.9" y2="144.9" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="190.0" x2="198.0" y1="145.8" y2="145.8" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="194.0" cy="145.6" r="3.5" fill="#D8DEE9"/>
+    <text x="200.0" y="138.6" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">548</text>
+    <line x1="344.0" x2="344.0" y1="121.3" y2="122.2" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="340.0" x2="348.0" y1="121.3" y2="121.3" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="340.0" x2="348.0" y1="122.2" y2="122.2" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="344.0" cy="121.6" r="3.5" fill="#D8DEE9"/>
+    <text x="338.0" y="114.6" font-size="10" font-weight="600" text-anchor="end" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">661</text>
+    <polyline points="59.0,223.3 194.0,218.0 344.0,212.1" fill="none" stroke="#88C0D0" stroke-width="2"/>
+    <line x1="59.0" x2="59.0" y1="223.3" y2="223.5" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="55.0" x2="63.0" y1="223.3" y2="223.3" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="55.0" x2="63.0" y1="223.5" y2="223.5" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="59.0" cy="223.3" r="3.5" fill="#88C0D0"/>
+    <text x="65.0" y="216.3" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">182</text>
+    <line x1="194.0" x2="194.0" y1="217.8" y2="218.0" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="190.0" x2="198.0" y1="217.8" y2="217.8" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="190.0" x2="198.0" y1="218.0" y2="218.0" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="194.0" cy="218.0" r="3.5" fill="#88C0D0"/>
+    <text x="200.0" y="211.0" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">207</text>
+    <circle cx="344.0" cy="212.1" r="3.5" fill="#88C0D0"/>
+    <text x="338.0" y="205.1" font-size="10" font-weight="600" text-anchor="end" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">235</text>
+    <polyline points="59.0,252.4 194.0,246.9 344.0,241.0" fill="none" stroke="#5E81AC" stroke-width="2"/>
+    <line x1="59.0" x2="59.0" y1="252.2" y2="252.4" stroke="#5E81AC" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="55.0" x2="63.0" y1="252.2" y2="252.2" stroke="#5E81AC" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="55.0" x2="63.0" y1="252.4" y2="252.4" stroke="#5E81AC" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="59.0" cy="252.4" r="3.5" fill="#5E81AC"/>
+    <text x="65.0" y="245.4" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">45</text>
+    <line x1="194.0" x2="194.0" y1="246.7" y2="247.1" stroke="#5E81AC" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="190.0" x2="198.0" y1="246.7" y2="246.7" stroke="#5E81AC" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="190.0" x2="198.0" y1="247.1" y2="247.1" stroke="#5E81AC" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="194.0" cy="246.9" r="3.5" fill="#5E81AC"/>
+    <text x="200.0" y="239.9" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">71</text>
+    <circle cx="344.0" cy="241.0" r="3.5" fill="#5E81AC"/>
+    <text x="338.0" y="234.0" font-size="10" font-weight="600" text-anchor="end" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">99</text>
+    <text x="386" y="68" font-size="13" font-weight="600" fill="#ECEFF4">Idle CPU<tspan font-size="11" font-weight="400" fill="#99A2B3" dx="8">60 s mean, %</tspan></text>
+    <line x1="430" x2="730" y1="262.0" y2="262.0" stroke="#3B4252" stroke-width="1"/>
+    <text x="424" y="266.0" font-size="10" text-anchor="end" fill="#99A2B3">0</text>
+    <line x1="430" x2="730" y1="228.0" y2="228.0" stroke="#3B4252" stroke-width="1"/>
+    <text x="424" y="232.0" font-size="10" text-anchor="end" fill="#99A2B3">2</text>
+    <line x1="430" x2="730" y1="194.0" y2="194.0" stroke="#3B4252" stroke-width="1"/>
+    <text x="424" y="198.0" font-size="10" text-anchor="end" fill="#99A2B3">4</text>
+    <line x1="430" x2="730" y1="160.0" y2="160.0" stroke="#3B4252" stroke-width="1"/>
+    <text x="424" y="164.0" font-size="10" text-anchor="end" fill="#99A2B3">6</text>
+    <line x1="430" x2="730" y1="126.0" y2="126.0" stroke="#3B4252" stroke-width="1"/>
+    <text x="424" y="130.0" font-size="10" text-anchor="end" fill="#99A2B3">8</text>
+    <line x1="430" x2="730" y1="92.0" y2="92.0" stroke="#3B4252" stroke-width="1"/>
+    <text x="424" y="96.0" font-size="10" text-anchor="end" fill="#99A2B3">10</text>
+    <text x="445.0" y="278" font-size="10" text-anchor="middle" fill="#99A2B3">1</text>
+    <text x="580.0" y="278" font-size="10" text-anchor="middle" fill="#99A2B3">10</text>
+    <text x="730.0" y="278" font-size="10" text-anchor="middle" fill="#99A2B3">20</text>
+    <text x="580" y="296" font-size="11" text-anchor="middle" fill="#C4CBD7">workspaces</text>
+    <polyline points="445.0,140.3 580.0,136.4 730.0,124.3" fill="none" stroke="#D8DEE9" stroke-width="2"/>
+    <line x1="445.0" x2="445.0" y1="121.1" y2="178.5" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="441.0" x2="449.0" y1="121.1" y2="121.1" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="441.0" x2="449.0" y1="178.5" y2="178.5" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="445.0" cy="140.3" r="3.5" fill="#D8DEE9"/>
+    <text x="451.0" y="133.3" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">7.2</text>
+    <line x1="580.0" x2="580.0" y1="121.4" y2="172.9" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="576.0" x2="584.0" y1="121.4" y2="121.4" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="576.0" x2="584.0" y1="172.9" y2="172.9" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="580.0" cy="136.4" r="3.5" fill="#D8DEE9"/>
+    <text x="586.0" y="129.4" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">7.4</text>
+    <line x1="730.0" x2="730.0" y1="119.7" y2="143.7" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="726.0" x2="734.0" y1="119.7" y2="119.7" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="726.0" x2="734.0" y1="143.7" y2="143.7" stroke="#D8DEE9" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="730.0" cy="124.3" r="3.5" fill="#D8DEE9"/>
+    <text x="724.0" y="117.3" font-size="10" font-weight="600" text-anchor="end" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">8.1</text>
+    <polyline points="445.0,260.8 580.0,260.0 730.0,260.3" fill="none" stroke="#88C0D0" stroke-width="2"/>
+    <line x1="445.0" x2="445.0" y1="259.6" y2="261.5" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="441.0" x2="449.0" y1="259.6" y2="259.6" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="441.0" x2="449.0" y1="261.5" y2="261.5" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="445.0" cy="260.8" r="3.5" fill="#88C0D0"/>
+    <text x="451.0" y="243.0" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">0.1</text>
+    <line x1="580.0" x2="580.0" y1="259.3" y2="260.8" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="576.0" x2="584.0" y1="259.3" y2="259.3" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="576.0" x2="584.0" y1="260.8" y2="260.8" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="580.0" cy="260.0" r="3.5" fill="#88C0D0"/>
+    <text x="586.0" y="243.0" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">0.1</text>
+    <line x1="730.0" x2="730.0" y1="259.4" y2="260.6" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="726.0" x2="734.0" y1="259.4" y2="259.4" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <line x1="726.0" x2="734.0" y1="260.6" y2="260.6" stroke="#88C0D0" stroke-width="1.5" stroke-opacity="0.5"/>
+    <circle cx="730.0" cy="260.3" r="3.5" fill="#88C0D0"/>
+    <text x="724.0" y="243.0" font-size="10" font-weight="600" text-anchor="end" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">0.1</text>
+    <polyline points="445.0,262.0 580.0,262.0 730.0,262.0" fill="none" stroke="#5E81AC" stroke-width="2"/>
+    <circle cx="445.0" cy="262.0" r="3.5" fill="#5E81AC"/>
+    <text x="451.0" y="255.0" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">0.0</text>
+    <circle cx="580.0" cy="262.0" r="3.5" fill="#5E81AC"/>
+    <text x="586.0" y="255.0" font-size="10" font-weight="600" text-anchor="start" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">0.0</text>
+    <circle cx="730.0" cy="262.0" r="3.5" fill="#5E81AC"/>
+    <text x="724.0" y="255.0" font-size="10" font-weight="600" text-anchor="end" fill="#ECEFF4" style="font-variant-numeric: tabular-nums">0.0</text>
+    <text x="0" y="324" font-size="11" fill="#99A2B3">scripts/bench.sh, standard workload (N workspaces x 2 panes), 2026-11-02. Each point: median of 5 runs, bars show min–max.</text>
+  </g>
+</svg>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Configuration · lmux docs</title>
+  <meta name="description" content="lmux is a macOS terminal on libghostty, and it&#x27;s configured the way Ghostty is: one plain-text file in Ghostty&#x27;s syntax. It reads your Ghostty config as it…">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://lmux.dev/docs/configuration/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lmux">
+  <meta property="og:title" content="Configuration · lmux docs">
+  <meta property="og:description" content="lmux is a macOS terminal on libghostty, and it&#x27;s configured the way Ghostty is: one plain-text file in Ghostty&#x27;s syntax. It reads your Ghostty config as it…">
+  <meta property="og:url" content="https://lmux.dev/docs/configuration/">
+  <meta property="og:image" content="https://lmux.dev/site/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Configuration · lmux docs">
+  <meta name="twitter:description" content="lmux is a macOS terminal on libghostty, and it&#x27;s configured the way Ghostty is: one plain-text file in Ghostty&#x27;s syntax. It reads your Ghostty config as it…">
+  <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "lmux", "item": "https://lmux.dev/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lmux.dev/docs/"}, {"@type": "ListItem", "position": 3, "name": "Configuration", "item": "https://lmux.dev/docs/configuration/"}]}</script>
+  <link rel="icon" href="../../site/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../../site/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../../site/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="../../site/css/site.css">
+  <link rel="stylesheet" href="../../site/css/docs.css">
+  <script>
+    document.documentElement.classList.add("js");
+    try { var t = localStorage.getItem("lmux-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="../../site/js/docs.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="nav">
+    <div class="nav__inner docs-bar">
+      <button class="icon-btn docs-menu" type="button" data-menu aria-controls="docs-nav" aria-expanded="false" aria-label="Show the docs menu" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h13M3.5 10h13M3.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <a class="brand" href="../../" aria-label="lmux home"><svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nav-cursor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#88C0D0"/><stop offset="1" stop-color="#5E81AC"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8.5" class="brand__body"/><path d="M9.6 11.4 L14.2 16 L9.6 20.6" class="brand__chev" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18.3" y="9.2" width="3.2" height="13.6" rx="1.6" fill="url(#nav-cursor)"/></svg><span class="brand__word">lmux</span></a>
+      <a class="docs-tag" href="../">docs</a>
+      <div class="nav__end">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Theme: automatic. Switch theme" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 3.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+        <a class="icon-btn" href="https://github.com/sooftware/lmux" aria-label="lmux on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+        <a class="btn btn--small btn--primary docs-dl" href="https://github.com/sooftware/lmux/releases/latest">Download</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-shell">
+    <nav class="docs-nav" id="docs-nav" aria-label="Docs">
+      <p class="docs-nav__group">Start</p><ul><li><a href="../">Overview</a></li><li><a href="../install/">Install</a></li><li><a href="../quick-start/">Quick start</a></li></ul><p class="docs-nav__group">Using lmux</p><ul><li><a href="../workspaces/">Workspaces &amp; panes</a></li><li><a href="../shortcuts/">Shortcuts</a></li><li><a href="./" aria-current="page">Configuration</a></li><li><a href="../korean-input/">Korean input</a></li><li><a href="../ko/">한글 입력 (한국어)</a></li></ul><p class="docs-nav__group">Agents</p><ul><li><a href="../claude-code/">Claude Code</a></li><li><a href="../codex/">Codex</a></li><li><a href="../any-agent/">Any agent (OSC 7501)</a></li><li><a href="../cli/">The lmux CLI</a></li></ul><p class="docs-nav__group">Moving in</p><ul><li><a href="../vs-cmux/">lmux vs cmux</a></li><li><a href="../from-cmux/">Switching from cmux</a></li></ul><p class="docs-nav__group">Reference</p><ul><li><a href="../performance/">Performance</a></li><li><a href="../privacy/">Privacy &amp; files on disk</a></li><li><a href="../troubleshooting/">Troubleshooting</a></li><li><a href="../faq/">FAQ</a></li></ul>
+    </nav>
+    <main class="docs-main" id="content" tabindex="-1">
+      <article class="prose">
+<h1>Configuration</h1>
+<p>lmux is a macOS terminal on libghostty, and it's configured the way Ghostty is: one plain-text file in Ghostty's syntax. It reads your Ghostty config as it is, and its own Settings window covers the rest, about ten settings in all.</p>
+<h2 id="your-ghostty-config">Your Ghostty config<a class="h-anchor" href="#your-ghostty-config" aria-label="Link to this section">#</a></h2>
+<p>lmux reads the files Ghostty reads on macOS, in this order:</p>
+<ol><li><code>~/.config/ghostty/config</code> (or <code>$XDG_CONFIG_HOME/ghostty/config</code>), and <code>config.ghostty</code> next to it</li><li><code>~/Library/Application Support/com.mitchellh.ghostty/config</code>, and <code>config.ghostty</code> next to it</li><li><code>~/.config/lmux/config</code>, which lmux's Settings writes. It's loaded last, so a key set here wins.</li></ol>
+<p>Themes, fonts, <code>keybind</code>, colors, padding and the rest of Ghostty's options work as they do in Ghostty (<a href="https://ghostty.org/docs/config/reference">reference</a>). Settings applies a change to every pane at once.</p>
+<p>Where your config says nothing, lmux's defaults are:</p>
+<pre tabindex="0"><code>theme = light:Nord Light,dark:Nord
+window-padding-x = 14
+window-padding-y = 10
+minimum-contrast = 2
+unfocused-split-opacity = 1</code></pre>
+<p><code>minimum-contrast = 2</code> draws text black or white where a theme pair would make it unreadable (Claude Code's dark theme on a light terminal, say).</p>
+<p>The font is Ghostty's default (JetBrains Mono), or D2Coding on a Mac whose system language is Korean. Hangul always renders in D2Coding at exactly two cells unless you map it yourself (see <a href="../korean-input/">Korean input</a>).</p>
+<h2 id="where-new-workspaces-and-splits-start">Where new workspaces and splits start<a class="h-anchor" href="#where-new-workspaces-and-splits-start" aria-label="Link to this section">#</a></h2>
+<div class="table"><table>
+<thead><tr><th scope="col">key</th><th scope="col">what lmux does</th></tr></thead>
+<tbody>
+<tr><td><code>working-directory</code></td><td>A new workspace starts here: an absolute path or <code>~/…</code> that exists. <code>home</code>, unset or anything else: your home folder.</td></tr>
+<tr><td><code>working-directory = inherit</code></td><td>A new workspace starts in the focused pane's folder.</td></tr>
+<tr><td><code>window-inherit-working-directory = true</code></td><td>The same, set explicitly. (<code>tab-inherit-working-directory = true</code> works too.)</td></tr>
+<tr><td><code>split-inherit-working-directory = false</code></td><td>A split starts in <code>working-directory</code> instead of its pane's folder.</td></tr>
+</tbody></table></div>
+<p>Ghostty's own default for the inherit keys is true; lmux's, when they're unset, is home. lmux reads these four keys from the files above itself and doesn't follow <code>config-file</code> includes for them. A relaunch, History and the cmux import always use each session's own saved folder.</p>
+<h2 id="settings">Settings<a class="h-anchor" href="#settings" aria-label="Link to this section">#</a></h2>
+<p><code>⌘,</code> opens Settings. Theme, font and size go into <code>~/.config/lmux/config</code> (other lines and comments there are kept as you left them); the rest are lmux's own and live in <code>~/Library/Application Support/lmux/settings.plist</code>.</p>
+<div class="table"><table>
+<thead><tr><th scope="col">tab</th><th scope="col">setting</th><th scope="col">default</th></tr></thead>
+<tbody>
+<tr><td>Appearance</td><td>Appearance: System, Light or Dark</td><td>System</td></tr>
+<tr><td>Appearance</td><td>Theme for light mode and for dark mode, from a gallery of 26 (Catppuccin, Tokyo Night, Gruvbox, Solarized, Dracula and more)</td><td>Nord Light / Nord</td></tr>
+<tr><td>Appearance</td><td>Sidebar matches the terminal background</td><td>off</td></tr>
+<tr><td>Appearance</td><td>Tab bar on panes with one tab (off: shown only once a pane has two tabs)</td><td>on</td></tr>
+<tr><td>Font</td><td>Family, size and fallbacks (for glyphs the font lacks, such as Nerd Font icons)</td><td>JetBrains Mono, or D2Coding on Korean systems</td></tr>
+<tr><td>Notifications</td><td>Sound</td><td>Off</td></tr>
+<tr><td>Notifications</td><td>Unread count on the Dock icon</td><td>off</td></tr>
+<tr><td>Notifications</td><td>Ring around a pane that needs you</td><td>on</td></tr>
+<tr><td>Notifications</td><td>Remind me after (a done or waiting row you haven't looked at breathes)</td><td>3 minutes</td></tr>
+<tr><td>Notifications</td><td>Remind again via notification</td><td>off</td></tr>
+<tr><td>General</td><td>Ask before quitting while something runs</td><td>on</td></tr>
+<tr><td>General</td><td>Restore terminal output after relaunch</td><td>on</td></tr>
+<tr><td>General</td><td>Allow other apps to send input to lmux</td><td>off</td></tr>
+</tbody></table></div>
+<p>General also has the Claude Code and Codex hooks (install, update, uninstall), <strong>Import from cmux…</strong> and <strong>Open config file</strong>.</p>
+<p><strong>Allow other apps to send input to lmux</strong> lets scripts like Raycast or Hammerspoon use <code>lmux send</code> and <code>lmux new-workspace --cmd</code> from outside lmux. It's stored as <code>defaults write dev.lmux.app allowExternalSend -bool true</code>. Leave it off unless you need it; from inside a pane those commands always work. See <a href="../cli/">The lmux CLI</a>.</p>
+<h2 id="an-example-configlmuxconfig">An example <code>~/.config/lmux/config</code><a class="h-anchor" href="#an-example-configlmuxconfig" aria-label="Link to this section">#</a></h2>
+<pre tabindex="0"><code># Loaded after ~/.config/ghostty/config, so a key set here wins.
+theme = light:Nord Light,dark:Nord
+font-family = D2Coding
+font-family = Symbols Nerd Font Mono
+font-size = 13</code></pre>
+<p>A second <code>font-family</code> line is a fallback, tried for glyphs the first one lacks.</p>
+      </article>
+      <footer class="docs-foot">
+        <a class="docs-edit" href="https://github.com/sooftware/lmux/blob/main/docs/src/configuration.md">Edit this page on GitHub</a>
+        <nav class="pns" aria-label="Previous and next page"><a class="pn pn--prev" href="../shortcuts/" rel="prev"><span>Previous</span>Shortcuts</a><a class="pn pn--next" href="../korean-input/" rel="next"><span>Next</span>Korean input</a></nav>
+      </footer>
+    </main>
+    <aside class="docs-toc" aria-labelledby="toc-title"><p id="toc-title">On this page</p><ul><li class="toc--2"><a href="#your-ghostty-config">Your Ghostty config</a></li><li class="toc--2"><a href="#where-new-workspaces-and-splits-start">Where new workspaces and splits start</a></li><li class="toc--2"><a href="#settings">Settings</a></li><li class="toc--2"><a href="#an-example-configlmuxconfig">An example ~/.config/lmux/config</a></li></ul></aside>
+  </div>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p class="footer__brand"><img src="../../site/img/icon.svg" alt="" width="24" height="24" loading="lazy"> lmux <span>light mux.</span></p>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="https://github.com/sooftware/lmux">GitHub</a>
+        <a href="https://github.com/sooftware/lmux/releases">Releases</a>
+        <a href="https://github.com/sooftware/lmux/blob/main/LICENSE">MIT License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

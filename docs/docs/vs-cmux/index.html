@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>lmux vs cmux · lmux docs</title>
+  <meta name="description" content="lmux is a lightweight alternative to cmux: the same sidebar and splits, built on libghostty, in a 25 MB app with about ten settings. Here&#x27;s when to pick which.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://lmux.dev/docs/vs-cmux/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lmux">
+  <meta property="og:title" content="lmux vs cmux · lmux docs">
+  <meta property="og:description" content="lmux is a lightweight alternative to cmux: the same sidebar and splits, built on libghostty, in a 25 MB app with about ten settings. Here&#x27;s when to pick which.">
+  <meta property="og:url" content="https://lmux.dev/docs/vs-cmux/">
+  <meta property="og:image" content="https://lmux.dev/site/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="lmux vs cmux · lmux docs">
+  <meta name="twitter:description" content="lmux is a lightweight alternative to cmux: the same sidebar and splits, built on libghostty, in a 25 MB app with about ten settings. Here&#x27;s when to pick which.">
+  <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "lmux", "item": "https://lmux.dev/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lmux.dev/docs/"}, {"@type": "ListItem", "position": 3, "name": "lmux vs cmux", "item": "https://lmux.dev/docs/vs-cmux/"}]}</script>
+  <link rel="icon" href="../../site/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../../site/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../../site/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="../../site/css/site.css">
+  <link rel="stylesheet" href="../../site/css/docs.css">
+  <script>
+    document.documentElement.classList.add("js");
+    try { var t = localStorage.getItem("lmux-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="../../site/js/docs.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="nav">
+    <div class="nav__inner docs-bar">
+      <button class="icon-btn docs-menu" type="button" data-menu aria-controls="docs-nav" aria-expanded="false" aria-label="Show the docs menu" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h13M3.5 10h13M3.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <a class="brand" href="../../" aria-label="lmux home"><svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nav-cursor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#88C0D0"/><stop offset="1" stop-color="#5E81AC"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8.5" class="brand__body"/><path d="M9.6 11.4 L14.2 16 L9.6 20.6" class="brand__chev" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18.3" y="9.2" width="3.2" height="13.6" rx="1.6" fill="url(#nav-cursor)"/></svg><span class="brand__word">lmux</span></a>
+      <a class="docs-tag" href="../">docs</a>
+      <div class="nav__end">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Theme: automatic. Switch theme" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 3.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+        <a class="icon-btn" href="https://github.com/sooftware/lmux" aria-label="lmux on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+        <a class="btn btn--small btn--primary docs-dl" href="https://github.com/sooftware/lmux/releases/latest">Download</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-shell">
+    <nav class="docs-nav" id="docs-nav" aria-label="Docs">
+      <p class="docs-nav__group">Start</p><ul><li><a href="../">Overview</a></li><li><a href="../install/">Install</a></li><li><a href="../quick-start/">Quick start</a></li></ul><p class="docs-nav__group">Using lmux</p><ul><li><a href="../workspaces/">Workspaces &amp; panes</a></li><li><a href="../shortcuts/">Shortcuts</a></li><li><a href="../configuration/">Configuration</a></li><li><a href="../korean-input/">Korean input</a></li><li><a href="../ko/">한글 입력 (한국어)</a></li></ul><p class="docs-nav__group">Agents</p><ul><li><a href="../claude-code/">Claude Code</a></li><li><a href="../codex/">Codex</a></li><li><a href="../any-agent/">Any agent (OSC 7501)</a></li><li><a href="../cli/">The lmux CLI</a></li></ul><p class="docs-nav__group">Moving in</p><ul><li><a href="./" aria-current="page">lmux vs cmux</a></li><li><a href="../from-cmux/">Switching from cmux</a></li></ul><p class="docs-nav__group">Reference</p><ul><li><a href="../performance/">Performance</a></li><li><a href="../privacy/">Privacy &amp; files on disk</a></li><li><a href="../troubleshooting/">Troubleshooting</a></li><li><a href="../faq/">FAQ</a></li></ul>
+    </nav>
+    <main class="docs-main" id="content" tabindex="-1">
+      <article class="prose">
+<h1>lmux vs cmux</h1>
+<p>lmux is a lightweight alternative to <a href="https://github.com/manaflow-ai/cmux">cmux</a>. I used cmux every day and liked it a lot, but I only ever touched a small part of it. So I wrote a terminal with just that part. If most of your day is Claude Code or Codex in a handful of panes, lmux is probably enough. If you want everything else cmux does, stay with cmux.</p>
+<h2 id="whats-the-same">What's the same<a class="h-anchor" href="#whats-the-same" aria-label="Link to this section">#</a></h2>
+<ul><li><strong>The layout.</strong> A sidebar of workspaces on the left and your panes on the right.</li><li><strong>Splits</strong> in any direction, with shortcuts to move between them.</li><li><strong>Notifications.</strong> The workspace that needs you lights up in the sidebar, and <code>⇧⌘U</code> jumps to the latest unread one.</li><li><strong>libghostty.</strong> Both are native Swift apps on Ghostty's terminal core, and both read your Ghostty config.</li><li><strong>Your cmux setup.</strong> On first launch lmux offers to bring over your theme, fonts, shortcuts and open workspaces from cmux.</li></ul>
+<h2 id="whats-different">What's different<a class="h-anchor" href="#whats-different" aria-label="Link to this section">#</a></h2>
+<div class="table"><table>
+<thead><tr><th scope="col"></th><th scope="col">cmux 0.65.2</th><th scope="col">lmux 0.0.102</th></tr></thead>
+<tbody>
+<tr><td>App size</td><td>242 MB</td><td>25 MB</td></tr>
+<tr><td>Memory, 20 idle workspaces</td><td>661 MB</td><td>99 MB (235 MB frontmost)</td></tr>
+<tr><td>CPU, 20 idle workspaces</td><td>8.10%</td><td>0.00% (0.10% frontmost)</td></tr>
+<tr><td>Settings</td><td>about 200</td><td>about 10</td></tr>
+<tr><td>Browser panes</td><td>Yes, and agents can drive them</td><td>No</td></tr>
+<tr><td>SSH workspaces</td><td>Yes</td><td>No</td></tr>
+<tr><td>Scripting</td><td>A CLI and a socket API for every action</td><td>A <a href="../cli/">small CLI</a>: list panes, send input, open a workspace, post a notification</td></tr>
+<tr><td>Edit, remove or undo a sent turn (<code>✎</code>, <code>×</code>, <code>⌘Z</code>)</td><td>No</td><td>Yes, in Claude Code</td></tr>
+<tr><td>Korean input</td><td>Input method fixes listed in its <a href="https://github.com/manaflow-ai/cmux/blob/main/CHANGELOG.md">changelog</a></td><td>Fixes for Enter, Backspace, Esc and shortcuts mid-syllable, and <code>⌃C</code> with the Korean input source on (<a href="../korean-input/">details</a>)</td></tr>
+<tr><td>Search past sessions</td><td>A <a href="https://github.com/manaflow-ai/cmux/pull/13322">Conversations sidebar</a>, in beta</td><td>History (<code>⇧⌘H</code>) for every past Claude Code and Codex session</td></tr>
+</tbody></table></div>
+<p>The numbers are medians of 5 runs on an M4 Pro, with 2 live shells per workspace. lmux frees its GPU memory when it's in the background. The screen was locked during the runs, which puts cmux in the background, so compare it with lmux's background numbers. The full table and the method are on <a href="../performance/">Performance</a>.</p>
+<h2 id="when-cmux-is-the-better-pick">When cmux is the better pick<a class="h-anchor" href="#when-cmux-is-the-better-pick" aria-label="Link to this section">#</a></h2>
+<p>cmux does a lot that lmux leaves out on purpose. If you need any of this, use cmux:</p>
+<ul><li><strong>A browser next to your terminal.</strong> cmux opens a real browser in a split, and agents can click, fill in forms, run JavaScript and read the console in it. See its <a href="https://cmux.com/docs/browser-automation">browser automation</a> docs.</li><li><strong>SSH workspaces.</strong> <code>cmux ssh user@remote</code> opens a workspace on another machine and can attach to tmux sessions there (<a href="https://cmux.com/docs/ssh">SSH and remote</a>).</li><li><strong>Agents on a Linux box.</strong> Over SSH, or on a <a href="https://github.com/manaflow-ai/cmux/pull/10478">cmux Cloud</a> machine (in beta), your agents run on Linux while you drive them from your Mac.</li><li><strong>Your phone.</strong> The cmux iOS app, in beta on TestFlight, attaches to the terminals on your Mac (<a href="https://cmux.com/docs/ios">iOS docs</a>).</li><li><strong>Scripting and automation.</strong> cmux's CLI and socket API can do everything the app can, down to reading the screen and taking screenshots (<a href="https://cmux.com/docs/api">CLI reference</a>).</li><li><strong>Claude Code teams.</strong> <code>cmux claude-teams</code> opens each teammate in its own split, with its own status in the sidebar.</li><li><strong>The command palette and sidebar extras.</strong> cmux has a command palette, and its sidebar shows ports, pull requests, logs and progress. It also has a right sidebar for files, pane flash and a custom sidebar tint.</li><li><strong>Knobs.</strong> cmux has about two hundred settings. lmux has about ten.</li></ul>
+<p>lmux isn't planning to add any of these. A browser engine or a remote daemon alone would make it a much bigger app.</p>
+<h2 id="moving-over">Moving over<a class="h-anchor" href="#moving-over" aria-label="Link to this section">#</a></h2>
+<p><a href="../from-cmux/">Switching from cmux</a> covers the one-click import, what comes over, what doesn't and how to undo it.</p>
+<h2 id="coming-from-ghostty-and-tmux">Coming from Ghostty and tmux<a class="h-anchor" href="#coming-from-ghostty-and-tmux" aria-label="Link to this section">#</a></h2>
+<p>Before cmux, I ran Claude Code in Ghostty with tmux. If that's your setup today, lmux should feel familiar.</p>
+<ul><li><strong>Your Ghostty config works as is.</strong> Themes, fonts, <code>keybind</code> lines and the rest behave the same, and any <code>keybind</code> you set overrides lmux's defaults. See <a href="../configuration/">Configuration</a>.</li><li><strong>No prefix key.</strong> Workspaces replace tmux sessions and windows, and splits replace panes. <code>⌘D</code> and <code>⇧⌘D</code> split, <code>⌘[</code> and <code>⌘]</code> move between panes, and <code>⌘1</code> to <code>⌘8</code> pick a workspace. See <a href="../workspaces/">Workspaces &amp; panes</a>.</li><li><strong>There's no server.</strong> Running processes don't survive a quit the way they do in a detached tmux session. Claude Code and Codex sessions resume on the next launch, and a plain shell shows its last output above a new prompt, but a build or a dev server has to be started again.</li><li><strong>Don't run <code>claude</code> inside tmux in an lmux pane.</strong> lmux can't tell the session belongs to that pane, so you lose its status in the sidebar. If you need processes that outlive the app, keeping tmux for those is fine.</li></ul>
+<h2 id="faq">FAQ<a class="h-anchor" href="#faq" aria-label="Link to this section">#</a></h2>
+<h3 id="is-lmux-a-fork-of-cmux">Is lmux a fork of cmux?<a class="h-anchor" href="#is-lmux-a-fork-of-cmux" aria-label="Link to this section">#</a></h3>
+<p>No. It was written from scratch, it's MIT licensed, and there's no cmux code in it.</p>
+<h3 id="can-i-keep-cmux-installed">Can I keep cmux installed?<a class="h-anchor" href="#can-i-keep-cmux-installed" aria-label="Link to this section">#</a></h3>
+<p>Yes. The import only reads cmux's files and never changes them, and <strong>Undo Import</strong> puts lmux back the way it was.</p>
+<h3 id="will-lmux-ever-get-a-browser-or-ssh-workspaces">Will lmux ever get a browser or SSH workspaces?<a class="h-anchor" href="#will-lmux-ever-get-a-browser-or-ssh-workspaces" aria-label="Link to this section">#</a></h3>
+<p>No. Claude Code can already drive a browser through an MCP server like Playwright, or through Claude in Chrome, and that works the same in any terminal. You can still run <code>ssh</code> in an lmux pane. You just don't get cmux's remote workspaces.</p>
+      </article>
+      <footer class="docs-foot">
+        <a class="docs-edit" href="https://github.com/sooftware/lmux/blob/main/docs/src/vs-cmux.md">Edit this page on GitHub</a>
+        <nav class="pns" aria-label="Previous and next page"><a class="pn pn--prev" href="../cli/" rel="prev"><span>Previous</span>The lmux CLI</a><a class="pn pn--next" href="../from-cmux/" rel="next"><span>Next</span>Switching from cmux</a></nav>
+      </footer>
+    </main>
+    <aside class="docs-toc" aria-labelledby="toc-title"><p id="toc-title">On this page</p><ul><li class="toc--2"><a href="#whats-the-same">What's the same</a></li><li class="toc--2"><a href="#whats-different">What's different</a></li><li class="toc--2"><a href="#when-cmux-is-the-better-pick">When cmux is the better pick</a></li><li class="toc--2"><a href="#moving-over">Moving over</a></li><li class="toc--2"><a href="#coming-from-ghostty-and-tmux">Coming from Ghostty and tmux</a></li><li class="toc--2"><a href="#faq">FAQ</a></li><li class="toc--3"><a href="#is-lmux-a-fork-of-cmux">Is lmux a fork of cmux?</a></li><li class="toc--3"><a href="#can-i-keep-cmux-installed">Can I keep cmux installed?</a></li><li class="toc--3"><a href="#will-lmux-ever-get-a-browser-or-ssh-workspaces">Will lmux ever get a browser or SSH workspaces?</a></li></ul></aside>
+  </div>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p class="footer__brand"><img src="../../site/img/icon.svg" alt="" width="24" height="24" loading="lazy"> lmux <span>light mux.</span></p>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="https://github.com/sooftware/lmux">GitHub</a>
+        <a href="https://github.com/sooftware/lmux/releases">Releases</a>
+        <a href="https://github.com/sooftware/lmux/blob/main/LICENSE">MIT License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

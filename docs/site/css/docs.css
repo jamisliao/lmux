@@ -1,0 +1,145 @@
+/* lmux docs (lmux.dev/docs). Loaded after site.css: same tokens, same nav and footer.
+   Three columns on wide screens (sidebar, page, "On this page"), one on phones. */
+
+.docs-bar { width: 100%; max-width: 1440px; margin: 0 auto; padding: 0 var(--gutter); gap: 10px; }
+.docs-tag {
+  padding: 3px 9px; border-radius: 7px;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--text-2); font: 600 12.5px/1.3 var(--mono); text-decoration: none;
+}
+.docs-tag:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-3); }
+.docs-menu { margin-left: -8px; }
+
+.docs-shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr) 220px;
+  gap: 0 48px;
+  max-width: 1440px; margin: 0 auto; padding: 0 var(--gutter);
+}
+
+/* sidebar */
+.docs-nav {
+  position: sticky; top: 61px; align-self: start;
+  max-height: calc(100vh - 61px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 28px 8px 48px 0;
+  font-size: 14.5px;
+}
+.docs-nav__group { margin: 22px 0 6px; padding: 0 10px; color: var(--text-3); font: 600 12px/1.3 var(--mono); letter-spacing: .01em; }
+.docs-nav__group:first-child { margin-top: 0; }
+.docs-nav ul { list-style: none; margin: 0; padding: 0; }
+.docs-nav a {
+  display: block; padding: 6px 10px; border-radius: 8px;
+  color: var(--text-2); text-decoration: none; line-height: 1.35;
+}
+.docs-nav a:hover { color: var(--text); background: var(--line); }
+.docs-nav a[aria-current="page"] { color: var(--text); font-weight: 600; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+/* page */
+.docs-main { min-width: 0; max-width: 760px; padding: 44px 0 72px; }
+.docs-main:focus { outline: none; }
+
+.prose { color: var(--text-2); font-size: 16.5px; line-height: 1.68; }
+.prose > * + * { margin-top: 16px; }
+.prose h1 { color: var(--text); font-size: clamp(32px, 4vw, 42px); font-weight: 700; letter-spacing: -.03em; line-height: 1.1; }
+.prose h1 + p { margin-top: 18px; font-size: 18.5px; line-height: 1.55; }
+.prose h2 { margin-top: 52px; padding-top: 28px; border-top: 1px solid var(--line); font-size: 25px; letter-spacing: -.02em; line-height: 1.25; }
+.prose h3 { margin-top: 34px; font-size: 18.5px; }
+.prose h4 { margin: 26px 0 0; color: var(--text); font: 650 16px/1.4 var(--sans); }
+.prose h2 + *, .prose h3 + *, .prose h4 + * { margin-top: 12px; }
+.prose h2, .prose h3, .prose h4 { scroll-margin-top: 80px; }
+.h-anchor { margin-left: .35em; color: var(--text-3); font-weight: 400; text-decoration: none; opacity: 0; transition: opacity .12s; }
+:is(h2, h3, h4):hover .h-anchor, .h-anchor:focus-visible { opacity: 1; }
+.prose strong { color: var(--text); font-weight: 650; }
+.prose ul, .prose ol { padding-left: 1.4em; }
+.prose li + li { margin-top: 6px; }
+.prose li > ul, .prose li > ol { margin-top: 6px; }
+.prose li::marker { color: var(--text-3); }
+.prose :not(pre) > code { white-space: normal; overflow-wrap: anywhere; color: var(--text); }
+.prose a code { color: inherit; }
+
+.prose pre {
+  margin-top: 16px; padding: 16px 18px;
+  border-radius: 12px; overflow-x: auto;
+  background: var(--term-bg); color: var(--term-fg);
+  box-shadow: inset 0 0 0 1px rgba(236, 239, 244, .08);
+  font-size: 14px; line-height: 1.6;
+}
+.prose pre code { font-size: inherit; }
+.prose pre:focus-visible { outline-offset: 2px; }
+
+/* the copyable prompt on the docs home */
+.cmd--prompt { height: auto; align-items: flex-start; padding: 12px 8px 12px 18px; }
+.cmd--prompt pre { flex: 1; margin: 0; padding: 4px 0; background: none; box-shadow: none; white-space: pre-wrap; line-height: 1.55; font-size: 14.5px; overflow: visible; }
+
+.prose blockquote { margin: 18px 0 0; padding: 14px 18px; border-radius: 12px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.prose blockquote > * + * { margin-top: 10px; }
+.prose blockquote.callout { box-shadow: inset 3px 0 0 var(--accent), inset 0 0 0 1px var(--line); }
+
+.table { margin-top: 18px; overflow-x: auto; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); }
+.prose table { width: 100%; border-collapse: collapse; font-size: 15px; line-height: 1.5; }
+.prose th, .prose td { padding: 10px 14px; text-align: left; vertical-align: top; border-top: 1px solid var(--line); }
+.prose thead th { border-top: 0; color: var(--text); font-weight: 600; background: var(--surface); }
+.prose td:first-child { color: var(--text); }
+
+/* path cards on the docs home */
+.paths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+.paths a { display: flex; flex-direction: column; gap: 6px; padding: 18px; border-radius: var(--r); background: var(--surface); box-shadow: var(--shadow), inset 0 0 0 1px var(--line); color: var(--text-2); font-size: 14.5px; line-height: 1.5; text-decoration: none; }
+.paths a:hover { box-shadow: var(--shadow), inset 0 0 0 1px var(--text-3); color: var(--text-2); }
+.paths b { color: var(--text); font-size: 16px; }
+.paths__go { margin-top: auto; padding-top: 4px; color: var(--accent); font-weight: 600; }
+
+/* foot of a page */
+.docs-foot { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line); }
+.docs-edit { color: var(--text-3); font-size: 14px; }
+.pns { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 22px; }
+.pn { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--text); font-weight: 600; text-decoration: none; }
+.pn:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-3); }
+.pn span { color: var(--text-3); font-size: 13px; font-weight: 500; }
+.pn--next { grid-column: 2; text-align: right; }
+
+/* on this page */
+.docs-toc { position: sticky; top: 61px; align-self: start; max-height: calc(100vh - 61px); overflow-y: auto; padding: 48px 0 40px; font-size: 13.5px; }
+.docs-toc p { margin-bottom: 8px; color: var(--text); font-weight: 600; }
+.docs-toc ul { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+.docs-toc a { display: block; padding: 4px 0 4px 12px; margin-left: -1px; border-left: 1px solid transparent; color: var(--text-3); text-decoration: none; line-height: 1.4; }
+.docs-toc a:hover { color: var(--text); }
+.docs-toc a.is-current { color: var(--accent); border-left-color: var(--accent); }
+.docs-toc .toc--3 a { padding-left: 24px; }
+
+.footer .wrap { max-width: 1440px; }
+
+@media (max-width: 1240px) {
+  .docs-shell { grid-template-columns: 236px minmax(0, 1fr); }
+  .docs-toc { display: none; }
+}
+@media (max-width: 900px) {
+  .docs-shell { display: block; }
+  .docs-main { padding-top: 28px; margin: 0 auto; }
+  /* Without JS the menu sits above the page; with JS it's a panel under the bar. */
+  .docs-nav { position: static; max-height: none; padding: 20px 0 8px; border-bottom: 1px solid var(--line); }
+  .js .docs-nav {
+    position: fixed; inset: 61px 0 0; z-index: 40;
+    max-height: none; padding: 20px var(--gutter) 40px;
+    background: var(--bg); border: 0;
+    visibility: hidden; opacity: 0; transform: translateY(-6px);
+    transition: opacity .15s ease-out, transform .15s ease-out, visibility 0s linear .15s;
+  }
+  .js .docs-nav.is-open { visibility: visible; opacity: 1; transform: none; transition: opacity .15s ease-out, transform .15s ease-out; }
+  .docs-nav a { padding: 10px 12px; }
+  .paths { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .prose { font-size: 16px; }
+  .prose h1 + p { font-size: 17px; }
+  .prose h2 { margin-top: 40px; padding-top: 22px; font-size: 22px; }
+  .prose pre { margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); border-radius: 0; padding: 14px var(--gutter); font-size: 13px; }
+  .cmd--prompt { padding-left: 14px; }
+  .cmd--prompt pre { margin: 0; padding: 4px 0; font-size: 13.5px; }
+  .table { margin-left: calc(-1 * var(--gutter)); margin-right: calc(-1 * var(--gutter)); border-radius: 0; box-shadow: none; border-block: 1px solid var(--line); }
+  .prose th, .prose td { padding: 9px 12px; }
+  .pns { grid-template-columns: 1fr; }
+  .pn--next { grid-column: 1; }
+  .docs-dl { display: none; }
+  .h-anchor { display: none; }
+  .docs-nav a { min-height: 44px; display: flex; align-items: center; }
+}

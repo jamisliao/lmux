@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Troubleshooting · lmux docs</title>
+  <meta name="description" content="Fixes for the few things that go wrong: Claude&#x27;s dark prompt band, a sidebar that never updates, Codex hooks, macOS permission prompts, CLI errors.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://lmux.dev/docs/troubleshooting/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="lmux">
+  <meta property="og:title" content="Troubleshooting · lmux docs">
+  <meta property="og:description" content="Fixes for the few things that go wrong: Claude&#x27;s dark prompt band, a sidebar that never updates, Codex hooks, macOS permission prompts, CLI errors.">
+  <meta property="og:url" content="https://lmux.dev/docs/troubleshooting/">
+  <meta property="og:image" content="https://lmux.dev/site/img/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Troubleshooting · lmux docs">
+  <meta name="twitter:description" content="Fixes for the few things that go wrong: Claude&#x27;s dark prompt band, a sidebar that never updates, Codex hooks, macOS permission prompts, CLI errors.">
+  <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "lmux", "item": "https://lmux.dev/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lmux.dev/docs/"}, {"@type": "ListItem", "position": 3, "name": "Troubleshooting", "item": "https://lmux.dev/docs/troubleshooting/"}]}</script>
+  <link rel="icon" href="../../site/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="../../site/img/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="../../site/img/apple-touch-icon.png">
+  <link rel="stylesheet" href="../../site/css/site.css">
+  <link rel="stylesheet" href="../../site/css/docs.css">
+  <script>
+    document.documentElement.classList.add("js");
+    try { var t = localStorage.getItem("lmux-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="../../site/js/docs.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="nav">
+    <div class="nav__inner docs-bar">
+      <button class="icon-btn docs-menu" type="button" data-menu aria-controls="docs-nav" aria-expanded="false" aria-label="Show the docs menu" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 6h13M3.5 10h13M3.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <a class="brand" href="../../" aria-label="lmux home"><svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="nav-cursor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#88C0D0"/><stop offset="1" stop-color="#5E81AC"/></linearGradient></defs><rect x="1" y="1" width="30" height="30" rx="8.5" class="brand__body"/><path d="M9.6 11.4 L14.2 16 L9.6 20.6" class="brand__chev" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="18.3" y="9.2" width="3.2" height="13.6" rx="1.6" fill="url(#nav-cursor)"/></svg><span class="brand__word">lmux</span></a>
+      <a class="docs-tag" href="../">docs</a>
+      <div class="nav__end">
+        <button class="icon-btn" type="button" data-theme-toggle aria-label="Theme: automatic. Switch theme" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 3.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/></svg></button>
+        <a class="icon-btn" href="https://github.com/sooftware/lmux" aria-label="lmux on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+        <a class="btn btn--small btn--primary docs-dl" href="https://github.com/sooftware/lmux/releases/latest">Download</a>
+      </div>
+    </div>
+  </header>
+  <div class="docs-shell">
+    <nav class="docs-nav" id="docs-nav" aria-label="Docs">
+      <p class="docs-nav__group">Start</p><ul><li><a href="../">Overview</a></li><li><a href="../install/">Install</a></li><li><a href="../quick-start/">Quick start</a></li></ul><p class="docs-nav__group">Using lmux</p><ul><li><a href="../workspaces/">Workspaces &amp; panes</a></li><li><a href="../shortcuts/">Shortcuts</a></li><li><a href="../configuration/">Configuration</a></li><li><a href="../korean-input/">Korean input</a></li><li><a href="../ko/">한글 입력 (한국어)</a></li></ul><p class="docs-nav__group">Agents</p><ul><li><a href="../claude-code/">Claude Code</a></li><li><a href="../codex/">Codex</a></li><li><a href="../any-agent/">Any agent (OSC 7501)</a></li><li><a href="../cli/">The lmux CLI</a></li></ul><p class="docs-nav__group">Moving in</p><ul><li><a href="../vs-cmux/">lmux vs cmux</a></li><li><a href="../from-cmux/">Switching from cmux</a></li></ul><p class="docs-nav__group">Reference</p><ul><li><a href="../performance/">Performance</a></li><li><a href="../privacy/">Privacy &amp; files on disk</a></li><li><a href="./" aria-current="page">Troubleshooting</a></li><li><a href="../faq/">FAQ</a></li></ul>
+    </nav>
+    <main class="docs-main" id="content" tabindex="-1">
+      <article class="prose">
+<h1>Troubleshooting</h1>
+<p>Fixes for the few things that go wrong in lmux, the macOS terminal for Claude Code and Codex.</p>
+<h2 id="why-is-claudes-prompt-a-dark-band-on-a-light-theme">Why is Claude's prompt a dark band on a light theme?<a class="h-anchor" href="#why-is-claudes-prompt-a-dark-band-on-a-light-theme" aria-label="Link to this section">#</a></h2>
+<p>Claude Code's own theme defaults to dark, so it paints its prompt row dark whatever your terminal looks like. Run <code>/theme</code> in Claude and pick Auto. It then follows lmux's colors, light or dark.</p>
+<h2 id="the-sidebar-never-updates-for-a-claude">The sidebar never updates for a <code>claude</code><a class="h-anchor" href="#the-sidebar-never-updates-for-a-claude" aria-label="Link to this section">#</a></h2>
+<p>Usually the hooks aren't where that <code>claude</code> looks for them. If you export <code>CLAUDE_CONFIG_DIR</code> in your shell rc and open lmux from the Dock, lmux installs the hooks into <code>~/.claude/settings.json</code> while <code>claude</code> reads another folder.</p>
+<p>lmux notices. If a <code>claude</code> has run in a pane for about ten seconds and no hook has arrived from it, the pane gets one calm card ("lmux isn't receiving Claude Code hooks from this pane") with the likely reason and a button:</p>
+<ul><li>the hooks aren't installed: <strong>Install Hooks…</strong></li><li>they're in <code>~/.claude</code> while this <code>claude</code> uses another <code>CLAUDE_CONFIG_DIR</code>: <strong>Install There…</strong> or <strong>Choose Folder…</strong></li><li>this <code>claude</code> started before you installed them: restart it</li></ul>
+<p>Once a hook arrives from a pane, it never asks again.</p>
+<p>A <code>claude</code> inside <code>script</code>, tmux or screen in a pane shows no state at all, because lmux can't tell it's the pane's own. Run it directly in the pane.</p>
+<h2 id="codex-shows-no-status-or-isnt-remembered-for-resume">Codex shows no status, or isn't remembered for resume<a class="h-anchor" href="#codex-shows-no-status-or-isnt-remembered-for-resume" aria-label="Link to this section">#</a></h2>
+<ul><li>Codex runs new hooks only after you trust them. The next time it starts, choose <strong>Trust all and continue</strong> at "Hooks need review". Settings → General says whether they're installed and trusted.</li><li>Status comes from Codex itself while <code>codex</code> is the pane's foreground program; inside ssh or tmux it only comes through hooks.</li><li>A Codex background server started outside lmux sends no hooks: status works, but the session isn't remembered for resume. lmux says so in the pane, once.</li></ul>
+<h2 id="a-row-is-stuck-on-needs-you-or-running">A row is stuck on "needs you" or "running"<a class="h-anchor" href="#a-row-is-stuck-on-needs-you-or-running" aria-label="Link to this section">#</a></h2>
+<p>If a hook got missed, right-click the row and choose <strong>Clear Status</strong> (it works on a multi-selection too). It resets the badge and ring to idle without touching the agent, and the next hook updates it normally.</p>
+<h2 id="why-does-macos-ask-lmux-for-permissions">Why does macOS ask lmux for permissions?<a class="h-anchor" href="#why-does-macos-ask-lmux-for-permissions" aria-label="Link to this section">#</a></h2>
+<p>Programs you start in a terminal borrow its identity for macOS privacy prompts (Accessibility, Automation, Contacts, Full Disk Access…), so when a script or app you launch from lmux wants one, macOS asks about lmux. That's macOS, and Terminal, iTerm2 and Ghostty work the same way. lmux needs none of these for its own features, so grant only what the program you're running needs, or start that program outside the terminal.</p>
+<h2 id="macos-keeps-asking-even-though-lmux-is-already-allowed">macOS keeps asking even though lmux is already allowed<a class="h-anchor" href="#macos-keeps-asking-even-though-lmux-is-already-allowed" aria-label="Link to this section">#</a></h2>
+<p>macOS remembers a permission together with the app's signature. If an older lmux with a different signature (a build from source, say) was allowed, System Settings still shows lmux as on, but the lmux you run now doesn't match it, so macOS asks again. Reset that entry once and allow it at the next prompt:</p>
+<pre tabindex="0"><code class="lang-sh">tccutil reset Accessibility dev.lmux.app   # or ScreenCapture, AppleEvents…</code></pre>
+<p>The same goes for Screen Recording: after switching from a dev build, lmux can keep asking for it although it's on in System Settings. Reset it and allow it once:</p>
+<pre tabindex="0"><code class="lang-sh">tccutil reset ScreenCapture dev.lmux.app</code></pre>
+<h2 id="lmux-send-says-its-refused"><code>lmux send</code> says it's refused<a class="h-anchor" href="#lmux-send-says-its-refused" aria-label="Link to this section">#</a></h2>
+<p>From inside a pane, <code>lmux send</code> may only type into that same pane. From outside lmux (another terminal, Raycast), <code>send</code> and <code>new-workspace --cmd</code> need <strong>Settings → General → Allow other apps to send input to lmux</strong>. See <a href="../cli/">The lmux CLI</a>.</p>
+<h2 id="lmux-is-not-running">"lmux is not running"<a class="h-anchor" href="#lmux-is-not-running" aria-label="Link to this section">#</a></h2>
+<p>The CLI talks to the running app. Open lmux, or if you run it with a custom <code>LMUX_STATE_DIR</code>, set the same one (or <code>LMUX_CONTROL_SOCKET</code>) for the CLI.</p>
+<h2 id="a-setting-or-the-layout-came-back-empty">A setting or the layout came back empty<a class="h-anchor" href="#a-setting-or-the-layout-came-back-empty" aria-label="Link to this section">#</a></h2>
+<p>If a state file is ever unreadable, lmux keeps it aside as <code>&lt;name&gt;.bad-&lt;time&gt;</code> in <code>~/Library/Application Support/lmux/</code> and starts that part fresh, instead of writing over it. The old file is still there to look at.</p>
+<h2 id="still-stuck">Still stuck?<a class="h-anchor" href="#still-stuck" aria-label="Link to this section">#</a></h2>
+<p><a href="https://github.com/sooftware/lmux/issues">Open an issue</a> with what you did, what you expected, and your macOS and lmux versions. <strong>Help → Report an Issue…</strong> in lmux opens the same page.</p>
+      </article>
+      <footer class="docs-foot">
+        <a class="docs-edit" href="https://github.com/sooftware/lmux/blob/main/docs/src/troubleshooting.md">Edit this page on GitHub</a>
+        <nav class="pns" aria-label="Previous and next page"><a class="pn pn--prev" href="../privacy/" rel="prev"><span>Previous</span>Privacy &amp; files on disk</a><a class="pn pn--next" href="../faq/" rel="next"><span>Next</span>FAQ</a></nav>
+      </footer>
+    </main>
+    <aside class="docs-toc" aria-labelledby="toc-title"><p id="toc-title">On this page</p><ul><li class="toc--2"><a href="#why-is-claudes-prompt-a-dark-band-on-a-light-theme">Why is Claude's prompt a dark band on a light theme?</a></li><li class="toc--2"><a href="#the-sidebar-never-updates-for-a-claude">The sidebar never updates for a claude</a></li><li class="toc--2"><a href="#codex-shows-no-status-or-isnt-remembered-for-resume">Codex shows no status, or isn't remembered for resume</a></li><li class="toc--2"><a href="#a-row-is-stuck-on-needs-you-or-running">A row is stuck on "needs you" or "running"</a></li><li class="toc--2"><a href="#why-does-macos-ask-lmux-for-permissions">Why does macOS ask lmux for permissions?</a></li><li class="toc--2"><a href="#macos-keeps-asking-even-though-lmux-is-already-allowed">macOS keeps asking even though lmux is already allowed</a></li><li class="toc--2"><a href="#lmux-send-says-its-refused">lmux send says it's refused</a></li><li class="toc--2"><a href="#lmux-is-not-running">"lmux is not running"</a></li><li class="toc--2"><a href="#a-setting-or-the-layout-came-back-empty">A setting or the layout came back empty</a></li><li class="toc--2"><a href="#still-stuck">Still stuck?</a></li></ul></aside>
+  </div>
+  <footer class="footer">
+    <div class="wrap footer__inner">
+      <p class="footer__brand"><img src="../../site/img/icon.svg" alt="" width="24" height="24" loading="lazy"> lmux <span>light mux.</span></p>
+      <nav class="footer__links" aria-label="Footer">
+        <a href="https://github.com/sooftware/lmux">GitHub</a>
+        <a href="https://github.com/sooftware/lmux/releases">Releases</a>
+        <a href="https://github.com/sooftware/lmux/blob/main/LICENSE">MIT License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
