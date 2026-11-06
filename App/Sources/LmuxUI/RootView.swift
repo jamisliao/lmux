@@ -147,8 +147,10 @@ final class RootView: FlippedView {
         // plugin 的 bar 放在 sidebar 最底部。集中寫在 layout() 最後：上面的版面計算怎麼改，
         // 這裡都是在它算完之後才扣掉 bar 的高度，rebase 時不必記得補回去。
         if let a = sidebarAccessory {
-            sidebarHost.frame.size.height -= a.height
-            a.view.frame = NSRect(x: 0, y: H - a.height, width: max(0, sw - 1), height: a.height)
+            // 視窗縮小時也替 workspace 清單和 History 搜尋欄留空間（sidebarListMinHeight）。
+            let h = min(a.height, max(0, sidebarHost.frame.height - Self.sidebarListMinHeight))
+            sidebarHost.frame.size.height -= h
+            a.view.frame = NSRect(x: 0, y: H - h, width: max(0, sw - 1), height: h)
             a.view.isHidden = !visible
         }
     }
