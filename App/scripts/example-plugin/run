@@ -1,0 +1,28 @@
+#!/bin/sh
+# lmux sidebar plugin 範例：顯示點擊次數，每點一下加一。
+#
+# 安裝：把這個資料夾複製到 ~/.config/lmux/plugins/<名稱>/，確認 run 可執行（chmod 700 run）。
+#       資料夾和 run 都必須屬於你本人，群組和其他人不能寫入，否則 lmux 不會執行。
+#       然後在 sidebar 底部的 bar 按右鍵 → Reload All Plugins（或重開 lmux）。
+#
+# 協定：一行一個 JSON。
+#   往 stdout 寫，更新 bar 上屬於你的那一行：
+#     {"set":{"text":"必填","icon":"SF Symbol 名稱","tone":"done|failed|needsInput|accent","badge":"3"}}
+#     {"clear":true}                      ← 把這一行拿掉
+#   從 stdin 讀，lmux 送來的事件：
+#     {"event":"click"}                   ← 使用者點了你那一行
+#   單行超過 4096 bytes、不是合法 JSON 的行會被略過；同一批收到多行時只顯示最後一個。
+#
+# 約定：
+#   - 一直跑著。結束就會被重啟（1 秒、2 秒後），60 秒內結束 3 次就停止，那一行改顯示 stopped。
+#   - stdin 收到 EOF（lmux 結束或當掉）就自己結束。
+#   - 每次寫完要 flush（sh 的 echo 會直接寫出；Python 要 print(..., flush=True)）。
+#   - stderr 會寫到 ~/Library/Application Support/lmux/plugins/<名稱>.log。
+#   - 環境變數 LMUX_PLUGIN_NAME 是資料夾名稱；要發通知可以用 lmux notify（已設定 LMUX_CONTROL_SOCKET）。
+
+n=0
+echo '{"set":{"icon":"hand.tap","text":"click me"}}'
+while read -r _event; do
+  n=$((n + 1))
+  echo "{\"set\":{\"icon\":\"hand.tap\",\"text\":\"clicked $n times\",\"tone\":\"accent\",\"badge\":\"$n\"}}"
+done

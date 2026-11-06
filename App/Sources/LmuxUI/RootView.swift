@@ -29,6 +29,18 @@ final class RootView: FlippedView {
     let header = ContentHeaderView(frame: .zero)
     /// Holds the selected workspace's split tree.
     let content = FlippedView()
+    /// plugin 掛在 sidebar 最底部的橫列（`installSidebarAccessory`）；nil 表示沒有。
+    var sidebarAccessory: (view: NSView, height: CGFloat)? {
+        didSet {
+            // 同一個 view 只改高度時不必重新加入（plugin 行數變動時會這樣呼叫）。
+            if oldValue?.view !== sidebarAccessory?.view {
+                oldValue?.view.removeFromSuperview()
+                // 放在 resizeHandle 下層：兩者右緣重疊，sidebar 邊緣在 bar 上也要能拖拉。
+                if let v = sidebarAccessory?.view { addSubview(v, positioned: .below, relativeTo: resizeHandle) }
+            }
+            needsLayout = true
+        }
+    }
 
     init(model: AppModel, controller: LmuxController, titlebarHeight: CGFloat) {
         self.model = model
@@ -131,12 +143,22 @@ final class RootView: FlippedView {
         let contentX = visible ? sw : clusterX + cw + 8
         header.frame = NSRect(x: contentX, y: 0, width: W - contentX, height: tb)
         content.frame = NSRect(x: sw, y: tb, width: W - sw, height: H - tb)
+
+        // plugin 的 bar 放在 sidebar 最底部。集中寫在 layout() 最後：上面的版面計算怎麼改，
+        // 這裡都是在它算完之後才扣掉 bar 的高度，rebase 時不必記得補回去。
+        if let a = sidebarAccessory {
+            sidebarHost.frame.size.height -= a.height
+            a.view.frame = NSRect(x: 0, y: H - a.height, width: max(0, sw - 1), height: a.height)
+            a.view.isHidden = !visible
+        }
     }
 
     /// The titlebar buttons sit on the sidebar, or on the content header when it's hidden: they read
     /// like what's under them (the terminal's color: header, a sidebar that matches it).
     func updateClusterAppearance() {
         cluster.adoptAppearance(on: model.sidebarVisible ? sidebarBackdrop.matchColor : model.selected?.focusedPane?.surface.terminalBackground)
+        // plugin 的 bar 與 sidebar 的列用同一套外觀（applySidebarLook 會先設定 sidebarHost 再呼叫這裡）。
+        if let v = sidebarAccessory?.view, v.appearance?.name != sidebarHost.appearance?.name { v.appearance = sidebarHost.appearance }
     }
 
     /// Content header (POLISH.md 5): chip · title · `⎇ branch · ~/path`, without repeats.
