@@ -97,6 +97,13 @@ func runBell() async -> Int32 {
     c.markAllNotificationsRead()
     r.check("Mark all read clears every row and the bell's badge", c.model.unreadNotifications == 0 && c.model.totalUnread == 0
             && made.allSatisfy { $0.unread == 0 })
+    // A row coming in while it's open: the list grows to it (the popover follows, so it stays on the bell).
+    let resizes = c.notificationsResizes
+    c.model.recordNotification(NotificationEntry(paneID: nil, workspaceID: nil, title: "late", message: "m", kind: "cli", read: true))
+    let four = H + 4 * NotificationsView.rowHeight + 4
+    r.check("a row arriving while open resizes the list (popover) to 4 rows", await waitFor(2) {
+        c.notificationsResizes == resizes + 1 && abs((view.window?.contentLayoutRect.height ?? 0) - four) < 2 },
+            "resizes \(c.notificationsResizes - resizes) size \(view.window?.contentLayoutRect.size ?? .zero)")
     c.closeNotifications()
 
     // ⌥-click: the old behavior, jump straight to the latest unread.

@@ -312,7 +312,23 @@ func runRealWindow() async -> Int32 {
         rw.steps.append("click green (full screen)")
         await rw.click(z, settle: 2500)
         r.check("green button enters full screen", await rw.waitUntil(4) { w.styleMask.contains(.fullScreen) })
+        // The cluster and the traffic lights share the full-screen titlebar window's coordinates.
+        func clusterRect() -> NSRect { root.cluster.convert(root.cluster.bounds, to: nil) }
+        await rw.move(rw.center(p1.surface))
+        r.check("full screen: the titlebar buttons sit at the left edge while the traffic lights are hidden",
+                await rw.waitUntil(4) { !root.trafficLightsVisible && abs(clusterRect().minX - LmuxTokens.Layout.rowInsetX) < 1 },
+                "cluster \(clusterRect()) lightsVisible=\(root.trafficLightsVisible)")
         await rw.shot("04-fullscreen")
+        rw.steps.append("pointer to the top edge (reveal the titlebar)")
+        let top = CGPoint(x: rw.center(p1.surface).x, y: 0)
+        await rw.move(top)
+        await rw.move(CGPoint(x: top.x + 1, y: 0))
+        let revealed = await rw.waitUntil(4) { root.trafficLightsVisible }
+        let clear = await rw.waitUntil(2) { root.trafficLightsFrame.map { clusterRect().minX >= $0.maxX + 4 } ?? false }
+        r.check("…revealed (pointer at the top edge): right of the traffic lights, no overlap (revealed: \(revealed))",
+                !revealed || clear, "cluster \(clusterRect()) lights \(root.trafficLightsFrame.map { "\($0)" } ?? "nil")")
+        await rw.shot("04b-fullscreen-revealed")
+        await rw.move(rw.center(p1.surface))
         await rw.clickAndType(p1, "in full screen")
         rw.steps.append("⌃⌘F exit full screen")
         await rw.key(3, [.maskCommand, .maskControl], settle: 2500)  // F
@@ -320,6 +336,21 @@ func runRealWindow() async -> Int32 {
         r.check("full screen exits", await rw.waitUntil(4) { !w.styleMask.contains(.fullScreen) })
         await sleepMs(800)
         await rw.clickAndType(p1, "after full screen")
+        rw.steps.append("close in full screen")
+        w.toggleFullScreen(nil)
+        if await rw.waitUntil(4, { w.styleMask.contains(.fullScreen) }) {
+            await sleepMs(800)
+            w.performClose(nil)
+            r.check("closing in full screen leaves full screen, then hides the window (no empty black Space)",
+                    await rw.waitUntil(6) { !w.styleMask.contains(.fullScreen) && !w.isVisible },
+                    "fullScreen=\(w.styleMask.contains(.fullScreen)) visible=\(w.isVisible)")
+            c.reopenWindow()
+            r.check("…reopen brings it back, windowed", await rw.waitUntil(3) { w.isVisible && !w.styleMask.contains(.fullScreen) })
+            await sleepMs(500)
+            await rw.clickAndType(p1, "after close in full screen")
+        } else {
+            r.check("full screen re-enters (for close in full screen)", false)
+        }
     }
     if let x = trafficLight(rw, .closeButton) {
         let ids = c.model.workspaces.flatMap(\.panes).map(\.id)

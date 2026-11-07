@@ -7,7 +7,8 @@ private typealias T = LmuxTokens
 /// Window content: sidebar column (titlebar strip + SwiftUI list), titlebar
 /// buttons, content header and the workspace's split tree.
 ///
-/// Nothing is placed left of `trafficLightsInset` in the titlebar strip.
+/// Nothing is placed left of `trafficLightsInset` in the titlebar strip (outside full screen,
+/// which hides the traffic lights until the pointer reveals them).
 final class RootView: FlippedView {
     let model: AppModel
     weak var controller: LmuxController?
@@ -89,11 +90,58 @@ final class RootView: FlippedView {
         needsLayout = true
     }
 
-    /// The traffic lights in window coordinates (nil without a titled window).
+    /// The traffic lights in window coordinates (nil without a titled window). In full screen that's
+    /// the coordinates of the window holding the titlebar (see `trackTrafficLights`), like the cluster's.
     var trafficLightsFrame: NSRect? {
         guard let w = window, let close = w.standardWindowButton(.closeButton), let zoom = w.standardWindowButton(.zoomButton),
               close.superview != nil, zoom.superview != nil else { return nil }
         return close.convert(close.bounds, to: nil).union(zoom.convert(zoom.bounds, to: nil))
+    }
+
+    /// The traffic lights are drawn on screen: not hidden or transparent (themselves or an ancestor),
+    /// in a visible window, centered on the window's screen. In full screen they're in the view tree
+    /// all along but shown only while the pointer reveals the titlebar.
+    var trafficLightsVisible: Bool {
+        guard let w = window, let close = w.standardWindowButton(.closeButton), let holder = close.window,
+              holder.isVisible, holder.alphaValue > 0, !close.isHiddenOrHasHiddenAncestor,
+              let screen = w.screen ?? holder.screen else { return false }
+        var v: NSView? = close
+        while let x = v {
+            if x.alphaValue <= 0.01 { return false }
+            v = x.superview
+        }
+        let r = holder.convertToScreen(close.convert(close.bounds, to: nil))
+        return screen.frame.contains(NSPoint(x: r.midX, y: r.midY))
+    }
+
+    /// Set from `windowWillExitFullScreen` to `windowDidExitFullScreen`: the traffic lights come back
+    /// during the exit animation, so the buttons take their windowed place as soon as it starts.
+    var exitingFullScreen = false { didSet { needsLayout = true } }
+    private var lightsObservations: [NSKeyValueObservation] = []
+    private var lightsObservers: [NSObjectProtocol] = []
+
+    /// Full screen: re-lay out when the traffic lights are revealed or hidden again (on while in full
+    /// screen, off when it ends). AppKit moves the titlebar into a separate private window then
+    /// (`NSToolbarFullScreenWindow`, whose parent is this window) and slides / fades it in when the
+    /// pointer reaches the top edge. Nothing tells lmux about the reveal itself, so it watches what
+    /// the reveal changes: that window's frame and the hidden / alpha / frame of the close button
+    /// and its ancestors. No timer, and nothing at all outside full screen.
+    func trackTrafficLights(_ on: Bool) {
+        lightsObservations = []  // invalidated on release
+        lightsObservers.forEach(NotificationCenter.default.removeObserver)
+        lightsObservers = []
+        guard on, let w = window, let close = w.standardWindowButton(.closeButton) else { return }
+        let relayout: () -> Void = { DispatchQueue.main.async { [weak self] in self?.needsLayout = true } }
+        var v: NSView? = close
+        while let x = v {
+            lightsObservations += [x.observe(\.isHidden) { _, _ in relayout() }, x.observe(\.alphaValue) { _, _ in relayout() },
+                                   x.observe(\.frame) { _, _ in relayout() }]
+            v = x.superview
+        }
+        guard let holder = close.window, holder !== w else { return }
+        for name in [NSWindow.didMoveNotification, NSWindow.didResizeNotification] {
+            lightsObservers.append(NotificationCenter.default.addObserver(forName: name, object: holder, queue: .main) { _ in relayout() })
+        }
     }
 
     override func layout() {
@@ -116,7 +164,11 @@ final class RootView: FlippedView {
 
         let cw = TitlebarCluster.width, bs = T.Layout.titlebarButtonSize
         let lights = trafficLightsFrame
-        let inset = lights.map { max(T.Layout.trafficLightsInset, $0.maxX + 12) } ?? T.Layout.trafficLightsInset
+        // Full screen hides the traffic lights: the buttons go to the left edge (like Finder, Xcode),
+        // and right after the lights again while the pointer reveals them (or full screen ends).
+        let fullScreen = (window?.styleMask.contains(.fullScreen) ?? false) && !exitingFullScreen
+        let inset = fullScreen && !trafficLightsVisible ? T.Layout.rowInsetX
+            : lights.map { max(T.Layout.trafficLightsInset, $0.maxX + 12) } ?? T.Layout.trafficLightsInset
         // Fixed right after the traffic lights whether the sidebar is shown or not (like Finder,
         // Notes, Xcode): the toggle never moves under the pointer, so a second click toggles back.
         let clusterX = inset

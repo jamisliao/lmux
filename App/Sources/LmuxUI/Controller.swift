@@ -146,6 +146,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     weak var pressedPane: Pane?
     /// Where a tab dragged out of its strip would land (shown while it's dragged).
     var tabDropPreview: TabDropPreview?
+    /// The window was closed in full screen: it hides once full screen has ended (`windowShouldClose`).
+    var hideAfterFullScreen = false
+    /// Times the open notification list was resized to new rows (tests: headless, the hosting view
+    /// resizes its holder window by itself, so the size alone doesn't show the popover follows).
+    public internal(set) var notificationsResizes = 0
     /// The bell's popover (built on first open; never shown headless, see `Notifications.swift`).
     var notificationsPopover: NSPopover?
     var notificationsView: NotificationsHostingView?
@@ -327,6 +332,25 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         refreshPaneChrome()
     }
     public func windowDidResignKey(_ notification: Notification) { syncSurfaceFocus() }
+    /// Full screen moves the titlebar buttons to the left edge while the traffic lights are hidden, and back.
+    public func windowWillEnterFullScreen(_ notification: Notification) { root.needsLayout = true }
+    public func windowDidEnterFullScreen(_ notification: Notification) {
+        root.trackTrafficLights(true)
+        root.needsLayout = true
+    }
+    public func windowWillExitFullScreen(_ notification: Notification) {
+        root.trackTrafficLights(false)
+        root.exitingFullScreen = true
+    }
+    public func windowDidExitFullScreen(_ notification: Notification) {
+        root.exitingFullScreen = false
+        if hideAfterFullScreen { hideWindow() }
+    }
+    public func windowDidFailToExitFullScreen(_ window: NSWindow) {
+        hideAfterFullScreen = false
+        root.exitingFullScreen = false
+        root.trackTrafficLights(true)
+    }
 
     /// The first responder surface has focus only while the window is key (see
     /// `SurfaceView.windowIsKey`).
@@ -401,14 +425,27 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     /// Quitting is ⌘Q, which asks first while something is running.
     public func windowShouldClose(_ sender: NSWindow) -> Bool {
         saveNow()
-        sender.orderOut(nil)
-        syncOcclusion()
+        // Hidden in full screen, the window would leave its Space behind, empty and black: leave
+        // full screen first and hide it when that's done (`windowDidExitFullScreen`).
+        if sender.styleMask.contains(.fullScreen) {
+            if !root.exitingFullScreen { sender.toggleFullScreen(nil) }
+            hideAfterFullScreen = true
+            return false
+        }
+        hideWindow()
         return false
+    }
+
+    func hideWindow() {
+        hideAfterFullScreen = false
+        window.orderOut(nil)
+        syncOcclusion()
     }
 
     /// Dock icon click / `open -a lmux` / ⌘N with no visible window: show it again.
     public func reopenWindow() {
         reopenWindowCalls += 1
+        hideAfterFullScreen = false  // reopened while leaving full screen to close: it stays
         guard !headless else { return }
         if window.isMiniaturized { window.deminiaturize(nil) }
         if !window.isVisible { window.makeKeyAndOrderFront(nil) }

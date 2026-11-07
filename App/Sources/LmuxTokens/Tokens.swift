@@ -293,7 +293,8 @@ public enum LmuxTokens {
         /// Polish: 40 so the strip's midline (20) matches the traffic lights' center on macOS 26.
         /// Still center the cluster on the close button's measured midY at runtime (see POLISH.md 1).
         public static let titlebarHeight: CGFloat = 40
-        /// Traffic lights occupy x 0..<trafficLightsInset; never place content there.
+        /// Traffic lights occupy x 0..<trafficLightsInset; never place content there (full screen hides
+        /// them until the pointer reveals the titlebar: the titlebar buttons use that space meanwhile).
         public static let trafficLightsInset: CGFloat = 78
 
         public static let sidebarWidthDefault: CGFloat = 248

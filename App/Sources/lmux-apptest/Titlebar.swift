@@ -101,6 +101,22 @@ func runTitlebar() async -> Int32 {
     r.check("bell ⌥-clicked jumps to the unread pane", c.model.selected?.focusedPane === p1 && firstResponderPane(c) === p1
             && !c.notificationsPanel.isOpen)
 
+    // Closed in full screen: full screen ends first (its Space would stay behind, black), then the
+    // window hides. Headless never enters full screen: the exit is simulated.
+    r.section = "close in full screen"
+    let exited = Notification(name: NSWindow.didExitFullScreenNotification, object: w)
+    c.hideAfterFullScreen = true
+    c.windowDidExitFullScreen(exited)
+    r.check("closed in full screen: hidden once full screen has ended", !w.isVisible && !c.hideAfterFullScreen)
+    r.check("…every pane keeps running", c.model.workspaces.flatMap(\.panes).contains { $0 === p1 })
+    w.orderFrontRegardless()
+    c.hideAfterFullScreen = true
+    c.reopenWindow()
+    c.windowDidExitFullScreen(exited)
+    r.check("…reopened before the exit ends: it stays", w.isVisible && !c.hideAfterFullScreen)
+    r.check("closed outside full screen: hidden right away", !c.windowShouldClose(w) && !w.isVisible && !c.hideAfterFullScreen)
+    w.orderFrontRegardless()
+
     // ⇧⌘H: History search takes the keyboard (bringing the sidebar back), Esc Esc hands it back.
     r.section = "history search"
     let work = URL(fileURLWithPath: env["LMUX_STATE_DIR"]!).appendingPathComponent("work", isDirectory: true)

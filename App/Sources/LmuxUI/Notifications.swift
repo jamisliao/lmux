@@ -58,10 +58,24 @@ extension LmuxController {
             pop.delegate = self
         }
         notificationsPopover = pop
+        // Size the popover to its SwiftUI content before showing it. Otherwise AppKit places it for
+        // its default (~320pt tall) content, then the hosting view shrinks it to the real height
+        // keeping the bottom edge fixed: the popover hangs far below the bell, detached from it.
+        view.layoutSubtreeIfNeeded()
+        pop.contentSize = view.fittingSize
         let bs = T.Layout.titlebarButtonSize
         let bell = NSRect(x: bs + 2, y: 0, width: bs, height: root.cluster.bounds.height)
         pop.show(relativeTo: bell, of: root.cluster, preferredEdge: root.cluster.isFlipped ? .maxY : .minY)
         view.window?.makeFirstResponder(view)
+    }
+
+    /// Rows came in while the list is open (its height follows the count): resize the popover (headless, its
+    /// holder) to the content. Left to the hosting view, it grows from its bottom edge and drifts off the bell.
+    func notificationsCountChanged() {
+        guard notificationsPanel.isOpen, let view = notificationsView else { return }
+        notificationsResizes += 1
+        view.layoutSubtreeIfNeeded()
+        if headless { view.window?.setContentSize(view.fittingSize) } else { notificationsPopover?.contentSize = view.fittingSize }
     }
 
     public func closeNotifications() {
@@ -178,6 +192,7 @@ public struct NotificationsView: View {
             }
         }
         .frame(width: Self.width)
+        .onChange(of: model.notifications.count) { DispatchQueue.main.async { controller?.notificationsCountChanged() } }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Notifications")
     }
