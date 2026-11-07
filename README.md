@@ -201,4 +201,9 @@ More questions: [FAQ](https://lmux.dev/docs/faq/)
 - [cmux](https://github.com/manaflow-ai/cmux), for the idea and the layout this borrows
 
 
+<p align="center">
+  If lmux ever let you take back a prompt you sent to the wrong pane, a star helps other people find the project.<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="Star lmux on GitHub"></a>
+</p>
+
 <sub>MIT. Not affiliated with cmux, Ghostty, Anthropic or OpenAI; their names are used only to describe what lmux works with. Third-party licenses are in <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a>, also shipped inside lmux.app.</sub>

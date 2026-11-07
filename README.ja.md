@@ -201,4 +201,9 @@ macOS 14 以降、Apple silicon の Mac で動く。ソースからビルドす�
 - [cmux](https://github.com/manaflow-ai/cmux)。アイデアもレイアウトもここから借りている
 
 
+<p align="center">
+  違うペインに送ってしまったプロンプトを lmux でなかったことにできて助かったなら、スターをもらえるとうれしい。ほかの人も見つけやすくなる。<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="GitHub で lmux にスターをつける"></a>
+</p>
+
 <sub>MIT。cmux、Ghostty、Anthropic、OpenAI とは関係なく、名前は lmux の連携先を説明するためだけに使っている。サードパーティのライセンスは <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a> にあり、lmux.app にも同梱している。</sub>

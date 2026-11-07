@@ -201,4 +201,9 @@ brew install --cask sooftware/tap/lmux
 - [cmux](https://github.com/manaflow-ai/cmux)，lmux 的思路和布局都是跟它学的
 
 
+<p align="center">
+  如果你用 lmux 撤回过发错窗格的消息，点个 Star 吧，能让更多人发现这个项目。<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="在 GitHub 上给 lmux 点个 Star"></a>
+</p>
+
 <sub>MIT 协议。与 cmux、Ghostty、Anthropic、OpenAI 无关，提及它们仅为说明兼容性。第三方许可见 <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a>，lmux.app 里也带了一份。</sub>

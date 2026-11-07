@@ -201,4 +201,9 @@ Agent 外框提示、History、收回對話和韓文輸入的 GIF 短片，都�
 - [cmux](https://github.com/manaflow-ai/cmux)，lmux 借用的概念和版面配置都來自它
 
 
+<p align="center">
+  如果你曾用 lmux 把送錯窗格的 prompt 收回來，按個 Star 吧，讓更多人能找到這個專案。<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="在 GitHub 上幫 lmux 按個 Star"></a>
+</p>
+
 <sub>MIT 授權。與 cmux、Ghostty、Anthropic 或 OpenAI 沒有任何關係，提到它們的名字只是為了說明 lmux 能搭配什麼使用。第三方授權條款在 <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a>，lmux.app 裡也附了一份。</sub>

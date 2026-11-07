@@ -201,4 +201,9 @@ Diğer sorular için [SSS](https://lmux.dev/docs/faq/) sayfasına göz atın.
 - [cmux](https://github.com/manaflow-ai/cmux), lmux'ın ödünç aldığı fikir ve yerleşim için
 
 
+<p align="center">
+  Yanlış pane'e giden bir prompt'u lmux ile hiç geri aldıysan, bir yıldız başkalarının da projeyi bulmasına yardımcı olur.<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="GitHub'da lmux'a yıldız ver"></a>
+</p>
+
 <sub>MIT. lmux'ın cmux, Ghostty, Anthropic veya OpenAI ile hiçbir bağı yok; bu isimler sadece lmux'ın neyle çalıştığını anlatmak için kullanılıyor. Üçüncü taraf lisansları <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a> dosyasında; aynı dosya lmux.app'in içinde de var.</sub>

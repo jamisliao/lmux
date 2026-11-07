@@ -201,4 +201,9 @@ Altre domande? Leggi le [FAQ](https://lmux.dev/docs/faq/).
 - [cmux](https://github.com/manaflow-ai/cmux), per l'idea e il layout che lmux gli ha preso in prestito
 
 
+<p align="center">
+  Se ti è mai capitato di annullare con lmux un prompt finito nel pannello sbagliato, una stella aiuta altre persone a scoprire il progetto.<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="Metti una stella a lmux su GitHub"></a>
+</p>
+
 <sub>MIT. Non affiliato a cmux, Ghostty, Anthropic o OpenAI; i loro nomi sono usati solo per descrivere con cosa funziona lmux. Le licenze di terze parti sono in <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a>, incluse anche dentro lmux.app.</sub>

@@ -201,4 +201,9 @@ Xem thêm các câu hỏi khác tại [FAQ](https://lmux.dev/docs/faq/).
 - [cmux](https://github.com/manaflow-ai/cmux), vì ý tưởng và bố cục mà lmux mượn lại
 
 
+<p align="center">
+  Nếu bạn từng nhờ lmux mà thu hồi được một prompt gửi nhầm pane, một star sẽ giúp nhiều người biết đến lmux hơn.<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="Star lmux trên GitHub"></a>
+</p>
+
 <sub>MIT. Không liên kết với cmux, Ghostty, Anthropic hay OpenAI; tên của họ chỉ được nhắc đến để cho biết lmux dùng được với những gì. License của bên thứ ba nằm trong <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a>, và cũng được đóng gói kèm trong lmux.app.</sub>

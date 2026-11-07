@@ -201,4 +201,9 @@ Cualquier aporte es bienvenido, desde una errata hasta módulos enteros, mientra
 - [cmux](https://github.com/manaflow-ai/cmux), por la idea y el layout que lmux toma prestados
 
 
+<p align="center">
+  Si alguna vez has podido deshacer con lmux un prompt enviado al panel equivocado, una estrella ayuda a que más gente descubra el proyecto.<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="Dale una estrella a lmux en GitHub"></a>
+</p>
+
 <sub>MIT. Sin afiliación con cmux, Ghostty, Anthropic ni OpenAI; sus nombres se usan solo para describir con qué funciona lmux. Las licencias de terceros están en <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a>, que también va incluido dentro de lmux.app.</sub>

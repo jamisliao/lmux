@@ -201,4 +201,9 @@ macOS 14+ на Apple silicon. Сборка из исходников описа�
 - [cmux](https://github.com/manaflow-ai/cmux) — за идею и компоновку интерфейса, которую я позаимствовал
 
 
+<p align="center">
+  Если lmux хоть раз помог откатить промпт, улетевший не в ту панель, поставь звёздочку — так другим будет проще найти проект.<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="Поставить звёздочку lmux на GitHub"></a>
+</p>
+
 <sub>MIT. lmux никак не связан с cmux, Ghostty, Anthropic или OpenAI; их названия упоминаются только для того, чтобы показать, с чем работает lmux. Сторонние лицензии — в <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a> (они же лежат внутри lmux.app).</sub>

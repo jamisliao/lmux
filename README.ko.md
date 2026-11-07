@@ -207,4 +207,9 @@ Codex CLI가 설치되어 있으면 이어서 Codex hooks도 같은 방식으로
 - [cmux](https://github.com/manaflow-ai/cmux): lmux의 아이디어와 레이아웃을 여기서 빌려 왔습니다.
 
 
+<p align="center">
+  엉뚱한 pane에 보낸 프롬프트를 lmux로 한 번이라도 되돌린 적이 있다면 star를 눌러 주세요. 다른 사람들이 lmux를 찾기 쉬워집니다.<br><br>
+  <a href="https://github.com/sooftware/lmux"><img src="https://img.shields.io/github/stars/sooftware/lmux?style=social" alt="GitHub에서 lmux에 star 누르기"></a>
+</p>
+
 <sub>MIT. lmux는 cmux, Ghostty, Anthropic, OpenAI와 관계가 없습니다. 이 이름들은 lmux와 함께 쓰는 도구를 설명하려고 적었습니다. 서드파티 라이선스는 <a href="App/THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES</a>에 있으며 lmux.app 안에도 들어 있습니다.</sub>
