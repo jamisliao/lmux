@@ -78,6 +78,9 @@ public struct HookEvent: Sendable, Equatable {
     public var errorType: String?
     /// `permission_mode` ("default", "bypassPermissions", …).
     public var permissionMode: String?
+    /// Stop / SubagentStop `background_tasks`: the ids of entries whose `type` is "subagent" (shells,
+    /// monitors… left out). nil when the field is missing (older Claude Code, Codex).
+    public var backgroundSubagentIDs: [String]?
     /// Wall clock (unix ns) when lmux-hook started, if sent.
     public var sentAtNanos: UInt64?
     /// Wall clock (unix ns) when the server parsed the line.
@@ -134,6 +137,13 @@ public struct HookEvent: Sendable, Equatable {
         prompt = s("prompt")
         errorType = s("error") ?? s("error_type")
         permissionMode = s("permission_mode")
+        if let tasks = payload["background_tasks"] as? [Any] {
+            backgroundSubagentIDs = tasks.compactMap { item in
+                guard let task = item as? [String: Any], task["type"] as? String == "subagent",
+                      let id = task["id"] as? String, !id.isEmpty else { return nil }
+                return id
+            }
+        }
     }
 
     /// The one-line gist of a tool call: Bash's command, a file's name, a search pattern.
