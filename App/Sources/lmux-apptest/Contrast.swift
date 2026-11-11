@@ -344,13 +344,19 @@ func runContrast() async -> Int32 {
             !code.isEmpty && code.allSatisfy { $0.ratio < 1.5 }, show(code.filter { $0.ratio >= 1.5 }))
     r.check("…and markdown inline code \(inl.first?.fg ?? "?") < 1.6:1 (\(inl.count) runs: prose, table, list, quote)",
             inl.count >= 8 && inl.allSatisfy { $0.ratio < 1.6 }, show(inl.filter { $0.ratio >= 1.6 }))
+    // Measured at the display's scale. At 1x (GitHub's runners) a thin glyph's 1-pixel stem (`)`, `|`) is
+    // never fully covered, so its darkest pixel stays a shade short of the color Ghostty picked (1.99 for
+    // a 2.0 floor); at 2x (every Retina Mac) the stems are 2 pixels and the floor is exact.
+    let scale = c.window.backingScaleFactor
+    let pixelSlack = scale < 2 ? 0.05 : 0
+    let scaleNote = scale < 2 ? ", 1x: \(pixelSlack) for antialiasing" : ""
     for theme in contrastWorstThemes {
         guard let res = await bench.measureAll(theme: theme, mc: nil, label: "lmux") else {
             r.check("\(theme): frames rendered", false); continue
         }
         // Faint text is left out: Ghostty tests its contrast before applying the faint opacity.
-        let bad = res.filter { !$0.faint && !$0.setsBackground && $0.ratio < contrastFloor }
-        r.check("\(theme): no text below \(contrastFloor):1 (\(res.count) runs, min \(String(format: "%.2f", res.filter { !$0.faint }.map(\.ratio).min() ?? 0)))",
+        let bad = res.filter { !$0.faint && !$0.setsBackground && $0.ratio < contrastFloor - pixelSlack }
+        r.check("\(theme): no text below \(contrastFloor):1 (\(res.count) runs, min \(String(format: "%.2f", res.filter { !$0.faint }.map(\.ratio).min() ?? 0))\(scaleNote))",
                 bad.isEmpty, show(bad))
         if theme == "Nord Light" {
             let fixed = claudeDark(res, plain) + claudeDark(res, inline)

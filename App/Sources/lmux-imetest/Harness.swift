@@ -151,6 +151,10 @@ final class SinkTerminal {
 @MainActor
 func dispatch(_ ev: NSEvent, to window: NSWindow) {
     guard headless else {
+        // The queue hands a key event to the key window: make that `window` (the CJK checks type into
+        // an ABC reference terminal and the IME's terminal in turn; the reference keys used to reach
+        // whichever was key).
+        if !window.isKeyWindow { window.makeKeyAndOrderFront(nil) }
         NSApp.postEvent(ev, atStart: false)
         return
     }

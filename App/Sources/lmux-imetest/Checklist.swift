@@ -606,7 +606,13 @@ func runChecklist() async -> Int32 {
     await runFontChecks(r)
     await runThemeChecks(r)
 
-    guard let imeRuntime = GhosttyRuntime(fontProfile: .korean) else { print("runtime failed"); return 2 }
+    // ⌥ letters as the Korean 2-Set source has them on an ABC-based Mac: option-as-alt off. Left unset,
+    // Ghostty turns it on by itself when this machine's keyboard layout is U.S. (keyboard.zig,
+    // detectOptionAsAlt; GitHub's runners), and the simulated checks would test that instead.
+    // (Option-as-alt on is reported below, reportOptionAsAlt.)
+    guard let imeRuntime = GhosttyRuntime(simulatedUserConfig: ["macos-option-as-alt = false"], fontProfile: .korean) else {
+        print("runtime failed"); return 2
+    }
     keepAlive.append(imeRuntime)
     r.mode = "simulated-IME"
     NSEvent.layoutCharactersOverride = simulatedKoreanLayout

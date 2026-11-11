@@ -30,6 +30,12 @@ enum KC {
 @MainActor
 func sleepMs(_ ms: Int) async { try? await Task.sleep(for: .milliseconds(ms)) }
 
+/// Allowance for wall-clock and CPU-share budgets on a slow shared machine: `LMUX_CI_SLOW=<factor>`,
+/// set only by .github/workflows/ci.yml (GitHub's macOS runners are 3-vCPU VMs shared with other
+/// jobs: the same work takes ~1.5-3x the time and CPU share of an M-series laptop, and the main thread
+/// can be preempted for a frame or two). Unset (every local run) it is 1: the strict budget.
+let ciSlow: Double = max(1, Double(ProcessInfo.processInfo.environment["LMUX_CI_SLOW"] ?? "") ?? 1)
+
 /// Synthesized events go through the app's event queue (so NSApp.currentEvent and local monitors
 /// behave as in real dispatch) and are delivered exactly once.
 ///
@@ -248,21 +254,25 @@ func waitFor(_ timeout: Double = 3, _ cond: () -> Bool) async -> Bool {
 /// Run a helper process off the main thread (the app answers its socket on main).
 func runProcess(_ path: String, _ args: [String], env: [String: String] = [:], stdin: Data? = nil)
     async -> (status: Int32, out: String, err: String) {
-    await Task.detached {
-        let p = Process()
-        p.executableURL = URL(fileURLWithPath: path)
-        p.arguments = args
-        p.environment = ProcessInfo.processInfo.environment.merging(env) { $1 }
-        let out = Pipe(), err = Pipe(), inp = Pipe()
-        p.standardOutput = out
-        p.standardError = err
-        p.standardInput = inp
-        do { try p.run() } catch { return (-1, "", "\(error)") }
-        if let stdin { inp.fileHandleForWriting.write(stdin) }
-        try? inp.fileHandleForWriting.close()
-        let o = out.fileHandleForReading.readDataToEndOfFile()
-        let e = err.fileHandleForReading.readDataToEndOfFile()
-        p.waitUntilExit()
-        return (p.terminationStatus, String(decoding: o, as: UTF8.self), String(decoding: e, as: UTF8.self))
-    }.value
+    // On a GCD thread, not the concurrency pool: its blocking reads would hold one of only as many
+    // threads as there are cores (3 on a CI runner), and further processes wouldn't start until one ended.
+    await withCheckedContinuation { done in
+        DispatchQueue.global().async {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: path)
+            p.arguments = args
+            p.environment = ProcessInfo.processInfo.environment.merging(env) { $1 }
+            let out = Pipe(), err = Pipe(), inp = Pipe()
+            p.standardOutput = out
+            p.standardError = err
+            p.standardInput = inp
+            do { try p.run() } catch { done.resume(returning: (-1, "", "\(error)")); return }
+            if let stdin { inp.fileHandleForWriting.write(stdin) }
+            try? inp.fileHandleForWriting.close()
+            let o = out.fileHandleForReading.readDataToEndOfFile()
+            let e = err.fileHandleForReading.readDataToEndOfFile()
+            p.waitUntilExit()
+            done.resume(returning: (p.terminationStatus, String(decoding: o, as: UTF8.self), String(decoding: e, as: UTF8.self)))
+        }
+    }
 }

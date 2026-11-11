@@ -163,7 +163,8 @@ extension LmuxController {
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? enc.encode(snapshotLayout()) else { return }
         do {
-            try FileManager.default.createDirectory(at: paths.stateDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: paths.stateDir, withIntermediateDirectories: true,
+                                                    attributes: [.posixPermissions: 0o700])
             // Private from the first byte: a 0600 temp file, on disk (fsync) before it is renamed
             // over the layout, so a crash or power loss leaves the old layout or the new one.
             let tmp = paths.stateDir.appendingPathComponent(".layout.json.\(getpid())")

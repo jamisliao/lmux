@@ -60,7 +60,9 @@ import Testing
             h.seekToEndOfFile(); h.write(Data((late + "\n").utf8)); h.closeFile()
         }
         defer { PromptHistory.beforeRename = nil }
-        #expect(try PromptHistory.remove(prompt: "remember PINEAPPLE", projectDirectory: "-w-a", sessionID: "S1", in: url) == 2)
+        // (A long timeout: the 0.3s release can come seconds late on a starved CI runner; it failed once at 3s.)
+        #expect(try PromptHistory.remove(prompt: "remember PINEAPPLE", projectDirectory: "-w-a", sessionID: "S1", in: url,
+                                         lockTimeout: 15) == 2)
         #expect(Date().timeIntervalSince(held) >= 0.25)  // waited for Claude's lock
         #expect(!FileManager.default.fileExists(atPath: lock.path))  // and released its own
         let after = try String(contentsOf: url, encoding: .utf8)

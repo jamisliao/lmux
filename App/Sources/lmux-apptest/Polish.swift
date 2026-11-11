@@ -93,7 +93,9 @@ func stagePolishScene(_ c: LmuxController, fx: URL) async -> PolishScene {
     PolishFixture.writeHistory(root: c.history.projectsRoot, cwd: work.path)
     let s1 = fx.appendingPathComponent("polish-1.jsonl").path
     let s2 = fx.appendingPathComponent("polish-2.jsonl").path
-    try? fixtureJSONL(session: "polish-1", cwd: work.path, turns: [FixtureTurn(prompt: PolishFixture.prompt, reply: "Found it.")])
+    // An earlier turn (scrolled away): the prompt on screen isn't the conversation's first, so it has ✎ and ×.
+    try? fixtureJSONL(session: "polish-1", cwd: work.path, turns: [FixtureTurn(prompt: "walk me through the payments module", reply: "Sure."),
+                                                                   FixtureTurn(prompt: PolishFixture.prompt, reply: "Found it.")])
         .write(toFile: s1, atomically: true, encoding: .utf8)
     try? fixtureJSONL(session: "polish-2", cwd: work.path, turns: [FixtureTurn(prompt: PolishFixture.prompt2, reply: nil)])
         .write(toFile: s2, atomically: true, encoding: .utf8)

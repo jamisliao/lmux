@@ -1259,7 +1259,8 @@ func bigTranscriptChecks(_ r: Report, _ c: LmuxController, fx: URL, created: ino
     _ = await c.loadTurns(p)
     r.check("repeated hover / titles parse nothing more (no new bytes)", c.transcriptReads[p.id]?.bytes == size
             && c.transcriptReads[p.id]?.fullReads == 1, "\(c.transcriptReads[p.id].map { "\($0)" } ?? "nil")")
-    r.check("hover stays off the parse path on the main thread (every move < one 60Hz frame)", slowest < 16,
+    // (A parse of the 50MB file takes hundreds of ms: the CI allowance for a preempted main thread can't hide one.)
+    r.check("hover stays off the parse path on the main thread (every move < one 60Hz frame)", slowest < 16 * ciSlow,
             String(format: "median %.2fms, max %.2fms", median, slowest))
     // Claude appends a turn: only those bytes are parsed.
     let extra = #"{"parentUuid":"big-1-a\#(prompts.count)","isSidechain":false,"type":"user","message":{"role":"user","content":"one more prompt"},"uuid":"big-1-uX","turnOrigin":"human"}"# + "\n"
@@ -1333,6 +1334,13 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
                     "    ↓ 1 more below", "   Enter to continue · Esc to cancel"]
     r.check("menu read: the highlighted entry, its row and the scroll counts",
             RewindMenu.read(listRows) == .list(selected: "third message here", row: 12, above: 1, below: 1), "\(RewindMenu.read(listRows))")
+    // 2.1.322: "↑ 4 more" / "↓ 1 more", the count right above the first entry shown.
+    let listRows322 = [String(repeating: "▔", count: 40), "   Rewind", "", "   Restore the code and/or conversation to the point before…", "",
+                       "     ↑ 3 more", "     fourth one", "     No code changes", "", "     fifth one", "     No code changes", "",
+                       "   ❯ sixth one", "     No code changes", "", "     ↓ 1 more", "", "   Enter to continue · Esc to cancel"]
+    r.check("…and as 2.1.322 draws it: “↑ 3 more”, “↓ 1 more”; the entry is message 5 of the list",
+            RewindMenu.read(listRows322) == .list(selected: "sixth one", row: 12, above: 3, below: 1)
+                && RewindMenu.selectedIndex(listRows322) == 5, "\(RewindMenu.read(listRows322)) \(String(describing: RewindMenu.selectedIndex(listRows322)))")
     let confirmRows = [String(repeating: "▔", count: 40), "   Rewind", "",
                        "   Confirm you want to restore to the point before you sent this message:", "",
                        "   │ please WRITEFILE /private/tmp/x", "   │ y/note.txt", "   │ (4s ago)", "",
@@ -1400,7 +1408,7 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     // move, Return only on "Restore conversation".
     let r2 = await rewindPane("2", prompts: ["first", "second one", "third"], ["files": true, "lag_ms": 300, "tick": true])
     let o2 = await c.rewind(r2.pane, turnUuid: "rw-2-u1", mode: .remove)
-    r.check("a lagging, ticking screen: no extra key (Esc Esc, ⇧↑ to the first message, Return, ↓, Return, then Ctrl+U to clear)",
+    r.check("a lagging, ticking screen: no extra key (Esc Esc, Home to the first message, Return, ↓, Return, then Ctrl+U to clear)",
             o2 == .done && keys(r2.log) == ["esc", "esc", "top", "enter", "down", "enter", "ctrl-u"],
             "\(o2) " + keys(r2.log).joined(separator: " "))
     r.check("…“Restore conversation” on message 1, never code, then the input cleared",
@@ -1513,16 +1521,16 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     let o19 = await c.rewind(r19.pane, turnUuid: "rw-19-u39", mode: .remove)
     r.check("scrolled up: back to the bottom first, then rewound", o19 == .done && acts(r19.log).contains("restore conversation 39"),
             "\(o19) " + acts(r19.log).joined(separator: "; "))
-    // Far from "(current)": ⇧↑ to the first message, then down one entry at a time, each checked.
+    // Far from "(current)": Home to the first message, then down one entry at a time, each checked.
     let r19b = await rewindPane("19b", prompts: many)
     let t0 = Date()
     let o19b = await c.rewind(r19b.pane, turnUuid: "rw-19b-u4", mode: .edit)
     let dt19b = Date().timeIntervalSince(t0)
-    r.check("a turn near the top of a long list: ⇧↑, then ↓ ×3, Return, Return (not 37 ↑)",
+    r.check("a turn near the top of a long list: Home, then ↓ ×3, Return, Return (not 37 ↑)",
             o19b == .done && keys(r19b.log) == ["esc", "esc", "top", "down", "down", "down", "enter", "enter"]
             && acts(r19b.log).contains("restore conversation 4") && input(r19b.pane) == "prompt number 4",
             String(format: "%.2fs ", dt19b) + keys(r19b.log).joined(separator: " "))
-    r.check("…under 1.5s on the fake", dt19b < 1.5, String(format: "%.2fs", dt19b))
+    r.check("…under 1.5s on the fake", dt19b < 1.5 * ciSlow, String(format: "%.2fs", dt19b))
     // × on a multi-line prompt: no Ctrl+U (it clears one row), Esc Esc.
     let r19d = await rewindPane("19d", prompts: ["alpha", "line one\nline two"])
     let o19d = await c.rewind(r19d.pane, turnUuid: "rw-19d-u2", mode: .remove)
@@ -1552,7 +1560,7 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     let dt19c = Date().timeIntervalSince(start19c)
     watch.invalidate()
     r.check("✎ on the last turn: under 1s on the fake, the menu never shown uncovered, the prompt back",
-            o19c == .done && dt19c < 1.0 && seenMenu == 0 && input(r19c.pane) == "beta",
+            o19c == .done && dt19c < 1.0 * ciSlow && seenMenu == 0 && input(r19c.pane) == "beta",
             String(format: "%.2fs, %d uncovered menu samples", dt19c, seenMenu))
 
     // Claude takes the last turn back, then the walk fails: that turn is hidden all the same.
@@ -1603,9 +1611,9 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     // at once, the Escs would come in a burst); stopped, and it says so once it shows again.
     let r30 = await rewindPane("30", prompts: ["alpha", "beta", "gamma"], ["lag_ms": 300])
     let t30 = Task { await c.rewind(r30.pane, turnUuid: "rw-30-u1", mode: .remove) }
-    // Mid-walk: the menu up, lmux waiting for its ⇧↑ to be drawn.
+    // Mid-walk: the menu up, lmux waiting for its Home to be drawn.
     _ = await waitFor(4) { keys(r30.log).contains("top") }
-    // (Its ⇧↑ is in the fake's log already: anything after this is a key into the hidden pane.)
+    // (Its Home is in the fake's log already: anything after this is a key into the hidden pane.)
     let keysAtHide = keys(r30.log)
     let tab30 = c.newTab(r30.pane)
     let o30 = await t30.value

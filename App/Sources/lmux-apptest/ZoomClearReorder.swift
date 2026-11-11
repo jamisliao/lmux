@@ -278,7 +278,7 @@ func runZoomClearReorder() async -> Int32 {
     await sleepMs(500)
     let after = await idleCost(4)
     print(String(format: "INFO  [sidebar drag] after drops and Esc: idle CPU %.2f%% over 4s, CVDisplayLink: %@", after.cpu, after.links.text))
-    r.check(String(format: "after a drag, idle CPU < 1%% (%.2f%%)", after.cpu), after.cpu < 1.0)
+    r.check(String(format: "after a drag, idle CPU < 1%% (%.2f%%)", after.cpu), after.cpu < 1.0 * ciSlow)
     r.check("…no CVDisplayLink kept running (\(after.links.text))", !after.links.kept)
 
     // The drag geometry itself: one block per drag (a multi-selection closes up behind the grabbed row).

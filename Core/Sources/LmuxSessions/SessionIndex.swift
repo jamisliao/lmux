@@ -119,7 +119,9 @@ public final class SessionIndex {
         self.projectsRoot = projectsRoot.standardizedFileURL
         self.archiveDirectory = archiveDirectory?.standardizedFileURL
         self.codexHome = codexHome?.standardizedFileURL
-        try FileManager.default.createDirectory(at: databaseURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        // lmux's state dir: private like everything in it (0700, never the umask's 755).
+        try FileManager.default.createDirectory(at: databaseURL.deletingLastPathComponent(), withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
         do {
             db = try Self.open(databaseURL)
         } catch let e as SQLiteDB.Failure where e.isCorrupt {

@@ -95,8 +95,10 @@ func submit(_ c: LmuxController, _ p: Pane, _ text: String) async {
     await sleepMs(900)
     for _ in 0..<3 {
         await type("\r", window: c.window)
+        // Out when the API got it (not "the row is running": after a rewind that can still be the
+        // last turn's state, and the prompt sat in the input; seen on a slow CI runner).
         let sent = await waitOnFile(p.transcriptPath ?? "", timeout: 6) {
-            if p.agent.state == .running { return true }
+            if apiRequest(with: text) != nil { return true }
             return await c.loadTurns(p).count > before
         }
         if sent { return }

@@ -45,6 +45,15 @@ BUDGET = {
     "indexer_peak_mb": 150,
 }
 
+# CI only (LMUX_CI_SLOW, set by .github/workflows/ci.yml; unset on a Mac: every budget as above). GitHub's
+# macOS runners are 3-vCPU VMs with a paravirtual GPU; measured there against an M-series Mac:
+CI_SLOW = max(1.0, float(os.environ.get("LMUX_CI_SLOW") or 1))
+CI_ALLOWANCE = {
+    "event_cpu_ms": CI_SLOW,                # the same work on a slower CPU: 1.4-2.4ms vs ~0.5ms
+    "restore120_ready_s": 2 * CI_SLOW,      # 120 shells forked at launch: 7.4s vs 1.0s (process spawn in the VM)
+    "tab_bar_40_mb": CI_SLOW,               # on minus off: 15MB there vs ~0 here (the VM's footprint of 40 strips)
+}
+
 libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True)
 
 
@@ -257,7 +266,7 @@ def s_events():
             n += 1; time.sleep(0.1)
         wall = time.time() - t0; c1, _ = usage(L.pid); s.close()
         per = 1000 * ((c1 - c0) - base / 100 * wall) / n
-        check("app CPU per hook event (one at a time, 10/s, same tool call)", per, BUDGET["event_cpu_ms"], "ms")
+        check("app CPU per hook event (one at a time, 10/s, same tool call)", per, BUDGET["event_cpu_ms"] * CI_ALLOWANCE["event_cpu_ms"], "ms")
 
 
 def s_titles():
@@ -268,8 +277,11 @@ def s_titles():
                               " sys.stdout.write('\\x1b]2;%s Fixing the refund validation\\x07'%g[i%10]);sys.stdout.flush();time.sleep(0.1)\n")
         for ws in L.panes[1:]:
             L.ctl({"cmd": "send", "pane": ws[0], "token": L.token(ws[0]), "text": f"/usr/bin/python3 {spin}\n"})
-        time.sleep(4)
-        if not all("Fixing the refund validation" in L.states()[ws[0]]["title"] for ws in L.panes[1:]):
+        # Waited for, not a fixed 4s: the first /usr/bin/python3 on a fresh CI runner takes seconds to start.
+        end = time.time() + 30
+        while not (ok := all("Fixing the refund validation" in L.states()[ws[0]]["title"] for ws in L.panes[1:])) and time.time() < end:
+            time.sleep(0.5)
+        if not ok:
             raise RuntimeError("the spinner never ran: its panes' titles did not change")
         cpu, _ = cpu_pct(L.pid, 15)
         check("9 hidden panes repainting a spinner title 10x/s: CPU", cpu, BUDGET["titles_cpu_pct"], "%")
@@ -311,7 +323,7 @@ def s_tabs():
             L.wait_shells(40); time.sleep(12)
             foot[on] = usage(L.pid)[1]
     print(f"      20x2 one-tab panes in the background: tab bar on {foot[True]:.1f}MB, off {foot[False]:.1f}MB", flush=True)
-    check("the tab bar on 40 one-tab panes (20x2, on minus off)", foot[True] - foot[False], BUDGET["tab_bar_40_mb"], "MB")
+    check("the tab bar on 40 one-tab panes (20x2, on minus off)", foot[True] - foot[False], BUDGET["tab_bar_40_mb"] * CI_ALLOWANCE["tab_bar_40_mb"], "MB")
     with Lmux(1, 1, tabs=1 + k, env={"LMUX_HEADLESS_BACKGROUND": "1"}) as L:
         L.wait_shells(1 + k); time.sleep(12); bg = usage(L.pid)[1]
     with Lmux(1, 1, tabs=1 + k) as L:
@@ -322,7 +334,7 @@ def s_tabs():
 
 def s_restore():
     with Lmux(120, 1) as L:
-        check("restore 120 workspaces x 1 pane (same folder): ready", L.ready_s, BUDGET["restore120_ready_s"], "s")
+        check("restore 120 workspaces x 1 pane (same folder): ready", L.ready_s, BUDGET["restore120_ready_s"] * CI_ALLOWANCE["restore120_ready_s"], "s")
         L.wait_shells(120, timeout=60); time.sleep(5)
         walls = []
         for _ in range(5):

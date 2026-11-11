@@ -13,20 +13,21 @@ private typealias T = LmuxTokens
 // meanwhile (`SurfaceView.inputHeld`), and the pane shows its last frame until Claude has redrawn
 // the result: the menu is never seen moving.
 
-/// Claude Code's rewind menu as it is drawn (2.1.280):
+/// Claude Code's rewind menu as it is drawn (2.1.322; up to 2.1.280 the counts read "↑ 2 more above"
+/// and "↓ 1 more below", and ⇧↑ rather than Home went to the first message):
 ///
 ///     ▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
 ///        Rewind
 ///
 ///        Restore the code and/or conversation to the point before…
-///         ↑ 2 more above
 ///
+///         ↑ 2 more
 ///          what is 6 times 7
 ///          No code changes
 ///
 ///        ❯ (current)
 ///
-///         ↓ 1 more below
+///         ↓ 1 more
 ///        Enter to continue · Esc to cancel
 ///
 /// An entry is the prompt's first line, cut to the pane's width with "…" (a multi-line prompt
@@ -103,9 +104,14 @@ enum RewindMenu {
         guard body.contains(where: { $0.contains("to the point before") }) else { return .open }
         let pointed = body.indices.filter { body[$0].hasPrefix("❯ ") }
         guard pointed.count == 1, let row = pointed.first else { return .open }
+        // "↑ 2 more" (2.1.3xx), "↑ 2 more above" (2.1.280).
         func more(_ arrow: String) -> Int {
-            body.first { $0.hasPrefix(arrow) && $0.hasSuffix(arrow == "↑" ? "more above" : "more below") }
-                .flatMap { Int($0.dropFirst().trimmingCharacters(in: .whitespaces).split(separator: " ").first ?? "") } ?? 0
+            body.lazy.compactMap { row -> Int? in
+                let words = row.split(separator: " ")
+                guard words.count >= 3, words[0] == arrow, words[2] == "more",
+                      words.count == 3 || words[3] == (arrow == "↑" ? "above" : "below") else { return nil }
+                return Int(words[1])
+            }.first ?? 0
         }
         return .list(selected: String(body[row].dropFirst(2)).trimmingCharacters(in: .whitespaces),
                      row: title + 1 + row, above: more("↑"), below: more("↓"))
@@ -423,13 +429,15 @@ extension LmuxController {
         }
 
         // 5) One entry at a time, each the turn expected there, to the target: up from "(current)"
-        //    (the newest first), or, when the target is nearer the top, ⇧↑ to the oldest entry and
-        //    down from there. Identical prompts are told apart by where they are, not by their text.
+        //    (the newest first), or, when the target is nearer the top, Home (⇧↑ before 2.1.3xx) to the
+        //    oldest entry and down from there. Identical prompts are told apart by where they are, not by their text.
         let listed = turns.filter { !$0.beforeCompaction }
         let want = pos - turns[..<pos].filter(\.beforeCompaction).count
         guard want < listed.count else { return await backOut(pane, "the turn isn't in the list") }
         if want + 1 < turns.count - pos {
-            guard let top = await press(pane, .top, from: state) else { return await backOut(pane, "the list didn't go to the top") }
+            var top = await press(pane, .top, from: state)
+            if top == nil, onScreen(pane) { top = await press(pane, .topBefore3xx, from: state) }
+            guard let top else { return await backOut(pane, "the list didn't go to the top") }
             state = top
             guard case .list(let selected, _, _, _) = state, RewindMenu.matches(selected, prompt: listed[0].prompt),
                   RewindMenu.selectedIndex(screenRows(pane)) == 0 else {
@@ -637,13 +645,14 @@ extension LmuxController {
         return rows.map(RewindMenu.read) ?? RewindMenu.read(screenRows(pane))
     }
 
-    enum MenuKey { case up, down, top }
+    enum MenuKey { case up, down, top, topBefore3xx }
 
-    /// One ↑ / ↓ / ⇧↑ (Claude's "first message"), then the menu as soon as its parsed selection
+    /// One ↑ / ↓ / Home (Claude's "first message"; ⇧↑ up to 2.1.280), then the menu as soon as its parsed selection
     /// differs from `from` (a clock or status redraw doesn't count, nor a frame read half drawn) and
     /// has held still. nil if it never moves.
     func press(_ pane: Pane, _ key: MenuKey, from: RewindMenu.Screen) async -> RewindMenu.Screen? {
-        guard send(pane, key == .down ? 0x7D : 0x7E, 0, shift: key == .top) else { return nil }
+        let keyCode: UInt32 = switch key { case .down: 0x7D; case .top: 0x73; case .up, .topBefore3xx: 0x7E }  // ↓, Home, ↑
+        guard send(pane, keyCode, 0, shift: key == .topBefore3xx) else { return nil }
         guard let rows = await waitScreen(pane, 2, { r in
             let s = RewindMenu.read(r)
             switch s {

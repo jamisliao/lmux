@@ -315,11 +315,14 @@ func runAgents() async -> Int32 {
     let ignoredSort = c.ignoredProgramReports
     let sws = c.newWorkspace(select: false, program: sortLaunch.path)
     let sp = sws.panes[0]
-    await sleepMs(1500)
+    _ = await waitFor(1.5 * ciSlow) { c.ignoredProgramReports - ignoredSort == 6 }
+    await sleepMs(300)
     let sortLog = c.actionLog.filter { $0.contains("pane=\(sp.id.prefix(8))") }
+    // A log line per foreground group lmux saw the reports under: one per job, or a single one when both
+    // jobs' output is read in one go (a slow machine reads it once the second job has started). Never one per report.
     r.check("…`sort notes` and `echo notes | xargs cat` (app=notes, sort, xargs): refused too (one line per job)",
             sp.programApp == nil && sp.agent.state == .idle && c.notifier.postedCount == n3
-            && c.ignoredProgramReports - ignoredSort == 6 && (2...4).contains(sortLog.filter { $0.contains("ignored") }.count),
+            && c.ignoredProgramReports - ignoredSort == 6 && (1...4).contains(sortLog.filter { $0.contains("ignored") }.count),
             "\(c.ignoredProgramReports - ignoredSort) " + sortLog.joined(separator: " | "))
 
     // `quick-agent; cat notes`: the reporter quits, the next job prints its name. Never its words.
@@ -614,10 +617,13 @@ func runAgents() async -> Int32 {
     _ = sendHook(pane: qp.id, hook("UserPromptSubmit", session: "wait-cost"))
     _ = await waitFor { qp.agent.state == .running }
     let base = await idleCost(4)
-    let timed = Task.detached { await runProcess("/usr/bin/time", ["-p", cli, "wait", qp.id, "--timeout", "5"], env: cliEnv) }
+    // The 8 must all be waiting through the 4 s measured below: their timeout covers starting 8
+    // processes too, which takes a few seconds on a slow CI runner (ciSlow), not on a Mac.
+    let timeout = String(Int(5 * ciSlow))
+    let timed = Task.detached { await runProcess("/usr/bin/time", ["-p", cli, "wait", qp.id, "--timeout", timeout], env: cliEnv) }
     var others: [Task<(status: Int32, out: String, err: String), Never>] = []
-    for _ in 0..<7 { others.append(Task.detached { await runProcess(cli, ["wait", qp.id, "--timeout", "5"], env: cliEnv) }) }
-    _ = await waiting(8)
+    for _ in 0..<7 { others.append(Task.detached { await runProcess(cli, ["wait", qp.id, "--timeout", timeout], env: cliEnv) }) }
+    _ = await waitFor(3 * ciSlow) { c.waits.count == 8 }
     let loaded = await idleCost(4)
     r.check("8 CLIs waiting: the app's idle CPU doesn't move (\(String(format: "%.2f", base.cpu))% -> \(String(format: "%.2f", loaded.cpu))%)",
             c.waits.count == 8 && loaded.cpu - base.cpu < 0.3, "waits \(c.waits.count)")
@@ -625,7 +631,7 @@ func runAgents() async -> Int32 {
     for t in others { _ = await t.value }
     let cpu = tr.err.split(separator: "\n").filter { $0.hasPrefix("user") || $0.hasPrefix("sys") }
         .compactMap { $0.split(separator: " ").last.flatMap { Double($0) } }.reduce(0, +)
-    r.check("…and a waiting CLI itself: blocked in poll, ~no CPU over its 5 s (\(cpu) s)", tr.status == 1 && cpu < 0.1, tr.err)
+    r.check("…and a waiting CLI itself: blocked in poll, ~no CPU over its \(timeout) s (\(cpu) s)", tr.status == 1 && cpu < 0.1, tr.err)
     r.check("…all gone from the app after their timeouts", await waiting(0))
 
     print("agents: \(r.passed) passed, \(r.failed) failed")

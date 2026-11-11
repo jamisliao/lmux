@@ -66,7 +66,16 @@ extension LmuxController {
         let bs = T.Layout.titlebarButtonSize
         let bell = NSRect(x: bs + 2, y: 0, width: bs, height: root.cluster.bounds.height)
         pop.show(relativeTo: bell, of: root.cluster, preferredEdge: root.cluster.isFlipped ? .maxY : .minY)
-        view.window?.makeFirstResponder(view)
+        // The list takes the keyboard (↑↓, Enter, Esc): its window has to be key, which show() doesn't
+        // always make it (seen with Reduce Motion on, no animation: Esc went to the pane under it), and
+        // the window may only be there once show() has run its course: again on the next turn.
+        func takeKeyboard() {
+            guard notificationsPanel.isOpen, let w = view.window else { return }
+            if !w.isKeyWindow { w.makeKey() }
+            if w.firstResponder !== view { w.makeFirstResponder(view) }
+        }
+        takeKeyboard()
+        DispatchQueue.main.async { MainActor.assumeIsolated { takeKeyboard() } }
     }
 
     /// Rows came in while the list is open (its height follows the count): resize the popover (headless, its

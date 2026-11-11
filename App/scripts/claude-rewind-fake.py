@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # A stand-in for Claude Code 2.1.x at its prompt, for the apptests: it draws a conversation and the
 # input box, and Esc Esc opens a rewind menu drawn row for row like the real one (captured from
-# 2.1.280): the message list ("❯ (current)" first, ↑ / ↓ moves, "↑ N more above"), then the
-# confirmation with its numbered options. ⇧↑ / ⇧↓ jump to the first message / "(current)". "Restore conversation" drops the message and everything
+# 2.1.280, its list as 2.1.322 draws it): the message list ("❯ (current)" first, ↑ / ↓ moves, "↑ N more"),
+# then the confirmation with its numbered options. Home jumps to the first message (⇧↑ did up to 2.1.280,
+# and does nothing now: logged as "key shift-up"). "Restore conversation" drops the message and everything
 # after it and puts its text in the input, like Claude Code. Every action goes to the log file, so a
 # test can tell exactly what was chosen ("restore conversation 2", never "restore code").
 #
@@ -122,9 +123,9 @@ def draw():
             items = prompts + [None]
             lo = max(0, min(sel - 1, len(items) - 3))
             hi = min(len(items), lo + 3)
-            if lo > 0:
-                out.append('    ↑ %d more above\r\n' % lo)
             out.append('\r\n')
+            if lo > 0:
+                out.append('    ↑ %d more\r\n' % lo)
             for i in range(lo, hi):
                 text = '(current)' if items[i] is None else entry(items[i], w - 14)
                 out.append(('   ❯ ' if i == sel else '     ') + text + '\r\n')
@@ -132,7 +133,7 @@ def draw():
                     out.append('     No code changes\r\n')
                 out.append('\r\n')
             if hi < len(items):
-                out.append('    ↓ %d more below\r\n' % (len(items) - hi))
+                out.append('    ↓ %d more\r\n' % (len(items) - hi))
             out.append('   Enter to continue · Esc to cancel')
         else:
             out.append('   Confirm you want to restore to the point before you sent this message:\r\n\r\n')
@@ -274,7 +275,9 @@ try:
         i = 0
         while i < len(data):
             if data[i:i + 6] == b'\x1b[1;2A':
-                key('top'); i += 6
+                key('shift-up'); i += 6
+            elif data[i:i + 3] in (b'\x1b[H', b'\x1bOH'):
+                key('top'); i += 3
             elif data[i:i + 6] == b'\x1b[1;2B':
                 key('bottom'); i += 6
             elif data[i:i + 3] in (b'\x1b[A', b'\x1bOA'):

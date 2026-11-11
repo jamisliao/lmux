@@ -324,7 +324,8 @@ func runAttention() async -> Int32 {
     c.saveNow()
     c.shutdown()
     let c2 = makeController()
-    await sleepMs(300)
+    // The rows' views come up with the first layout passes: wait for them, not a fixed time.
+    _ = await waitFor(5) { pulsingViews(c2) == 2 }
     let rx = c2.pane(id: xID), ry = c2.pane(id: yID), rz = c2.pane(id: zID), rw = c2.pane(id: wID)
     func sameStart(_ d: Date?) -> Bool { d.map { abs($0.timeIntervalSince(xSince ?? .distantPast)) < 0.001 } ?? false }
     r.check("after relaunch the done row is back (✓, its reply line) with its original wait start",
@@ -343,28 +344,30 @@ func runAttention() async -> Int32 {
     let later = Date().addingTimeInterval(2.5 * 60)
     c2.attentionClock = { later }
     c2.updateAttention()
-    await sleepMs(150)
+    _ = await waitFor(3) { pulsingViews(c2) == 3 }
     r.check("…and breathes once they're up (fake clock), with its one reminder now",
             ry?.workspace?.unattendedSince != nil && pulsingViews(c2) == 3
                 && c2.notifier.posted.filter { $0.kind == "reminder" }.count == 1, "\(pulsingViews(c2))")
     if let rx { hookEvent(c2, rx, "SessionStart", session: xs, ["source": "resume"]) }
     await sleepMs(150)
+    _ = await waitFor(3) { pulsingViews(c2) == 3 }
     r.check("the resumed agent's SessionStart (same session) keeps the done state and its clock",
             rx?.display == .done("done") && sameStart(rx?.attentionSince) && pulsingViews(c2) == 3)
     if let rw { codex(c2, rw, "SessionStart", ["source": "resume"]) }
     await sleepMs(150)
+    _ = await waitFor(3) { pulsingViews(c2) == 3 }
     r.check("…Codex's too", rw?.display == .done("codex done") && rw?.attentionSince != nil && pulsingViews(c2) == 3)
     if let ry { hookEvent(c2, ry, "SessionStart", session: ys, ["source": "clear"]) }
-    await sleepMs(150)
+    _ = await waitFor(3) { pulsingViews(c2) == 2 }
     r.check("…/clear (a new conversation) resets it as before", ry?.display == .idle && ry?.attentionSince == nil && pulsingViews(c2) == 2)
     c2.assumeAppActive = true
     if let w = rx?.workspace { c2.select(w) }
-    await sleepMs(150)
+    _ = await waitFor(3) { pulsingViews(c2) == 1 }
     r.check("selecting it (lmux active) clears the wait, the ✓ stays",
             rx?.attentionSince == nil && rx?.workspace?.unattendedSince == nil && rx?.display == .done("done") && pulsingViews(c2) == 1)
     if let rw { codex(c2, rw, "UserPromptSubmit", ["prompt": "more"]) }
     if let rz { hookEvent(c2, rz, "UserPromptSubmit", session: zs, ["prompt": "more"]) }
-    await sleepMs(150)
+    _ = await waitFor(3) { pulsingViews(c2) == 0 }
     r.check("a new prompt drops the restored ✓ (Claude and Codex) and the wait", rz?.display == .running(nil)
             && rw?.display == .running(nil) && rw?.attentionSince == nil && pulsingViews(c2) == 0,
             "\(String(describing: rz?.display)) \(String(describing: rw?.display))")

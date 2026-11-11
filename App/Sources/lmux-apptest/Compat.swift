@@ -443,7 +443,17 @@ func runCompat() async -> Int32 {
                   until: { (try? String(contentsOfFile: vimOut, encoding: .utf8))?.hasPrefix("line 2 ") ?? false })
         await tui("less", "LESSHISTFILE=- less '\(tf.path)'", ready: "line 1 한글",
                   keys: [(49, " "), (49, " "), (5, "G"), (12, "q")], until: { true })
-        await tui("top", "top -s 1 -n 10", ready: "Processes", keys: [(12, "q")], until: { true })
+        // top is setuid root: a macOS whose ncurses ignores TERMINFO for setuid programs (as GitHub's runners'
+        // does; this Mac's may not) can't load xterm-ghostty from lmux's terminfo dir, and top quits with
+        // "Error opening terminal". Probed first; then top runs as xterm-256color (still its own keys, its
+        // alternate screen), and the run says so.
+        let topTerm = fx.appendingPathComponent("top.term").path
+        await tui("top", "if printf q | script -q /dev/null /usr/bin/top -s 1 -n 1 2>&1 | grep -q 'Error opening terminal'; then "
+                  + "echo xterm-256color > '\(topTerm)'; export TERM=xterm-256color; fi\ntop -s 1 -n 10",
+                  ready: "Processes", keys: [(12, "q")], until: { true })
+        if let t = try? String(contentsOfFile: topTerm, encoding: .utf8) {
+            print("INFO  [tui] top: this macOS ignores TERMINFO for setuid programs (no xterm-ghostty for top): ran as \(t.trimmingCharacters(in: .whitespacesAndNewlines))")
+        }
     }
 
     // -------------------------------------------------------- hook fuzz

@@ -32,6 +32,10 @@ defaults:
 
 env:
   LOGS: ${{ github.workspace }}/ci-logs
+  # GitHub's macOS runners are 3-vCPU VMs shared with other jobs: the harnesses' wall-clock and
+  # CPU-share budgets (a rewind under 1.5s, idle CPU under 1%, a hover under one frame) get this
+  # factor there and only there (lmux-apptest Harness.swift, ciSlow). Unset on a Mac: the strict budget.
+  LMUX_CI_SLOW: '2'
 
 jobs:
   core:
@@ -52,28 +56,45 @@ jobs:
         working-directory: Core
         run: swift test
 
-  app:
-    name: App (bundle, apptest, imetest, real IME, idle budget)
+  # The App suite in three jobs that run side by side: one job ran past 60 minutes on the runners
+  # (apptest ~25, imetest ~17, real-IME imetest ~20, then the budgets).
+  apptest:
+    name: App (apptest)
     # Skipped on private copies, where macOS runners are billed; run scripts/test-local.sh there.
     if: ${{ !github.event.repository.private }}
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-lmux
       - run: mkdir -p "$LOGS"
-
-      - name: Bundle lmux.app
-        id: bundle
-        run: App/scripts/bundle.sh 2>&1 | tee "$LOGS/bundle.log"
-
+      - name: Runner display settings
+        run: .github/scripts/runner-display.sh 2>&1 | tee "$LOGS/runner-display.log"
       - name: apptest (headless)
-        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
         env: { LMUX_HEADLESS: '1' }
         run: App/scripts/apptest.sh 2>&1 | tee "$LOGS/apptest.log"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: apptest-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  imetest:
+    name: App (imetest, real IME)
+    # Skipped on private copies, where macOS runners are billed; run scripts/test-local.sh there.
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-lmux
+      - run: mkdir -p "$LOGS"
+      - name: Runner display settings
+        run: .github/scripts/runner-display.sh 2>&1 | tee "$LOGS/runner-display.log"
 
       - name: imetest (headless, simulated 2-Set IME)
-        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
         env: { LMUX_HEADLESS: '1' }
         run: App/scripts/imetest.sh 2>&1 | tee "$LOGS/imetest.log"
 
@@ -83,12 +104,37 @@ jobs:
       # The first syllable after an idle key used to commit as loose jamo (안 -> ㅇㅏㄴ, also on real Macs,
       # ghostty-org/ghostty#13235); fixed by SurfaceInputContext. This step must stay blocking.
       - name: imetest --visible (REAL Korean 2-Set IME)
-        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        if: ${{ !cancelled() }}
         run: |
           swift .github/scripts/enable-korean-ime.swift 2>&1 | tee "$LOGS/enable-korean-ime.log"
           App/scripts/imetest.sh --visible --probe > "$LOGS/imetest-probe.log" 2>&1 || true
           App/scripts/imetest.sh --visible 2>&1 | tee "$LOGS/imetest-visible.log"
           if grep -q '^SKIP  real-IME' "$LOGS/imetest-visible.log"; then echo "::error::real-IME checks were skipped"; exit 1; fi
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: imetest-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  budgets:
+    name: App (bundle, idle and perf budgets)
+    # Skipped on private copies, where macOS runners are billed; run scripts/test-local.sh there.
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-lmux
+      - run: mkdir -p "$LOGS"
+      - name: Runner display settings
+        run: .github/scripts/runner-display.sh 2>&1 | tee "$LOGS/runner-display.log"
+
+      - name: Bundle lmux.app
+        id: bundle
+        run: App/scripts/bundle.sh 2>&1 | tee "$LOGS/bundle.log"
 
       - name: Idle budget, 1 pane
         if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
@@ -124,6 +170,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-lmux
       - run: mkdir -p "$LOGS/shots"
+      - name: Runner display settings
+        run: .github/scripts/runner-display.sh 2>&1 | tee "$LOGS/runner-display.log"
       # The runner is a throwaway VM with a logged-in GUI session: a visible window, real mouse and
       # key events posted to the HID event tap (apptest.sh refuses this mode outside GitHub Actions).
       - name: apptest --real-window
@@ -144,6 +192,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-lmux
+      - name: Runner display settings
+        run: mkdir -p "$LOGS" && .github/scripts/runner-display.sh 2>&1 | tee "$LOGS/runner-display.log"
       - name: Install Claude Code (official installer)
         run: |
           curl -fsSL https://claude.ai/install.sh | bash
