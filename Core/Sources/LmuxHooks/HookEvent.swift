@@ -69,6 +69,8 @@ public struct HookEvent: Sendable, Equatable {
     /// SessionEnd `reason`
     public var reason: String?
     public var stopHookActive: Bool?
+    /// Stop 的 `background_tasks` 裡，還在跑（`status == "running"`）的背景子 agent 數量（背景 shell 不算）。
+    public var runningBackgroundSubagents = 0
     public var lastAssistantMessage: String?
     /// UserPromptSubmit `prompt`
     public var prompt: String?
@@ -125,6 +127,9 @@ public struct HookEvent: Sendable, Equatable {
         source = s("source")
         reason = s("reason")
         stopHookActive = payload["stop_hook_active"] as? Bool
+        runningBackgroundSubagents = (payload["background_tasks"] as? [[String: Any]] ?? []).filter {
+            $0["type"] as? String == "subagent" && $0["status"] as? String == "running"
+        }.count
         lastAssistantMessage = s("last_assistant_message")
         prompt = s("prompt")
         errorType = s("error") ?? s("error_type")

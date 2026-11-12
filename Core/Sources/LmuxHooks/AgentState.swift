@@ -41,6 +41,7 @@ public struct AgentTransition: Sendable, Equatable {
 /// Rules:
 /// - UserPromptSubmit -> running (new episode).
 /// - Stop (main agent) -> done + alert. SubagentStop never ends the turn.
+///   Unless its `background_tasks` still has a running subagent: stay running, no alert.
 /// - StopFailure -> done + failed alert.
 /// - Events from a subagent (agent_id set) never mark the turn done, and their tool
 ///   events never change state. The one exception is a permission/elicitation dialog,
@@ -193,8 +194,14 @@ public struct PaneAgent: Sendable, Equatable {
             if let id = e.agentID { activeSubagents.remove(id) }
         case .stop:
             guard !e.isSubagent else { break }
-            activeSubagents.removeAll()
             blockingAgent = nil
+            // 背景子 agent 還在跑：主回合雖然結束，工作還沒完。維持進行中，不發 alert，也不清掉子 agent 計數；
+            // 它們結束後 Claude 會再起一個回合（UserPromptSubmit），最後一個 Stop 才是完成。
+            if e.runningBackgroundSubagents > 0 {
+                state = .running
+                break
+            }
+            activeSubagents.removeAll()
             if state != .done {
                 state = .done
                 alert = .done(lastMessage: e.lastAssistantMessage)

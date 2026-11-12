@@ -265,4 +265,53 @@ import Testing
         #expect(t.map(\.to) == [.running, .running, .done])
         #expect(t[2].alert == .done(lastMessage: nil))
     }
+
+    // MARK: 背景子 agent
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 主回合結束時還有背景子 agent 在跑，tab 維持進行中
+    @Test func stopWithRunningBackgroundSubagentStaysRunningSilently() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.subStart, Payloads.stopBgSubagent], agent: &a)
+        #expect(t.map(\.to) == [.running, .running, .running])
+        #expect(t.allSatisfy { $0.alert == nil && $0.notify == nil })
+        #expect(a.activeSubagents == ["agent-7"])
+    }
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 背景子 agent 做完、Claude 回應完後，tab 顯示完成並只通知一次
+    @Test func doneOnlyAfterTheLastStopWithNoBackgroundSubagent() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.subStart, Payloads.stopBgSubagent, Payloads.subStop,
+                         Payloads.prompt, Payloads.stop], agent: &a)
+        #expect(t.map(\.to) == [.running, .running, .running, .running, .running, .done])
+        #expect(t.compactMap(\.notify) == [.done(lastMessage: "All tests pass.")])
+    }
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 還在跑的只有背景 shell 時，主回合結束就是完成
+    @Test func backgroundShellDoesNotKeepTheTurnRunning() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stopBgShell], agent: &a)
+        #expect(t.map(\.to) == [.running, .done])
+        #expect(t[1].notify == .done(lastMessage: "已啟動"))
+    }
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 背景子 agent 已經結束時，主回合結束就是完成
+    @Test func finishedBackgroundSubagentDoesNotKeepTheTurnRunning() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stopBgSubagentDone], agent: &a)
+        #expect(t.map(\.to) == [.running, .done])
+        #expect(t[1].notify == .done(lastMessage: "好了"))
+    }
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 沒收到背景子 agent 的後續事件時，閒置提醒讓 tab 顯示完成
+    @Test func idleReminderEndsADeferredStop() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.subStart, Payloads.stopBgSubagent, Payloads.notifIdle], agent: &a)
+        #expect(t.map(\.to) == [.running, .running, .running, .done])
+        #expect(t[3].notify == .done(lastMessage: nil))
+    }
 }
