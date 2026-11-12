@@ -40,6 +40,16 @@
 4. 反白：`entry.paneID == model.selected?.focusedPane?.id` 時畫圓角底色，形狀與顏色比照 `WorkspaceRow.pillColor`（`App/Sources/LmuxUI/Sidebar.swift:333-337`）：`rowSelected`，視窗非作用中（`controlActiveState == .inactive`）用 `rowSelectedInactive`。沒反白時維持現有的 hover 底色；反白的卡片在 hover 時底色不變。
 5. 高度：`minHeight(pluginRows:)` 改成 `handleHeight + plugin 列 + 分隔線 + rowHeight（摘要列）+ cardMaxHeight`。`cardMaxHeight` 依 4 行的字型行高、行距與上下 padding 計算（用 `LmuxTokens` 的值）。
 
+### C. 其他狀態的審查（實作 A 之前做）
+
+使用者回報除了壓縮，還有其他狀態沒正確顯示在 tab 上。審查步驟：
+
+1. 列出 Claude Code 文件上的全部 hook 事件與 `Notification` 的 `notification_type`（[Hooks reference](https://code.claude.com/docs/en/hooks)）。
+2. 逐一對照：lmux 有沒有訂閱（`HookInstaller.events`）、狀態機怎麼處理（`PaneAgent.handle`）、sidebar 怎麼顯示。
+3. 請使用者列出看過的錯誤情境，逐一對照到步驟 2 的結果。
+4. 每個確認的問題：在 `compaction-running-state.feature` 補場景，在本文件的 A 節補規則，再實作。
+5. 沒有對應 hook、無法修正的情境：記在「風險」。
+
 ## Key Decisions
 
 1. **壓縮結束回到原本狀態，不發通知。**

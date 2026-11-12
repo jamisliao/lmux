@@ -24,6 +24,11 @@
    - 清單最上面的摘要列只留鈴鐺與未讀數；最新一則也用卡片顯示。
    - 通知 bar 的最小高度改成「摘要列 + 1 張卡片」。
 
+4. **審查其他狀態**
+   - 使用者回報：除了壓縮，還有其他狀態也沒正確顯示在 tab 上（哪些狀態尚未確認）。
+   - 實作前先審查：Claude Code 的每個 hook 事件與通知類型，對照 lmux 的訂閱清單與狀態機。
+   - 每個找到的問題補成 `compaction-running-state.feature` 的場景，再實作。
+
 ## Impact
 
 - **lmux 原始檔（不含測試）**：改動的檔案從 3 個（`RootView.swift`、`Package.swift`、`main.swift`）增加到 5 個。新增 `Core/Sources/LmuxHooks/HookInstaller.swift`、`Core/Sources/LmuxHooks/AgentState.swift`。rebase 到新版 lmux 時要多檢查這 2 個檔案。
