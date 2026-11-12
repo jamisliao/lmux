@@ -13,6 +13,7 @@ struct NotificationCard: View {
     let age: String
     let open: () -> Void
     @State private var hover = false
+    @Environment(\.controlActiveState) private var activeState
 
     /// 圓角底色的位置比照 sidebar 的 workspace 列（外距 rowInsetX）；文字與摘要列、plugin 列對齊（x = 32）。
     static let outerPaddingX: CGFloat = T.Layout.rowInsetX
@@ -81,12 +82,18 @@ struct NotificationCard: View {
         .onHover { hover = $0 }
         .onTapGesture(perform: open)
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(focused ? [.isButton, .isSelected] : .isButton)
         .accessibilityValue(entry.read ? "" : "unread")
     }
 
+    /// 來自 focused tab：與 sidebar 選取列同色（視窗不在前景時用淡的那個）。反白時 hover 不改變底色。
+    private var focused: Bool {
+        entry.paneID != nil && entry.paneID == model.selected?.focusedPane?.id
+    }
+
     private var background: Color {
-        hover ? T.Colors.rowHover.color : .clear
+        if focused { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.rowSelected).color }
+        return hover ? T.Colors.rowHover.color : .clear
     }
 }
 
