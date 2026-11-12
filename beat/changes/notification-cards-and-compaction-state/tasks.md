@@ -721,10 +721,10 @@ EOF
 )"
 ```
 
-### Task 3b:「等我回答問題」（Task 1 審查新增；待查）
+### Task 3b:「等我回答問題」（Task 1 審查新增；結論：無法重現，不修，見 design.md 審查結果）
 
-- [ ] **Step 1: 在 `default` 權限模式下記錄事件**：請使用者在 `compact-probe` 執行 `claude --permission-mode default`，做「權限提示（選允許、選拒絕各一次）」與 `AskUserQuestion`，讀 `events2.log`。
-- [ ] **Step 2: 對照 lmux 的處理（`AgentState.swift`）**，找出沒有顯示需要輸入的情況；補場景、測試、實作（格式比照 Task 3a）。找不到問題時，向使用者回報並請他描述當時的操作。
+- [x] **Step 1: 在 `default` 權限模式下記錄事件**：請使用者在 `compact-probe` 執行 `claude --permission-mode default`，做「權限提示（選允許、選拒絕各一次）」與 `AskUserQuestion`，讀 `events2.log`。
+- [x] **Step 2: 對照 lmux 的處理（`AgentState.swift`）**，找出沒有顯示需要輸入的情況；補場景、測試、實作（格式比照 Task 3a）。找不到問題時，向使用者回報並請他描述當時的操作。
 
 ---
 
