@@ -341,7 +341,7 @@ EOF
 - Consumes: `HookEvent.Kind.preCompact`／`.postCompact`（`Core/Sources/LmuxHooks/HookEvent.swift:37,42`）、`e.source`、`e.notificationType`、`e.isSubagent`；Task 1 確認過的事件順序。
 - Produces: `PaneAgent` 新的 private 欄位 `stateBeforeCompaction: AgentState?`。外部 API 不變；`AgentTransition` 不變。
 
-- [ ] **Step 1: 加測試用 payload**
+- [x] **Step 1: 加測試用 payload**
 
 在 `Core/Tests/LmuxHooksTests/EventParsingTests.swift` 的 `enum Payloads` 裡，`compactStart` 那行後面加：
 
@@ -351,7 +351,7 @@ EOF
     static let postCompact = json("PostCompact", #""trigger":"manual","compact_summary":"Summary of the conversation.""#)
 ```
 
-- [ ] **Step 2: 寫失敗的測試**
+- [x] **Step 2: 寫失敗的測試**
 
 在 `Core/Tests/LmuxHooksTests/AgentStateTests.swift` 的 `compactSessionStartKeepsRunningOthersReset()` 後面加：
 
@@ -469,12 +469,12 @@ EOF
     }
 ```
 
-- [ ] **Step 3: 跑測試，確認失敗**
+- [x] **Step 3: 跑測試，確認失敗**
 
 Run（在 `Core/`，沿用 Task 0 Step 1 的 `unset`／`export`）：`swift test --filter LmuxHooksTests.AgentStateTests 2>&1 | tail -30`
 Expected: FAIL：`manualCompaction…`、`compactSessionStartAlone…`、`compactionFromIdle…`、`secondCompactionEnd…`、`idleReminderEnds…`、`escDuringCompaction…`、`promptDuringCompaction…`、`sessionChangeDuring…`、`failureDuring…` 失敗（`preCompact` 目前不改變狀態）；`autoCompactionMidTurnChangesNothing`、`autoCompactionMidTurnRemembersNothing` 通過。
 
-- [ ] **Step 4: 實作**
+- [x] **Step 4: 實作**
 
 (a) `PaneAgent` 上方的 `/// Rules:` 清單，在 `- Subagents (SubagentStart/Stop ...` 那一條前面加：
 
@@ -535,12 +535,12 @@ Expected: FAIL：`manualCompaction…`、`compactSessionStartAlone…`、`compac
         stateBeforeCompaction = nil
 ```
 
-- [ ] **Step 5: 跑測試，確認通過**
+- [x] **Step 5: 跑測試，確認通過**
 
 Run: `swift test --filter LmuxHooksTests 2>&1 | tail -20`
 Expected: 全部 PASS，包含既有的 `idleReminderRecoversMissedStopOnce`、`compactSessionStartKeepsRunningOthersReset`、`userInterruptedGoesIdleWithoutAlert`。
 
-- [ ] **Step 6: 標註場景**
+- [x] **Step 6: 標註場景**
 
 `compaction-running-state.feature` 每個 `@behavior` 場景（除了 Task 2 已標的那個），在 tag 行與 `場景:` 之間加：
 
@@ -548,7 +548,7 @@ Expected: 全部 PASS，包含既有的 `idleReminderRecoversMissedStopOnce`、`
   # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**（`1b785ff`）
 
 ```bash
 cd /Users/jamis.liao/opensource/lmux-sidebar-notification-bar
@@ -578,7 +578,7 @@ EOF
 - Consumes: 實測的 `Stop` payload（`compact-probe/events2.log`）：`"background_tasks":[{"id":"…","type":"subagent","status":"running",…}]`。
 - Produces: `HookEvent.runningBackgroundSubagents: Int`。
 
-- [ ] **Step 1: 加測試用 payload**
+- [x] **Step 1: 加測試用 payload**
 
 在 `enum Payloads` 的 `compactStart` 那行後面加：
 
@@ -588,7 +588,7 @@ EOF
     static let stopBgSubagentDone = json("Stop", #""stop_hook_active":false,"last_assistant_message":"好了","background_tasks":[{"id":"agent-7","type":"subagent","status":"completed","description":"sleep","agent_type":"general-purpose"}],"session_crons":[]"#)
 ```
 
-- [ ] **Step 2: 寫失敗的測試**
+- [x] **Step 2: 寫失敗的測試**
 
 在 `EventParsingTests` 加解析測試：
 
@@ -654,12 +654,12 @@ EOF
     }
 ```
 
-- [ ] **Step 3: 跑測試，確認失敗**
+- [x] **Step 3: 跑測試，確認失敗**
 
 Run（在 `Core/`，沿用 Task 0 的 `unset`／`export`）：`swift test --filter LmuxHooksTests 2>&1 | grep -E "error:|✘" | head -20`
 Expected: 編譯錯誤 `runningBackgroundSubagents` 不存在（RED）。先加欄位但不處理（`public var runningBackgroundSubagents = 0`）後重跑，Expected: `stopWithRunningBackgroundSubagentStaysRunningSilently`、`doneOnlyAfter…`、`idleReminderEndsADeferredStop` 與解析測試失敗。
 
-- [ ] **Step 4: 實作**
+- [x] **Step 4: 實作**
 
 (a) `HookEvent.swift`，`stopHookActive` 那行後面加欄位：
 
@@ -697,12 +697,12 @@ Expected: 編譯錯誤 `runningBackgroundSubagents` 不存在（RED）。先加�
 
 類別說明註解 `- Stop (main agent) -> done + alert.` 那條後面加：`Unless background subagents are still running (Stop's background_tasks): stay running, no alert.`
 
-- [ ] **Step 5: 跑測試，確認通過**
+- [x] **Step 5: 跑測試，確認通過**
 
 Run: `swift test --filter LmuxHooksTests 2>&1 | grep -E "error:|✘|Test run" | head`
 Expected: 全部 PASS（含既有的 `parallelSubagentsKeepTheTurnRunningUntilTheMainStop`、`subagentToolEventsDoNotReviveFinishedTurn`）。
 
-- [ ] **Step 6: 標註場景並 Commit**
+- [x] **Step 6: 標註場景並 Commit**
 
 `subagent-running-state.feature` 每個場景在 tag 行與 `場景:` 之間加 `# @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift`。
 
