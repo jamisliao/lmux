@@ -17,7 +17,7 @@
     **壓縮結束不發通知**：壓縮不是一個回合。回到原本的狀態即可，不多發一則「完成」通知。
     **只在閒置或完成時改成進行中**：回合中的自動壓縮本來就是進行中，狀態不變，也不記住任何東西。
     **兩種結束回報都接受**：PostCompact 與 SessionStart(compact) 都代表壓縮結束；先到的那個生效，後到的不再改變狀態。
-    **舊安裝要手動更新**：lmux 只在 hook 路徑改變時自動提示更新。已安裝 hook 的使用者要在 Settings 按 Update，才會加入 PreCompact 與 PostCompact。
+    **舊安裝要手動更新**：lmux 只在 hook 路徑改變時自動提示更新。已安裝 hook 的使用者要在 Settings → Hooks 按 Install（舊安裝少了壓縮事件，顯示為未安裝），才會加入 PreCompact 與 PostCompact。
 
   # --- 手動壓縮 ---
 
@@ -33,6 +33,13 @@
     當 Claude Code 回報壓縮結束
     那麼 這個 tab 回到 **完成**
     而且 lmux 不發出新的通知
+
+  @e2e @happy-path
+  場景: 壓縮期間 workspace 列第 2 行顯示 Compacting
+    假設 一個 **tab** 的上一個回合用過 Bash 工具，回合已經 **完成**
+    當 使用者在這個 tab 開始 **壓縮**
+    那麼 sidebar 的 workspace 列第 2 行顯示 "Compacting"
+    而且 不顯示上一個回合的 Bash 工具
 
   @behavior @happy-path
   場景: 閒置的 tab 壓縮結束後回到閒置

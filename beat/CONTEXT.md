@@ -54,6 +54,10 @@ _Avoid_: 標題列、header
 通知 bar 清單裡一則通知的顯示。
 _Avoid_: 通知列、row、清單項目
 
+**workspace 名稱**:
+通知卡片上代表通知來源的名稱：workspace 的手動名稱；沒有時是 tab 工作目錄的資料夾名稱；tab 已關閉時是通知當時的名稱。
+_Avoid_: workspace 標題、sidebar 列名稱（lmux 的自動名稱會跟著 focused tab 變，不能拿來代表通知來源）
+
 **任務名稱**:
 Claude 替一個 **tab** 的 session 取的標題，或使用者用 `/rename`、lmux 重新命名取的名稱。
 _Avoid_: session 名稱、標題、tab 名稱
