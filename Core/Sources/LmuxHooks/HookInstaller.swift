@@ -24,11 +24,12 @@ public enum HookInstaller {
     }
 
     /// Events the state machine consumes (plus SubagentStart/Stop for the subagent counter).
+    /// PreCompact／PostCompact：壓縮期間 tab 顯示進行中（beat: compaction-running-state.feature）。
     public static let events: [String] = [
         "SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest",
         "PostToolUse", "PostToolUseFailure", "Notification", "SubagentStart",
         "SubagentStop", "Stop", "StopFailure", "Elicitation", "ElicitationResult",
-        "SessionEnd",
+        "PreCompact", "PostCompact", "SessionEnd",
     ]
 
     public enum InstallError: Error, Equatable, CustomStringConvertible {

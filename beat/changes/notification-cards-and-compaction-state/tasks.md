@@ -56,7 +56,7 @@ If the main assertion is `toHaveBeenCalledWith`, rewrite to assert on the functi
 - Consumes: 無。
 - Produces: `swift test` 在 `Core/` 能跑。Task 2、3、7 依賴它。
 
-- [ ] **Step 1: 跑 Core 測試**
+- [x] **Step 1: 跑 Core 測試**（結果：編不過，type-check 已知問題）
 
 Run:
 ```bash
@@ -67,7 +67,7 @@ swift test 2>&1 | tail -20
 ```
 Expected: 全部 PASS → 跳到 Task 1，不改任何檔案。
 
-- [ ] **Step 2: 只在 Step 1 失敗於 `Tests/LmuxTranscriptTests/TranscriptIndexTests.swift:38-42` 的 type-check 時修正**
+- [x] **Step 2: 只在 Step 1 失敗於 `Tests/LmuxTranscriptTests/TranscriptIndexTests.swift:38-42` 的 type-check 時修正**
 
 這是 Swift 6.4.2 的已知問題，與本功能無關。在 `@Test(arguments: [...])` 陣列的結尾 `]` 後面加 ` as [String]`，也就是最後一行改成：
 
@@ -77,7 +77,7 @@ Expected: 全部 PASS → 跳到 Task 1，不改任何檔案。
 
 重跑 Step 1 的指令。Expected: 全部 PASS。
 
-- [ ] **Step 3: 單獨 commit（只在 Step 2 有改時）**
+- [x] **Step 3: 單獨 commit（只在 Step 2 有改時）**（`1eb7298`）
 
 ```bash
 cd /Users/jamis.liao/opensource/lmux-sidebar-notification-bar
@@ -641,7 +641,7 @@ EOF
   - `func workspaceName(_ e: NotificationEntry, in model: AppModel) -> String`
   - `func plainMessage(_ s: String) -> String`
 
-- [ ] **Step 1: 建立 `NotificationCard.swift`**
+- [x] **Step 1: 建立 `NotificationCard.swift`**
 
 ```swift
 import AppKit
@@ -779,7 +779,7 @@ func plainMessage(_ s: String) -> String {
 }
 ```
 
-- [ ] **Step 2: 改 `NotificationBar.swift`**
+- [x] **Step 2: 改 `NotificationBar.swift`**
 
 (a) 檔頭說明（第 9-11 行）改成：
 
@@ -874,12 +874,12 @@ struct NotificationSummaryRow: View {
 
 (f) 刪除整個 `struct NotificationListRow`（含上方註解）。
 
-- [ ] **Step 3: 編譯**
+- [x] **Step 3: 編譯**
 
 Run（沿用 Task 4 Step 2 的 `unset`／`export`，在 `App/`）：`swift build 2>&1 | grep -E "error|Build complete" | head -20`
 Expected: `Build complete!`，沒有 `error`。
 
-- [ ] **Step 4: 確認沒有留下孤兒**
+- [x] **Step 4: 確認沒有留下孤兒**
 
 Run: `grep -n "NotificationListRow\|notificationLine\|shown: ordered" /Users/jamis.liao/opensource/lmux-sidebar-notification-bar/App/Sources/LmuxNotificationBar/*.swift`
 Expected: 沒有輸出。
@@ -887,7 +887,7 @@ Expected: 沒有輸出。
 Run: `wc -l /Users/jamis.liao/opensource/lmux-sidebar-notification-bar/App/Sources/LmuxNotificationBar/NotificationCard.swift`
 Expected: 小於 300。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**（`bdb24cb`）
 
 ```bash
 cd /Users/jamis.liao/opensource/lmux-sidebar-notification-bar
@@ -915,7 +915,7 @@ EOF
 - Consumes: Task 5 的 `NotificationCard`；`AppModel.selected`（`App/Sources/LmuxUI/Model.swift:786`）、`Workspace.focusedPane`（`Model.swift:467`）。
 - Produces: 無新介面。
 
-- [ ] **Step 1: 加上反白**
+- [x] **Step 1: 加上反白**
 
 (a) `@State private var hover = false` 後面加：
 
@@ -943,12 +943,12 @@ EOF
         .accessibilityAddTraits(focused ? [.isButton, .isSelected] : .isButton)
 ```
 
-- [ ] **Step 2: 編譯**
+- [x] **Step 2: 編譯**
 
 Run（在 `App/`）：`swift build 2>&1 | grep -E "error|Build complete" | head -10`
 Expected: `Build complete!`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**（`4da043e`）
 
 ```bash
 cd /Users/jamis.liao/opensource/lmux-sidebar-notification-bar

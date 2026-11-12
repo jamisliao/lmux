@@ -96,8 +96,6 @@ let foreignSettings = """
             guard case .array(let a)? = after["hooks"]?[ev] else { Issue.record("missing \(ev)"); continue }
             #expect(a.filter { "\($0)".contains(HookInstaller.marker) }.count == 1)
         }
-        // Foreign-only event untouched.
-        #expect(after["hooks"]?["PreCompact"] == before["hooks"]?["PreCompact"])
         // Full structure: dropping exactly lmux's groups gives the original document back.
         func dropLmux(_ v: JSONValue) -> JSONValue {
             guard case .object(var root) = v, let hi = root.firstIndex(where: { $0.key == "hooks" }),
@@ -111,6 +109,49 @@ let foreignSettings = """
             return .object(root)
         }
         #expect(dropLmux(after) == before)
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 更新 hook 時加入壓縮事件，保留使用者自己的壓縮 hook
+    /// 舊版 lmux 裝的 hook 沒有壓縮事件：再裝一次會加上 PreCompact 與 PostCompact，
+    /// 使用者自己的 PreCompact 項目保留原樣。
+    @Test func reinstallAddsCompactionEventsKeepingForeignPreCompact() throws {
+        let compaction = ["PreCompact", "PostCompact"]
+        let old = HookInstaller.Target(events: HookInstaller.events.filter { !compaction.contains($0) },
+                                       argument: nil, appends: false)
+        let older = try HookInstaller.install(into: foreignSettings, hookPath: hookPath, target: old)
+        let olderStatus = try HookInstaller.status(of: older)
+        #expect(!olderStatus.isComplete)
+
+        let now = try HookInstaller.install(into: older, hookPath: hookPath)
+        let nowStatus = try HookInstaller.status(of: now)
+        #expect(nowStatus.isComplete)
+        let before = try JSONValue.parse(foreignSettings)
+        let after = try JSONValue.parse(now)
+        for ev in compaction {
+            guard case .array(let a)? = after["hooks"]?[ev] else { Issue.record("missing \(ev)"); continue }
+            #expect(a.filter { "\($0)".contains(HookInstaller.marker) }.count == 1)
+        }
+        guard case .array(let b)? = before["hooks"]?["PreCompact"],
+              case .array(let a)? = after["hooks"]?["PreCompact"] else { Issue.record(); return }
+        #expect(a.filter { !"\($0)".contains(HookInstaller.marker) } == b)
+    }
+
+    /// 官方版 lmux（舊的事件清單）再裝一次：lmux 的壓縮項目被移除，使用者自己的 PreCompact 保留。
+    @Test func olderLmuxReinstallDropsCompactionEventsKeepingForeignPreCompact() throws {
+        let compaction = ["PreCompact", "PostCompact"]
+        let old = HookInstaller.Target(events: HookInstaller.events.filter { !compaction.contains($0) },
+                                       argument: nil, appends: false)
+        let newer = try HookInstaller.install(into: foreignSettings, hookPath: hookPath)
+        let downgraded = try HookInstaller.install(into: newer, hookPath: hookPath, target: old)
+        let before = try JSONValue.parse(foreignSettings)
+        let after = try JSONValue.parse(downgraded)
+        for ev in compaction {
+            if case .array(let a)? = after["hooks"]?[ev] {
+                #expect(!a.contains { "\($0)".contains(HookInstaller.marker) })
+            }
+        }
+        #expect(after["hooks"]?["PreCompact"] == before["hooks"]?["PreCompact"])
     }
 
     @Test func uninstallRestoresOriginalBytes() throws {

@@ -89,6 +89,7 @@
   # --- hook 安裝 ---
 
   @behavior @happy-path
+  # @covered-by: Core/Tests/LmuxHooksTests/InstallerTests.swift
   場景: 更新 hook 時加入壓縮事件，保留使用者自己的壓縮 hook
     假設 使用者的 Claude Code 設定檔有舊版 lmux 裝的 hook，其中沒有 PreCompact 與 PostCompact
     而且 設定檔有使用者自己的 PreCompact hook
