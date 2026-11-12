@@ -21,6 +21,17 @@
 | `userInterrupted()`（lmux 偵測到 Esc） | — | 清掉 `stateBeforeCompaction`，其餘照原本規則 |
 
 4. 子 agent 的 `preCompact`／`postCompact`（`isSubagent`）不處理。
+
+**A'. 背景子 agent（`subagent-running-state.feature`）**
+
+| 事件（主 agent） | 條件 | 結果 |
+|---|---|---|
+| `stop` | `background_tasks` 有 `type == "subagent"` 且 `status == "running"` 的項目 | `state = .running`，不發 alert，**不清掉** `activeSubagents` |
+| `stop` | 其他（沒有，或只有背景 shell，或子 agent 已結束） | 照原本規則（完成 + alert，清掉 `activeSubagents`） |
+
+- `HookEvent` 新欄位 `runningBackgroundSubagents: Int`：數 `background_tasks` 裡 `type == "subagent"` 且 `status == "running"` 的項目。
+- 後續的 `SubagentStop`、`UserPromptSubmit`（task-notification）、最後一個 `Stop` 都照原本規則；沒收到時，`idle_prompt` 照原本規則補成完成。
+- 已知限制：背景子 agent 跑超過閒置提醒的間隔時，`idle_prompt` 會讓 tab 提早顯示完成（未實測間隔）。
 5. App 端（`App/Sources/LmuxUI/Agent.swift` 的 `processHook`）：主 agent 的 `preCompact` 把 `pane.lastTool` 設成 `"Compacting"`。進行中時 workspace 列第 2 行顯示 `lastTool`（`App/Sources/LmuxUI/Model.swift:611-614`），所以壓縮期間顯示 `Compacting`，而不是上一個回合的工具。下一個 `PreToolUse` 或 `UserPromptSubmit` 會照原本規則覆蓋或清掉它。
 
 ### B. 通知卡片與反白（plugin，`App/Sources/LmuxNotificationBar/`）
@@ -58,6 +69,17 @@
 5. 每個確認的問題：在 `compaction-running-state.feature` 補場景，在本文件的 A 節補規則，再實作。改到 A 節既有規則時，直接改 Task 3。
 6. 沒有對應 hook、無法修正的情境：記在「風險」。
 
+#### 審查結果（進行中，2026-11-12）
+
+使用者回報的兩種情境：**子 agent 執行中**、**等我回答問題**，tab 顯示不對（細節待使用者描述）。
+
+lmux 目前訂閱 16 個事件。Claude Code 2.1.318 的 binary 內還有這些名稱（只確認字串存在，是否為 hook 事件、何時觸發：未查證）：`PermissionDenied`、`PostToolBatch`、`TaskCreated`、`TaskCompleted`、`TeammateIdle`、`UserPromptExpansion`。
+
+| 情境 | 目前行為（來源） | 可能的問題（未實測） |
+|---|---|---|
+| 子 agent 執行中 | 主 agent 的 `Stop` 一到就變成完成，並清掉子 agent 計數（`Core/Sources/LmuxHooks/AgentState.swift:177-184`）；之後子 agent 的事件不會讓它回到進行中（`AgentStateTests.swift:104-109`） | **已查證（2026-11-12 16:29，`compact-probe/events2.log`）**：派出背景子 agent 後，主 agent 的 `Stop` 在 16:29:06 到，其 `background_tasks` 有 `{"type":"subagent","status":"running"}`；子 agent 到 16:29:16 才 `SubagentStop`。這 10 秒 tab 顯示完成並發通知。16:29:17 又來一個 `UserPromptSubmit`（內容是 `<task-notification>`），16:29:19 再 `Stop` 一次，所以會發兩次完成通知。修法：A'。 |
+| 等我回答問題 | 已查證：在 `permission_mode: auto` 下，`AskUserQuestion` 的事件順序是 `PreToolUse` → `PermissionRequest` → `Notification(permission_prompt)` → `PostToolUse`，lmux 都會處理，**這個模式下重現不了**；需要在 `default` 權限模式下再記錄一次（待做）。需要輸入的來源：`PermissionRequest`、`Notification`（`permission_prompt` 等）、`AskUserQuestion`、`ExitPlanMode`、`Elicitation`；已在等待時，第二個提問不更新原因與訊息（`AgentState.swift:95-100`）；回到進行中靠同一個 agent 的下一個工具事件 | 拒絕權限時可能沒有任何事件（`PermissionDenied` 未訂閱），tab 停在需要輸入，直到下一個工具事件或 `Stop` |
+
 ## Key Decisions
 
 1. **壓縮結束回到原本狀態，不發通知。**
@@ -91,7 +113,8 @@
 | 檔案 | 類型 | 改動 |
 |---|---|---|
 | `Core/Sources/LmuxHooks/HookInstaller.swift` | lmux 原始檔 | `events` 加 2 個事件 |
-| `Core/Sources/LmuxHooks/AgentState.swift` | lmux 原始檔 | `stateBeforeCompaction` 與 A.3 的規則；類別說明註解補一條規則 |
+| `Core/Sources/LmuxHooks/AgentState.swift` | lmux 原始檔 | `stateBeforeCompaction` 與 A.3 的規則；A' 的規則；類別說明註解補規則 |
+| `Core/Sources/LmuxHooks/HookEvent.swift` | lmux 原始檔 | A'：新欄位 `runningBackgroundSubagents`（使用者 2026-11-12 同意修改） |
 | `App/Sources/LmuxUI/Agent.swift` | lmux 原始檔 | A.5：`preCompact` 時 `lastTool = "Compacting"` |
 | `Core/Tests/LmuxHooksTests/AgentStateTests.swift` | lmux 測試 | `compaction-running-state.feature` 的狀態機場景 |
 | `Core/Tests/LmuxHooksTests/InstallerTests.swift` | lmux 測試 | 第 99-100 行原本斷言 lmux 不碰 `PreCompact`；改成「使用者的項目保留，另有一個 lmux 項目」；加升級與降級測試 |
@@ -105,7 +128,8 @@
 
 ### 風險
 
-- **未查證**：Claude Code 對 `/compact` 送出的事件順序（會不會送 `UserPromptSubmit`、壓縮後會不會送 `Stop`、`PostCompact` 與 `SessionStart(compact)` 誰先到）。C.1 先記錄真實順序，再實作 Task 3。如果壓縮後會送 `Stop`，A.3 的規則要改（`Stop` 會先清掉記住的狀態並發 done alert）。
+- **已查證（2026-11-12，Claude Code 2.1.318，完成後手動 `/compact`）**：實際事件順序是 `PreCompact(manual)` → `SessionStart(compact)` → `PostCompact(manual)`。不送 `UserPromptSubmit`，壓縮後不送 `Stop`。所以 A.3 的規則不用改：`SessionStart(compact)` 先到、先結束壓縮，`PostCompact` 之後到、不再改變狀態。來源：scratchpad 的 `compact-probe/events.jsonl`。
+- **未查證**：閒置時 `/compact`（沒有先送 prompt）的事件順序，推論與上面相同。
 - **未查證**：壓縮中按 Esc，lmux 的 Esc 偵測（`App/Sources/LmuxUI/Agent.swift:308-331` 的 `interruptKeyPressed`，看 transcript 的中斷標記或終端機標題）是否成立。不成立時，tab 會維持進行中，直到閒置提醒。
 - 壓縮的副作用：`lmux wait --until any` 會因壓縮結束；沒人看的 tab 被壓縮後，「未看」的呼吸提醒會消失（`App/Sources/LmuxUI/Attention.swift:32-37,151-155`）。這次不修。
 - `/Applications/lmux.app` 按 Update 會移除這 2 個 hook（`HookInstaller.swift:124-125` 移除 lmux 不再使用的事件）。兩個 build 共用 UserDefaults（bundle id 相同），正式版重開時可能跳出更新提示。

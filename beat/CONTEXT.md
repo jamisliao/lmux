@@ -32,6 +32,10 @@ _Avoid_: done、結束
 tab 沒有回合在跑、也沒有待看結果的狀態。
 _Avoid_: idle、空閒
 
+**背景子 agent**:
+Claude 以背景模式（`run_in_background`）派出、主回合結束後仍在工作的子 agent。
+_Avoid_: 背景工作、background task（背景 shell 也叫 background task，但不算在內）
+
 **壓縮**:
 Claude Code 把對話整理成摘要，手動（`/compact`）或自動觸發。
 _Avoid_: compacting、compaction、壓縮對話

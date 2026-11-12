@@ -18,7 +18,7 @@
 - 所有 `swift` 指令前先 `export PATH="/usr/bin:$PATH"`（避開 Homebrew 的 GNU libtool）。
 - 不用 `env -u X ...`、`PATH=... cmd`、`sed -i` 的寫法（會被 hook 擋）；改成先 `unset`／`export` 再執行；改檔用編輯工具。
 - 不改 `App/scripts/bundle.sh`；build `lmux.app` 一律用 repo 外的 swift 包裝腳本（Task 8 Step 1）。
-- plugin 以外的 lmux 原始檔，只准改：`Core/Sources/LmuxHooks/HookInstaller.swift`、`Core/Sources/LmuxHooks/AgentState.swift`、`App/Sources/LmuxUI/Agent.swift`，以及 `Core/Tests/LmuxHooksTests/` 的測試。例外：Task 0 的 `Core/Tests/LmuxTranscriptTests/TranscriptIndexTests.swift`。其他檔案（例如新事件要改的 `HookEvent.swift`）先問使用者。
+- plugin 以外的 lmux 原始檔，只准改：`Core/Sources/LmuxHooks/HookInstaller.swift`、`Core/Sources/LmuxHooks/AgentState.swift`、`Core/Sources/LmuxHooks/HookEvent.swift`（Task 3a，使用者 2026-11-12 同意）、`App/Sources/LmuxUI/Agent.swift`，以及 `Core/Tests/LmuxHooksTests/` 的測試。例外：Task 0 的 `Core/Tests/LmuxTranscriptTests/TranscriptIndexTests.swift`。其他檔案（例如新事件要改的 `HookEvent.swift`）先問使用者。
 - 不改 `NotificationEntry`（`App/Sources/LmuxUI/Model.swift:694`）。
 - 相依：Task 2-3 依 Task 1 的結果；Task 4 依 Task 3；Task 5-6（B 部分）不依賴 Task 1-4，Task 1 等使用者時可以先做。
 
@@ -132,7 +132,7 @@ Run: `claude --version`
 
 不動 `~/.claude/settings.json`。
 
-- [ ] **Step 3: 請使用者跑三種情況**
+- [x] **Step 3: 請使用者跑三種情況**（只跑了情況 A；改記錄 `/compact`、背景子 agent、`AskUserQuestion`）
 
 給使用者的步驟（一步一個動作）：
 1. 在任一個終端機執行：`cd /private/tmp/claude-502/-Users-jamis-liao-opensource-lmux/b98536bc-aa23-4a4d-ab6c-87cbf62abe9a/scratchpad/compact-probe && claude`。出現信任資料夾的提示時選信任。
@@ -144,7 +144,7 @@ Run: `claude --version`
 7. 輸入 `/compact`，馬上按 Esc。（情況 C：壓縮中按 Esc）
 8. 等 1 分鐘（讓閒置提醒有機會送出），輸入 `/exit`。
 
-- [ ] **Step 4: 讀出事件順序**
+- [x] **Step 4: 讀出事件順序**
 
 Run:
 ```bash
@@ -156,14 +156,14 @@ done
 ```
 Expected: 每行一個事件。記下三種情況各自的順序，特別是：`/compact` 有沒有送 `UserPromptSubmit`；壓縮後有沒有 `Stop`；`PostCompact` 與 `SessionStart(compact)` 誰先到；情況 C 送了什麼。
 
-- [ ] **Step 5: 依事件順序檢查 Task 3 的規則**
+- [x] **Step 5: 依事件順序檢查 Task 3 的規則**（規則不用改，見 design.md「風險」）
 
 把三種順序逐一套進 design.md A.3 的規則表，寫出每一步的狀態：
 - 結果符合 `compaction-running-state.feature` → 不改。
 - 不符合（例如壓縮後有 `Stop`、`/compact` 會送 `UserPromptSubmit`）→ 修改 A.3 規則、Task 3 的測試與實作，並在 decisions TSV 記一列。
 - 把三種順序寫進 design.md「風險」，取代兩條「未查證」。
 
-- [ ] **Step 6: 審查其他狀態**
+- [x] **Step 6: 審查其他狀態**（使用者回報：子 agent 執行中、等我回答問題；前者已查證，後者待 Task 3b）
 
 1. 讀 https://code.claude.com/docs/en/hooks，列出全部 hook 事件與 `notification_type`。
 2. 對照 lmux：
@@ -183,7 +183,7 @@ Expected: 每行一個事件。記下三種情況各自的順序，特別是：`
    每個事件一列；「問題」欄寫「無」或具體描述。
 4. 用 AskUserQuestion 問使用者：「看過哪些狀態顯示不對？請說：當時 Claude 在做什麼、tab 顯示什麼、應該顯示什麼。」每個情境對到表上的一列；對不到的寫「無對應 hook，無法修正」，記進「風險」。
 
-- [ ] **Step 7: 確認的問題補場景與任務**
+- [x] **Step 7: 確認的問題補場景與任務**（Task 3a、3b；HookEvent.swift 已獲同意）
 
 每個確認的問題：
 1. 在 `compaction-running-state.feature` 加 `@behavior` 場景（業務語言，不寫方法名稱）。
@@ -192,7 +192,7 @@ Expected: 每行一個事件。記下三種情況各自的順序，特別是：`
 4. 同步 Task 8：Step 5 加手動確認項；`manual-verification.md` 加列。
 5. 要訂閱新事件時：`HookEvent.Kind` 要加 case（`Core/Sources/LmuxHooks/HookEvent.swift`，不在允許清單）→ 先問使用者；Task 2 的測試一起更新。
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 cd /Users/jamis.liao/opensource/lmux-sidebar-notification-bar
@@ -565,7 +565,166 @@ EOF
 )"
 ```
 
-（Task 1 審查後新增的 Task 3a、3b… 放在這裡。）
+### Task 3a: 背景子 agent 還在跑時，tab 維持進行中（Task 1 審查新增）
+
+**Files:**
+- Modify: `Core/Sources/LmuxHooks/HookEvent.swift`（新欄位與解析）
+- Modify: `Core/Sources/LmuxHooks/AgentState.swift`（`handle` 的 `.stop` 分支；說明註解）
+- Modify: `Core/Tests/LmuxHooksTests/EventParsingTests.swift`（`Payloads` 加 3 個 payload；解析測試）
+- Test: `Core/Tests/LmuxHooksTests/AgentStateTests.swift`（新增 5 個測試）
+- Modify: `beat/changes/notification-cards-and-compaction-state/features/subagent-running-state.feature`（`# @covered-by:`）
+
+**Interfaces:**
+- Consumes: 實測的 `Stop` payload（`compact-probe/events2.log`）：`"background_tasks":[{"id":"…","type":"subagent","status":"running",…}]`。
+- Produces: `HookEvent.runningBackgroundSubagents: Int`。
+
+- [ ] **Step 1: 加測試用 payload**
+
+在 `enum Payloads` 的 `compactStart` 那行後面加：
+
+```swift
+    static let stopBgSubagent = json("Stop", #""stop_hook_active":false,"last_assistant_message":"已派出","background_tasks":[{"id":"agent-7","type":"subagent","status":"running","description":"sleep","agent_type":"general-purpose"}],"session_crons":[]"#)
+    static let stopBgShell = json("Stop", #""stop_hook_active":false,"last_assistant_message":"已啟動","background_tasks":[{"id":"b75w99nqn","type":"shell","status":"running","description":"dev server","command":"sleep 40"}],"session_crons":[]"#)
+    static let stopBgSubagentDone = json("Stop", #""stop_hook_active":false,"last_assistant_message":"好了","background_tasks":[{"id":"agent-7","type":"subagent","status":"completed","description":"sleep","agent_type":"general-purpose"}],"session_crons":[]"#)
+```
+
+- [ ] **Step 2: 寫失敗的測試**
+
+在 `EventParsingTests` 加解析測試：
+
+```swift
+    @Test func countsOnlyRunningBackgroundSubagents() throws {
+        #expect(try event(Payloads.stopBgSubagent).runningBackgroundSubagents == 1)
+        #expect(try event(Payloads.stopBgShell).runningBackgroundSubagents == 0)
+        #expect(try event(Payloads.stopBgSubagentDone).runningBackgroundSubagents == 0)
+        #expect(try event(Payloads.stop).runningBackgroundSubagents == 0)  // 沒有 background_tasks 欄位
+    }
+```
+
+在 `AgentStateTests.swift` 的最後一個測試後面加：
+
+```swift
+    // MARK: 背景子 agent
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 主回合結束時還有背景子 agent 在跑，tab 維持進行中
+    @Test func stopWithRunningBackgroundSubagentStaysRunningSilently() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.subStart, Payloads.stopBgSubagent], agent: &a)
+        #expect(t.map(\.to) == [.running, .running, .running])
+        #expect(t.allSatisfy { $0.alert == nil && $0.notify == nil })
+        #expect(a.activeSubagents == ["agent-7"])
+    }
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 背景子 agent 做完、Claude 回應完後，tab 顯示完成並只通知一次
+    @Test func doneOnlyAfterTheLastStopWithNoBackgroundSubagent() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.subStart, Payloads.stopBgSubagent, Payloads.subStop,
+                         Payloads.prompt, Payloads.stop], agent: &a)
+        #expect(t.map(\.to) == [.running, .running, .running, .running, .running, .done])
+        #expect(t.compactMap(\.notify) == [.done(lastMessage: "All tests pass.")])
+    }
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 還在跑的只有背景 shell 時，主回合結束就是完成
+    @Test func backgroundShellDoesNotKeepTheTurnRunning() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stopBgShell], agent: &a)
+        #expect(t.map(\.to) == [.running, .done])
+        #expect(t[1].notify == .done(lastMessage: "已啟動"))
+    }
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 背景子 agent 已經結束時，主回合結束就是完成
+    @Test func finishedBackgroundSubagentDoesNotKeepTheTurnRunning() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stopBgSubagentDone], agent: &a)
+        #expect(t.map(\.to) == [.running, .done])
+        #expect(t[1].notify == .done(lastMessage: "好了"))
+    }
+
+    // @feature: subagent-running-state.feature
+    // @scenario: 沒收到背景子 agent 的後續事件時，閒置提醒讓 tab 顯示完成
+    @Test func idleReminderEndsADeferredStop() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.subStart, Payloads.stopBgSubagent, Payloads.notifIdle], agent: &a)
+        #expect(t.map(\.to) == [.running, .running, .running, .done])
+        #expect(t[3].notify == .done(lastMessage: nil))
+    }
+```
+
+- [ ] **Step 3: 跑測試，確認失敗**
+
+Run（在 `Core/`，沿用 Task 0 的 `unset`／`export`）：`swift test --filter LmuxHooksTests 2>&1 | grep -E "error:|✘" | head -20`
+Expected: 編譯錯誤 `runningBackgroundSubagents` 不存在（RED）。先加欄位但不處理（`public var runningBackgroundSubagents = 0`）後重跑，Expected: `stopWithRunningBackgroundSubagentStaysRunningSilently`、`doneOnlyAfter…`、`idleReminderEndsADeferredStop` 與解析測試失敗。
+
+- [ ] **Step 4: 實作**
+
+(a) `HookEvent.swift`，`stopHookActive` 那行後面加欄位：
+
+```swift
+    /// Stop 的 `background_tasks` 裡，還在跑（`status == "running"`）的背景子 agent 數量（背景 shell 不算）。
+    public var runningBackgroundSubagents = 0
+```
+
+`init(paneID:payload:)` 裡 `stopHookActive = …` 後面加：
+
+```swift
+        runningBackgroundSubagents = (payload["background_tasks"] as? [[String: Any]] ?? []).filter {
+            $0["type"] as? String == "subagent" && $0["status"] as? String == "running"
+        }.count
+```
+
+(b) `AgentState.swift` 的 `case .stop:` 改成：
+
+```swift
+        case .stop:
+            guard !e.isSubagent else { break }
+            blockingAgent = nil
+            // 背景子 agent 還在跑：主回合雖然結束，工作還沒完。維持進行中，不發 alert，也不清掉子 agent 計數；
+            // 它們結束後 Claude 會再起一個回合（UserPromptSubmit），最後一個 Stop 才是完成。
+            if e.runningBackgroundSubagents > 0 {
+                state = .running
+                break
+            }
+            activeSubagents.removeAll()
+            if state != .done {
+                state = .done
+                alert = .done(lastMessage: e.lastAssistantMessage)
+            }
+```
+
+類別說明註解 `- Stop (main agent) -> done + alert.` 那條後面加：`Unless background subagents are still running (Stop's background_tasks): stay running, no alert.`
+
+- [ ] **Step 5: 跑測試，確認通過**
+
+Run: `swift test --filter LmuxHooksTests 2>&1 | grep -E "error:|✘|Test run" | head`
+Expected: 全部 PASS（含既有的 `parallelSubagentsKeepTheTurnRunningUntilTheMainStop`、`subagentToolEventsDoNotReviveFinishedTurn`）。
+
+- [ ] **Step 6: 標註場景並 Commit**
+
+`subagent-running-state.feature` 每個場景在 tag 行與 `場景:` 之間加 `# @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift`。
+
+```bash
+cd /Users/jamis.liao/opensource/lmux-sidebar-notification-bar
+git add Core/Sources/LmuxHooks/HookEvent.swift Core/Sources/LmuxHooks/AgentState.swift Core/Tests/LmuxHooksTests/ beat/changes/notification-cards-and-compaction-state/features/subagent-running-state.feature
+git commit -m "$(cat <<'EOF'
+背景子 agent 還在跑時，tab 維持進行中
+
+主 agent 派出背景子 agent 後會先 Stop，tab 原本就顯示完成並發通知，子 agent 做完後
+又發第二次。Stop 的 background_tasks 有還在跑的子 agent 時，維持進行中、不發通知；
+最後一個 Stop 才完成。背景 shell 不算（避免 dev server 讓 tab 永遠轉圈）。
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Task 3b:「等我回答問題」（Task 1 審查新增；待查）
+
+- [ ] **Step 1: 在 `default` 權限模式下記錄事件**：請使用者在 `compact-probe` 執行 `claude --permission-mode default`，做「權限提示（選允許、選拒絕各一次）」與 `AskUserQuestion`，讀 `events2.log`。
+- [ ] **Step 2: 對照 lmux 的處理（`AgentState.swift`）**，找出沒有顯示需要輸入的情況；補場景、測試、實作（格式比照 Task 3a）。找不到問題時，向使用者回報並請他描述當時的操作。
 
 ---
 
