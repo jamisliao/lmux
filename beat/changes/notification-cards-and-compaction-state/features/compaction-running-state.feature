@@ -22,12 +22,14 @@
   # --- 手動壓縮 ---
 
   @behavior @happy-path
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 已完成的 tab 開始壓縮時顯示進行中
     假設 一個 **tab** 是 **完成**
     當 使用者在這個 tab 開始 **壓縮**
     那麼 這個 tab 是 **進行中**
 
   @behavior @happy-path
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 壓縮結束後回到完成，不發通知
     假設 一個 **完成** 的 **tab** 正在 **壓縮**
     當 Claude Code 回報壓縮結束
@@ -42,6 +44,7 @@
     而且 不顯示上一個回合的 Bash 工具
 
   @behavior @happy-path
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 閒置的 tab 壓縮結束後回到閒置
     假設 一個 **閒置** 的 **tab** 開始 **壓縮**
     當 Claude Code 回報壓縮結束
@@ -49,6 +52,7 @@
     而且 lmux 不發出新的通知
 
   @behavior @edge-case
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 兩種結束回報都送來時只處理第一個
     假設 一個 **完成** 的 **tab** 正在 **壓縮**
     當 Claude Code 先送 PostCompact，再送 source 為 compact 的 SessionStart
@@ -56,6 +60,7 @@
     而且 lmux 不發出新的通知
 
   @behavior @error-handling
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 沒收到結束回報時，閒置提醒讓 tab 回到原本的狀態
     假設 一個 **完成** 的 **tab** 正在 **壓縮**
     而且 Claude Code 沒有回報壓縮結束
@@ -64,6 +69,7 @@
     而且 lmux 不發出新的通知
 
   @behavior @edge-case
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 壓縮期間使用者按 Esc 中斷
     假設 一個 **完成** 的 **tab** 正在 **壓縮**
     當 lmux 判定使用者按 Esc 中斷了 Claude
@@ -71,6 +77,7 @@
     而且 之後收到的壓縮結束回報不改變這個 tab 的狀態
 
   @behavior @edge-case
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 壓縮期間使用者送出新的 prompt
     假設 一個 **完成** 的 **tab** 正在 **壓縮**
     當 使用者送出新的 prompt
@@ -80,6 +87,7 @@
   # --- 自動壓縮 ---
 
   @behavior @happy-path
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 回合中的自動壓縮不改變狀態
     假設 一個 **tab** 是 **進行中**
     當 Claude Code 在回合中自動開始 **壓縮**，接著回報壓縮結束

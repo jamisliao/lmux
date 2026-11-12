@@ -151,4 +151,118 @@ import Testing
         let t = try run([Payloads.prompt, Payloads.future], agent: &a)
         #expect(t[1].to == .running && t[1].alert == nil)
     }
+
+    // MARK: 壓縮
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 已完成的 tab 開始壓縮時顯示進行中
+    // @scenario: 壓縮結束後回到完成，不發通知
+    /// 實測順序（Claude Code 2.1.318）：PreCompact → SessionStart(compact) → PostCompact。
+    @Test func manualCompactionAfterDoneRunsThenRestoresDoneSilently() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact, Payloads.compactStart, Payloads.postCompact],
+                        agent: &a)
+        #expect(t.map(\.to) == [.running, .done, .running, .done, .done])
+        #expect(t[2].alert == nil && t[3].alert == nil && t[4].alert == nil)
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 壓縮結束後回到完成，不發通知
+    /// 只有 PostCompact（沒有 SessionStart(compact)）也算壓縮結束。
+    @Test func postCompactAloneEndsCompaction() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact, Payloads.postCompact], agent: &a)
+        #expect(t.map(\.to) == [.running, .done, .running, .done])
+        #expect(t[3].alert == nil)
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 閒置的 tab 壓縮結束後回到閒置
+    @Test func compactionFromIdleRestoresIdle() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.sessionStart, Payloads.preCompact, Payloads.postCompact], agent: &a)
+        #expect(t.map(\.to) == [.idle, .running, .idle])
+        #expect(t.compactMap(\.alert).isEmpty)
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 兩種結束回報都送來時只處理第一個
+    /// 兩個結束回報之間狀態變了（等待回應）：第二個回報不把它改回完成。
+    @Test func secondCompactionEndIsNoOp() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact, Payloads.compactStart,
+                         Payloads.notifPermission, Payloads.postCompact], agent: &a)
+        #expect(t.map(\.to) == [.running, .done, .running, .done, .needsInput(.permission), .needsInput(.permission)])
+        #expect(t[3].alert == nil && t[5].alert == nil)
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 沒收到結束回報時，閒置提醒讓 tab 回到原本的狀態
+    @Test func idleReminderEndsCompactionWithoutAlert() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact, Payloads.notifIdle], agent: &a)
+        #expect(t.map(\.to) == [.running, .done, .running, .done])
+        #expect(t[3].alert == nil)
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 壓縮期間使用者按 Esc 中斷
+    @Test func escDuringCompactionGoesIdleAndLateEndIsIgnored() throws {
+        var a = PaneAgent()
+        _ = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact], agent: &a)
+        let esc = a.userInterrupted()
+        #expect(esc.to == .idle && esc.alert == nil)
+        let t = try run([Payloads.postCompact], agent: &a)
+        #expect(t[0].to == .idle && t[0].alert == nil)
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 壓縮期間使用者送出新的 prompt
+    @Test func promptDuringCompactionKeepsRunningAndLateEndIsIgnored() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact, Payloads.prompt, Payloads.postCompact],
+                        agent: &a)
+        #expect(t.map(\.to) == [.running, .done, .running, .running, .running])
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 壓縮期間使用者送出新的 prompt
+    /// 新的 session 或 session 結束也讓記住的狀態作廢（design A.3）。
+    @Test func sessionChangeDuringCompactionForgetsTheOldState() throws {
+        for change in [Payloads.sessionEnd, Payloads.sessionStart] {
+            var a = PaneAgent()
+            let t = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact, change, Payloads.postCompact], agent: &a)
+            #expect(t.map(\.to) == [.running, .done, .running, .idle, .idle])
+        }
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 壓縮期間使用者送出新的 prompt
+    /// StopFailure 也讓記住的狀態作廢：之後的結束回報不把失敗改回閒置（design A.3）。
+    @Test func failureDuringCompactionForgetsTheOldState() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.sessionStart, Payloads.preCompact, Payloads.stopFailure, Payloads.postCompact], agent: &a)
+        #expect(t.map(\.to) == [.idle, .running, .done, .done])
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 回合中的自動壓縮不改變狀態
+    @Test func autoCompactionMidTurnChangesNothing() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.preCompactAuto, Payloads.compactStart, Payloads.postCompact], agent: &a)
+        #expect(t.map(\.to) == [.running, .running, .running, .running])
+        #expect(t.compactMap(\.alert).isEmpty)
+        let end = try run([Payloads.stop], agent: &a)
+        #expect(end[0].to == .done && end[0].alert == .done(lastMessage: "All tests pass."))
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 回合中的自動壓縮不改變狀態
+    /// 回合中的自動壓縮不記住任何東西：漏掉 Stop 時，閒置提醒照原本規則補成完成並發 alert。
+    @Test func autoCompactionMidTurnRemembersNothing() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.preCompactAuto, Payloads.notifIdle], agent: &a)
+        #expect(t.map(\.to) == [.running, .running, .done])
+        #expect(t[2].alert == .done(lastMessage: nil))
+    }
 }
