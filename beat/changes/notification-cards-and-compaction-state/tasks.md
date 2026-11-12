@@ -107,12 +107,12 @@ EOF
 - Consumes: 無。
 - Produces: 真實事件順序；審查結果表。若結果改到 A.3 的既有規則（`preCompact`、`postCompact`、`SessionStart(compact)`、`idle_prompt`、Esc），直接改 Task 3 的測試與實作，不另開 3a。
 
-- [ ] **Step 1: 確認本機 Claude Code 版本**
+- [x] **Step 1: 確認本機 Claude Code 版本**（2.1.318；binary 內有 `PreCompact`、`PostCompact`）
 
 Run: `claude --version`
 到 https://code.claude.com/docs/en/hooks 確認這個版本支援 `PostCompact`。不支援時停下來問使用者（寫進共用的 settings.json 會是舊版不認得的 key）。
 
-- [ ] **Step 2: 建立記錄用的暫時專案**
+- [x] **Step 2: 建立記錄用的暫時專案**
 
 建立 `/private/tmp/claude-502/-Users-jamis-liao-opensource-lmux/b98536bc-aa23-4a4d-ab6c-87cbf62abe9a/scratchpad/compact-probe/.claude/settings.local.json`，內容如下（hook 只寫檔、不寫 stdout：PreCompact 的 stdout 會變成壓縮指示）：
 
@@ -221,7 +221,7 @@ EOF
 - Produces: `HookInstaller.events` 包含 `"PreCompact"`、`"PostCompact"`（共 16 個）。
 - 整合前提：`lmux-hook` 在 hook 模式不寫 stdout（`Core/Sources/lmux-hook/main.swift`）。PreCompact 的 stdout 會被 Claude 當成壓縮指示，這個前提不能破壞。
 
-- [ ] **Step 1: 寫失敗的測試**
+- [x] **Step 1: 寫失敗的測試**
 
 在 `Core/Tests/LmuxHooksTests/InstallerTests.swift` 的 `installPreservesForeignHooksAndIsIdempotent()` 後面加：
 
@@ -270,12 +270,12 @@ EOF
     }
 ```
 
-- [ ] **Step 2: 跑測試，確認失敗**
+- [x] **Step 2: 跑測試，確認失敗**
 
 Run（在 `Core/`，沿用 Task 0 Step 1 的 `unset`／`export`）：`swift test --filter LmuxHooksTests.InstallerTests 2>&1 | tail -20`
 Expected: FAIL：`reinstallAddsCompactionEventsKeepingForeignPreCompact` 的 `#expect(!olderStatus.isComplete)`（舊清單等於目前清單）。`olderLmuxReinstallDropsCompactionEventsKeepingForeignPreCompact` 此時會通過（目前沒有 lmux 的壓縮項目），實作後仍須通過。
 
-- [ ] **Step 3: 實作**
+- [x] **Step 3: 實作**
 
 `Core/Sources/LmuxHooks/HookInstaller.swift:26-32` 改成：
 
@@ -297,12 +297,12 @@ Expected: FAIL：`reinstallAddsCompactionEventsKeepingForeignPreCompact` 的 `#e
         #expect(after["hooks"]?["PreCompact"] == before["hooks"]?["PreCompact"])
 ```
 
-- [ ] **Step 4: 跑測試，確認通過**
+- [x] **Step 4: 跑測試，確認通過**
 
 Run: `swift test --filter LmuxHooksTests 2>&1 | tail -20`
 Expected: 全部 PASS（包含 `installPreservesForeignHooksAndIsIdempotent` 與 2 個新測試）。
 
-- [ ] **Step 5: 標註場景**
+- [x] **Step 5: 標註場景**
 
 `compaction-running-state.feature` 的場景「更新 hook 時加入壓縮事件，保留使用者自己的壓縮 hook」：在 tag 行與 `場景:` 之間加：
 
@@ -310,7 +310,7 @@ Expected: 全部 PASS（包含 `installPreservesForeignHooksAndIsIdempotent` 與
   # @covered-by: Core/Tests/LmuxHooksTests/InstallerTests.swift
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**（`f41c5d9`）
 
 ```bash
 cd /Users/jamis.liao/opensource/lmux-sidebar-notification-bar
@@ -578,7 +578,7 @@ EOF
 - Consumes: Task 3（`preCompact` 讓狀態變成 running）；`Pane.lastTool`（`App/Sources/LmuxUI/Model.swift:85`），進行中時是 workspace 列第 2 行（`Model.swift:240-245` 的 `runningDetail`）。
 - Produces: 無新介面。
 
-- [ ] **Step 1: 實作**
+- [x] **Step 1: 實作**
 
 在 `App/Sources/LmuxUI/Agent.swift` 這段之後：
 
@@ -597,7 +597,7 @@ EOF
         if e.kind == .preCompact, !e.isSubagent, pane.lastTool != "Compacting" { pane.lastTool = "Compacting" }
 ```
 
-- [ ] **Step 2: 編譯**
+- [x] **Step 2: 編譯**
 
 Run:
 ```bash
@@ -608,7 +608,7 @@ swift build 2>&1 | grep -E "error|Build complete" | head -10
 ```
 Expected: `Build complete!`。畫面上的確認在 Task 8 Step 5。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**（`a917d5d`）
 
 ```bash
 cd /Users/jamis.liao/opensource/lmux-sidebar-notification-bar
