@@ -33,6 +33,7 @@
 - 後續的 `SubagentStop`、`UserPromptSubmit`（task-notification）、最後一個 `Stop` 都照原本規則；沒收到時，`idle_prompt` 照原本規則補成完成。
 - 已知限制：背景子 agent 跑超過閒置提醒的間隔時，`idle_prompt` 會讓 tab 提早顯示完成（未實測間隔）。
 5. App 端（`App/Sources/LmuxUI/Agent.swift` 的 `processHook`）：主 agent 的 `preCompact` 把 `pane.lastTool` 設成 `"Compacting"`。進行中時 workspace 列第 2 行顯示 `lastTool`（`App/Sources/LmuxUI/Model.swift:611-614`），所以壓縮期間顯示 `Compacting`，而不是上一個回合的工具。下一個 `PreToolUse` 或 `UserPromptSubmit` 會照原本規則覆蓋或清掉它。
+6. App 端的 Esc 偵測（`Agent.swift` 的 `interruptKeyPressed`）：壓縮中（`pane.lastTool == "Compacting"`）按 Esc，在第 2 次檢查（900ms）時視為中斷，tab 改成閒置。原因：**實機確認（2026-11-12 18:10）**壓縮中按 Esc，Claude 會取消壓縮，但 tab 仍顯示 `Compacting`；取消壓縮不寫 transcript 的中斷標記，標題也沒變回 `✳`。限制：Esc 若沒有取消壓縮（例如壓縮其實繼續），tab 會顯示閒置，直到下一個事件。
 
 ### B. 通知卡片與反白（plugin，`App/Sources/LmuxNotificationBar/`）
 

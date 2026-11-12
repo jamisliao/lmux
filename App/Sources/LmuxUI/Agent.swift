@@ -322,7 +322,9 @@ extension LmuxController {
                 let last = await self.loadTurns(pane).last
                 guard self.interruptChecks[pane.id] == token, pane.agent.state == .running,
                       pane.agent.usageLimitResets == nil else { return }
-                if last?.interrupted == true || (n == 1 && pane.surface.title.hasPrefix("✳")) {
+                // 壓縮中按 Esc：Claude 取消壓縮，不會寫中斷標記，標題也不一定變回 ✳（beat: compaction-running-state.feature）。
+                let compacting = pane.lastTool == "Compacting"
+                if last?.interrupted == true || (n == 1 && (compacting || pane.surface.title.hasPrefix("✳"))) {
                     self.interruptChecks[pane.id] = nil
                     pane.agent.userInterrupted()
                     self.log("interrupted with no hook: pane=\(pane.id) idle")
