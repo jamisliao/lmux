@@ -1134,7 +1134,7 @@ EOF
 - Consumes: Task 0-6 的成果。
 - Produces: Core 全部測試與 apptest `--quick` 的結果，和已知失敗的比對。
 
-- [ ] **Step 1: Core 全部測試**
+- [x] **Step 1: Core 全部測試**（64 + 34 + 122 全過，Task 3a 之後）
 
 Run:
 ```bash
@@ -1145,7 +1145,7 @@ swift test 2>&1 | tail -10
 ```
 Expected: 全部 PASS（不加 `--filter`）。
 
-- [ ] **Step 2: 建立 apptest 腳本（含看門狗）**
+- [x] **Step 2: 建立 apptest 腳本（含看門狗）**
 
 建立 `/private/tmp/claude-502/-Users-jamis-liao-opensource-lmux/b98536bc-aa23-4a4d-ab6c-87cbf62abe9a/scratchpad/apptest-feature.sh`：
 
@@ -1178,7 +1178,7 @@ done
 wait "$RUN"; echo "apptest exit=$?" >> "$LOG"
 ```
 
-- [ ] **Step 3: 跑 apptest（背景執行）**
+- [x] **Step 3: 跑 apptest（背景執行）**（只有 `[tabs]` strip 背景與 `[settings window]` 主題 2 個已知失敗；其餘 18 組全過；`apptest-feature.log`）
 
 Run（背景）：`bash /private/tmp/claude-502/-Users-jamis-liao-opensource-lmux/b98536bc-aa23-4a4d-ab6c-87cbf62abe9a/scratchpad/apptest-feature.sh`
 
