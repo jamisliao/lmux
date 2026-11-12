@@ -150,6 +150,9 @@ extension LmuxController {
             let t = e.toolArgument.map { "\(tool) · \($0)" } ?? tool
             if pane.lastTool != t { pane.lastTool = t }
         }
+        // 壓縮中：workspace 列第 2 行顯示 Compacting，不顯示上一個回合的工具（beat: compaction-running-state.feature）。
+        // 下一個 PreToolUse 會覆蓋它，UserPromptSubmit 會清掉它。
+        if e.kind == .preCompact, !e.isSubagent, pane.lastTool != "Compacting" { pane.lastTool = "Compacting" }
         if e.kind == .userPromptSubmit {
             if pane.failed { pane.failed = false }
             if pane.lastTool != nil { pane.lastTool = nil }
