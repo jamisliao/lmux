@@ -20,6 +20,9 @@
 #          "slow_restore_ms": n (after Restore conversation, the prompt shows again only n ms later),
 #          "slow_close_ms": n (after Restore conversation, the menu stays up n ms more),
 #          "queued": "text" (a prompt queued while Claude works, as 2.1.280 shows it),
+#          "dialog": bool (Claude asks for a permission: its dialog in place of the input box; Esc
+#          declines it and the turn stops), "dialog_ignore": n (the first n Escs on it are ignored,
+#          as a dialog just shown ignores keys),
 #          "bars": bool (2.1.280's own look: each prompt a full-width bar on a background color, a
 #          "✻ Crunched for 3s · done Wednesday 11:42 PM" line under each reply, and the right-aligned
 #          "● high · /effort" note right above the input box),
@@ -35,6 +38,8 @@ files = spec.get('files', False)
 draft = spec.get('input', '')
 lag = spec.get('lag_ms', 0) / 1000.0
 working = spec.get('working')
+dialog = spec.get('dialog', False)
+dialog_ignore = spec.get('dialog_ignore', 0)
 state = 'idle'        # idle | list | confirm
 sel = len(prompts)    # list: index into prompts + [(current)]
 opt = 0
@@ -99,7 +104,12 @@ def draw():
         for l in lines[1:]:
             out.append('  ' + l + '\r\n')
         out.append('\r\n⏺ OK ' + lines[0][:24] + '\r\n\r\n')
-    if state == 'idle':
+    if state == 'idle' and dialog:
+        # As 2.1.280 draws a Bash permission dialog: no input box until it's answered.
+        out.append('─' * w + '\r\n Bash command\r\n\r\n   curl -s https://example.invalid\r\n   Fetch a page\r\n\r\n'
+                   ' This command requires approval\r\n\r\n Do you want to proceed?\r\n ❯ 1. Yes\r\n   2. No\r\n\r\n'
+                   ' Esc to cancel · Tab to amend\r\n  ⏸ manual mode on')
+    elif state == 'idle':
         rule = '─' * w
         if hint:
             out.append(' ' * max(0, w - len(hint) - 2) + hint + '\r\n')
@@ -149,10 +159,20 @@ def draw():
 
 
 def key(k):
-    global state, sel, opt, last_esc, draft, hint, working, due, opening, restoring, closing
+    global state, sel, opt, last_esc, draft, hint, working, due, opening, restoring, closing, dialog, dialog_ignore
     log('key ' + k)
     now = time.time()
-    if state == 'idle':
+    if state == 'idle' and dialog:
+        if k == 'esc' and dialog_ignore > 0:
+            dialog_ignore -= 1
+            log('dialog ignored esc')
+        elif k == 'esc':
+            dialog, working = False, None
+            last_esc = 0.0
+            log('decline')
+        elif k == 'enter':
+            log('dialog answered')  # never wanted here
+    elif state == 'idle':
         if k == 'esc' and working:
             working = None
             if spec.get('takeback') and prompts:

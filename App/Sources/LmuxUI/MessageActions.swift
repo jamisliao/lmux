@@ -340,9 +340,10 @@ extension LmuxController {
         let ov = pane.view.overlay
         let t = pane.hover.turns.first { $0.index == turn }
         let hasReply = t?.hasReply ?? false
-        // Edit / remove drive Claude Code's rewind: Codex turns and ! shell commands (rewinding to one
-        // is refused) get Copy only (no broken buttons), so nothing to show before they have a reply.
-        let editable = !pane.runsCodex && !(t.map { RewindMenu.isShellCommand($0.prompt) } ?? false)
+        // Edit / remove drive Claude Code's rewind: Codex turns, ! shell commands (rewinding to one
+        // is refused) and turns from before a compaction (not in Claude's menu) get Copy only (no
+        // broken buttons), so nothing to show before they have a reply.
+        let editable = !pane.runsCodex && !(t.map { RewindMenu.isShellCommand($0.prompt) || $0.beforeCompaction } ?? false)
         if !editable, !hasReply { hideHoverActions(pane); return }
         // The conversation's first turn (the transcript's, not the first on screen) has no ×: it would
         // remove the whole conversation. ✎ stays.

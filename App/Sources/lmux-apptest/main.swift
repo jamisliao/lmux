@@ -35,6 +35,7 @@
 //   lmux-apptest --e2e-bench     real Claude Code: rewind timings, back-outs, menu frames (RewindBench.swift)
 //   lmux-apptest --e2e           real Claude Code (offline, mock API) edit / remove / undo / copy, see E2E.swift
 //   lmux-apptest --e2e-hover     real Claude Code: the hover band, pill and × on each turn, see E2EHover.swift
+//   lmux-apptest --e2e-running   real Claude Code: ✎ / × on the turn Claude is still on, see E2ERunning.swift
 //
 // Needs (set by App/scripts/apptest.sh): LMUX_HEADLESS=1, LMUX_STATE_DIR,
 // LMUX_PANE_COMMAND (sink script), LMUX_SINK_DIR, LMUX_BIN_DIR.
@@ -95,6 +96,8 @@ final class Delegate: NSObject, NSApplicationDelegate {
                 code = await runRewindBench()
             } else if args.contains("--e2e-hover") {
                 code = await runE2EHover()
+            } else if args.contains("--e2e-running") {
+                code = await runE2ERunning()
             } else if args.contains("--e2e") {
                 code = await runE2E()
             } else if args.contains("--rewind") {

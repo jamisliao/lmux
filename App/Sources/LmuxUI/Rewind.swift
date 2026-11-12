@@ -194,7 +194,7 @@ extension LmuxController {
     func requestRewind(_ pane: Pane, turnIndex: Int, edit: Bool) {
         guard !pane.runsCodex, !pane.busy, let turn = pane.hover.turns.first(where: { $0.index == turnIndex }) else { return }
         if turn.beforeCompaction {
-            showNote(pane, "Can’t rewind to this message: Claude compacted it into its summary.",
+            showNote(pane, Self.compactedNote,
                      symbol: "exclamationmark.triangle", color: T.Colors.stateFailed.nsColor)
             return
         }
@@ -213,6 +213,7 @@ extension LmuxController {
         }
         detail += " Claude keeps running."
         if claudeWorking(pane) { detail += " Claude is working and will be stopped first." }
+        else if claudeAsking(pane) { detail += " Claude is waiting for your answer; that’s declined first." }
         let files = Set(pane.hover.turns.filter { $0.index >= turn.index }.flatMap(\.editedFiles)).sorted()
         if !files.isEmpty {
             let names = files.prefix(3).map { ($0 as NSString).lastPathComponent }.joined(separator: ", ")
@@ -284,7 +285,7 @@ extension LmuxController {
             let text = stopped
                 ? (mayHaveRemoved ? "Rewind stopped while this pane was hidden; check Claude’s conversation."
                                   : "Rewind stopped while this pane was hidden; nothing was removed.")
-                : note ?? "Couldn’t rewind; use Esc Esc in Claude Code."
+                : note ?? Self.failureNote(why)
             pane.pendingRewindNote = (text, true)
         } else if let note {
             pane.pendingRewindNote = (note, false)
@@ -295,6 +296,30 @@ extension LmuxController {
         if onScreen(pane) { showPendingRewindNote(pane) }
         scheduleOverlayRefresh(pane, delay: 0)
         if let point = pane.surface.lastMousePoint { paneMouseMoved(pane, point) }
+    }
+
+    /// What a failed rewind tells the user: the reason when lmux knows one the user can act on,
+    /// else Claude Code's own Esc Esc as the way out.
+    static func failureNote(_ why: String) -> String {
+        switch why {
+        case "compacted": return compactedNote
+        case "turn not found": return "Couldn’t rewind: that message is no longer in Claude’s session."
+        case "Claude has queued messages": return "Couldn’t rewind: Claude has queued messages. Clear them first."
+        case "Claude’s input has unsent text": return "Couldn’t rewind: Claude’s input has unsent text. Clear it first."
+        case "Claude’s input has unsent text or queued messages":
+            return "Couldn’t rewind: Claude’s input has unsent text or queued messages. Clear them first."
+        case "Claude’s input box isn’t on screen": return "Couldn’t rewind: Claude’s input box isn’t on screen."
+        default: return "Couldn’t rewind; use Esc Esc in Claude Code."
+        }
+    }
+
+    static let compactedNote = "Can’t rewind this message: it’s from before Claude compacted the conversation."
+
+    /// Claude is waiting on a dialog of its own (a permission, a question, a plan to approve): its
+    /// input box is hidden under it, and Esc declines it, as the user's own Esc would.
+    func claudeAsking(_ pane: Pane) -> Bool {
+        if case .needsInput = pane.agent.state { return true }
+        return false
     }
 
     /// The pane shows again after a rewind stopped while it was hidden: Claude's menu left open is
@@ -383,23 +408,41 @@ extension LmuxController {
         log("rewind \(turnUuid.prefix(8)) mode=\(mode) working=\(claudeWorking(pane))")
 
         // 1) A draft in Claude's input is the user's: refused before any key (Esc Esc would clear it).
+        //    Under a dialog of Claude's the box is hidden: a draft there shows (and is refused) in step 3.
+        func dialogUp(_ rows: [String]) -> Bool { claudeAsking(pane) && Self.inputText(rows) == nil }
         if !d.interrupted {
             let rows = screenRows(pane)
             // Esc with queued prompts sends them: nothing is pressed then.
             if Self.queuedPrompts(rows) { return .failed("Claude has queued messages") }
-            guard let draft = Self.inputText(rows) else { return .failed("Claude’s input box isn’t on screen") }
-            if !draft.isEmpty { return .failed("Claude’s input has unsent text") }
+            let draft = Self.inputText(rows)
+            if draft == nil, !dialogUp(rows) { return .failed("Claude’s input box isn’t on screen") }
+            if let draft, !draft.isEmpty { return .failed("Claude’s input has unsent text") }
         }
         // 2) Claude idle at its prompt. Working: Esc, as Claude's own first Esc would, then a still screen.
+        //    Waiting on a dialog for this turn: Esc declines it and the turn stops the same way.
         //    (Past the user's own Esc's double-press window first: lmux's would make it Esc Esc.)
-        if !d.interrupted, claudeWorking(pane) || Self.screenWorking(screenRows(pane)) {
+        func stoppable(_ rows: [String]) -> Bool { claudeWorking(pane) || Self.screenWorking(rows) || dialogUp(rows) }
+        if !d.interrupted, stoppable(screenRows(pane)) {
             await waitEscWindow(&d)
-            if claudeWorking(pane) || Self.screenWorking(screenRows(pane)) { pressEsc(pane, &d) }
+            if stoppable(screenRows(pane)) { pressEsc(pane, &d) }
             d.interrupted = true
+            // A dialog just shown may not take a key yet: Esc again while it's still up, each one
+            // past the double-press window (never an Esc Esc at the prompt it leaves).
+            for _ in 0..<3 where dialogUp(screenRows(pane)) {
+                guard await waitScreen(pane, Self.doubleEscWindow + 0.1, { !dialogUp($0) }) == nil, dialogUp(screenRows(pane)) else { break }
+                log("rewind: Claude's dialog still up, Esc again")
+                pressEsc(pane, &d)
+            }
         }
         guard await waitIdle(pane, 8, afterEsc: d.lastEsc.map { Date().timeIntervalSince($0) < Self.doubleEscWindow + 0.1 } ?? false) != nil else {
             // At most a lone Esc was pressed here: no late menu to wait for.
             return await backOut(pane, "Claude is not at its prompt", waitLate: false)
+        }
+        // Stopped (by an Esc) and idle at its prompt: the turn is over. Claude sends no hook for that,
+        // so the pane would go on saying it works or waits for an answer.
+        if d.interrupted, pane.agent.usageLimitResets == nil, pane.agent.state == .running || claudeAsking(pane) {
+            pane.agent.userInterrupted()
+            schedulePaneChrome(pane)
         }
 
         // 3) Esc right after an answerless turn makes Claude take that turn back by itself, its text in

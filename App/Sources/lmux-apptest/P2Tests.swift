@@ -1880,6 +1880,66 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     r.check("…pointer on its reply: no pill, no band", c.hoveredTurn(rm.pane) == nil && rm.pane.view.overlay.turnBand == nil)
     await hover(c, rm.pane, row: textM.firstIndex { $0.hasPrefix("❯ 그럼 이건") } ?? 0)
     r.check("…the turn below it still gets its own", c.hoveredTurn(rm.pane) == 2)
+
+    // ------------------------------------------------------------ the turn Claude is still on
+    func note(_ p: Pane) -> String { p.view.overlay.toast?.text.string ?? "" }
+    // Claude writing its reply to the last turn: Esc stops it, then the menu, that turn picked.
+    let rl = await rewindPane("run-last", prompts: ["alpha", "beta"], ["working": "footer"])
+    let ol = await c.rewind(rl.pane, turnUuid: "rw-run-last-u2", mode: .remove)
+    r.check("× on the last turn while Claude works on it: Esc first, then that turn rewound",
+            ol == .done && acts(rl.log).first == "interrupt" && acts(rl.log).contains("restore conversation 2") && input(rl.pane) == "",
+            "\(ol) " + acts(rl.log).joined(separator: "; ") + " | " + c.actionLog.suffix(3).joined(separator: "; "))
+    // Claude asking for a permission on it (its dialog hides the input box): the pill is there (the
+    // pane waits on the user), Esc declines it (again if the dialog ignored the first), then the menu.
+    let rd = await rewindPane("dialog", prompts: ["alpha", "beta"], ["dialog": true, "dialog_ignore": 1])
+    hookEvent(c, rd.pane, "UserPromptSubmit", session: "rw-dialog", ["prompt": "beta"])
+    hookEvent(c, rd.pane, "Notification", session: "rw-dialog", ["message": "Claude needs your permission to use Bash",
+                                                                 "notification_type": "permission_prompt"])
+    _ = await waitFor(2) { if case .needsInput = rd.pane.agent.state { return true }; return false }
+    let headD = c.screenMap(rd.pane, maxAge: 0).map?.promptHeads().first { $0.turn == 2 }?.row ?? 0
+    await hover(c, rd.pane, row: headD)
+    r.check("Claude asking on the last turn: its pill has ✎ ×", c.hoveredTurn(rd.pane) == 2
+            && rd.pane.view.overlay.turnBar.map { !$0.edit.isHidden && !$0.remove.isHidden } ?? false)
+    rd.pane.view.overlay.turnBar?.edit.performClick()
+    let detailD = rd.pane.view.overlay.card?.detail.stringValue ?? ""
+    r.check("…the card says Claude's question is declined first", detailD.contains("declined first"), detailD)
+    let okD = await confirmAndWait(rd.pane)
+    r.check("…✎: Esc (twice: the first ignored) declines it, then rewound, the prompt back, no note, the pane idle",
+            okD && acts(rd.log).prefix(2) == ["dialog ignored esc", "decline"] && acts(rd.log).contains("restore conversation 2")
+            && input(rd.pane) == "beta" && note(rd.pane).isEmpty && rd.pane.agent.state == .idle,
+            acts(rd.log).joined(separator: "; ") + " input=\(input(rd.pane) ?? "nil") note=\(note(rd.pane)) \(rd.pane.agent.state)")
+    // The same dialog with no hook saying Claude asks: lmux can't tell what it is, no key.
+    let rn = await rewindPane("dialog-nohook", prompts: ["alpha", "beta"], ["dialog": true])
+    let on = await c.rewind(rn.pane, turnUuid: "rw-dialog-nohook-u2", mode: .remove)
+    r.check("an input box lmux can't find (no hook says Claude asks): refused, no key, the note says so",
+            on != .done && fakeLog(rn.log).isEmpty && note(rn.pane) == "Couldn’t rewind: Claude’s input box isn’t on screen.",
+            "\(on) note=\(note(rn.pane))")
+
+    // Each refusal says why.
+    let r8b = await rewindPane("8b", prompts: ["alpha", "beta"], ["input": "half typed"])
+    _ = await c.rewind(r8b.pane, turnUuid: "rw-8b-u2", mode: .remove)
+    r.check("note: unsent text in Claude's input", note(r8b.pane) == "Couldn’t rewind: Claude’s input has unsent text. Clear it first.", note(r8b.pane))
+    let r23b = await rewindPane("23b", prompts: ["alpha", "beta"], ["working": "footer", "queued": "continue"])
+    _ = await c.rewind(r23b.pane, turnUuid: "rw-23b-u2", mode: .remove)
+    r.check("note: queued messages", note(r23b.pane) == "Couldn’t rewind: Claude has queued messages. Clear them first.", note(r23b.pane))
+    _ = await c.rewind(r23b.pane, turnUuid: "rw-23b-nope", mode: .remove)
+    r.check("note: a turn no longer in the session", note(r23b.pane) == "Couldn’t rewind: that message is no longer in Claude’s session.", note(r23b.pane))
+    // A turn from before a compaction: no ✎ ×, and a rewind to it (⌘Z's path) says why.
+    let rk = await rewindPane("compacted", prompts: ["old topic", "new topic"])
+    try? fixtureJSONL(session: "rw-compacted", cwd: "/tmp", turns: [FixtureTurn(prompt: "old topic", reply: "OK"),
+                                                                    FixtureTurn(prompt: "new topic", reply: "OK")], compactAfter: 1)
+        .write(toFile: rk.path, atomically: true, encoding: .utf8)
+    let kTurns2 = await c.loadTurns(rk.pane)
+    rk.pane.hover.readAt = .distantPast
+    let headK = c.screenMap(rk.pane, maxAge: 0).map?.promptHeads().first { $0.turn == 1 }?.row ?? 0
+    await hover(c, rk.pane, row: headK)
+    r.check("a turn from before a compaction: Copy only, no ✎ ×", kTurns2.first?.beforeCompaction == true && c.hoveredTurn(rk.pane) == 1
+            && rk.pane.view.overlay.turnBar.map { $0.edit.isHidden && $0.remove.isHidden } ?? false,
+            "\(kTurns2.map(\.beforeCompaction)) hovered=\(c.hoveredTurn(rk.pane).map(String.init) ?? "nil")")
+    c.hideHoverActions(rk.pane)
+    let ok2 = await c.rewind(rk.pane, turnUuid: "rw-compacted-u1", mode: .remove)
+    r.check("…a rewind to it: refused, no key, the note says it was compacted",
+            ok2 != .done && fakeLog(rk.log).isEmpty && note(rk.pane) == LmuxController.compactedNote, note(rk.pane))
     return made
 }
 

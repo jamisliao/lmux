@@ -118,21 +118,24 @@ App/scripts/readme.sh hero       # site hero video (2000 px, H.264 CRF 21 / VP9 
   user) is read or carried over a restart.
   An unreadable `layout.json` (or one malformed split), `settings.plist` or `sessions.db` is kept aside as
   `<name>.bad-<unix time>` (0600) and that part starts fresh; nothing is overwritten unseen.
-- **Message actions (R8-R10)**: on a pane running Claude Code, hovering a prompt shows `✎ ×`, hovering a reply
-  shows Copy original (AppKit overlay, SF font, never in the grid). Rows are mapped to turns by matching `❯` rows
-  against the transcript's prompts bottom-up in turn order (`TurnLocator`), so permission menus, the input box and
-  repeated prompts never confuse it. ✎ / × = confirm card (says when later turns go too, that changed files stay;
-  refuses compacted turns) -> Claude Code's own rewind in the running claude (`Rewind.swift`), never a restart:
-  Esc first if Claude is working; refused if the input holds a draft; Esc Esc; ↑ one entry at a time, reading the
-  pane after every key (`RewindMenu.read`: the list's highlighted entry, the confirmation's quoted message and
-  numbered options) until the highlighted entry is the turn's prompt (as many identical later prompts passed as
-  there are); Return; on the confirmation, ↓ / ↑ to "Restore conversation" (never an option that restores code) and
-  Return; then ✎ leaves the prompt Claude put back in the input, × clears it with Esc Esc. Anything unexpected (no
-  menu, a list that ends, another message quoted, no such option, a timeout) backs out with Esc and shows "Couldn't
-  rewind; use Esc Esc in Claude Code". Keys typed into the pane meanwhile are dropped. Claude writes the new branch
-  only with the next prompt, so lmux hides the rewound turns (`Pane.rewoundFrom`) until the transcript's chain no
-  longer has them or the next SessionStart. `<state>/forgotten/` backups left by the old transcript-editing Forget
-  are still deleted 7 days after they were made.
+- **Message actions (R8-R10)**: on a pane running Claude Code, hovering a prompt shows `✎ ×`, hovering a reply shows
+  Copy original (AppKit overlay, SF font, never in the grid; a turn from before a compaction gets Copy only). Rows
+  are mapped to turns by matching `❯` rows against the transcript's prompts bottom-up in turn order (`TurnLocator`),
+  so permission menus, the input box and repeated prompts never confuse it. ✎ / × = confirm card (says when later
+  turns go too, that changed files stay; refuses compacted turns) -> Claude Code's own rewind in the running claude
+  (`Rewind.swift`), never a restart: Esc first if Claude is working, or if it waits on a dialog of its own (a
+  permission, a question: Esc declines it, again past the double-press window if a dialog just shown ignored it);
+  refused if the input holds a draft; Esc Esc; ↑ one entry at a time, reading the pane after every key
+  (`RewindMenu.read`: the list's highlighted entry, the confirmation's quoted message and numbered options) until
+  the highlighted entry is the turn's prompt (as many identical later prompts passed as there are); Return; on the
+  confirmation, ↓ / ↑ to "Restore conversation" (never an option that restores code) and Return; then ✎ leaves the
+  prompt Claude put back in the input, × clears it with Esc Esc. Anything unexpected (no menu, a list that ends,
+  another message quoted, no such option, a timeout) backs out with Esc and shows "Couldn't rewind; use Esc Esc in
+  Claude Code"; a refusal before any key names its reason (a draft, queued messages, no input box on screen, a
+  compacted turn). Keys typed into the pane meanwhile are dropped. Claude writes the new branch only with the next
+  prompt, so lmux hides the rewound turns (`Pane.rewoundFrom`) until the transcript's chain no longer has them or
+  the next SessionStart. `<state>/forgotten/` backups left by the old transcript-editing Forget are still deleted 7
+  days after they were made.
 - **Wrong-session guard (R7)**: a legend on the rule above Claude's input, only with 2+ workspaces: the workspace's
   6pt color chip and its title in tertiary text (it follows Claude's input box on the pane's frames: when the
   renderer draws, lmux checks the cursor and moves the label only if it moved, so an idle Claude or a hidden pane costs

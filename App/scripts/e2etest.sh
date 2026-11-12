@@ -12,6 +12,7 @@
 #   App/scripts/e2etest.sh            (LMUX_E2E_DUMP=1 prints the screens;
 #                                      --bench: rewind timings instead, see RewindBench.swift;
 #                                      --hover: hover band / pill / × per turn, see E2EHover.swift;
+#                                      --running: ✎ / × on the turn Claude is still on, see E2ERunning.swift;
 #                                      LMUX_E2E_THEME=light: Claude's light theme;
 #                                      LMUX_E2E_CLAUDE=/path/to/claude picks the binary)
 set -euo pipefail
@@ -100,5 +101,6 @@ fi
 MODE=--e2e
 [ "${1:-}" = "--bench" ] && MODE=--e2e-bench
 [ "${1:-}" = "--hover" ] && MODE=--e2e-hover
+[ "${1:-}" = "--running" ] && MODE=--e2e-running
 "$BIN/lmux-apptest" "$MODE" 2>/dev/null | grep -v '^\(info\|debug\|warning\)(' | tee "$T/out.txt"
 exit "${PIPESTATUS[0]}"

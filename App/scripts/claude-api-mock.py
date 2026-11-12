@@ -4,6 +4,8 @@
 #   - "OK <first words of the prompt>"
 #   - a prompt containing SLOW: the reply waits 4s after it starts (time to press ⌘Z)
 #   - a prompt containing WRITEFILE <path>: a Write tool call for <path>, then "Wrote it."
+#   - a prompt containing STREAM: part of the reply at once, the rest 8s later (Claude mid-reply)
+#   - a prompt containing ASKTOOL: a Bash tool call that needs permission (Claude's dialog stays up)
 # Each /v1/messages request is logged as one JSON line: {"model", "texts": [user texts]}.
 #
 #   claude-api-mock.py <port> <log file>
@@ -77,6 +79,9 @@ class Handler(BaseHTTPRequestHandler):
         if 'WRITEFILE' in words and not after_tool and words.index('WRITEFILE') + 1 < len(words):
             tool = {'type': 'tool_use', 'id': 'toolu_mock_%d' % int(time.time() * 1000), 'name': 'Write',
                     'input': {'file_path': words[words.index('WRITEFILE') + 1], 'content': 'written by the mock\n'}}
+        if 'ASKTOOL' in words and not after_tool:
+            tool = {'type': 'tool_use', 'id': 'toolu_mock_%d' % int(time.time() * 1000), 'name': 'Bash',
+                    'input': {'command': 'curl -s https://example.invalid/lmux-e2e', 'description': 'Fetch a page'}}
         text = 'Wrote it.' if after_tool else 'OK ' + ''.join(ch for ch in prompt[:24] if ch.isalnum() or ch == ' ').strip()
         usage = {'input_tokens': 10, 'output_tokens': 5, 'cache_creation_input_tokens': 0, 'cache_read_input_tokens': 0}
         content = [tool] if tool else [{'type': 'text', 'text': text}]
@@ -103,6 +108,9 @@ class Handler(BaseHTTPRequestHandler):
                                           'delta': {'type': 'input_json_delta', 'partial_json': json.dumps(tool['input'])}})
         else:
             event('content_block_start', {'type': 'content_block_start', 'index': 0, 'content_block': {'type': 'text', 'text': ''}})
+            if 'STREAM' in prompt and not after_tool:
+                event('content_block_delta', {'type': 'content_block_delta', 'index': 0, 'delta': {'type': 'text_delta', 'text': 'Thinking it over. '}})
+                time.sleep(8.0)
             time.sleep(4.0 if 'SLOW' in prompt and not after_tool else 0.2)
             event('content_block_delta', {'type': 'content_block_delta', 'index': 0, 'delta': {'type': 'text_delta', 'text': text}})
         event('content_block_stop', {'type': 'content_block_stop', 'index': 0})
