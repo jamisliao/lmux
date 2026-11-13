@@ -87,6 +87,13 @@
 
   # --- 自動壓縮 ---
 
+  @behavior @edge-case
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
+  場景: 回合中的自動壓縮結束後，tab 不算在壓縮中
+    假設 一個 **進行中** 的 **tab** 在回合中自動 **壓縮**，壓縮已經結束
+    當 使用者按 Esc
+    那麼 這個 tab 照一般的中斷規則判斷，不會因為剛壓縮過就直接視為中斷
+
   @behavior @happy-path
   # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 回合中的自動壓縮不改變狀態

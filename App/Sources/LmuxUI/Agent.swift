@@ -153,6 +153,9 @@ extension LmuxController {
         // 壓縮中：workspace 列第 2 行顯示 Compacting，不顯示上一個回合的工具（beat: compaction-running-state.feature）。
         // 下一個 PreToolUse 會覆蓋它，UserPromptSubmit 會清掉它。
         if e.kind == .preCompact, !e.isSubagent, pane.lastTool != "Compacting" { pane.lastTool = "Compacting" }
+        // 壓縮結束（SessionStart(compact) 或 PostCompact）：回合中的自動壓縮之後 Claude 可能還沒呼叫工具，別讓它一直顯示 Compacting。
+        if e.kind == .postCompact || (e.kind == .sessionStart && e.source == "compact"), !e.isSubagent,
+           pane.lastTool == "Compacting" { pane.lastTool = nil }
         if e.kind == .userPromptSubmit {
             if pane.failed { pane.failed = false }
             if pane.lastTool != nil { pane.lastTool = nil }
@@ -323,7 +326,8 @@ extension LmuxController {
                 guard self.interruptChecks[pane.id] == token, pane.agent.state == .running,
                       pane.agent.usageLimitResets == nil else { return }
                 // 壓縮中按 Esc：Claude 取消壓縮，不會寫中斷標記，標題也不一定變回 ✳（beat: compaction-running-state.feature）。
-                let compacting = pane.lastTool == "Compacting"
+                // 看狀態機的旗標，不看第 2 行的文字：回合中的自動壓縮結束後，旗標是 false。
+                let compacting = pane.agent.isCompacting
                 if last?.interrupted == true || (n == 1 && (compacting || pane.surface.title.hasPrefix("✳"))) {
                     self.interruptChecks[pane.id] = nil
                     pane.agent.userInterrupted()

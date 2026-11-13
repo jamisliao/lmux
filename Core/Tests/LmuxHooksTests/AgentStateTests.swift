@@ -266,6 +266,29 @@ import Testing
         #expect(t[2].alert == .done(lastMessage: nil))
     }
 
+    // @feature: compaction-running-state.feature
+    // @scenario: 回合中的自動壓縮結束後，tab 不算在壓縮中
+    /// App 的 Esc 偵測靠 `isCompacting`：只有 lmux 標成 running 的壓縮才算；結束後、回合中的自動壓縮都不算。
+    @Test func isCompactingOnlyWhileLmuxMarkedCompactionRuns() throws {
+        var a = PaneAgent()
+        _ = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact], agent: &a)
+        #expect(a.isCompacting)
+        _ = try run([Payloads.compactStart], agent: &a)
+        #expect(!a.isCompacting)
+
+        var b = PaneAgent()
+        _ = try run([Payloads.prompt, Payloads.preCompactAuto], agent: &b)  // 回合中：本來就是 running
+        #expect(!b.isCompacting)
+        _ = try run([Payloads.compactStart], agent: &b)
+        #expect(!b.isCompacting)
+
+        var c = PaneAgent()
+        _ = try run([Payloads.sessionStart, Payloads.preCompact], agent: &c)
+        #expect(c.isCompacting)
+        c.userInterrupted()
+        #expect(!c.isCompacting)
+    }
+
     // MARK: 背景子 agent
 
     // @feature: subagent-running-state.feature

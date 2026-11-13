@@ -129,10 +129,3 @@ func workspaceName(_ e: NotificationEntry, in model: AppModel) -> String {
     }
     return e.title
 }
-
-/// 去掉訊息開頭的 Markdown 標記（`#`、`*`、`-`、`>`）與空白，以及成對的 `**`。
-// ponytail: 只處理開頭與 `**`；訊息若真的以 "-" 開頭（例如 "-1 failed"）也會被拿掉，需要時再改成只拿掉 "- "。
-func plainMessage(_ s: String) -> String {
-    let t = s.replacingOccurrences(of: "**", with: "")
-    return String(t.drop { "#*-> \t".contains($0) })
-}

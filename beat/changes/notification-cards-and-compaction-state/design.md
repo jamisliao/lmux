@@ -33,7 +33,7 @@
 - 後續的 `SubagentStop`、`UserPromptSubmit`（task-notification）、最後一個 `Stop` 都照原本規則；沒收到時，`idle_prompt` 照原本規則補成完成。
 - 已知限制：背景子 agent 跑超過閒置提醒的間隔時，`idle_prompt` 會讓 tab 提早顯示完成（未實測間隔）。
 5. App 端（`App/Sources/LmuxUI/Agent.swift` 的 `processHook`）：主 agent 的 `preCompact` 把 `pane.lastTool` 設成 `"Compacting"`。進行中時 workspace 列第 2 行顯示 `lastTool`（`App/Sources/LmuxUI/Model.swift:611-614`），所以壓縮期間顯示 `Compacting`，而不是上一個回合的工具。下一個 `PreToolUse` 或 `UserPromptSubmit` 會照原本規則覆蓋或清掉它。
-6. App 端的 Esc 偵測（`Agent.swift` 的 `interruptKeyPressed`）：壓縮中（`pane.lastTool == "Compacting"`）按 Esc，在第 2 次檢查（900ms）時視為中斷，tab 改成閒置。原因：**實機確認（2026-11-12 18:10）**壓縮中按 Esc，Claude 會取消壓縮，但 tab 仍顯示 `Compacting`；取消壓縮不寫 transcript 的中斷標記，標題也沒變回 `✳`。限制：Esc 若沒有取消壓縮（例如壓縮其實繼續），tab 會顯示閒置，直到下一個事件。
+6. App 端的 Esc 偵測（`Agent.swift` 的 `interruptKeyPressed`）：壓縮中（`pane.agent.isCompacting`，即 lmux 標成 running 的壓縮；回合中的自動壓縮、壓縮結束後都是 false，verify 審查指出原本看 `lastTool` 文字會在回合中壓縮後誤判）按 Esc，在第 2 次檢查（900ms）時視為中斷，tab 改成閒置。原因：**實機確認（2026-11-12 18:10）**壓縮中按 Esc，Claude 會取消壓縮，但 tab 仍顯示 `Compacting`；取消壓縮不寫 transcript 的中斷標記，標題也沒變回 `✳`。限制：Esc 若沒有取消壓縮（例如壓縮其實繼續），tab 會顯示閒置，直到下一個事件。
 
 ### B. 通知卡片與反白（plugin，`App/Sources/LmuxNotificationBar/`）
 
@@ -120,6 +120,7 @@ lmux 目前訂閱 16 個事件。Claude Code 2.1.318 的 binary 內還有這些�
 | `Core/Tests/LmuxHooksTests/AgentStateTests.swift` | lmux 測試 | `compaction-running-state.feature` 的狀態機場景 |
 | `Core/Tests/LmuxHooksTests/InstallerTests.swift` | lmux 測試 | 第 99-100 行原本斷言 lmux 不碰 `PreCompact`；改成「使用者的項目保留，另有一個 lmux 項目」；加升級與降級測試 |
 | `App/Sources/LmuxNotificationBar/NotificationCard.swift` | plugin（新） | 卡片、反白、任務名稱與 workspace 名稱的取法 |
+| `App/Sources/LmuxNotificationBar/MessageText.swift`、`App/scripts/message-text-check.swift` | plugin（新） | `plainMessage`：只拿掉開頭的 Markdown 標記；自我檢查（`swiftc` 單獨編譯執行，比照 `plugin-protocol-check.swift`） |
 | `App/Sources/LmuxNotificationBar/NotificationBar.swift` | plugin | 摘要列、清單、`minHeight` |
 
 ### 測試方式

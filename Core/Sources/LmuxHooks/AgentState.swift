@@ -78,6 +78,9 @@ public struct PaneAgent: Sendable, Equatable {
     private var blockingAgent: String?
     /// PreCompact 時記住的狀態（只在閒置或完成時記）；nil 表示目前沒有 lmux 標成 running 的壓縮。
     private var stateBeforeCompaction: AgentState?
+    /// lmux 標成 running 的壓縮正在進行（`/compact` 或閒置時的自動壓縮）。結束、被打斷後是 false；
+    /// 回合中的自動壓縮不算（本來就是 running）。App 的 Esc 偵測靠它：這時按 Esc 一定是在取消壓縮。
+    public var isCompacting: Bool { stateBeforeCompaction != nil }
 
     public init() {}
 

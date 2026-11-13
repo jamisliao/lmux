@@ -76,6 +76,13 @@
     當 這個 tab 送出通知
     那麼 這則通知的 **通知卡片** 的訊息是 "結論"
 
+  @behavior @edge-case
+  # @covered-by: App/scripts/message-text-check.swift
+  場景: 訊息中間的 ** 與沒有空白的符號保留
+    假設 一則通知的訊息是 "改了 src/**/*.swift"
+    那麼 這則通知的 **通知卡片** 的訊息是 "改了 src/**/*.swift"
+    而且 訊息 "-1 failed" 與 "*args 是參數" 也原樣顯示
+
   @e2e @edge-case
   # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 沒有任務名稱時，第 1 行改用 workspace 名稱

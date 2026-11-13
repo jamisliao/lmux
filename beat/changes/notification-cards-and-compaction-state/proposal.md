@@ -33,7 +33,8 @@
 
 ## Impact
 
-- **lmux 原始檔（不含測試）**：改動的檔案從 3 個（`RootView.swift`、`Package.swift`、`main.swift`）增加到 6 個。新增 `Core/Sources/LmuxHooks/HookInstaller.swift`、`Core/Sources/LmuxHooks/AgentState.swift`、`App/Sources/LmuxUI/Agent.swift`。rebase 到新版 lmux 時要多檢查這 3 個檔案。
+- **lmux 原始檔（不含測試）**：改動的檔案從 3 個（`RootView.swift`、`Package.swift`、`main.swift`）增加到 7 個。新增 `Core/Sources/LmuxHooks/HookInstaller.swift`、`AgentState.swift`、`HookEvent.swift`（讀 Stop 的 `background_tasks`）、`App/Sources/LmuxUI/Agent.swift`。rebase 到新版 lmux 時要多檢查這 4 個檔案。另有一個與功能無關的 `Core/Tests/LmuxTranscriptTests/TranscriptIndexTests.swift` 1 行修正（Swift 6.4.2 type-check）。
+- **背景子 agent**：主 agent 的 Stop 帶 `background_tasks` 有還在跑的子 agent 時，tab 維持進行中、不發完成通知（`subagent-running-state.feature`）。
 - **plugin 檔案**：`App/Sources/LmuxNotificationBar/NotificationBar.swift`、新增 `NotificationCard.swift`。
 - **測試**：`Core/Tests/LmuxHooksTests/AgentStateTests.swift` 新增壓縮的案例；`Core/Tests/LmuxHooksTests/InstallerTests.swift` 原本斷言「lmux 不碰使用者自己的 `PreCompact` hook」，要改成「保留使用者的項目，另外加上 lmux 的項目」。
 - **使用者設定檔**：舊的安裝少了 2 個事件，測試版的 Settings → Hooks 會顯示 **Install**（不是 Update，`App/Sources/LmuxUI/SettingsWindow.swift:565`）。按下後 `~/.claude/settings.json` 多 2 個 lmux hook 項目。lmux 不會自動提示這次更新（只在 hook 路徑改變時提示，`App/Sources/LmuxUI/HooksSetup.swift:86`）。
