@@ -1205,7 +1205,7 @@ Expected: 只有已知的失敗（在原始程式碼 264eaaa 上也會出現，�
 - Consumes: Task 2-7 的成果。
 - Produces: `App/build/lmux.app`；手動驗證紀錄。
 
-- [ ] **Step 1: 確認 swift 包裝腳本存在**
+- [x] **Step 1: 確認 swift 包裝腳本存在**
 
 Run: `ls -l /private/tmp/claude-502/-Users-jamis-liao-opensource-lmux/b98536bc-aa23-4a4d-ab6c-87cbf62abe9a/scratchpad/swift-native/swift`
 
@@ -1220,7 +1220,7 @@ fi
 exec /usr/bin/swift "$@"
 ```
 
-- [ ] **Step 2: 請使用者關掉測試版 lmux**
+- [x] **Step 2: 請使用者關掉測試版 lmux**（這個對話就在舊測試版裡，沒有關；改開第二個測試版，另用新的 state 目錄）
 
 告訴使用者：
 1. 在測試版 lmux 視窗按 ⌘Q。
@@ -1231,7 +1231,7 @@ exec /usr/bin/swift "$@"
 Run: `ps -axo pid=,comm= | grep "lmux-sidebar-notification-bar/App/build/lmux.app" | grep -v grep`
 Expected: 沒有輸出。
 
-- [ ] **Step 3: build lmux.app**
+- [x] **Step 3: build lmux.app**（共 3 次：初版、Esc 修正、反白修正）
 
 Run:
 ```bash
@@ -1243,7 +1243,7 @@ codesign --verify --deep App/build/lmux.app && echo codesign-ok
 ```
 Expected: bundle.sh 成功（SDK 檢查通過）；`codesign-ok`。
 
-- [ ] **Step 4: 開測試版，安裝 hook**
+- [x] **Step 4: 開測試版，安裝 hook**（`lmux-hook status`：`missing: -`，16 個事件）
 
 Run: `bash /private/tmp/claude-502/-Users-jamis-liao-opensource-lmux/b98536bc-aa23-4a4d-ab6c-87cbf62abe9a/scratchpad/open-app-real.sh`
 記下輸出的 state 目錄（Step 6 第 11 項要用）。
@@ -1283,7 +1283,7 @@ echo "測試版 lmux.app 已啟動（pid $!），state 目錄：${NEW}"
 Run: `/Users/jamis.liao/opensource/lmux-sidebar-notification-bar/App/build/lmux.app/Contents/Resources/bin/lmux-hook status; echo "exit=$?"`
 Expected: `missing:   -`，`command:` 指向 `App/build/lmux.app` 的 lmux-hook，`exit=0`（不完整時 exit 是 3）。
 
-- [ ] **Step 5: 使用者手動確認壓縮（在測試版開新的 tab，執行全新的 `claude`；不要用從版面還原的 session，它們也在正式版裡跑）**
+- [x] **Step 5: 使用者手動確認壓縮（在測試版開新的 tab，執行全新的 `claude`；不要用從版面還原的 session，它們也在正式版裡跑）**
 
 1. 送一個會用到 Bash 的 prompt（例如 `執行 ls`），等回合完成（✓）。
 2. 打 `/compact`。確認：workspace 列在壓縮期間顯示轉圈；第 2 行是 `Compacting`，不是 `Bash · ls`。
@@ -1292,7 +1292,7 @@ Expected: `missing:   -`，`command:` 指向 `App/build/lmux.app` 的 lmux-hook�
 5. 再打 `/compact`，馬上按 Esc。確認 tab 回到閒置；如果一直轉圈，記下多久之後才停。
 6. 確認正式版 lmux 裡其他 tab 的狀態沒有異常。
 
-- [ ] **Step 6: 使用者手動確認通知卡片**
+- [x] **Step 6: 使用者手動確認通知卡片**（只做重要項目；6-3、6-4、6-5、6-9、6-10、6-16 未測，見 manual-verification.md）
 
 前置：通知 bar 拉高到看得到 3 張以上卡片（第 6、7 項除外）；準備一個沒有手動名稱、有 2 個 Claude tab 的 workspace，以及一個手動命名的 workspace。依序確認：
 
@@ -1320,7 +1320,7 @@ Expected: `missing:   -`，`command:` 指向 `App/build/lmux.app` 的 lmux-hook�
 17. 點擊一張卡片：跳到它的 tab，卡片反白。
 18. 回歸：⇧⌘U 跳到最新未讀、鈴鐺彈出清單照常。
 
-- [ ] **Step 7: 寫手動驗證紀錄並標註場景**
+- [x] **Step 7: 寫手動驗證紀錄並標註場景**（只標註已測的場景）
 
 建立 `beat/changes/notification-cards-and-compaction-state/manual-verification.md`：
 
@@ -1367,7 +1367,7 @@ Expected: `missing:   -`，`command:` 指向 `App/build/lmux.app` 的 lmux-hook�
 
 把 Step 5-4、5-5 觀察到的結果（特別是 Esc）寫進 design.md「風險」。
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 cd /Users/jamis.liao/opensource/lmux-sidebar-notification-bar

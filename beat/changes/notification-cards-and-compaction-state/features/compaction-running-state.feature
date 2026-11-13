@@ -37,6 +37,7 @@
     而且 lmux 不發出新的通知
 
   @e2e @happy-path
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 壓縮期間 workspace 列第 2 行顯示 Compacting
     假設 一個 **tab** 的上一個回合用過 Bash 工具，回合已經 **完成**
     當 使用者在這個 tab 開始 **壓縮**

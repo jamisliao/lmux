@@ -1,6 +1,6 @@
 name: notification-cards-and-compaction-state
 created: 2026-11-12
-phase: implement
+phase: verify
 pipeline:
   proposal: { status: done }
   gherkin: { status: done }

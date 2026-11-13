@@ -38,6 +38,7 @@
   # --- 通知卡片內容 ---
 
   @e2e @happy-path
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 通知卡片顯示任務名稱、workspace 名稱與訊息
     假設 一個 **tab** 的工作目錄是 "~/repo/jkopay-ops-api"，它的 **workspace** 沒有手動名稱
     而且 這個 tab 的 **任務名稱** 是 "修正 integration test 失敗"
@@ -69,18 +70,21 @@
     那麼 這則通知的 **通知卡片** 只顯示一次 "lmux"
 
   @e2e @edge-case
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 訊息開頭的 Markdown 符號不顯示
     假設 一個 **tab** 的 Claude 最後回覆的第 1 行是 "## 結論"
     當 這個 tab 送出通知
     那麼 這則通知的 **通知卡片** 的訊息是 "結論"
 
   @e2e @edge-case
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 沒有任務名稱時，第 1 行改用 workspace 名稱
     假設 一則通知來自一個沒有 **任務名稱** 的 **tab**
     那麼 這則通知的 **通知卡片** 第 1 行是 **workspace 名稱** 與經過時間
     而且 卡片沒有 workspace 名稱那一行
 
   @e2e @edge-case
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: tab 關閉後，卡片仍然顯示
     假設 一則通知來自的 **tab** 已經關閉，它的 **workspace** 還在
     那麼 這則通知的 **通知卡片** 第 1 行是 **workspace 名稱**
@@ -102,6 +106,7 @@
   # --- 摘要列、排序與高度 ---
 
   @e2e @happy-path
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 通知 bar 在最小高度時也看得到最新一則未讀通知
     假設 **通知 bar** 是最小高度，而且沒有未讀通知
     當 一個不是 **focused tab** 的 **tab** 送出通知，訊息長到需要兩行
@@ -109,6 +114,7 @@
     而且 摘要列下方完整顯示這則通知的 **通知卡片**，最後一行沒有被切掉
 
   @e2e @edge-case
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 清單捲動過後收到新的未讀通知，清單回到最上面
     假設 **通知 bar** 拉高到看得到 3 張以上的 **通知卡片**，而且清單往下捲動過
     當 一個不是 **focused tab** 的 **tab** 送出通知
@@ -124,6 +130,7 @@
   # --- focused tab 反白 ---
 
   @e2e @happy-path
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 只反白來自 focused tab 的通知卡片
     假設 **workspace** "api" 有 **tab** A 與 tab B，兩個 tab 都送過通知
     當 使用者 focus tab A
@@ -132,12 +139,14 @@
     而且 滑鼠移到反白的卡片上時，底色不變
 
   @e2e @edge-case
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 同一個 tab 有多則通知時，只反白最新的一張
     假設 **focused tab** A 送過 2 則通知
     那麼 來自 tab A 的最新一張 **通知卡片** 反白
     而且 來自 tab A 的較舊那一張不反白
 
   @e2e @happy-path
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 換 focus 時，反白跟著移動
     假設 tab A 是 **focused tab**
     當 使用者改為 focus 另一個 workspace 的 tab C
@@ -145,6 +154,7 @@
     而且 來自 tab A 的通知卡片不再反白
 
   @e2e @edge-case
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: lmux 視窗不在前景時，反白變淡
     假設 tab A 是 **focused tab**
     當 使用者切換到其他 App
@@ -158,6 +168,7 @@
   # --- 點擊 ---
 
   @e2e @happy-path
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 點擊通知卡片跳到它的 tab
     假設 **通知 bar** 有一張來自 **tab** A 的 **通知卡片**
     當 使用者點擊這張卡片

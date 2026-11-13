@@ -1,7 +1,8 @@
 # 手動驗證紀錄
 
-- 日期：2026-11-12
-- lmux.app commit：6c59c97 之後的 build（含 Task 0–7；`git rev-parse --short HEAD` 填最終值）
+- 日期：2026-11-12 至 2026-11-13
+- lmux.app commit：`ee5c302`（build 於 2026-11-13；之後只改 beat 文件）
+- 未測的項目（使用者選只做重要 3 項）：Step 6-3、6-4、6-5、6-9、6-10、6-16，以及「沒有通知」（6-1）未單獨確認。這些場景在 feature 裡**沒有** `@covered-by`。
 - Claude Code 版本：2.1.318
 
 結果欄：通過／失敗／未測。
@@ -31,4 +32,4 @@
 | notification-cards | lmux 視窗不在前景時，反白變淡 | Step 6-15 | 通過 | ⌘Tab 切到別的 App，反白變淡 |
 | notification-cards | 不是來自 tab 的通知不反白 | Step 6-16 | 未測 | |
 | notification-cards | 點擊通知卡片跳到它的 tab | Step 6-17 | 通過 | 跳到該 tab，卡片反白 |
-| subagent-running-state | 主回合結束時還有背景子 agent 在跑，tab 維持進行中（實機） | 補充 | 未測 | 自動測試已覆蓋；實機未測 |
+| subagent-running-state | 主回合結束時還有背景子 agent 在跑，tab 維持進行中（實機） | 補充 | 通過 | 自動測試已覆蓋，加實機（2026-11-13）：「已派出」後 tab 維持轉圈，做完後 ✓；「已派出」那個回合沒有發卡片。bar 共 2 張卡片，對應子 agent 做完後 Claude 的 2 次實際回覆（子 agent 的前景 sleep 被擋、改用背景 shell，多出一個回合），不是重複通知 |
