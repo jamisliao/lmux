@@ -1407,5 +1407,5 @@ EOF
 - [x] **Step 2: 實作 `build-id.sh`，檢查通過**
 - [x] **Step 3: `bundle.sh` 加 1 行**（build 後用 `PlistBuddy -c "Print :CFBundleVersion"` 確認：下一步 build 時做）
 - [x] **Step 4: `NotificationSummaryRow` 顯示版號，編譯**
-- [ ] **Step 5: 重新 build，使用者確認 About 視窗與通知 bar 的版號相同（`manual-verification.md` 加 3 列），標 `# @covered-by`**
-- [ ] **Step 6: Commit**
+- [x] **Step 5: 重新 build，使用者確認 About 視窗與通知 bar 的版號相同（`manual-verification.md` 加 3 列），標 `# @covered-by`**
+- [x] **Step 6: Commit**

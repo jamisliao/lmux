@@ -33,3 +33,6 @@
 | notification-cards | 不是來自 tab 的通知不反白 | Step 6-16 | 未測 | |
 | notification-cards | 點擊通知卡片跳到它的 tab | Step 6-17 | 通過 | 跳到該 tab，卡片反白 |
 | subagent-running-state | 主回合結束時還有背景子 agent 在跑，tab 維持進行中（實機） | 補充 | 通過 | 自動測試已覆蓋，加實機（2026-11-13）：「已派出」後 tab 維持轉圈，做完後 ✓；「已派出」那個回合沒有發卡片。bar 共 2 張卡片，對應子 agent 做完後 Claude 的 2 次實際回覆（子 agent 的前景 sleep 被擋、改用背景 shell，多出一個回合），不是重複通知 |
+| build-version | About 視窗顯示 build 版號 | Task 9 Step 5-1 | 通過 | build `30-9bbee7c`；Info.plist 已用 PlistBuddy 確認 `CFBundleVersion = 30-9bbee7c`。使用者對 3 項檢查回覆「OK」（逐項未分別回報） |
+| build-version | 通知 bar 的摘要列顯示同一個 build 版號 | Task 9 Step 5-2 | 通過 | 同上 |
+| build-version | sidebar 很窄時，版號先被截斷，未讀數不受影響 | Task 9 Step 5-3 | 通過 | 同上（逐項未分別回報；`layoutPriority(-1)` + `truncationMode(.head)`） |

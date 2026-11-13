@@ -45,18 +45,21 @@
   # --- 顯示 ---
 
   @e2e @happy-path
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: About 視窗顯示 build 版號
     假設 一個自己編的 lmux.app 已經啟動
     當 使用者開啟選單 lmux → About lmux
     那麼 視窗顯示的版本包含這一次 build 的版號
 
   @e2e @happy-path
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 通知 bar 的摘要列顯示同一個 build 版號
     假設 一個自己編的 lmux.app 已經啟動
     那麼 **通知 bar** 的 **摘要列** 右邊用小字顯示這一次 build 的版號
     而且 它和 About 視窗顯示的版號相同
 
   @e2e @edge-case
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: sidebar 很窄時，版號先被截斷，未讀數不受影響
     假設 **通知 bar** 有未讀通知
     當 使用者把 sidebar 拉到最窄
