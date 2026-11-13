@@ -17,7 +17,7 @@
 - 從 lmux pane 裡跑任何 build／測試指令前，先 `unset LMUX_CONTROL_SOCKET LMUX_PANE_ID LMUX_PANE_NONCE LMUX_PANE_TOKEN LMUX_SOCKET`，否則會打到使用者正在用的 lmux。
 - 所有 `swift` 指令前先 `export PATH="/usr/bin:$PATH"`（避開 Homebrew 的 GNU libtool）。
 - 不用 `env -u X ...`、`PATH=... cmd`、`sed -i` 的寫法（會被 hook 擋）；改成先 `unset`／`export` 再執行；改檔用編輯工具。
-- 不改 `App/scripts/bundle.sh`；build `lmux.app` 一律用 repo 外的 swift 包裝腳本（Task 8 Step 1）。
+- 不改 `App/scripts/bundle.sh`（唯一例外：Task 9 的 1 行，使用者 2026-11-13 同意）；build `lmux.app` 一律用 repo 外的 swift 包裝腳本（Task 8 Step 1）。
 - plugin 以外的 lmux 原始檔，只准改：`Core/Sources/LmuxHooks/HookInstaller.swift`、`Core/Sources/LmuxHooks/AgentState.swift`、`Core/Sources/LmuxHooks/HookEvent.swift`（Task 3a，使用者 2026-11-12 同意）、`App/Sources/LmuxUI/Agent.swift`，以及 `Core/Tests/LmuxHooksTests/` 的測試。例外：Task 0 的 `Core/Tests/LmuxTranscriptTests/TranscriptIndexTests.swift`。其他檔案（例如新事件要改的 `HookEvent.swift`）先問使用者。
 - 不改 `NotificationEntry`（`App/Sources/LmuxUI/Model.swift:694`）。
 - 相依：Task 2-3 依 Task 1 的結果；Task 4 依 Task 3；Task 5-6（B 部分）不依賴 Task 1-4，Task 1 等使用者時可以先做。
@@ -1390,3 +1390,22 @@ EOF
 提醒：
 - 正式版按 Update 會移除 `PreCompact`／`PostCompact`（正式版不認得這 2 個事件）。
 - 通知 bar 的最小高度變高了，bar 會比之前高約一張卡片；需要的話往下拖回來。
+
+---
+
+### Task 9: build 版號（使用者 2026-11-13 要求，加進本 change；`build-version.feature`）
+
+**Files:**
+- Create: `App/scripts/build-id.sh`、`App/scripts/build-id-check.sh`
+- Modify: `App/scripts/bundle.sh`（Info.plist 寫好之後加 1 行）
+- Modify: `App/Sources/LmuxNotificationBar/NotificationBar.swift`（`NotificationSummaryRow`）
+
+**Interfaces:**
+- Produces: `build-id.sh [dir]` 印出版號到 stdout（預設 dir 為腳本所在 repo）；Info.plist 的 `CFBundleVersion`。
+
+- [x] **Step 1: 寫失敗的檢查 `build-id-check.sh`**：在暫時的 git 專案跑 `build-id.sh`：3 個 commit 且乾淨 → `3-<短碼>`；改檔後 → 結尾 `-dirty`；不在 git 底下 → `1`。腳本不存在時應失敗。
+- [x] **Step 2: 實作 `build-id.sh`，檢查通過**
+- [x] **Step 3: `bundle.sh` 加 1 行**（build 後用 `PlistBuddy -c "Print :CFBundleVersion"` 確認：下一步 build 時做）
+- [x] **Step 4: `NotificationSummaryRow` 顯示版號，編譯**
+- [ ] **Step 5: 重新 build，使用者確認 About 視窗與通知 bar 的版號相同（`manual-verification.md` 加 3 列），標 `# @covered-by`**
+- [ ] **Step 6: Commit**

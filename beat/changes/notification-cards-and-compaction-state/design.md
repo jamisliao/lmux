@@ -59,6 +59,14 @@
 4. 反白：只反白**來自 focused tab 的最新一則**通知（`NotificationList` 用 `model.notifications.first { $0.paneID == focusedPaneID }` 找出，傳給卡片的 `highlighted`；同一個 tab 的舊通知不反白，使用者實機回報 2026-11-13）。畫圓角底色，比照 `WorkspaceRow.pillColor`（`App/Sources/LmuxUI/Sidebar.swift:333-337`）：`rowSelected`，視窗非作用中（`controlActiveState == .inactive`）用 `rowSelectedInactive`。沒反白時維持 hover 底色；反白的卡片在 hover 時底色不變。底色左右緣比照 sidebar 列，內縮 `T.Layout.rowInsetX`。
 5. 高度：`minHeight(pluginRows:)` 改成 `handleHeight + plugin 列 + 分隔線 + rowHeight（摘要列）+ NotificationCard.maxHeight`。`maxHeight` 用實際字型的行高計算：SF 與 PingFang（中文）取較大值，避免中文內容在最小高度被切掉。
 
+### D. build 版號（`build-version.feature`）
+
+1. `App/scripts/build-id.sh`（新）：印出版號。`git rev-list --count HEAD` 加 `-` 加 `git rev-parse --short HEAD`；`git status --porcelain` 不是空的就加 `-dirty`；不在 git 底下、或 git 不可用時印 `1`。
+2. `App/scripts/bundle.sh`（改 1 行）：Info.plist 寫好後，用 PlistBuddy 把 `CFBundleVersion` 設成 `build-id.sh` 的輸出。不動 `CFBundleShortVersionString`（上游版本；`release/package.sh:91-92` 發佈時自己會改寫，不受影響）。
+3. `NotificationSummaryRow`（plugin）：讀 `Bundle.main.infoDictionary?["CFBundleVersion"]`，在未讀數左邊用 `rowMeta` 字型、`textTertiary` 顏色顯示；`lineLimit(1)`、`truncationMode(.head)`、低 `layoutPriority`，窄的時候先被截斷；`.help("lmux build <版號>")`。
+4. 為什麼用 `git rev-list --count HEAD` 而不是「從 base commit 起算」：base 是上游某個 commit，rebase 之後會變，寫死會錯；總數單調遞增，足以分辨先後。代價：rebase 後同一份程式的數字會變。
+5. 為什麼 `dirty` 看 `git status --porcelain`：測試版常在未提交的狀態下 build，要看得出來。代價：`beat/` 文件改動也算 dirty（未區分）。
+
 ### C. 其他狀態的審查（實作的第一步）
 
 使用者回報除了壓縮，還有其他狀態沒正確顯示在 tab 上。審查步驟：
@@ -120,6 +128,8 @@ lmux 目前訂閱 16 個事件。Claude Code 2.1.318 的 binary 內還有這些�
 | `Core/Tests/LmuxHooksTests/AgentStateTests.swift` | lmux 測試 | `compaction-running-state.feature` 的狀態機場景 |
 | `Core/Tests/LmuxHooksTests/InstallerTests.swift` | lmux 測試 | 第 99-100 行原本斷言 lmux 不碰 `PreCompact`；改成「使用者的項目保留，另有一個 lmux 項目」；加升級與降級測試 |
 | `App/Sources/LmuxNotificationBar/NotificationCard.swift` | plugin（新） | 卡片、反白、任務名稱與 workspace 名稱的取法 |
+| `App/scripts/build-id.sh`、`App/scripts/build-id-check.sh` | 腳本（新） | D.1：產生 build 版號；自我檢查（在暫時的 git 專案裡跑） |
+| `App/scripts/bundle.sh` | lmux 原始檔 | D.2：1 行，把 build 版號寫進 Info.plist |
 | `App/Sources/LmuxNotificationBar/MessageText.swift`、`App/scripts/message-text-check.swift` | plugin（新） | `plainMessage`：只拿掉開頭的 Markdown 標記；自我檢查（`swiftc` 單獨編譯執行，比照 `plugin-protocol-check.swift`） |
 | `App/Sources/LmuxNotificationBar/NotificationBar.swift` | plugin | 摘要列、清單、`minHeight` |
 

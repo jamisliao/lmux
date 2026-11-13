@@ -36,6 +36,10 @@ _Avoid_: idle、空閒
 Claude 以背景模式（`run_in_background`）派出、主回合結束後仍在工作的子 agent。
 _Avoid_: 背景工作、background task（背景 shell 也叫 background task，但不算在內）
 
+**build 版號**:
+自己編的 lmux.app 的識別碼，格式 `<commit 數>-<commit 短碼>[-dirty]`，存在 Info.plist 的 `CFBundleVersion`。
+_Avoid_: 版本號（指 `CFBundleShortVersionString`，那是上游的版本）、commit 號
+
 **壓縮**:
 Claude Code 把對話整理成摘要，手動（`/compact`）或自動觸發。
 _Avoid_: compacting、compaction、壓縮對話

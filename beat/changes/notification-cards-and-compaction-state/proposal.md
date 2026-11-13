@@ -26,6 +26,11 @@
    - 訊息是 Claude 最後回覆的第 1 行（lmux 現有規則，最多 200 字）；開頭的 Markdown 符號（`#`、`**`、`- `）不顯示。
    - 清單最上面的摘要列只留鈴鐺與未讀數；最新一則未讀通知（沒有未讀時是最新一則）也用卡片顯示。
    - 通知 bar 的最小高度改成「摘要列 + 1 張卡片」。
+5. **build 版號**
+   - 使用者同時開正式版與多個自己編的測試版，要分得出是哪一次 build。`App/scripts/bundle.sh:74-75` 把版本寫死成 `0.0.1`／`1`，每次 build 都一樣。
+   - build 時由 git 產生版號（`<commit 數>-<commit 短碼>[-dirty]`），寫進 Info.plist 的 `CFBundleVersion`，About 視窗會顯示。
+   - 通知 bar 的摘要列右邊用小字顯示同一個版號。
+
 4. **審查其他狀態**
    - 使用者回報：除了壓縮，還有其他狀態也沒正確顯示在 tab 上（哪些狀態尚未確認）。
    - 實作的第一步：記錄 `/compact` 真正送出的 hook 事件順序；對照 Claude Code 的每個 hook 事件與通知類型、lmux 的訂閱清單與狀態機。
@@ -33,7 +38,7 @@
 
 ## Impact
 
-- **lmux 原始檔（不含測試）**：改動的檔案從 3 個（`RootView.swift`、`Package.swift`、`main.swift`）增加到 7 個。新增 `Core/Sources/LmuxHooks/HookInstaller.swift`、`AgentState.swift`、`HookEvent.swift`（讀 Stop 的 `background_tasks`）、`App/Sources/LmuxUI/Agent.swift`。rebase 到新版 lmux 時要多檢查這 4 個檔案。另有一個與功能無關的 `Core/Tests/LmuxTranscriptTests/TranscriptIndexTests.swift` 1 行修正（Swift 6.4.2 type-check）。
+- **lmux 原始檔（不含測試）**：改動的檔案從 3 個（`RootView.swift`、`Package.swift`、`main.swift`）增加到 8 個。新增 `Core/Sources/LmuxHooks/HookInstaller.swift`、`AgentState.swift`、`HookEvent.swift`（讀 Stop 的 `background_tasks`）、`App/Sources/LmuxUI/Agent.swift`、`App/scripts/bundle.sh`（1 行：把 build 版號寫進 Info.plist）。rebase 到新版 lmux 時要多檢查這 5 個檔案。另有一個與功能無關的 `Core/Tests/LmuxTranscriptTests/TranscriptIndexTests.swift` 1 行修正（Swift 6.4.2 type-check）。
 - **背景子 agent**：主 agent 的 Stop 帶 `background_tasks` 有還在跑的子 agent 時，tab 維持進行中、不發完成通知（`subagent-running-state.feature`）。
 - **plugin 檔案**：`App/Sources/LmuxNotificationBar/NotificationBar.swift`、新增 `NotificationCard.swift`。
 - **測試**：`Core/Tests/LmuxHooksTests/AgentStateTests.swift` 新增壓縮的案例；`Core/Tests/LmuxHooksTests/InstallerTests.swift` 原本斷言「lmux 不碰使用者自己的 `PreCompact` hook」，要改成「保留使用者的項目，另外加上 lmux 的項目」。

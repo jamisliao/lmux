@@ -261,6 +261,9 @@ struct NotificationSummaryRow: View {
     let model: AppModel
     let host: PluginHost?
 
+    /// 這一次 build 的版號（Info.plist 的 CFBundleVersion，由 bundle.sh 用 git 寫入）。不是 .app（例如 `swift run`）時沒有。
+    static let buildVersion: String? = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
+
     var body: some View {
         let unread = model.unreadNotifications
         HStack(spacing: 6) {
@@ -269,6 +272,16 @@ struct NotificationSummaryRow: View {
                 .foregroundStyle((unread > 0 ? T.Colors.accent : T.Colors.textTertiary).color)
                 .frame(width: 14)
             Spacer(minLength: 4)
+            if let v = Self.buildVersion {
+                // 窄的時候先截斷版號，未讀數不受影響。
+                Text(v)
+                    .font(T.Typography.rowMeta.font.monospacedDigit())
+                    .foregroundStyle(T.Colors.textTertiary.color)
+                    .lineLimit(1)
+                    .truncationMode(.head)
+                    .layoutPriority(-1)
+                    .help("lmux build \(v)")
+            }
             if unread > 0 {
                 Text("\(unread)")
                     .font(.system(size: 11, weight: .medium).monospacedDigit())
