@@ -18,7 +18,7 @@ public enum AgentKind: String, Sendable, Equatable, Codable, CaseIterable {
 ///
 /// Field names follow https://code.claude.com/docs/en/hooks. Codex CLI uses the same names
 /// (checked against 0.166.0's payloads); it has no Notification / Elicitation / failure
-/// events, and adds `Interrupt` and `PostCompact`.
+/// events, and adds `Interrupt`. `PostCompact` comes from both (Claude Code 2.1.318 checked).
 public struct HookEvent: Sendable, Equatable {
     public enum Kind: String, Sendable, CaseIterable {
         case sessionStart = "SessionStart"
@@ -38,7 +38,7 @@ public struct HookEvent: Sendable, Equatable {
         case sessionEnd = "SessionEnd"
         /// Codex: the user interrupted the turn (Esc / Ctrl-C).
         case interrupt = "Interrupt"
-        /// Codex: after a compaction.
+        /// After a compaction (Codex, and Claude Code 2.1.318).
         case postCompact = "PostCompact"
         case unknown
     }

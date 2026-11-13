@@ -115,12 +115,13 @@ public struct PaneAgent: Sendable, Equatable {
         }
 
         // lmux 標成 running 的壓縮結束了：回到原本的狀態，不發 alert。
-        if let before = stateBeforeCompaction, !e.isSubagent,
-           e.kind == .postCompact
+        let compactionEnded = e.kind == .postCompact
             || (e.kind == .sessionStart && e.source == "compact")
-            || (e.kind == .notification && e.notificationType == "idle_prompt") {
+            || (e.kind == .notification && e.notificationType == "idle_prompt")
+        if let before = stateBeforeCompaction, !e.isSubagent, compactionEnded {
             stateBeforeCompaction = nil
-            state = before
+            // 壓縮期間狀態已被別的事件改掉（等待回應、使用者開始輸入）就不蓋回去：只還原仍是 running 的 tab。
+            if state == .running { state = before }
             return AgentTransition(from: from, to: state, alert: nil, notify: nil)
         }
         // 回合或 session 換了：記住的狀態作廢（之後才到的結束回報不再改變狀態）。

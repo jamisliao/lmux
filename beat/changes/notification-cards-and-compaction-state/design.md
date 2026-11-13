@@ -20,6 +20,9 @@
 | `userPromptSubmit`、`stop`、`stopFailure`、`interrupt`、`sessionEnd`、`sessionStart`（非 compact） | — | 清掉 `stateBeforeCompaction`，其餘照原本規則 |
 | `userInterrupted()`（lmux 偵測到 Esc） | — | 清掉 `stateBeforeCompaction`，其餘照原本規則 |
 
+   - 還原時只還原**仍是 `.running`** 的 tab（`postCompact`、`sessionStart(compact)`、`idle_prompt` 三者相同）：壓縮期間若已變成等待回應（`needsInput`）或閒置（使用者開始輸入），只清掉記憶、不蓋回去（verify 審查指出原本會藏起要你回應的提示）。
+   - `PaneAgent.isCompacting`（公開、唯讀）：`stateBeforeCompaction != nil`。App 的 Esc 偵測靠它（A.6）。
+
 4. 子 agent 的 `preCompact`／`postCompact`（`isSubagent`）不處理。
 
 **A'. 背景子 agent（`subagent-running-state.feature`）**
@@ -32,7 +35,7 @@
 - `HookEvent` 新欄位 `runningBackgroundSubagents: Int`：數 `background_tasks` 裡 `type == "subagent"` 且 `status == "running"` 的項目。
 - 後續的 `SubagentStop`、`UserPromptSubmit`（task-notification）、最後一個 `Stop` 都照原本規則；沒收到時，`idle_prompt` 照原本規則補成完成。
 - 已知限制：背景子 agent 跑超過閒置提醒的間隔時，`idle_prompt` 會讓 tab 提早顯示完成（未實測間隔）。
-5. App 端（`App/Sources/LmuxUI/Agent.swift` 的 `processHook`）：主 agent 的 `preCompact` 把 `pane.lastTool` 設成 `"Compacting"`。進行中時 workspace 列第 2 行顯示 `lastTool`（`App/Sources/LmuxUI/Model.swift:611-614`），所以壓縮期間顯示 `Compacting`，而不是上一個回合的工具。下一個 `PreToolUse` 或 `UserPromptSubmit` 會照原本規則覆蓋或清掉它。
+5. App 端（`App/Sources/LmuxUI/Agent.swift` 的 `processHook`）：主 agent 的 `preCompact` 把 `pane.lastTool` 設成 `"Compacting"`。進行中時 workspace 列第 2 行顯示 `lastTool`（`App/Sources/LmuxUI/Model.swift:241-246` 的 `runningDetail`），所以壓縮期間顯示 `Compacting`，而不是上一個回合的工具。下一個 `PreToolUse` 或 `UserPromptSubmit` 會照原本規則覆蓋或清掉它；壓縮結束（`PostCompact` 或 `SessionStart(compact)`）時，若 `lastTool` 還是 `Compacting` 也會清成 nil（回合中的自動壓縮之後 Claude 可能還沒呼叫工具）。
 6. App 端的 Esc 偵測（`Agent.swift` 的 `interruptKeyPressed`）：壓縮中（`pane.agent.isCompacting`，即 lmux 標成 running 的壓縮；回合中的自動壓縮、壓縮結束後都是 false，verify 審查指出原本看 `lastTool` 文字會在回合中壓縮後誤判）按 Esc，在第 2 次檢查（900ms）時視為中斷，tab 改成閒置。原因：**實機確認（2026-11-12 18:10）**壓縮中按 Esc，Claude 會取消壓縮，但 tab 仍顯示 `Compacting`；取消壓縮不寫 transcript 的中斷標記，標題也沒變回 `✳`。限制：Esc 若沒有取消壓縮（例如壓縮其實繼續），tab 會顯示閒置，直到下一個事件。
 
 ### B. 通知卡片與反白（plugin，`App/Sources/LmuxNotificationBar/`）
@@ -54,7 +57,7 @@
      2. 否則 pane 還在且有 `cwd` → cwd 的資料夾名稱。
      3. 否則 → `entry.title`（通知當時的 workspace 名稱）。
      - 不用 `workspace.title` 的自動名稱：沒有手動名稱時，它就是 focused tab 的任務名稱（`Model.swift:543-551`），會讓卡片顯示另一個 tab 的任務。
-   - 訊息：`entry.message`（Claude 最後回覆的第 1 行，最多 200 字，`App/Sources/LmuxUI/Agent.swift:841-843`），去掉開頭的 `#`、`**`、`- `、`* ` 與空白。
+   - 訊息：`entry.message`（Claude 最後回覆的第 1 行，最多 200 字，`App/Sources/LmuxUI/Agent.swift:850-852` 的 `firstLine`），用 `plainMessage` 去掉開頭的 Markdown 標記：標題 `#`…`######`、清單與引用 `- `、`* `、`> `、粗體 `**…**`（連同結尾那一組）與空白（含全形空白）；標記可疊加（`## **標題**`），一層一層拿掉。標記後面要有空白才算（`-1 failed`、`*args`、`#65458` 保留）；訊息中間的 `**`（`src/**/*.swift`）保留。
    - 字重：未讀 medium、已讀 regular（沿用現有規則）；未讀有圓點。
 4. 反白：只反白**來自 focused tab 的最新一則**通知（`NotificationList` 用 `model.notifications.first { $0.paneID == focusedPaneID }` 找出，傳給卡片的 `highlighted`；同一個 tab 的舊通知不反白，使用者實機回報 2026-11-13）。畫圓角底色，比照 `WorkspaceRow.pillColor`（`App/Sources/LmuxUI/Sidebar.swift:333-337`）：`rowSelected`，視窗非作用中（`controlActiveState == .inactive`）用 `rowSelectedInactive`。沒反白時維持 hover 底色；反白的卡片在 hover 時底色不變。底色左右緣比照 sidebar 列，內縮 `T.Layout.rowInsetX`。
 5. 高度：`minHeight(pluginRows:)` 改成 `handleHeight + plugin 列 + 分隔線 + rowHeight（摘要列）+ NotificationCard.maxHeight`。`maxHeight` 用實際字型的行高計算：SF 與 PingFang（中文）取較大值，避免中文內容在最小高度被切掉。
@@ -65,7 +68,7 @@
 2. `App/scripts/bundle.sh`（改 1 行）：Info.plist 寫好後，用 PlistBuddy 把 `CFBundleVersion` 設成 `build-id.sh` 的輸出。不動 `CFBundleShortVersionString`（上游版本；`release/package.sh:91-92` 發佈時自己會改寫，不受影響）。
 3. `NotificationSummaryRow`（plugin）：讀 `Bundle.main.infoDictionary?["CFBundleVersion"]`，在未讀數左邊用 `rowMeta` 字型、`textTertiary` 顏色顯示；`lineLimit(1)`、`truncationMode(.head)`、低 `layoutPriority`，窄的時候先被截斷；`.help("lmux build <版號>")`。
 4. 為什麼用 `git rev-list --count HEAD` 而不是「從 base commit 起算」：base 是上游某個 commit，rebase 之後會變，寫死會錯；總數單調遞增，足以分辨先後。代價：rebase 後同一份程式的數字會變。
-5. 為什麼 `dirty` 看 `git status --porcelain`：測試版常在未提交的狀態下 build，要看得出來。代價：`beat/` 文件改動也算 dirty（未區分）。
+5. 為什麼 `dirty` 看 `git status --porcelain`：測試版常在未提交的狀態下 build，要看得出來。代價：`beat/` 文件改動、未追蹤的檔案（例如主 worktree 的 `.claude/`）也算 dirty（未區分）。`CFBundleVersion` 不是點分數字，Apple 建議只用數字；本 repo 只有 `bundle.sh`、`release/package.sh`（發佈時自己覆寫）與通知 bar 讀它。淺層 clone 的 commit 數是淺層的數字（未實測）。
 
 ### C. 其他狀態的審查（實作的第一步）
 
@@ -122,11 +125,13 @@ lmux 目前訂閱 16 個事件。Claude Code 2.1.318 的 binary 內還有這些�
 | 檔案 | 類型 | 改動 |
 |---|---|---|
 | `Core/Sources/LmuxHooks/HookInstaller.swift` | lmux 原始檔 | `events` 加 2 個事件 |
-| `Core/Sources/LmuxHooks/AgentState.swift` | lmux 原始檔 | `stateBeforeCompaction` 與 A.3 的規則；A' 的規則；類別說明註解補規則 |
-| `Core/Sources/LmuxHooks/HookEvent.swift` | lmux 原始檔 | A'：新欄位 `runningBackgroundSubagents`（使用者 2026-11-12 同意修改） |
-| `App/Sources/LmuxUI/Agent.swift` | lmux 原始檔 | A.5：`preCompact` 時 `lastTool = "Compacting"` |
-| `Core/Tests/LmuxHooksTests/AgentStateTests.swift` | lmux 測試 | `compaction-running-state.feature` 的狀態機場景 |
-| `Core/Tests/LmuxHooksTests/InstallerTests.swift` | lmux 測試 | 第 99-100 行原本斷言 lmux 不碰 `PreCompact`；改成「使用者的項目保留，另有一個 lmux 項目」；加升級與降級測試 |
+| `Core/Sources/LmuxHooks/AgentState.swift` | lmux 原始檔 | `stateBeforeCompaction`、公開唯讀的 `isCompacting`、A.3 的規則（只還原仍是 running 的 tab）；A' 的規則；類別說明註解補規則 |
+| `Core/Sources/LmuxHooks/HookEvent.swift` | lmux 原始檔 | A'：新欄位 `runningBackgroundSubagents`（使用者 2026-11-12 同意修改）；更正 `PostCompact` 的註解（Claude Code 也送） |
+| `App/Sources/LmuxUI/Agent.swift` | lmux 原始檔 | A.5：`preCompact` 時 `lastTool = "Compacting"`，壓縮結束時清掉；A.6：Esc 偵測看 `isCompacting` |
+| `Core/Tests/LmuxHooksTests/AgentStateTests.swift` | lmux 測試 | `compaction-running-state.feature` 與 `subagent-running-state.feature` 的狀態機場景 |
+| `Core/Tests/LmuxHooksTests/EventParsingTests.swift` | lmux 測試 | `Payloads`（壓縮、背景子 agent 的測試用 payload）；`countsOnlyRunningBackgroundSubagents` |
+| `Core/Tests/LmuxHooksTests/InstallerTests.swift` | lmux 測試 | 原本斷言「lmux 不碰使用者自己的 `PreCompact`」（已刪除，PreCompact 現在也是 lmux 的事件）；加升級與降級測試，驗證使用者的項目保留 |
+| `Core/Tests/LmuxTranscriptTests/TranscriptIndexTests.swift` | lmux 測試 | 1 行 `as [String]`（Swift 6.4.2 type-check 逾時，與功能無關） |
 | `App/Sources/LmuxNotificationBar/NotificationCard.swift` | plugin（新） | 卡片、反白、任務名稱與 workspace 名稱的取法 |
 | `App/scripts/build-id.sh`、`App/scripts/build-id-check.sh` | 腳本（新） | D.1：產生 build 版號；自我檢查（在暫時的 git 專案裡跑） |
 | `App/scripts/bundle.sh` | lmux 原始檔 | D.2：1 行，把 build 版號寫進 Info.plist |
@@ -142,9 +147,10 @@ lmux 目前訂閱 16 個事件。Claude Code 2.1.318 的 binary 內還有這些�
 
 - **已查證（2026-11-12，Claude Code 2.1.318，完成後手動 `/compact`）**：實際事件順序是 `PreCompact(manual)` → `SessionStart(compact)` → `PostCompact(manual)`。不送 `UserPromptSubmit`，壓縮後不送 `Stop`。所以 A.3 的規則不用改：`SessionStart(compact)` 先到、先結束壓縮，`PostCompact` 之後到、不再改變狀態。來源：scratchpad 的 `compact-probe/events.jsonl`。
 - **未查證**：閒置時 `/compact`（沒有先送 prompt）的事件順序，推論與上面相同。
-- **未查證**：壓縮中按 Esc，lmux 的 Esc 偵測（`App/Sources/LmuxUI/Agent.swift:308-331` 的 `interruptKeyPressed`，看 transcript 的中斷標記或終端機標題）是否成立。不成立時，tab 會維持進行中，直到閒置提醒。
+- **已查證（實機，2026-11-12／13）**：壓縮中按 Esc，原本的 Esc 偵測（`App/Sources/LmuxUI/Agent.swift:314-345` 的 `interruptKeyPressed`，看 transcript 的中斷標記或終端機標題）不成立，tab 仍轉圈；已改成看 `isCompacting`（A.6），重測通過。
+- **未查證（verify 審查的推論）**：背景子 agent 還在跑、lmux 因延後的 Stop 維持 running 時，Claude 停在輸入框、標題是 `✳`。這時按任何 Esc／Ctrl+C（例如清輸入框），900ms 後 Esc 偵測會把 tab 判成閒置，轉圈消失；之後的 Stop 仍會正確顯示完成並通知。只是中途顯示錯誤。沒有實測，這次不修。
 - 壓縮的副作用：`lmux wait --until any` 會因壓縮結束；沒人看的 tab 被壓縮後，「未看」的呼吸提醒會消失（`App/Sources/LmuxUI/Attention.swift:32-37,151-155`）。這次不修。
-- `/Applications/lmux.app` 按 Update 會移除這 2 個 hook（`HookInstaller.swift:124-125` 移除 lmux 不再使用的事件）。兩個 build 共用 UserDefaults（bundle id 相同），正式版重開時可能跳出更新提示。
+- `/Applications/lmux.app` 按 Update 會移除這 2 個 hook（`HookInstaller.swift:125-128` 移除 lmux 不再使用的事件）。兩個 build 共用 UserDefaults（bundle id 相同），正式版重開時可能跳出更新提示。
 - 目前 `~/.claude/settings.json` 的 lmux hook 指向 worktree 的 `App/build/lmux.app`。重新 build 時，正在用的 lmux 會暫時收不到狀態。
-- `Core/Sources/LmuxHooks/HookEvent.swift:19-21,41` 的註解說 `PostCompact` 只有 Codex 送，與 Claude Code 現況不符。檔案不在這次的修改範圍，不改。
+- `Core/Sources/LmuxHooks/HookEvent.swift` 的註解原本說 `PostCompact` 只有 Codex 送，與 Claude Code 現況不符。因為 A' 已經改了這個檔案，順手更正了註解。
 - 卡片的 `maxHeight` 用 `NSLayoutManager.defaultLineHeight` 估計 SwiftUI `Text` 的行高，未實測；Task 8 用中文內容確認最後一行沒被切掉。

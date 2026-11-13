@@ -56,9 +56,10 @@
   # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
   場景: 兩種結束回報都送來時只處理第一個
     假設 一個 **完成** 的 **tab** 正在 **壓縮**
-    當 Claude Code 先送 PostCompact，再送 source 為 compact 的 SessionStart
+    當 兩種壓縮結束回報先後送來，兩種都算壓縮結束
     那麼 這個 tab 是 **完成**
     而且 lmux 不發出新的通知
+    而且 第二個回報不改變 tab 之後的狀態
 
   @behavior @error-handling
   # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
@@ -89,10 +90,35 @@
 
   @behavior @edge-case
   # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
-  場景: 回合中的自動壓縮結束後，tab 不算在壓縮中
-    假設 一個 **進行中** 的 **tab** 在回合中自動 **壓縮**，壓縮已經結束
-    當 使用者按 Esc
-    那麼 這個 tab 照一般的中斷規則判斷，不會因為剛壓縮過就直接視為中斷
+  場景: 壓縮結束後，tab 不再被視為壓縮中
+    假設 一個 **完成** 的 **tab** 正在 **壓縮**
+    當 壓縮結束
+    那麼 這個 tab 不再被視為在壓縮中
+    而且 回合中的自動壓縮從頭到尾都不被視為壓縮中（App 的 Esc 偵測只在壓縮中才直接視為中斷）
+
+  @behavior @edge-case
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
+  場景: 壓縮期間 tab 轉為等待回應時，壓縮結束不蓋掉它
+    假設 一個 **完成** 的 **tab** 正在 **壓縮**
+    而且 壓縮期間 Claude 要求使用者核准一個動作，tab 變成等待回應
+    當 壓縮結束
+    那麼 這個 tab 仍然是等待回應
+    而且 lmux 不發出新的通知
+
+  @behavior @edge-case
+  # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift
+  場景: 壓縮期間使用者開始輸入時，壓縮結束不把它改回完成
+    假設 一個 **完成** 的 **tab** 正在 **壓縮**，期間變成等待回應
+    而且 使用者開始輸入，tab 變成 **閒置**
+    當 壓縮結束
+    那麼 這個 tab 仍然是 **閒置**
+
+  @e2e @edge-case
+  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
+  場景: 壓縮中按 Esc，Claude 取消壓縮，tab 停止轉圈
+    假設 一個 **完成** 的 **tab** 正在 **壓縮**，sidebar 顯示轉圈與 "Compacting"
+    當 使用者按 Esc，Claude 取消壓縮
+    那麼 這個 tab 停止轉圈，不再顯示 "Compacting"
 
   @behavior @happy-path
   # @covered-by: Core/Tests/LmuxHooksTests/AgentStateTests.swift

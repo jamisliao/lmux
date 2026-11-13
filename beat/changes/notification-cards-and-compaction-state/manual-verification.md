@@ -2,7 +2,8 @@
 
 - 日期：2026-11-12 至 2026-11-13
 - lmux.app commit：`c4573d7`（build 於 2026-11-13；壓縮 Esc 以此版重測；卡片各項以 `ee5c302` 的 build 測，之後 `c4573d7` 只改 `plainMessage` 與 Esc 偵測）
-- 未測的項目（使用者選只做重要 3 項）：Step 6-3、6-4、6-5、6-9、6-10、6-16，以及「沒有通知」（6-1）未單獨確認。這些場景在 feature 裡**沒有** `@covered-by`。
+- 未測或只部分測的項目（使用者選只做重要 3 項）：Step 6-3、6-4、6-5、6-9、6-10、6-16 未測；「沒有通知」（6-1）未單獨確認；「換 focus 時，反白跟著移動」（6-14）只部分驗證。這些場景在 feature 裡**沒有** `@covered-by`。
+- 證據強度：「通知 bar 在最小高度」（6-11）、「清單捲動」（6-12）與 build 版號 3 項，使用者對多個檢查項只整體回覆（「有」「OK」），逐項未分別回報，也沒有截圖。
 - Claude Code 版本：2.1.318
 
 結果欄：通過／失敗／未測。
@@ -13,7 +14,7 @@
 | compaction-running-state | 已完成的 tab 開始壓縮時顯示進行中（實機） | Step 5-2 | 通過 | |
 | compaction-running-state | 壓縮結束後回到完成，不發通知（實機） | Step 5-3 | 通過 | 回到 ✓；沒有新通知 |
 | compaction-running-state | 閒置的 tab 壓縮結束後回到閒置（實機） | Step 5-4 | 通過 | 壓縮期間 Compacting；完成後沒有圖示（閒置） |
-| compaction-running-state | 壓縮期間使用者按 Esc 中斷（實機） | Step 5-5 | 通過（修正後） | 第一次失敗：Claude 取消壓縮，tab 仍轉圈、顯示 Compacting。改 `Agent.swift` 的 Esc 偵測（design A.6，`aa622e4`）並重新 build 後重測：tab 停止轉圈（2026-11-13）。verify 後改成看 `PaneAgent.isCompacting`（`c4573d7`），再重測：tab 馬上停止轉圈，第 2 行也正確 |
+| compaction-running-state | 壓縮中按 Esc，Claude 取消壓縮，tab 停止轉圈 | Step 5-5 | 通過（修正後） | 第一次失敗：Claude 取消壓縮，tab 仍轉圈、顯示 Compacting。改 `Agent.swift` 的 Esc 偵測（design A.6，`aa622e4`）並重新 build 後重測：tab 停止轉圈（2026-11-13）。verify 後改成看 `PaneAgent.isCompacting`（`c4573d7`），再重測：tab 馬上停止轉圈，第 2 行也正確 |
 | notification-cards | 通知卡片顯示任務名稱、workspace 名稱與訊息 | Step 6-2 | 通過 | 使用者回報（a）任務名稱與時間（b）資料夾名稱（c）訊息（d）未讀圓點「都正常」 |
 | notification-cards | workspace 有手動名稱時，第 2 行用手動名稱 | Step 6-3 | 未測 | |
 | notification-cards | 卡片不顯示同一個 workspace 裡另一個 tab 的任務名稱 | Step 6-4 | 未測 | |
@@ -28,7 +29,7 @@
 | notification-cards | 沒有通知 | Step 6-1 | 未單獨確認 | 使用者回報「卡片都正常」，未單獨回報 No notifications 那一行 |
 | notification-cards | 只反白來自 focused tab 的通知卡片 | Step 6-13 | 通過 | 反白只出現在最新一張；hover 反白卡片，底色不變 |
 | notification-cards | 同一個 tab 有多則通知時，只反白最新的一張 | Step 6-13 | 通過（修正後） | 第一次失敗：同一個 tab 的 2 則通知兩張都反白（2026-11-13 截圖）。改成只反白最新一則（`ee5c302`）後重測通過 |
-| notification-cards | 換 focus 時，反白跟著移動 | Step 6-14 | 通過 | 點另一個 workspace，反白消失（只驗證消失，沒有第二個 tab 的卡片可移過去） |
+| notification-cards | 換 focus 時，反白跟著移動 | Step 6-14 | 部分通過 | 只驗證「舊卡片的反白消失」；「新 focus 的 tab 的卡片反白」沒驗（沒有第二個 tab 的卡片可移過去）。因此這個場景**沒有** `@covered-by` |
 | notification-cards | lmux 視窗不在前景時，反白變淡 | Step 6-15 | 通過 | ⌘Tab 切到別的 App，反白變淡 |
 | notification-cards | 不是來自 tab 的通知不反白 | Step 6-16 | 未測 | |
 | notification-cards | 點擊通知卡片跳到它的 tab | Step 6-17 | 通過 | 跳到該 tab，卡片反白 |

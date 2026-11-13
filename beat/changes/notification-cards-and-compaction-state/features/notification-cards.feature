@@ -153,7 +153,6 @@
     而且 來自 tab A 的較舊那一張不反白
 
   @e2e @happy-path
-  # @covered-by: manual — beat/changes/notification-cards-and-compaction-state/manual-verification.md
   場景: 換 focus 時，反白跟著移動
     假設 tab A 是 **focused tab**
     當 使用者改為 focus 另一個 workspace 的 tab C

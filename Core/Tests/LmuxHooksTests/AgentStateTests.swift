@@ -267,7 +267,32 @@ import Testing
     }
 
     // @feature: compaction-running-state.feature
-    // @scenario: 回合中的自動壓縮結束後，tab 不算在壓縮中
+    // @scenario: 壓縮期間 tab 轉為等待回應時，壓縮結束不蓋掉它
+    @Test func compactionEndDoesNotOverwriteNeedsInput() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact, Payloads.permission, Payloads.postCompact],
+                        agent: &a)
+        #expect(t.map(\.to) == [.running, .done, .running, .needsInput(.permission), .needsInput(.permission)])
+        #expect(t[3].alert != nil && t[4].alert == nil)
+        #expect(!a.isCompacting)
+        // 使用者回應後，照一般規則繼續。
+        let after = try run([Payloads.postBash, Payloads.stop], agent: &a)
+        #expect(after.map(\.to) == [.running, .done])
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 壓縮期間使用者開始輸入時，壓縮結束不把它改回完成
+    @Test func compactionEndDoesNotOverwriteIdleAfterTyping() throws {
+        var a = PaneAgent()
+        _ = try run([Payloads.prompt, Payloads.stop, Payloads.preCompact, Payloads.permission], agent: &a)
+        #expect(a.state == .needsInput(.permission))
+        #expect(a.userTyped().to == .idle)  // 使用者開始輸入：等待回應結束，變閒置
+        let t = try run([Payloads.postCompact], agent: &a)
+        #expect(t[0].to == .idle && t[0].alert == nil)
+    }
+
+    // @feature: compaction-running-state.feature
+    // @scenario: 壓縮結束後，tab 不再被視為壓縮中
     /// App 的 Esc 偵測靠 `isCompacting`：只有 lmux 標成 running 的壓縮才算；結束後、回合中的自動壓縮都不算。
     @Test func isCompactingOnlyWhileLmuxMarkedCompactionRuns() throws {
         var a = PaneAgent()
