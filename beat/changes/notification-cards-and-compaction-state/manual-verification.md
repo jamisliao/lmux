@@ -23,7 +23,7 @@
 | notification-cards | workspace 也關閉後，卡片用通知當時的 workspace 名稱 | Step 6-9 | 未測 | |
 | notification-cards | tab 換了 session 後，卡片顯示新的任務名稱 | Step 6-10 | 未測 | |
 | notification-cards | 通知 bar 在最小高度時也看得到最新一則未讀通知 | Step 6-11 | 通過 | 中文 2 行訊息；使用者對 (a)未讀數 (b)兩行完整 (c)上下留白 三項回覆「有」（逐項未分別回報） |
-| notification-cards | 清單捲動過後收到新的未讀通知，清單回到最上面 | Step 6-12 | 未測 | |
+| notification-cards | 清單捲動過後收到新的未讀通知，清單回到最上面 | Step 6-12 | 通過 | 使用者對 (a)自動捲回最上面 (b)摘要列固定 回覆「有」 |
 | notification-cards | 沒有通知 | Step 6-1 | 未單獨確認 | 使用者回報「卡片都正常」，未單獨回報 No notifications 那一行 |
 | notification-cards | 只反白來自 focused tab 的通知卡片 | Step 6-13 | 通過 | 反白只出現在最新一張；hover 反白卡片，底色不變 |
 | notification-cards | 同一個 tab 有多則通知時，只反白最新的一張 | Step 6-13 | 通過（修正後） | 第一次失敗：同一個 tab 的 2 則通知兩張都反白（2026-11-13 截圖）。改成只反白最新一則（`ee5c302`）後重測通過 |
