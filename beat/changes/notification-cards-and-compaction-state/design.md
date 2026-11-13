@@ -56,7 +56,7 @@
      - 不用 `workspace.title` 的自動名稱：沒有手動名稱時，它就是 focused tab 的任務名稱（`Model.swift:543-551`），會讓卡片顯示另一個 tab 的任務。
    - 訊息：`entry.message`（Claude 最後回覆的第 1 行，最多 200 字，`App/Sources/LmuxUI/Agent.swift:841-843`），去掉開頭的 `#`、`**`、`- `、`* ` 與空白。
    - 字重：未讀 medium、已讀 regular（沿用現有規則）；未讀有圓點。
-4. 反白：`entry.paneID == model.selected?.focusedPane?.id` 時畫圓角底色，比照 `WorkspaceRow.pillColor`（`App/Sources/LmuxUI/Sidebar.swift:333-337`）：`rowSelected`，視窗非作用中（`controlActiveState == .inactive`）用 `rowSelectedInactive`。沒反白時維持 hover 底色；反白的卡片在 hover 時底色不變。底色左右緣比照 sidebar 列，內縮 `T.Layout.rowInsetX`。
+4. 反白：只反白**來自 focused tab 的最新一則**通知（`NotificationList` 用 `model.notifications.first { $0.paneID == focusedPaneID }` 找出，傳給卡片的 `highlighted`；同一個 tab 的舊通知不反白，使用者實機回報 2026-11-13）。畫圓角底色，比照 `WorkspaceRow.pillColor`（`App/Sources/LmuxUI/Sidebar.swift:333-337`）：`rowSelected`，視窗非作用中（`controlActiveState == .inactive`）用 `rowSelectedInactive`。沒反白時維持 hover 底色；反白的卡片在 hover 時底色不變。底色左右緣比照 sidebar 列，內縮 `T.Layout.rowInsetX`。
 5. 高度：`minHeight(pluginRows:)` 改成 `handleHeight + plugin 列 + 分隔線 + rowHeight（摘要列）+ NotificationCard.maxHeight`。`maxHeight` 用實際字型的行高計算：SF 與 PingFang（中文）取較大值，避免中文內容在最小高度被切掉。
 
 ### C. 其他狀態的審查（實作的第一步）

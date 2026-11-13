@@ -212,6 +212,9 @@ struct NotificationList: View {
         let ordered = model.notifications.filter { !$0.read } + model.notifications.filter(\.read)
         // ponytail: 「3m」這類時間只在通知變動或 sidebar 每分鐘的 tick（model.clock）時更新，閒置時不另外開計時器。
         let now = max(model.clock, Date())
+        // 只反白 focused tab 的最新一則通知（notifications 由新到舊）。
+        let focusedPaneID = model.selected?.focusedPane?.id
+        let highlightedID = focusedPaneID == nil ? nil : model.notifications.first { $0.paneID == focusedPaneID }?.id
         VStack(spacing: 0) {
             NotificationSummaryRow(model: model, host: host)
             ScrollViewReader { proxy in
@@ -226,7 +229,8 @@ struct NotificationList: View {
                                 .frame(height: NotificationBarPlugin.rowHeight)
                         }
                         ForEach(ordered) { e in
-                            NotificationCard(entry: e, model: model, age: Self.age(e.date, now: now)) {
+                            NotificationCard(entry: e, model: model, age: Self.age(e.date, now: now),
+                                             highlighted: e.id == highlightedID) {
                                 controller.openNotification(e)
                             }
                         }

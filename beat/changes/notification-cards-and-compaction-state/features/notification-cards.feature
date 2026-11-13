@@ -131,6 +131,12 @@
     而且 來自 tab B 的通知卡片不反白
     而且 滑鼠移到反白的卡片上時，底色不變
 
+  @e2e @edge-case
+  場景: 同一個 tab 有多則通知時，只反白最新的一張
+    假設 **focused tab** A 送過 2 則通知
+    那麼 來自 tab A 的最新一張 **通知卡片** 反白
+    而且 來自 tab A 的較舊那一張不反白
+
   @e2e @happy-path
   場景: 換 focus 時，反白跟著移動
     假設 tab A 是 **focused tab**

@@ -11,6 +11,8 @@ struct NotificationCard: View {
     let entry: NotificationEntry
     let model: AppModel
     let age: String
+    /// 反白：來自 focused tab 的**最新**一則通知（同一個 tab 的舊通知不反白，由 NotificationList 決定）。
+    let highlighted: Bool
     let open: () -> Void
     @State private var hover = false
     @Environment(\.controlActiveState) private var activeState
@@ -82,17 +84,13 @@ struct NotificationCard: View {
         .onHover { hover = $0 }
         .onTapGesture(perform: open)
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(focused ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAddTraits(highlighted ? [.isButton, .isSelected] : .isButton)
         .accessibilityValue(entry.read ? "" : "unread")
     }
 
-    /// 來自 focused tab：與 sidebar 選取列同色（視窗不在前景時用淡的那個）。反白時 hover 不改變底色。
-    private var focused: Bool {
-        entry.paneID != nil && entry.paneID == model.selected?.focusedPane?.id
-    }
-
+    /// 反白：與 sidebar 選取列同色（視窗不在前景時用淡的那個）。反白時 hover 不改變底色。
     private var background: Color {
-        if focused { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.rowSelected).color }
+        if highlighted { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.rowSelected).color }
         return hover ? T.Colors.rowHover.color : .clear
     }
 }
