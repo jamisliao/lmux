@@ -1,6 +1,6 @@
 name: notification-cards-and-compaction-state
 created: 2026-11-12
-phase: verify
+phase: archive
 verification: { status: passed, critical: 0, date: 2026-11-13 }
 pipeline:
   proposal: { status: done }
