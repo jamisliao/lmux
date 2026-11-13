@@ -61,6 +61,8 @@ public struct AgentTransition: Sendable, Equatable {
 ///   session clears them, so a missed SubagentStop never outlives its turn.
 /// - A main Stop whose `background_tasks` lists subagents pauses the turn instead: the pane stays
 ///   running with no alert, and the count becomes that list (it corrects missed SubagentStops).
+///   The next prompt (usually one of them reporting back) keeps the count and ends the pause;
+///   `idle_prompt` ends it as done (Claude Code sends it only once no background agent runs).
 /// - A usage limit (StopFailure `rate_limit` whose message says when it resets) doesn't end the
 ///   turn: Claude Code can continue on its own once the limit resets. The pane stays running,
 ///   `usageLimitResets` says when, and no alert is raised. Claude's Notification
@@ -143,7 +145,9 @@ public struct PaneAgent: Sendable, Equatable {
         case .userPromptSubmit:
             state = .running
             blockingAgent = nil
-            activeSubagents.removeAll()
+            // Paused for background subagents, this is usually one of them reporting back: keep the rest.
+            if !awaitingBackgroundSubagents { activeSubagents.removeAll() }
+            awaitingBackgroundSubagents = false
         case .preToolUse:
             if !e.isSubagent, e.toolName == "AskUserQuestion" {
                 needInput(.question, nil)
@@ -179,6 +183,8 @@ public struct PaneAgent: Sendable, Equatable {
                 // turn waits for a usage limit: Claude sits at its prompt then on purpose).
                 if state == .running, !e.isSubagent, usageLimitResets == nil {
                     state = .done
+                    // Claude Code sends it only once no background agent runs: a pause is over too.
+                    awaitingBackgroundSubagents = false
                     alert = .done(lastMessage: nil)
                 }
             case "quota_auto_resume_fired":

@@ -124,4 +124,52 @@ import Testing
         _ = try run([Payloads.prompt, mainStop(subagents: (0..<100).map { "s\($0)" })], agent: &a)
         #expect(a.activeSubagents.count == PaneAgent.subagentCap)
     }
+
+    /// 場景: 一個背景 subagent 回報後，其他還在執行的仍計入
+    @Test func oneReportingBackKeepsTheOthersCounted() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, start("a"), start("b"), mainStop(subagents: ["a", "b"]),
+                         stop("a"), Payloads.prompt], agent: &a)  // a finishes and reports back
+        #expect(t[5].to == .running && t[5].alert == nil)
+        #expect(a.activeSubagents == ["b"])
+        #expect(!a.awaitingBackgroundSubagents)  // the main agent works again: the pause is over
+    }
+
+    /// 場景: 背景 subagent 執行期間送出新 prompt，計數保留
+    @Test func aNewPromptWhilePausedKeepsTheCount() throws {
+        var a = PaneAgent()
+        _ = try run([Payloads.prompt, start("a"), mainStop(subagents: ["a"]), Payloads.prompt], agent: &a)
+        #expect(a.state == .running && a.activeSubagents == ["a"])
+    }
+
+    /// 場景: 漏收背景 subagent 做完的事件，下一次結束一輪時校正
+    @Test func theNextStopCorrectsAMissedSubagentStop() throws {
+        var a = PaneAgent()
+        _ = try run([Payloads.prompt, start("a"), start("b"), mainStop(subagents: ["a", "b"]),
+                     Payloads.prompt], agent: &a)  // a reports back, but its SubagentStop never arrived
+        #expect(a.activeSubagents == ["a", "b"])
+        let t = try run([mainStop(subagents: ["b"])], agent: &a)
+        #expect(t[0].to == .running && t[0].notify == nil && a.activeSubagents == ["b"])
+    }
+
+    /// 場景: 暫停中收到閒置提醒，row 變成 Done
+    @Test func idlePromptWhilePausedEndsAsDone() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, start("a"), mainStop(subagents: ["a"]), Payloads.notifIdle], agent: &a)
+        #expect(t[3].to == .done && t[3].notify == .done(lastMessage: nil))
+        #expect(!a.awaitingBackgroundSubagents)
+        // The next prompt starts afresh: no count left over from the pause.
+        _ = try run([Payloads.prompt], agent: &a)
+        #expect(a.activeSubagents.isEmpty)
+    }
+
+    /// 場景: 從 Done 開始新的一輪時，清掉上一輪殘留的計數
+    @Test func aNewTurnAfterDoneDropsLeftovers() throws {
+        var a = PaneAgent()
+        // idle_prompt recovers a missed Stop as done but leaves x counted.
+        _ = try run([Payloads.prompt, start("x"), Payloads.notifIdle], agent: &a)
+        #expect(a.state == .done && a.activeSubagents == ["x"])
+        _ = try run([Payloads.prompt], agent: &a)
+        #expect(a.state == .running && a.activeSubagents.isEmpty)
+    }
 }
