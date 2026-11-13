@@ -12,7 +12,7 @@
 | compaction-running-state | 已完成的 tab 開始壓縮時顯示進行中（實機） | Step 5-2 | 通過 | |
 | compaction-running-state | 壓縮結束後回到完成，不發通知（實機） | Step 5-3 | 通過 | 回到 ✓；沒有新通知 |
 | compaction-running-state | 閒置的 tab 壓縮結束後回到閒置（實機） | Step 5-4 | 通過 | 壓縮期間 Compacting；完成後沒有圖示（閒置） |
-| compaction-running-state | 壓縮期間使用者按 Esc 中斷（實機） | Step 5-5 | 失敗，已修待重測 | 第一次：Claude 取消壓縮，tab 仍轉圈、顯示 Compacting。已改 `Agent.swift` 的 Esc 偵測（design A.6），待重新 build 後重測 |
+| compaction-running-state | 壓縮期間使用者按 Esc 中斷（實機） | Step 5-5 | 通過（修正後） | 第一次失敗：Claude 取消壓縮，tab 仍轉圈、顯示 Compacting。改 `Agent.swift` 的 Esc 偵測（design A.6，`aa622e4`）並重新 build 後重測：tab 停止轉圈（2026-11-13） |
 | notification-cards | 通知卡片顯示任務名稱、workspace 名稱與訊息 | Step 6-2 | 未測 | |
 | notification-cards | workspace 有手動名稱時，第 2 行用手動名稱 | Step 6-3 | 未測 | |
 | notification-cards | 卡片不顯示同一個 workspace 裡另一個 tab 的任務名稱 | Step 6-4 | 未測 | |
