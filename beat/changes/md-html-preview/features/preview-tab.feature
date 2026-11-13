@@ -139,6 +139,7 @@
     當 使用者點這個連結
     那麼 這個網址的處理方式，與在終端機 ⌘-click 同一個網址相同
     而且 預覽 tab 仍然顯示原本的頁面
+    而且 頁面的 script 自己觸發點擊、或用 meta refresh 跳轉時，不會開啟任何網址，預覽仍然顯示原本的頁面
 
   # --- tab 行為 ---
 
@@ -175,8 +176,9 @@
   場景: 預覽 tab 上停用只對終端機有意義的功能
     假設 **預覽 tab** P 是 **focused tab**
     當 使用者打開選單列
-    那麼 "Find…"、"Find Next"、"Find Previous"、"Paste"、"Undo Send"、"Copy Original Reply" 是停用狀態
+    那麼 "Find…"、"Find Next"、"Find Previous"、"Undo Send"、"Copy Original Reply" 是停用狀態
     而且 "Close Pane"、"Move Tab Right"、"Split Right" 仍然可以用
+    而且 按 Paste 不會貼進任何終端機
     而且 預覽上沒有 Rewind 按鈕
 
   @e2e @error-handling

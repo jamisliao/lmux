@@ -20,7 +20,7 @@
    - tab 標題是檔名。
    - 預覽 tab 可以像終端機 tab 一樣移動、分割、關閉。
    - 重開 lmux 不還原預覽 tab。只有預覽 tab 的 workspace 也不還原。
-   - 只對終端機有意義的選單項目在預覽 tab 上停用：Find…、Find Next、Find Previous、Paste、Undo Send、Copy Original Reply（`App/Sources/LmuxUI/Menu.swift:69-78`）。預覽上沒有 Rewind 按鈕。
+   - 只對終端機有意義的選單項目在預覽 tab 上停用：Find…、Find Next、Find Previous、Undo Send、Copy Original Reply（`App/Sources/LmuxUI/Menu.swift:69-78`）。Paste 沒有指定 target（沿 responder chain 傳遞），controller 無法停用它；改成保證它不會貼進任何終端機。預覽上沒有 Rewind 按鈕。
    - `lmux send` 指定預覽 tab 時回傳錯誤。`lmux list` 不列出預覽 tab。
    - 預覽 tab 選取的文字可以用 ⌘C 複製。
    - 在預覽 tab 上開新 tab 或分割時，新的終端機從檔案所在資料夾開始。
@@ -35,7 +35,7 @@
    - 不保存 cookie 與 storage，關掉預覽 tab 就清掉。
 5. **預覽內的連結**
    - 相對路徑的 `.md` 連結：在同一個預覽 tab 換頁，tab 標題跟著換。觸控板兩指往右滑返回上一頁。不設返回快速鍵：⌘[ 已經是 Previous Pane（`App/Sources/LmuxUI/Menu.swift:113`）。
-   - http(s) 連結：照終端機裡點連結的規則處理（`UntrustedURLAlert`）。
+   - http(s) 連結：使用者點了才開，照終端機裡點連結的規則處理（`UntrustedURLAlert`）。頁面的 script 自己觸發的點擊、meta refresh 不會開任何網址，也不會把預覽換成網頁。
 6. **自動更新**
    - 檔案內容改變時重新渲染。用「寫暫存檔再改名」方式存檔也要更新。
    - 預覽中的檔案被刪除時，顯示「檔案已不存在」。
@@ -48,9 +48,10 @@
 - **改動量：約 50 個檔案（估計），超過「20 個檔案」的上限。** 使用者 2026-11-13 在 explore 對話中同意這次超過，並同意不拆成兩個 change。
   - `Pane.surface` 改 optional：LmuxUI 18 個檔案、101 處；測試（`lmux-apptest`、`lmux-imetest`）26 個檔案、289 處，測試是機械式改成 `surface!`（`grep '\.surface\b'` 計數）。
   - 新增：預覽畫面、Markdown 轉 HTML、開啟選單。
-  - 修改：`GhosttyRuntime.swift`（開檔回呼）、`Tabs.swift`、`Persistence.swift`、`Controller.swift`（焦點）、`ControlServer.swift`（CLI）。
+  - 修改：`Controller.swift`（攔截 ⌘-click、焦點）、`Tabs.swift`、`Persistence.swift`、`ControlServer.swift`（CLI）、`SidebarSelection.swift`（選單停用）、`MessageActions.swift`（確認卡片在預覽 tab 上的鍵盤）。`GhosttyRuntime.swift` 不改。
 - **與上游 lmux 合併的成本變高。** 這個 fork 追蹤 `sooftware/lmux`。`surface` 改 optional 動到 44 個上游檔案，之後每次合併上游都可能在這些檔案衝突。
 - **新的系統框架：WebKit。** Apple 內建，不是第三方依賴。
-- **安全**：HTML 預覽允許連網，頁面的 JS 可以把資料送到任意網址。JS 能不能讀同資料夾的其他檔案，未實測。cookie 與 storage 不保存。
+- **安全**：HTML 預覽允許連網，頁面的 JS 可以把頁面自己的內容送到任意網址。頁面的 JS 讀不到本機的其他檔案（2026-11-13 實測，含 security review 找到並修掉的 iframe 繞道）。cookie 與 storage 不保存。Markdown 頁面允許載入網路圖片（打開檔案時圖片的主機會知道）。
+- **限制**：預覽 tab 是 focused tab 時，Ghostty 自己的 keybinding（例如分割方向鍵）不會動；⌘[、⌘] 與 tab 切換仍可用。
 - **記憶體**：每個預覽 tab 有一個 WKWebView。WebKit 會另外起網頁內容的 process，用量未實測。
 - **不受影響**：非可預覽檔案的 ⌘-click、網址、hook、agent 狀態、通知 bar。
