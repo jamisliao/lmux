@@ -64,6 +64,7 @@ public struct AgentTransition: Sendable, Equatable {
 ///   The next prompt (usually one of them reporting back) keeps the count and ends the pause;
 ///   `idle_prompt` ends it as done (Claude Code sends it only once no background agent runs).
 ///   A dialog still up then is a background subagent's: Stop leaves it, and answering it runs on.
+///   Esc / Ctrl+C at its prompt then stops none of them: the pane stays running.
 /// - A usage limit (StopFailure `rate_limit` whose message says when it resets) doesn't end the
 ///   turn: Claude Code can continue on its own once the limit resets. The pane stays running,
 ///   `usageLimitResets` says when, and no alert is raised. Claude's Notification
@@ -330,6 +331,8 @@ public struct PaneAgent: Sendable, Equatable {
     public mutating func userInterrupted() -> AgentTransition {
         let from = state
         stateBeforeCompaction = nil
+        // Paused, Claude sits at its prompt: the key stops none of the background subagents.
+        if awaitingBackgroundSubagents { return AgentTransition(from: from, to: state, alert: nil, notify: nil) }
         switch state {
         case .running, .needsInput:
             state = .idle

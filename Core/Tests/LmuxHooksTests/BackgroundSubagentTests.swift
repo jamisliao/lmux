@@ -195,4 +195,22 @@ import Testing
         _ = try run([Payloads.prompt, start("a"), ask("a")], agent: &b)
         #expect(b.userTyped().to == .idle)
     }
+
+    /// 場景: 暫停中按 Esc 或 Ctrl+C，row 維持執行中
+    @Test func escWhilePausedKeepsRunning() throws {
+        var a = PaneAgent()
+        _ = try run([Payloads.prompt, start("a"), mainStop(subagents: ["a"])], agent: &a)
+        let t = a.userInterrupted()
+        #expect(t.to == .running && t.alert == nil)
+        #expect(a.activeSubagents == ["a"] && a.awaitingBackgroundSubagents)
+    }
+
+    /// 場景: 主 agent 處理背景 subagent 的回報時，按 Esc 仍能中斷
+    @Test func escInTheWokenTurnStillInterrupts() throws {
+        var a = PaneAgent()
+        _ = try run([Payloads.prompt, start("a"), start("b"), mainStop(subagents: ["a", "b"]),
+                     stop("a"), Payloads.prompt], agent: &a)  // a reports back: the main agent works again
+        let t = a.userInterrupted()
+        #expect(t.to == .idle && t.alert == nil && a.activeSubagents.isEmpty)
+    }
 }
