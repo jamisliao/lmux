@@ -172,4 +172,27 @@ import Testing
         _ = try run([Payloads.prompt], agent: &a)
         #expect(a.state == .running && a.activeSubagents.isEmpty)
     }
+
+    /// 場景: 主 agent 結束一輪時，背景 subagent 的權限對話框還沒回答，row 維持需要輸入
+    @Test func aDialogStillUpWhenTheTurnPausesStays() throws {
+        var a = PaneAgent()
+        let t = try run([Payloads.prompt, start("a"), ask("a"), mainStop(subagents: ["a"])], agent: &a)
+        #expect(t[3].to == .needsInput(.permission) && t[3].alert == nil)
+        #expect(a.activeSubagents == ["a"] && a.awaitingBackgroundSubagents)
+        // Answered: the subagent's next tool event and the pane runs on.
+        #expect(try run([toolDone("a")], agent: &a)[0].to == .running)
+    }
+
+    /// 場景: 暫停中回答背景 subagent 的權限對話框，row 回到執行中
+    @Test func answeringASubagentDialogWhilePausedRuns() throws {
+        var a = PaneAgent()
+        _ = try run([Payloads.prompt, start("a"), mainStop(subagents: ["a"]), ask("a")], agent: &a)
+        #expect(a.state == .needsInput(.permission))
+        #expect(a.userTyped().to == .running)
+        #expect(a.activeSubagents == ["a"])
+        // Not paused: answering is idle until the main agent acts again, as before.
+        var b = PaneAgent()
+        _ = try run([Payloads.prompt, start("a"), ask("a")], agent: &b)
+        #expect(b.userTyped().to == .idle)
+    }
 }

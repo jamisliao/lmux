@@ -63,6 +63,7 @@ public struct AgentTransition: Sendable, Equatable {
 ///   running with no alert, and the count becomes that list (it corrects missed SubagentStops).
 ///   The next prompt (usually one of them reporting back) keeps the count and ends the pause;
 ///   `idle_prompt` ends it as done (Claude Code sends it only once no background agent runs).
+///   A dialog still up then is a background subagent's: Stop leaves it, and answering it runs on.
 /// - A usage limit (StopFailure `rate_limit` whose message says when it resets) doesn't end the
 ///   turn: Claude Code can continue on its own once the limit resets. The pane stays running,
 ///   `usageLimitResets` says when, and no alert is raised. Claude's Notification
@@ -213,6 +214,7 @@ public struct PaneAgent: Sendable, Equatable {
                 // Paused, not finished: the background subagents wake it again. Claude Code's list wins.
                 activeSubagents = Set(ids.prefix(Self.subagentCap))
                 awaitingBackgroundSubagents = true
+                if case .needsInput = state { break }  // a background subagent's dialog is still up
                 blockingAgent = nil
                 state = .running
                 break
@@ -315,7 +317,8 @@ public struct PaneAgent: Sendable, Equatable {
     public mutating func userTyped() -> AgentTransition {
         let from = state
         if case .needsInput = state {
-            state = .idle
+            // Paused, the main agent asks nothing: the dialog was a background subagent's, which runs on.
+            state = awaitingBackgroundSubagents ? .running : .idle
             blockingAgent = nil
         }
         return AgentTransition(from: from, to: state, alert: nil, notify: nil)
