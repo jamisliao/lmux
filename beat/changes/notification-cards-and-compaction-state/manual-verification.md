@@ -17,9 +17,9 @@
 | notification-cards | workspace 有手動名稱時，第 2 行用手動名稱 | Step 6-3 | 未測 | |
 | notification-cards | 卡片不顯示同一個 workspace 裡另一個 tab 的任務名稱 | Step 6-4 | 未測 | |
 | notification-cards | 第 2 行與第 1 行相同時不顯示 | Step 6-5 | 未測 | |
-| notification-cards | 訊息開頭的 Markdown 符號不顯示 | Step 6-6 | 未測 | |
-| notification-cards | 沒有任務名稱時，第 1 行改用 workspace 名稱 | Step 6-7 | 未測 | |
-| notification-cards | tab 關閉後，卡片仍然顯示 | Step 6-8 | 未測 | |
+| notification-cards | 訊息開頭的 Markdown 符號不顯示 | Step 6-6 | 通過 | 改用 `lmux notify '## 結論'`（Claude 的回覆開頭是 `ClaudeCode:`，測不到）；訊息顯示 `結論`。注意 zsh 要加引號，否則 `#` 被當成註解 |
+| notification-cards | 沒有任務名稱時，第 1 行改用 workspace 名稱 | Step 6-7 | 通過 | `lmux notify hi`：第 1 行 `jkopay.batchsystem`，沒有第 2 行（2026-11-13 截圖） |
+| notification-cards | tab 關閉後，卡片仍然顯示 | Step 6-8 | 通過 | ⌘W 關掉 shell tab 後卡片還在，第 1 行仍是 workspace 名稱 |
 | notification-cards | workspace 也關閉後，卡片用通知當時的 workspace 名稱 | Step 6-9 | 未測 | |
 | notification-cards | tab 換了 session 後，卡片顯示新的任務名稱 | Step 6-10 | 未測 | |
 | notification-cards | 通知 bar 在最小高度時也看得到最新一則未讀通知 | Step 6-11 | 未測 | |
