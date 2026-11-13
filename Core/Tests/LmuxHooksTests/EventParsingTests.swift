@@ -26,6 +26,12 @@ enum Payloads {
     static let stopFailure = json("StopFailure", #""error_type":"rate_limit","error_message":"429""#)
     static let sessionEnd = json("SessionEnd", #""reason":"prompt_input_exit""#)
     static let compactStart = json("SessionStart", #""source":"compact""#)
+    static let stopBgSubagent = json("Stop", #""stop_hook_active":false,"last_assistant_message":"已派出","background_tasks":[{"id":"agent-7","type":"subagent","status":"running","description":"sleep","agent_type":"general-purpose"}],"session_crons":[]"#)
+    static let stopBgShell = json("Stop", #""stop_hook_active":false,"last_assistant_message":"已啟動","background_tasks":[{"id":"b75w99nqn","type":"shell","status":"running","description":"dev server","command":"sleep 40"}],"session_crons":[]"#)
+    static let stopBgSubagentDone = json("Stop", #""stop_hook_active":false,"last_assistant_message":"好了","background_tasks":[{"id":"agent-7","type":"subagent","status":"completed","description":"sleep","agent_type":"general-purpose"}],"session_crons":[]"#)
+    static let preCompact = json("PreCompact", #""trigger":"manual","custom_instructions":"""#)
+    static let preCompactAuto = json("PreCompact", #""trigger":"auto","custom_instructions":"""#)
+    static let postCompact = json("PostCompact", #""trigger":"manual","compact_summary":"Summary of the conversation.""#)
     static let askUser = json("PreToolUse", #""tool_name":"AskUserQuestion","tool_input":{"questions":[]},"tool_use_id":"toolu_05""#)
     static let askUserDone = json("PostToolUse", #""tool_name":"AskUserQuestion","tool_input":{},"tool_response":{},"tool_use_id":"toolu_05""#)
     static let future = json("SomeFutureEvent", #""x":1"#)
@@ -37,6 +43,15 @@ func event(_ payload: String, pane: String = "pane-1") throws -> HookEvent {
 }
 
 @Suite struct EventParsingTests {
+    // @feature: subagent-running-state.feature
+    // @scenario: 還在跑的只有背景 shell 時，主回合結束就是完成
+    @Test func countsOnlyRunningBackgroundSubagents() throws {
+        #expect(try event(Payloads.stopBgSubagent).runningBackgroundSubagents == 1)
+        #expect(try event(Payloads.stopBgShell).runningBackgroundSubagents == 0)
+        #expect(try event(Payloads.stopBgSubagentDone).runningBackgroundSubagents == 0)
+        #expect(try event(Payloads.stop).runningBackgroundSubagents == 0)  // 沒有 background_tasks 欄位
+    }
+
     @Test func parsesCommonFields() throws {
         let e = try event(Payloads.preBash)
         #expect(e.paneID == "pane-1")

@@ -13,6 +13,7 @@
 
 import AppKit
 import GhosttyKit
+import LmuxNotificationBar
 import LmuxTerminal
 import LmuxUI
 
@@ -66,6 +67,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             _ = ControlServer.handOff(path: controller.paths.controlSocket)
             exit(0)
         }
+        // plugin：sidebar 底部的通知 bar（start() 提早 return 的情況上面已經 exit）。
+        NotificationBarPlugin.install(on: controller)
         if !headless {
             NSApp.activate(ignoringOtherApps: true)
             // Coming from cmux: offer to bring the setup over first, then the hooks.

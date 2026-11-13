@@ -97,6 +97,8 @@ cat > "$OUT/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
+# build 版號（git 的 commit 數與短碼）：About 視窗與通知 bar 都顯示它。
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(bash "$APP_DIR/scripts/build-id.sh")" "$OUT/Contents/Info.plist"
 
 # Release: drop local symbols from the binaries (-3.7 MB on lmux). Crash reports from the bundle
 # then name few lmux functions: symbolicate them against the unstripped build output (same UUID),

@@ -53,9 +53,15 @@ let package = Package(
                            .product(name: "LmuxSessions", package: "Core")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        // plugin：sidebar 底部的通知 bar（掛在 LmuxUI 的 installSidebarAccessory）。
+        .target(
+            name: "LmuxNotificationBar",
+            dependencies: ["LmuxUI", "LmuxTokens"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .executableTarget(
             name: "lmux",
-            dependencies: ["LmuxUI", "LmuxTerminal", "GhosttyKit"],
+            dependencies: ["LmuxUI", "LmuxTerminal", "GhosttyKit", "LmuxNotificationBar"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         // `lmux` command-line client (bundled as Contents/Resources/bin/lmux).

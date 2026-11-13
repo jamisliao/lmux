@@ -41,6 +41,7 @@ public struct AgentTransition: Sendable, Equatable {
 /// Rules:
 /// - UserPromptSubmit -> running (new episode).
 /// - Stop (main agent) -> done + alert. SubagentStop never ends the turn.
+///   Unless its `background_tasks` still has a running subagent: stay running, no alert.
 /// - StopFailure -> done + failed alert.
 /// - Events from a subagent (agent_id set) never mark the turn done, and their tool
 ///   events never change state. The one exception is a permission/elicitation dialog,
@@ -52,6 +53,9 @@ public struct AgentTransition: Sendable, Equatable {
 /// - Only a *transition into* needsInput/done produces an alert. Repeats (e.g.
 ///   PermissionRequest followed by Notification permission_prompt, or idle_prompt
 ///   reminders) are absorbed.
+/// - 壓縮：PreCompact 時是閒置或完成（`/compact`，或 Claude 在閒置時自己壓縮）-> running，並記住原本的狀態。
+///   壓縮結束（PostCompact、SessionStart `compact`，或兩者都沒來時的 idle_prompt）-> 回到原本的狀態，不發 alert。
+///   回合中的自動壓縮本來就是 running，不記住任何東西。新 prompt、Stop、StopFailure、Esc、新的 session 讓記住的狀態作廢。
 /// - Subagents (SubagentStart/Stop by agent_id) are counted while the turn runs, at most
 ///   `subagentCap`; the main turn ending (Stop, StopFailure, Esc), a new prompt or a new
 ///   session clears them, so a missed SubagentStop never outlives its turn.
@@ -72,6 +76,11 @@ public struct PaneAgent: Sendable, Equatable {
     public static let subagentCap = 32
     /// agent_id ("" for main) whose dialog put us in needsInput.
     private var blockingAgent: String?
+    /// PreCompact 時記住的狀態（只在閒置或完成時記）；nil 表示目前沒有 lmux 標成 running 的壓縮。
+    private var stateBeforeCompaction: AgentState?
+    /// lmux 標成 running 的壓縮正在進行（`/compact` 或閒置時的自動壓縮）。結束、被打斷後是 false；
+    /// 回合中的自動壓縮不算（本來就是 running）。App 的 Esc 偵測靠它：這時按 Esc 一定是在取消壓縮。
+    public var isCompacting: Bool { stateBeforeCompaction != nil }
 
     public init() {}
 
@@ -103,6 +112,21 @@ public struct PaneAgent: Sendable, Equatable {
                 state = .running
                 blockingAgent = nil
             }
+        }
+
+        // lmux 標成 running 的壓縮結束了：回到原本的狀態，不發 alert。
+        let compactionEnded = e.kind == .postCompact
+            || (e.kind == .sessionStart && e.source == "compact")
+            || (e.kind == .notification && e.notificationType == "idle_prompt")
+        if let before = stateBeforeCompaction, !e.isSubagent, compactionEnded {
+            stateBeforeCompaction = nil
+            // 壓縮期間狀態已被別的事件改掉（等待回應、使用者開始輸入）就不蓋回去：只還原仍是 running 的 tab。
+            if state == .running { state = before }
+            return AgentTransition(from: from, to: state, alert: nil, notify: nil)
+        }
+        // 回合或 session 換了：記住的狀態作廢（之後才到的結束回報不再改變狀態）。
+        if !e.isSubagent, [.userPromptSubmit, .stop, .stopFailure, .interrupt, .sessionStart, .sessionEnd].contains(e.kind) {
+            stateBeforeCompaction = nil
         }
 
         switch e.kind {
@@ -174,8 +198,14 @@ public struct PaneAgent: Sendable, Equatable {
             if let id = e.agentID { activeSubagents.remove(id) }
         case .stop:
             guard !e.isSubagent else { break }
-            activeSubagents.removeAll()
             blockingAgent = nil
+            // 背景子 agent 還在跑：主回合雖然結束，工作還沒完。維持進行中，不發 alert，也不清掉子 agent 計數；
+            // 它們結束後 Claude 會再起一個回合（UserPromptSubmit），最後一個 Stop 才是完成。
+            if e.runningBackgroundSubagents > 0 {
+                state = .running
+                break
+            }
+            activeSubagents.removeAll()
             if state != .done {
                 state = .done
                 alert = .done(lastMessage: e.lastAssistantMessage)
@@ -198,7 +228,13 @@ public struct PaneAgent: Sendable, Equatable {
             state = .idle
             blockingAgent = nil
             activeSubagents.removeAll()
-        case .preCompact, .postCompact, .unknown:
+        case .preCompact:
+            // `/compact`（或閒置時的自動壓縮）：壓縮完之前是 running。回合中的自動壓縮本來就是 running。
+            if !e.isSubagent, state == .idle || state == .done {
+                stateBeforeCompaction = state
+                state = .running
+            }
+        case .postCompact, .unknown:
             break
         }
 
@@ -274,6 +310,7 @@ public struct PaneAgent: Sendable, Equatable {
     @discardableResult
     public mutating func userInterrupted() -> AgentTransition {
         let from = state
+        stateBeforeCompaction = nil
         switch state {
         case .running, .needsInput:
             state = .idle
@@ -308,6 +345,7 @@ public struct PaneAgent: Sendable, Equatable {
     private mutating func reset() {
         state = .idle
         blockingAgent = nil
+        stateBeforeCompaction = nil
         activeSubagents.removeAll()
         clearUsageLimit()
     }

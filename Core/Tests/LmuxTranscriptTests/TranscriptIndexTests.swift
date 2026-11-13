@@ -39,7 +39,7 @@ import Testing
                       Fixtures.basic + #"{"type":"last-prompt","leafUuid":"as4","sessionId":"S"}"# + "\n",
                       Fixtures.rewoundThenPrompted, Fixtures.explicitThenStraggler,
                       Fixtures.basic + #"{"type":"last-prompt","leafUuid":"int","explicit":true,"sessionId":"S"}"# + "\n"
-                          + #"{"parentUuid":"int","isSidechain":false,"type":"user","message":{"role":"user","content":"again"},"uuid":"u9","timestamp":"T11","turnOrigin":"human"}"# + "\n"])
+                          + #"{"parentUuid":"int","isSidechain":false,"type":"user","message":{"role":"user","content":"again"},"uuid":"u9","timestamp":"T11","turnOrigin":"human"}"# + "\n"] as [String])
     func agreesWithTheFullParser(_ text: String) throws {
         let url = try temp(text)
         let idx = TranscriptIndex(url: url)
