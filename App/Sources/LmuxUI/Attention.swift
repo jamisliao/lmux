@@ -83,7 +83,7 @@ extension LmuxController {
     private func lookAtScreen(_ p: Pane, now: Date) {
         guard now.timeIntervalSince(p.lastActivityAt) >= Self.screenLookEvery,
               now.timeIntervalSince(p.screenSampledAt) >= Self.screenLookEvery else { return }
-        let h = p.surface.activeTextHash()
+        guard let h = p.surface?.activeTextHash() else { return }
         // Changed since the last look: output came in since then (counted from now, the later end).
         // No last look since the last activity: this one is the baseline.
         if let old = p.screenHash, old != h { noteAgentActivity(p) }

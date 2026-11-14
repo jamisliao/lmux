@@ -311,7 +311,7 @@ extension LmuxController {
             restored.attentionSince = p.attentionSince.map(Date.init(timeIntervalSince1970:))
             restored.restoredDoneSession = session
         }
-        restored.surface.setOcclusion(visible: false)
+        restored.surface?.setOcclusion(visible: false)
         return restored
     }
 }

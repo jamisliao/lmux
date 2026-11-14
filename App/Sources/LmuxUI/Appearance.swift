@@ -150,7 +150,7 @@ extension LmuxController {
 
     func applySidebarLook() {
         let match = settings.sidebarMatchesTerminal
-            ? (model.selected?.focusedPane?.surface.terminalBackground ?? runtime.background) : nil
+            ? (model.selected?.focusedPane?.surface?.terminalBackground ?? runtime.background) : nil
         root?.sidebarBackdrop.matchColor = match
         // Rows and the titlebar buttons on the terminal's color read like the content header.
         root?.sidebarHost.adoptAppearance(on: match)

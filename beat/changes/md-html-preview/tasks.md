@@ -2738,7 +2738,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Files:**
 - Modify: `App/Sources/LmuxUI/Snapshot.swift`、`App/Sources/LmuxUI/Persistence.swift`、`App/Sources/LmuxUI/Attention.swift`、`App/Sources/LmuxUI/Appearance.swift`
 
-- [ ] **Step 1: 四個檔案各改一行**
+- [x] **Step 1: 四個檔案各改一行**
 
 | 檔案 | 原本 | 改成 |
 |---|---|---|
@@ -2747,7 +2747,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 | Attention.swift | `        let h = p.surface.activeTextHash()` | `        guard let h = p.surface?.activeTextHash() else { return }` |
 | Appearance.swift | `focusedPane?.surface.terminalBackground` | `focusedPane?.surface?.terminalBackground` |
 
-- [ ] **Step 2: 驗證 LmuxUI 全部沒有錯誤**
+- [x] **Step 2: 驗證 LmuxUI 全部沒有錯誤**
 
 Run: `beat/changes/md-html-preview/dev.sh errors Snapshot.swift Persistence.swift Attention.swift Appearance.swift`
 Expected: `ERRORS TOTAL: 0`。
@@ -2755,7 +2755,7 @@ Expected: `ERRORS TOTAL: 0`。
 Run: `beat/changes/md-html-preview/dev.sh build; grep -c 'Sources/LmuxUI/.*: error:' "${TMPDIR:-/tmp}/md-html-preview/build.log"`
 Expected: 最後一行 `0`（LmuxUI 沒有錯誤；build 仍失敗是因為測試檔，下一個 task 處理）。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Snapshot.swift App/Sources/LmuxUI/Persistence.swift App/Sources/LmuxUI/Attention.swift App/Sources/LmuxUI/Appearance.swift
