@@ -203,8 +203,8 @@ func runStatusExtras() async -> Int32 {
             u.usageLimitDeadline == PaneAgent.usageLimitResetDate(resets, zone: "Asia/Seoul", after: now)!
                 .addingTimeInterval(LmuxController.usageLimitGrace), "\(String(describing: u.usageLimitDeadline))")
     // Esc / Ctrl+C at Claude's idle prompt (its title ✳) while it waits: not an interrupted turn.
-    u.surface.printOutput("\u{1b}]0;✳ Claude Code\u{07}")
-    _ = await waitFor(15) { u.surface.title.hasPrefix("✳") }
+    u.surface!.printOutput("\u{1b}]0;✳ Claude Code\u{07}")
+    _ = await waitFor(15) { u.surface!.title.hasPrefix("✳") }
     c.interruptKeyPressed(u)
     let looked = c.interruptChecks[u.id] != nil
     await sleepMs(1500)
@@ -307,30 +307,30 @@ func runStatusExtras() async -> Int32 {
     r.check("a hook event clears it at once", q.quietMinutes == nil && line2(Q)?.text == "Bash · make test", line2(Q)?.text ?? "nil")
     await advance(11)
     r.check("quiet again (a long quiet tool): the hint again, the state unchanged", q.quietMinutes == 11 && q.agent.state == .running)
-    q.surface.printOutput("\u{1b}]0;⠂ Claude Code\u{07}")
+    q.surface!.printOutput("\u{1b}]0;⠂ Claude Code\u{07}")
     let cleared = await waitFor(15) { q.quietMinutes == nil }
     r.check("output (Claude's spinner retitling the pane) clears it", cleared && line2(Q)?.text == "Bash · make test")
     // Drawn frames aren't output: a cursor blink, focus or scrolling never hide the hint.
     r.check("(setup) Q is hidden (not the selected workspace)", c.model.selected !== Q)
     await advance(11)
     r.check("quiet 11 minutes again: the hint", q.quietMinutes == 11, "\(q.quietMinutes ?? -1)")
-    for _ in 0..<5 { q.surface.onFrame?() }
+    for _ in 0..<5 { q.surface!.onFrame?() }
     c.updateAttention()
     r.check("…frames alone (cursor blink, focus) leave it", q.quietMinutes == 11)
     // An OSC 7501 report lmux rejects (codex isn't the foreground program: a file shown with cat).
-    q.surface.printOutput("\u{1b}]7501;state=working:app=codex\u{1b}\\")
+    q.surface!.printOutput("\u{1b}]7501;state=working:app=codex\u{1b}\\")
     _ = await waitFor(15) { c.actionLog.contains { $0.contains("codex report ignored: pane=\(q.id.prefix(8))") } }
     r.check("…a rejected OSC 7501 report leaves it too", q.quietMinutes == 11 && q.codexReport == nil
             && c.actionLog.contains { $0.contains("codex report ignored: pane=\(q.id.prefix(8))") })
     // Output in a hidden pane draws no frame, sets no title: the screen look sees it.
-    q.surface.printOutput("compiling 1/200\r\n")
-    _ = await waitFor(15) { q.surface.readText().contains("compiling 1/200") }
+    q.surface!.printOutput("compiling 1/200\r\n")
+    _ = await waitFor(15) { q.surface!.readText().contains("compiling 1/200") }
     await advance(1)
     r.check("output in the hidden pane (no title, no frame): the hint goes at the next look",
             q.quietMinutes == nil && line2(Q)?.text == "Bash · make test", line2(Q)?.text ?? "nil")
     for i in 2...12 {
-        q.surface.printOutput("compiling \(i)/200\r\n")
-        _ = await waitFor(15) { q.surface.readText().contains("compiling \(i)/200") }
+        q.surface!.printOutput("compiling \(i)/200\r\n")
+        _ = await waitFor(15) { q.surface!.readText().contains("compiling \(i)/200") }
         await advance(1)
     }
     r.check("a build printing a line a minute for 11 minutes: never the hint", q.quietMinutes == nil)
@@ -342,8 +342,8 @@ func runStatusExtras() async -> Int32 {
     hookEvent(c, q, "PostToolUse", session: "qh-1", ["tool_name": "Bash"])
     await advance(2)
     let baseline = q.screenHash
-    q.surface.printOutput("tests done\r\n")
-    _ = await waitFor(15) { q.surface.readText().contains("tests done") }
+    q.surface!.printOutput("tests done\r\n")
+    _ = await waitFor(15) { q.surface!.readText().contains("tests done") }
     hookEvent(c, q, "PreToolUse", session: "qh-1", ["tool_name": "Bash", "tool_input": ["command": "make lint"]])
     await settle()
     r.check("(setup) a look stored a baseline, then the hook cleared it", baseline != nil && q.screenHash == nil)

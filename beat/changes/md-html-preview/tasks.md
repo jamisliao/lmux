@@ -2871,7 +2871,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 說明：`lmux-imetest/Checklist.swift` 裡的 `.surface` 多半是 `SurfaceView` 自己的 libghostty 指標，預期 0 個錯誤、不用改。不要主動去找要改的地方，只看編譯錯誤。
 
-- [ ] **Step 1: 先改已知的宣告（Parity.swift 四處、Readme.swift 一處、Contrast.swift 一處）**
+- [x] **Step 1: 先改已知的宣告（Parity.swift 四處、Readme.swift 一處、Contrast.swift 一處）**
 
 | 檔案 | 原本 | 改成 |
 |---|---|---|
@@ -2882,23 +2882,23 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 | Readme.swift | `    let s = p.surface` | `    let s = p.surface!` |
 | Contrast.swift | `        let s = ws.panes[0].surface` | `        let s = ws.panes[0].surface!` |
 
-- [ ] **Step 2: 列出錯誤，照「測試檔的修正規則」逐行修正**
+- [x] **Step 2: 列出錯誤，照「測試檔的修正規則」逐行修正**
 
 Run: `beat/changes/md-html-preview/dev.sh errors StatusExtras.swift NewUser.swift E2E.swift Agents.swift Regressions.swift EscIdle.swift E2EHover.swift Hero.swift Parity.swift ConfigTests.swift RewindBench.swift Readme.swift GpuIdle.swift Sidebar.swift E2ERunning.swift Polish.swift Contrast.swift Checklist.swift`
 Expected: 一串 error 行（數量不固定）。照規則修正後再跑，直到 `ERRORS TOTAL: 0`。
 
-- [ ] **Step 3: 驗證整個 package 能 build**
+- [x] **Step 3: 驗證整個 package 能 build**
 
 Run: `beat/changes/md-html-preview/dev.sh build`
 Expected: `BUILD EXIT: 0`。
 不是 0：看 `${TMPDIR:-/tmp}/md-html-preview/build.log` 的 error 行。是測試檔的 `SurfaceView?`／`SurfaceScroller?` 錯誤就照規則改；其他錯誤就停下來回報。
 
-- [ ] **Step 4: 確認只加了 `!`（或 `?.` 的那一種）**
+- [x] **Step 4: 確認只加了 `!`（或 `?.` 的那一種）**
 
 Run: `git diff -U0 HEAD -- App/Sources/lmux-apptest App/Sources/lmux-imetest | grep '^[-+][^-+]' | sed 's/^[-+]//; s/surface[!?]/surface/g; s/scroller!/scroller/g' | sort | uniq -u | head`
 Expected: 沒有輸出。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/lmux-apptest App/Sources/lmux-imetest

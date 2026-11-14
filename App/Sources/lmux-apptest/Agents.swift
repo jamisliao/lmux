@@ -29,7 +29,7 @@ func runAgents() async -> Int32 {
         SurfaceView.ProgramStatus(state: state, kind: kind, app: app)
     }
     func foregroundName(_ p: Pane) -> String? {
-        ClaudeProcess.representative(ofGroup: p.surface.foregroundPID).flatMap(ClaudeProcess.name)
+        ClaudeProcess.representative(ofGroup: p.surface!.foregroundPID).flatMap(ClaudeProcess.name)
     }
 
     // ------------------------------------------------------------ OSC 7501 from any program
@@ -123,14 +123,14 @@ func runAgents() async -> Int32 {
     let lp = lws.panes[0]
     _ = await waitFor(15) { c.foregroundIs(lp, app: "my-agent") }
     c.programStatus(lp, report(.working))
-    let agentGroup = lp.surface.foregroundPID
+    let agentGroup = lp.surface!.foregroundPID
     c.reporterExitGrace = 60  // (here its exit isn't acted on: the steps below are the last words)
     kill(-agentGroup, SIGKILL)
-    let back = await waitFor(5) { lp.surface.foregroundPID != agentGroup && c.runningProcess(lp) == nil }
+    let back = await waitFor(5) { lp.surface!.foregroundPID != agentGroup && c.runningProcess(lp) == nil }
     r.check("my-agent quit, the shell is the foreground again", back, foregroundName(lp) ?? "-")
-    _ = c.foregroundArgv(lp, lp.surface.foregroundPID)
+    _ = c.foregroundArgv(lp, lp.surface!.foregroundPID)
     r.check("…a shell in front is remembered with a watch for its exec (it may be one that forked the next job)",
-            lp.programArgv?.group == lp.surface.foregroundPID && lp.programArgvWatch?.isCancelled == false)
+            lp.programArgv?.group == lp.surface!.foregroundPID && lp.programArgvWatch?.isCancelled == false)
     c.programStatus(lp, report(.working, app: "imposter"))
     r.check("…another name from the shell: ignored", lp.programApp == "my-agent" && lp.agent.state == .running)
     let n2 = c.notifier.postedCount
@@ -159,9 +159,9 @@ func runAgents() async -> Int32 {
     let zp = zws.panes[0]
     _ = await waitFor(15) { c.foregroundIs(zp, app: "my-agent") }
     c.programStatus(zp, report(.working))
-    let zGroup = zp.surface.foregroundPID
+    let zGroup = zp.surface!.foregroundPID
     kill(-zGroup, SIGSTOP)  // (what ⌃Z's SIGTSTP does, and can't be ignored)
-    let stopped = await waitFor(5) { zp.surface.foregroundPID != zGroup && c.runningProcess(zp) == nil }
+    let stopped = await waitFor(5) { zp.surface!.foregroundPID != zGroup && c.runningProcess(zp) == nil }
     let n4 = c.notifier.postedCount
     c.programStatus(zp, report(.blocked, "question"))
     c.programStatus(zp, report(.clear, app: ""))
@@ -186,7 +186,7 @@ func runAgents() async -> Int32 {
     c.flushPaneChrome()
     let named = dp.view.header.label.stringValue
     let dTitle = dp.title
-    let dGroup = dp.surface.foregroundPID
+    let dGroup = dp.surface!.foregroundPID
     kill(-dGroup, SIGKILL)
     let ended = await waitFor(3) { dp.programApp == nil && dp.agent.state == .idle }
     c.flushPaneChrome()
@@ -220,13 +220,13 @@ func runAgents() async -> Int32 {
     c.programStatus(xe, report(.blocked, "question"))
     r.check("a shell in front reporting my-agent: refused, its argv read once for both", jobUp && xe.programApp == nil
             && c.argvLookups - lookups0 == 1, "\(c.argvLookups - lookups0)")
-    kill(xe.surface.foregroundPID, SIGUSR1)
+    kill(xe.surface!.foregroundPID, SIGUSR1)
     let execd = await waitFor(15) { c.foregroundIs(xe, app: "my-agent") }
     await sleepMs(100)
     c.programStatus(xe, report(.working))
     r.check("…it execs my-agent in place (same group): my-agent's report counts (the cache dropped at the exec)",
             execd && xe.programApp == "my-agent" && xe.agent.state == .running,
-            "\(xe.display) execd \(execd) cache \(xe.programArgv.map { "\($0.group) \($0.argv)" } ?? "nil") fg \(xe.surface.foregroundPID) watch \(xe.programArgvWatch?.isCancelled.description ?? "nil")")
+            "\(xe.display) execd \(execd) cache \(xe.programArgv.map { "\($0.group) \($0.argv)" } ?? "nil") fg \(xe.surface!.foregroundPID) watch \(xe.programArgvWatch?.isCancelled.description ?? "nil")")
     c.closeWorkspace(ews0)
 
     // A codex taking over a pane a program reported in: codex's own path, the program forgotten.

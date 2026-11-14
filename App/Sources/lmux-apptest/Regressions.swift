@@ -93,7 +93,7 @@ func runRegressions() async -> Int32 {
     // prompt alone doesn't drop it), then a plain shell when the grace ends.
     let failed = await waitFor(10) {
         ((try? String(contentsOfFile: log, encoding: .utf8)) ?? "").contains("--resume \(failSID)")
-            && pf.map { $0.surface.foregroundPID > 0 && c.runningProcess($0) == nil } == true
+            && pf.map { $0.surface!.foregroundPID > 0 && c.runningProcess($0) == nil } == true
     }
     await sleepMs(300)
     r.check("(setup) the done pane's resume ran and exited (its shell is back)", failed)
@@ -127,15 +127,15 @@ func runRegressions() async -> Int32 {
     r.section = "zoom + arrows"
     let zw = c.newWorkspace(select: true)
     let za = zw.panes[0]
-    _ = await waitFor(5) { za.surface.foregroundPID > 0 }
+    _ = await waitFor(5) { za.surface!.foregroundPID > 0 }
     guard let zb = c.split(za, .right) else { r.check("split", false); return finish(r, c) }
-    _ = await waitFor(5) { zb.surface.foregroundPID > 0 }
+    _ = await waitFor(5) { zb.surface!.foregroundPID > 0 }
     c.focus(za)
     c.toggleSplitZoom()
-    r.check("(setup) zoomed on the left pane", zw.zoomedPane === za && zb.surface.window == nil)
+    r.check("(setup) zoomed on the left pane", zw.zoomedPane === za && zb.surface!.window == nil)
     c.moveFocus(.right)
     r.check("⌘⌥→ (goto_split:right) while zoomed: unzooms and focuses the right pane",
-            !zw.isZoomed && zw.focusedPane === zb && zb.surface.window != nil && zb.surface.occlusionVisible,
+            !zw.isZoomed && zw.focusedPane === zb && zb.surface!.window != nil && zb.surface!.occlusionVisible,
             "zoomed=\(zw.isZoomed) focused right=\(zw.focusedPane === zb)")
     c.toggleSplitZoom()
     c.moveFocus(.left)
@@ -143,7 +143,7 @@ func runRegressions() async -> Int32 {
     c.toggleSplitZoom()
     c.moveFocus(.left)
     r.check("…with nothing further left: stays zoomed on it", zw.zoomedPane === za && zw.focusedPane === za
-            && zb.surface.window == nil && !zb.surface.occlusionVisible)
+            && zb.surface!.window == nil && !zb.surface!.occlusionVisible)
 
     // A pane hidden behind the zoom finishing: nobody can see it, so it's unattended.
     hookEvent(c, zb, "SessionStart", session: "zoom-hidden")
@@ -179,7 +179,7 @@ func runRegressions() async -> Int32 {
     try? before.write(toFile: tpath, atomically: true, encoding: .utf8)
     let uw = c.newWorkspace(select: true, program: "/bin/sleep 600")
     let up = uw.panes[0]
-    _ = await waitFor(5) { up.surface.foregroundPID > 0 }
+    _ = await waitFor(5) { up.surface!.foregroundPID > 0 }
     hookEvent(c, up, "SessionStart", session: isid, transcript: tpath, ["source": "startup"])
     hookEvent(c, up, "UserPromptSubmit", session: isid, ["prompt": "[Image #1] what is wrong here"])
     if let h = FileHandle(forWritingAtPath: tpath) { h.seekToEndOfFile(); h.write(Data(turn.utf8)); h.closeFile() }
@@ -195,7 +195,7 @@ func runRegressions() async -> Int32 {
     r.section = "clear status: pending"
     let cw = c.newWorkspace(select: true)
     let kp = cw.panes[0]
-    _ = await waitFor(5) { kp.surface.foregroundPID > 0 }
+    _ = await waitFor(5) { kp.surface!.foregroundPID > 0 }
     /// A Codex hook event (lmux-hook marks the agent on the envelope, not in Codex's payload).
     func codexEvent(_ p: Pane, _ name: String, _ extra: [String: Any] = [:]) {
         var o: [String: Any] = ["hook_event_name": name, "session_id": "codex-clear", "cwd": "/tmp"]

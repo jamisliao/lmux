@@ -14,12 +14,12 @@ import LmuxTranscript
 @MainActor
 func benchSubmit(_ c: LmuxController, _ p: Pane, _ text: String) async -> Bool {
     let before = await c.loadTurns(p).count
-    p.surface.sendText(text)
+    p.surface!.sendText(text)
     _ = await waitFor(3) { inputText(p) == text }
     // Past Claude's paste window, so the Return is a Return.
     await sleepMs(250)
     for _ in 0..<4 {
-        p.surface.sendKey(keyCode: 0x24, codepoint: 0x0D)
+        p.surface!.sendKey(keyCode: 0x24, codepoint: 0x0D)
         let sent = await waitOnFile(p.transcriptPath ?? "", timeout: 4) { await c.loadTurns(p).count > before }
         if sent {
             let replied = await waitOnFile(p.transcriptPath ?? "", timeout: 30) {
@@ -80,7 +80,7 @@ func runRewindBench() async -> Int32 {
     for w in c.model.workspaces where w !== ws { c.closeWorkspace(w) }
     c.select(ws)
     _ = await waitFor(10) { rows(p).contains { $0.contains("%") } }
-    p.surface.sendText("\(claude) --model claude-e2e-mock --permission-mode acceptEdits\n")
+    p.surface!.sendText("\(claude) --model claude-e2e-mock --permission-mode acceptEdits\n")
     let ready = await waitFor(40) { p.claudeSessionID != nil && inputText(p) != nil }
     r.check("claude started", ready)
     guard ready else { return finish(r, c) }
@@ -184,7 +184,7 @@ func runRewindBench() async -> Int32 {
     }
     print("\nSUMMARY")
     for l in summary { print("  \(l)") }
-    for _ in 0..<3 { p.surface.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
+    for _ in 0..<3 { p.surface!.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
     _ = await waitFor(5) { p.claudeSessionID == nil }
     return finish(r, c)
 }

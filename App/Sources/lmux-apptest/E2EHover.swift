@@ -24,7 +24,7 @@ func runE2EHover() async -> Int32 {
     c.select(ws)
     _ = await waitFor(10) { rows(p).contains { $0.contains("%") } }
     let start = "\(claude) --model claude-e2e-mock --permission-mode acceptEdits"
-    p.surface.sendText(start + "\n")
+    p.surface!.sendText(start + "\n")
     r.check("claude started", await waitFor(40) { p.claudeSessionID != nil && inputText(p) != nil })
     guard p.claudeSessionID != nil else { return finish(r, c) }
     // The user's loop: one turn, then send a message and × it, again and again (the last one "흠"),
@@ -62,7 +62,7 @@ func runE2EHover() async -> Int32 {
 
     // Resumed a day later: the same transcript, its times a day back.
     let sid = p.claudeSessionID!, path = p.transcriptPath!
-    for _ in 0..<3 { p.surface.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
+    for _ in 0..<3 { p.surface!.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
     _ = await waitFor(10) { p.claudeSessionID == nil }
     let iso = ISO8601DateFormatter()
     iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -73,7 +73,7 @@ func runE2EHover() async -> Int32 {
         text.replaceSubrange(range, with: iso.string(from: d.addingTimeInterval(-86400)))
     }
     try? text.write(toFile: path, atomically: true, encoding: .utf8)
-    p.surface.sendText("clear; \(start) --resume \(sid)\n")
+    p.surface!.sendText("clear; \(start) --resume \(sid)\n")
     r.check("resumed", await waitFor(40) { p.claudeSessionID == sid && inputText(p) != nil })
     await submit(c, p, "그럼 이건")
     guard await waitReply(r, c, p, turn: 3, "“그럼 이건” answered as turn 3", timeout: 60) else { return finish(r, c) }
@@ -104,7 +104,7 @@ func runE2EHover() async -> Int32 {
         if !orphans.isEmpty {
             var owned: [Int] = []
             for row in orphans {
-                c.paneMouseMoved(p, NSPoint(x: 200, y: p.surface.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
+                c.paneMouseMoved(p, NSPoint(x: 200, y: p.surface!.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
                 await sleepMs(150)
                 if m.map?.turnOfRow[row] != nil || c.hoveredTurn(p) != nil { owned.append(row) }
             }
@@ -114,7 +114,7 @@ func runE2EHover() async -> Int32 {
         let last = own.last ?? h.row
         var wrong: [String] = []
         for row in own {
-            c.paneMouseMoved(p, NSPoint(x: 200, y: p.surface.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
+            c.paneMouseMoved(p, NSPoint(x: 200, y: p.surface!.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
             _ = await waitFor(1) { c.hoveredTurn(p) == h.turn }
             let pill = ov.turnRow.map { rowOf($0.top) }, band = ov.turnBand.map { (rowOf($0.minY), rowOf($0.maxY) - 1) }
             if c.hoveredTurn(p) != h.turn || pill != h.row || band?.0 != h.row || band?.1 != last {
@@ -130,7 +130,7 @@ func runE2EHover() async -> Int32 {
     }
 
     if let note = text3.firstIndex(where: { $0.contains("/effort") }) {
-        c.paneMouseMoved(p, NSPoint(x: 200, y: p.surface.bounds.height - (m.rows[note].top + m.rowHeight / 2)))
+        c.paneMouseMoved(p, NSPoint(x: 200, y: p.surface!.bounds.height - (m.rows[note].top + m.rowHeight / 2)))
         await sleepMs(300)
         r.check("Claude's “/effort” note above the input is no turn's", m.map?.turnOfRow[note] == nil && c.hoveredTurn(p) == nil, text3[note])
     }
@@ -138,7 +138,7 @@ func runE2EHover() async -> Int32 {
     // × on turn 2: turn 2 and turn 3 go, turn 1 stays, in the same claude.
     let pid = p.claudePID ?? 0
     if let h2 = heads.first(where: { $0.turn == 2 }) {
-        c.paneMouseMoved(p, NSPoint(x: 200, y: p.surface.bounds.height - (m.rows[h2.row + 2].top + m.rowHeight / 2)))
+        c.paneMouseMoved(p, NSPoint(x: 200, y: p.surface!.bounds.height - (m.rows[h2.row + 2].top + m.rowHeight / 2)))
         _ = await waitFor(2) { c.hoveredTurn(p) == 2 }
         ov.turnBar?.remove.performClick()
         let msg = ov.card?.message.stringValue ?? ""
@@ -156,7 +156,7 @@ func runE2EHover() async -> Int32 {
         r.check("Claude sent turn 1 and none of the removed turns", sent.contains { $0.contains("하이") }
                 && !sent.contains { $0.contains("흠") || $0.contains("그럼 이건") }, sent.joined(separator: " | "))
     }
-    for _ in 0..<3 { p.surface.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
+    for _ in 0..<3 { p.surface!.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
     _ = await waitFor(5) { p.claudeSessionID == nil }
     return finish(r, c)
 }

@@ -17,7 +17,7 @@ import LmuxTranscript
 // headless state dirs.
 
 @MainActor
-func rows(_ p: Pane) -> [String] { p.surface.viewportRows().rows.map(\.text) }
+func rows(_ p: Pane) -> [String] { p.surface!.viewportRows().rows.map(\.text) }
 
 @MainActor
 func dump(_ p: Pane, _ label: String) {
@@ -89,7 +89,7 @@ func waitReply(_ r: Report, _ c: LmuxController, _ p: Pane, turn n: Int, _ label
 @MainActor
 func submit(_ c: LmuxController, _ p: Pane, _ text: String) async {
     let before = await c.loadTurns(p).count
-    p.surface.sendText(text)
+    p.surface!.sendText(text)
     // Claude treats a burst of input as a paste for a moment; a Return inside that window
     // can be taken as part of it. Wait, and press again if the prompt didn't go out.
     await sleepMs(900)
@@ -111,7 +111,7 @@ func hoverRow(_ c: LmuxController, _ p: Pane, turn: Int) async -> Bool {
     p.hover.readAt = .distantPast
     let m = c.screenMap(p, maxAge: 0)
     guard let head = m.map?.promptHeads().first(where: { $0.turn == turn }) else { return false }
-    let y = p.surface.bounds.height - (m.rows[head.row].top + m.rowHeight / 2)
+    let y = p.surface!.bounds.height - (m.rows[head.row].top + m.rowHeight / 2)
     c.paneMouseMoved(p, NSPoint(x: 200, y: y))
     return await waitFor(3) { c.hoveredTurn(p) == turn }
 }
@@ -165,7 +165,7 @@ func runE2E() async -> Int32 {
     c.select(ws)
     r.check("shell prompt", await waitFor(10) { rows(p).contains { $0.contains("%") } }, rows(p).joined(separator: "|"))
 
-    p.surface.sendText("\(claude) --model claude-e2e-mock --permission-mode acceptEdits\n")
+    p.surface!.sendText("\(claude) --model claude-e2e-mock --permission-mode acceptEdits\n")
     var ready = false
     let end = Date().addingTimeInterval(40)
     while Date() < end {
@@ -176,7 +176,7 @@ func runE2E() async -> Int32 {
     r.check("claude started, SessionStart hook seen, input box found", ready,
             "sid=\(p.claudeSessionID ?? "nil") rows=\(rows(p).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.joined(separator: " | "))")
     guard ready, p.claudeSessionID != nil else { return finish(r, c) }
-    let pid = p.claudePID ?? ClaudeProcess.representative(ofGroup: p.surface.foregroundPID) ?? 0
+    let pid = p.claudePID ?? ClaudeProcess.representative(ofGroup: p.surface!.foregroundPID) ?? 0
     func sameClaude() -> Bool { pid > 0 && ClaudeProcess.alive(pid) && p.claudePID.map { $0 == pid } ?? true }
     r.check("input label shows the workspace title above Claude's input",
             await waitFor(3) { !p.view.overlay.inputLabel.isHidden && p.view.overlay.inputLabel.text == "e2e" })
@@ -313,7 +313,7 @@ func runE2E() async -> Int32 {
         let before = await c.loadTurns(p).count
         GhosttyRuntime.standardPasteboard.clearContents()
         GhosttyRuntime.standardPasteboard.setString(pasted, forType: .string)
-        p.surface.paste(nil)
+        p.surface!.paste(nil)
         _ = await waitFor(3) { (inputText(p) ?? "").hasPrefix("[Pasted text") }
         await sleepMs(900)
         await type("\r", window: c.window)
@@ -347,9 +347,9 @@ func runE2E() async -> Int32 {
     // 11) A `!` shell command: rewinding to it is refused (Claude would leave its input in shell
     //     mode); an older turn past it rewinds as usual, back in the normal input.
     await sleepMs(900)
-    p.surface.sendText("!")
+    p.surface!.sendText("!")
     await sleepMs(400)
-    p.surface.sendText("echo SHELLPROBE")
+    p.surface!.sendText("echo SHELLPROBE")
     await sleepMs(400)
     await type("\r", window: c.window)
     let shellRan = await waitOnFile(p.transcriptPath ?? "", timeout: 30) {
@@ -367,7 +367,7 @@ func runE2E() async -> Int32 {
             o11b == .done && inputText(p) == before11.prompt, "\(o11b) input=\(inputText(p) ?? "nil")")
     await escEsc(c, p)
     _ = await waitFor(3) { inputText(p) == "" }
-    p.surface.sendText("x")
+    p.surface!.sendText("x")
     r.check("…not in shell mode (a typed x is a prompt)", await waitFor(3) { inputText(p) == "x" }, rows(p).suffix(4).joined(separator: "|"))
     await escEsc(c, p)
     _ = await waitFor(3) { inputText(p) == "" }
@@ -376,7 +376,7 @@ func runE2E() async -> Int32 {
     if env["LMUX_E2E_DUMP"] == "1" { for l in c.actionLog { print("      log: \(l)") } }
 
     // Leave nothing running.
-    for _ in 0..<3 { p.surface.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
+    for _ in 0..<3 { p.surface!.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
     _ = await waitFor(5) { p.claudeSessionID == nil }
     return finish(r, c)
 }
