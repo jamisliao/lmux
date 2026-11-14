@@ -1814,7 +1814,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Files:**
 - Modify: `App/Sources/LmuxUI/Controller.swift`
 
-- [ ] **Step 1: `shutdown()`**
+- [x] **Step 1: `shutdown()`**
 
 原本：
 
@@ -1832,7 +1832,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
             p.surface?.close()
 ```
 
-- [ ] **Step 2: `syncSurfaceFocus()`**
+- [x] **Step 2: `syncSurfaceFocus()`**
 
 原本：
 
@@ -1849,7 +1849,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         }
 ```
 
-- [ ] **Step 3: `syncOcclusion()`**
+- [x] **Step 3: `syncOcclusion()`**
 
 原本：
 
@@ -1863,7 +1863,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
                 p.surface?.setOcclusion(visible: shown && ws === model.selected && (ws.zoomedPane == nil || p === ws.zoomedPane))
 ```
 
-- [ ] **Step 4: `windowDidEndSheet(_:)`**
+- [x] **Step 4: `windowDidEndSheet(_:)`**
 
 原本：
 
@@ -1877,7 +1877,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
                 self.model.selected?.focusedPane?.surface?.inputContext?.activate()
 ```
 
-- [ ] **Step 5: `panesNeedingQuitConfirmation`**
+- [x] **Step 5: `panesNeedingQuitConfirmation`**
 
 原本：
 
@@ -1891,7 +1891,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         model.workspaces.flatMap(\.panes).filter { $0.surface?.needsConfirmQuit == true }
 ```
 
-- [ ] **Step 6: `callerPane(token:peerPID:)`**
+- [x] **Step 6: `callerPane(token:peerPID:)`**
 
 原本：
 
@@ -1905,7 +1905,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         return panesByID.values.first { $0.surface != nil && $0.foregroundPID == tpgid }
 ```
 
-- [ ] **Step 7: `discard(_:)`**
+- [x] **Step 7: `discard(_:)`**
 
 原本：
 
@@ -1923,7 +1923,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         pane.surface?.close()
 ```
 
-- [ ] **Step 8: `newWorkspace(...)`**
+- [x] **Step 8: `newWorkspace(...)`**
 
 原本：
 
@@ -1937,7 +1937,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         if select || model.selected == nil { self.select(ws) } else { pane.surface?.setOcclusion(visible: false) }
 ```
 
-- [ ] **Step 9: `select(_:focusing:)`**
+- [x] **Step 9: `select(_:focusing:)`**
 
 原本：
 
@@ -1953,12 +1953,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
                 p.surface?.setOcclusion(visible: false)
 ```
 
-- [ ] **Step 10: 確認這 9 處都改好了**
+- [x] **Step 10: 確認這 9 處都改好了**
 
 Run: `grep -n 'p\.surface\.\|pane\.surface\.' App/Sources/LmuxUI/Controller.swift`
 Expected: 正好 4 行，分別含 `setOcclusion(visible: windowShown && visible)`、`p.surface.focused`、`p.surface.inputHeld`、`p.surface.sendText`（都是 Task 9 要改的）。
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Controller.swift

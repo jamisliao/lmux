@@ -269,9 +269,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         controlServer?.stop()
         retirePaneTokens(paneIDByToken.filter { pane(id: $0.value)?.ranCodex == true }.map { ($0.key, $0.value) })
         for p in model.workspaces.flatMap(\.panes) {
-            let fg = p.surface.foregroundPID
+            let fg = p.foregroundPID
             if fg > 0 { killpg(fg, SIGHUP) }
-            p.surface.close()
+            p.surface?.close()
         }
     }
     private var didShutdown = false
@@ -356,7 +356,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     /// `SurfaceView.windowIsKey`).
     func syncSurfaceFocus() {
         guard let ws = model.selected else { return }
-        for p in ws.panes { p.surface.focusDidChange(p.surface.windowIsKey && window.firstResponder === p.surface) }
+        for p in ws.panes {
+            guard let s = p.surface else { continue }
+            s.focusDidChange(s.windowIsKey && window.firstResponder === s)
+        }
     }
 
     /// After a screen change: a window whose titlebar no screen shows comes back onto the screen it
@@ -399,7 +402,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         for ws in model.workspaces {
             // Zoomed: the other panes are out of the window and stay occluded.
             for p in ws.panes {
-                p.surface.setOcclusion(visible: shown && ws === model.selected && (ws.zoomedPane == nil || p === ws.zoomedPane))
+                p.surface?.setOcclusion(visible: shown && ws === model.selected && (ws.zoomedPane == nil || p === ws.zoomedPane))
             }
         }
     }
@@ -415,7 +418,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             MainActor.assumeIsolated {
                 guard let self, self.window.attachedSheet == nil else { return }
                 if !(self.window.firstResponder is NSText) { self.focusCurrent() }
-                self.model.selected?.focusedPane?.surface.inputContext?.activate()
+                self.model.selected?.focusedPane?.surface?.inputContext?.activate()
             }
         }
     }
@@ -457,7 +460,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     /// Panes whose process would be killed by quitting (not an idle shell), per Ghostty's
     /// `confirm-close-surface` (libghostty answers it per surface).
     public var panesNeedingQuitConfirmation: [Pane] {
-        model.workspaces.flatMap(\.panes).filter { $0.surface.needsConfirmQuit }
+        model.workspaces.flatMap(\.panes).filter { $0.surface?.needsConfirmQuit == true }
     }
 
     /// ⌘Q: like Ghostty, ask before killing running processes.
@@ -611,7 +614,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if let p = pane(token: token) { return p }
         guard let pid = peerPID, pid > 0, let tpgid = Self.terminalForegroundGroup(pid_t(pid)) else { return nil }
         // Each pane's pty has its own foreground process group (what Ghostty reports).
-        return panesByID.values.first { $0.surface.foregroundPID == tpgid }
+        return panesByID.values.first { $0.surface != nil && $0.foregroundPID == tpgid }
     }
 
     /// The foreground process group of `pid`'s controlling terminal, nil without one.
@@ -647,9 +650,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         pane.programArgvWatch?.cancel()
         panesByID[pane.id] = nil
         scheduleWaitCheck()  // (a wait on it, or on its workspace, may be over: target gone)
-        panesBySurface[ObjectIdentifier(pane.surface)] = nil
+        if let s = pane.surface { panesBySurface[ObjectIdentifier(s)] = nil }
         pane.view.removeFromSuperview()
-        pane.surface.close()
+        pane.surface?.close()
     }
 
     // MARK: - Workspaces
@@ -683,7 +686,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         } else {
             model.workspaces.append(ws)
         }
-        if select || model.selected == nil { self.select(ws) } else { pane.surface.setOcclusion(visible: false) }
+        if select || model.selected == nil { self.select(ws) } else { pane.surface?.setOcclusion(visible: false) }
         scheduleSave()
         return ws
     }
@@ -692,8 +695,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if let pane, ws.panes.contains(where: { $0 === pane }) { ws.focusedPane = pane }
         if let cur = model.selected, cur !== ws {
             for p in cur.panes {
-                p.surface.focusDidChange(false)
-                p.surface.setOcclusion(visible: false)
+                p.surface?.focusDidChange(false)
+                p.surface?.setOcclusion(visible: false)
             }
         }
         if ws.id != model.selectedID {
