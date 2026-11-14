@@ -3274,7 +3274,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
   - `public func openTerminalLink(_ value: String, kind: ghostty_action_open_url_kind_e, pane: Pane?, view: SurfaceView?)`
   - `static func makeOpenMenu(_ file: URL, target: AnyObject?) -> NSMenu`、`static func shortPath(_ path: String, limit: Int = 90) -> String`
 
-- [ ] **Step 1: 加測試**
+- [x] **Step 1: 加測試**
 
 在 `App/Sources/lmux-apptest/Preview.swift` 的插入點註解**上面**加上：
 
@@ -3386,12 +3386,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh build; grep -c "no member 'openMenuTestHook'" "${TMPDIR:-/tmp}/md-html-preview/build.log"`
 Expected: 最後一行至少是 1（build 失敗，因為開啟選單還不存在）。
 
-- [ ] **Step 3: 建立 `App/Sources/LmuxUI/OpenMenu.swift`（整份照抄）**
+- [x] **Step 3: 建立 `App/Sources/LmuxUI/OpenMenu.swift`（整份照抄）**
 
 ```swift
 import AppKit
@@ -3511,12 +3511,12 @@ private final class OpenMenuTarget: NSObject {
 }
 ```
 
-- [ ] **Step 4: 執行，確認通過**
+- [x] **Step 4: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: `[open-menu]` 的 20 行都是 `PASS`、沒有 `FAIL`、`APPTEST EXIT: 0`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/OpenMenu.swift App/Sources/lmux-apptest/Preview.swift

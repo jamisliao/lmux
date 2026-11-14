@@ -82,6 +82,111 @@ func runPreview() async -> Int32 {
         r.check("回到終端機 tab：first responder 是它的終端機", c.window!.firstResponder === a.surface)
     }
 
+    // MARK: 開啟選單（Task 22）
+    // @feature: open-menu.feature
+    // @scenario: ⌘-click 可預覽檔案的路徑跳出開啟選單
+    // @scenario: 路徑後面帶行號時，去掉行號再判斷
+    // @scenario: OSC 8 連結指向本機的可預覽檔案時也跳出開啟選單
+    // @scenario: 不是存在的可預覽檔案時，照原本流程
+    // @scenario: shell 沒回報目前目錄時，相對路徑照原本流程
+    // @scenario: 選「在新 tab 預覽」開出預覽 tab
+    // @scenario: 選單的其他項目
+    // @scenario: 不選任何項目就關掉選單
+    do {
+        r.section = "open-menu"
+        var asked: [URL] = []
+        var answer: LmuxController.OpenChoice?
+        var revealed: [URL] = []
+        var prompts: [UntrustedURLPrompt] = []
+        LmuxController.openMenuTestHook = { asked.append($0); return answer }
+        LmuxController.revealInFinder = { revealed.append($0) }
+        UntrustedURLAlert.testHook = { prompts.append($0); return false }
+        defer {
+            LmuxController.openMenuTestHook = nil
+            UntrustedURLAlert.testHook = nil
+        }
+        let ws = c.newWorkspace(cwd: fx.path)
+        let a = ws.panes[0]
+        a.cwd = fx.path
+        let b = c.newTab(a)!
+        c.focus(a)
+        func click(_ value: String, _ kind: ghostty_action_open_url_kind_e = GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN) {
+            c.openTerminalLink(value, kind: kind, pane: a, view: a.surface)
+        }
+        /// 同一個值：經過 openTerminalLink，與直接走原本流程（GhosttyRuntime.openTerminalURL），開啟的東西與詢問都一樣。
+        func sameAsBefore(_ value: String, _ kind: ghostty_action_open_url_kind_e = GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN) -> Bool {
+            opened.removeAll(); prompts.removeAll()
+            GhosttyRuntime.openTerminalURL(value, kind: kind, window: a.surface?.window)
+            let before = (opened, prompts)
+            opened.removeAll(); prompts.removeAll()
+            click(value, kind)
+            return opened == before.0 && prompts == before.1
+        }
+        func real(_ u: URL) -> String { u.resolvingSymlinksInPath().path }
+
+        // 選單本身
+        let menu = LmuxController.makeOpenMenu(design, target: nil)
+        r.check("選單第 1 列是完整路徑，不能點", menu.items.first?.title == design.path && menu.items.first?.isEnabled == false,
+                menu.items.first?.title ?? "nil")
+        r.check("選單項目依序是 在新 tab 預覽、用預設 app 開、在 Finder 顯示、複製路徑",
+                menu.items.dropFirst(2).map(\.title) == ["在新 tab 預覽", "用預設 app 開", "在 Finder 顯示", "複製路徑"],
+                "\(menu.items.map(\.title))")
+        let longPath = "/" + String(repeating: "abcdefgh/", count: 15) + "design.md"
+        r.check("太長的路徑省略資料夾中間，檔名完整保留",
+                LmuxController.shortPath(longPath).hasSuffix("/design.md") && LmuxController.shortPath(longPath).count <= 90,
+                LmuxController.shortPath(longPath))
+
+        // 跳出選單；關掉選單
+        answer = nil
+        c.window!.makeFirstResponder(nil)
+        opened.removeAll()
+        click("docs/design.md")
+        r.check("⌘-click 可預覽檔案的路徑：跳出開啟選單，問的是這個檔案", asked == [design], "\(asked)")
+        r.check("關掉選單：沒有開出預覽 tab，也沒有開啟任何東西",
+                ws.panes.count == 2 && opened.isEmpty && revealed.isEmpty, "\(ws.panes.count) \(opened) \(revealed)")
+        r.check("關掉選單：焦點回到終端機", c.window!.firstResponder === a.surface)
+        asked.removeAll()
+        click("docs/design.md:12")
+        r.check("路徑帶行號：去掉行號後仍跳出選單", asked == [design], "\(asked)")
+        asked.removeAll()
+        click(design.absoluteString, GHOSTTY_ACTION_OPEN_URL_KIND_OSC8)
+        r.check("OSC 8 的 file:// 連結：跳出選單", asked == [design], "\(asked)")
+
+        // 照原本流程
+        asked.removeAll()
+        r.check("不是可預覽檔案：照原本流程開啟",
+                sameAsBefore(docs.appendingPathComponent("notes.txt").path) && opened.count == 1, "\(opened)")
+        r.check("檔案不存在：照原本流程", sameAsBefore("docs/missing.md"))
+        r.check("網址：照原本流程開啟",
+                sameAsBefore("https://example.com/readme.md") && opened == [URL(string: "https://example.com/readme.md")!],
+                "\(opened)")
+        a.cwd = nil
+        r.check("shell 沒回報目前目錄：相對路徑照原本流程", sameAsBefore("docs/design.md"))
+        a.cwd = fx.path
+        r.check("設定檔類（text）的連結：照原本流程", sameAsBefore(design.path, GHOSTTY_ACTION_OPEN_URL_KIND_TEXT))
+        r.check("照原本流程的這幾種都沒有跳出選單", asked.isEmpty, "\(asked)")
+
+        // 選單項目
+        answer = .defaultApp; opened.removeAll()
+        click("docs/design.md")
+        r.check("用預設 app 開：交給系統開這個檔案", opened.map(real) == [real(design)], "\(opened)")
+        answer = .finder
+        click("docs/design.md")
+        r.check("在 Finder 顯示：交給 Finder 選取這個檔案", revealed == [design], "\(revealed)")
+        answer = .copyPath
+        click("docs/design.md")
+        r.check("複製路徑：剪貼簿是完整路徑", GhosttyRuntime.standardPasteboard.string(forType: .string) == design.path,
+                GhosttyRuntime.standardPasteboard.string(forType: .string) ?? "nil")
+        r.check("其他項目都不開出預覽 tab", ws.panes.count == 2, "\(ws.panes.count)")
+        answer = .preview
+        click("docs/design.md")
+        let leaf = ws.root.find(a)
+        let p = leaf?.tabs.first { $0.preview != nil }
+        r.check("在新 tab 預覽：插在 A 與 B 之間", leaf?.tabs.map(\.id) == [a.id, p?.id ?? "-", b.id],
+                "\(leaf?.tabs.map(\.id) ?? [])")
+        r.check("在新 tab 預覽：成為 focused tab", p != nil && ws.focusedPane === p)
+    }
+
     // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）
     return finish(r, c)
 }
