@@ -254,9 +254,9 @@ extension LmuxController {
     private func holdInput(_ pane: Pane) {
         pane.rewindStoppedHidden = false
         pane.pendingRewindNote = nil
-        pane.surface.inputHeld = true
+        pane.surface?.inputHeld = true
         freezeFrame(pane)
-        _ = pane.surface.performBindingAction("scroll_to_bottom")
+        _ = pane.surface?.performBindingAction("scroll_to_bottom")
         // This rewind's, not a later one's.
         let token = UUID()
         pane.rewindToken = token
@@ -273,8 +273,8 @@ extension LmuxController {
         pane.rewindToken = nil
         await unfreezeFrame(pane)
         // (Also when no frame was held: the terminal is never left hidden.)
-        pane.surface.alphaValue = 1
-        pane.surface.inputHeld = false
+        pane.surface?.alphaValue = 1
+        pane.surface?.inputHeld = false
         pane.busy = false
         // Hidden meanwhile (its tab or workspace switched, another pane zoomed): lmux stopped without
         // a key. The note waits until the pane shows again, and so does closing a menu left open.
@@ -295,7 +295,7 @@ extension LmuxController {
         hideToast(pane)
         if onScreen(pane) { showPendingRewindNote(pane) }
         scheduleOverlayRefresh(pane, delay: 0)
-        if let point = pane.surface.lastMousePoint { paneMouseMoved(pane, point) }
+        if let point = pane.surface?.lastMousePoint { paneMouseMoved(pane, point) }
     }
 
     /// What a failed rewind tells the user: the reason when lmux knows one the user can act on,
@@ -328,10 +328,10 @@ extension LmuxController {
         if pane.rewindMenuLeftOpen, !pane.busy {
             pane.rewindMenuLeftOpen = false
             pane.busy = true
-            pane.surface.inputHeld = true
+            pane.surface?.inputHeld = true
             Task {
                 _ = await self.backOut(pane, "shown again with its menu open", waitLate: false)
-                pane.surface.inputHeld = false
+                pane.surface?.inputHeld = false
                 pane.busy = false
                 self.showPendingRewindNote(pane)
             }
@@ -352,12 +352,12 @@ extension LmuxController {
     private func freezeFrame(_ pane: Pane) {
         let ov = pane.view.overlay
         guard ov.freeze == nil else { return }
-        guard let v = FrozenFrameView(surface: pane.surface) else { log("rewind: no frame to hold"); return }
+        guard let surface = pane.surface, let v = FrozenFrameView(surface: surface) else { log("rewind: no frame to hold"); return }
         ov.addSubview(v, positioned: .below, relativeTo: ov.subviews.first)
         ov.freeze = v
         v.frame = ov.bounds
         // The live terminal hidden under it (a translucent background would show it through).
-        pane.surface.alphaValue = 0
+        surface.alphaValue = 0
     }
 
     /// Claude's redraw is over (its rows unchanged for 100ms, 600ms at most: a ticking footer never
@@ -373,7 +373,7 @@ extension LmuxController {
         }
         await sleepMs(20)
         pane.view.overlay.freeze = nil
-        pane.surface.alphaValue = 1
+        pane.surface?.alphaValue = 1
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.12
             v.animator().alphaValue = 0
@@ -642,7 +642,7 @@ extension LmuxController {
 
     // MARK: - Screen and keys
 
-    func screenRows(_ pane: Pane) -> [String] { pane.surface.viewportRows().rows.map(\.text) }
+    func screenRows(_ pane: Pane) -> [String] { pane.surface?.viewportRows().rows.map(\.text) ?? [] }
 
     /// Poll the pane's rows (every 15ms, only while lmux drives it) until `cond` holds; nil after `timeout` seconds.
     func waitScreen(_ pane: Pane, _ timeout: TimeInterval, _ cond: ([String]) -> Bool) async -> [String]? {
@@ -798,7 +798,8 @@ extension LmuxController {
             pane.rewindStoppedHidden = true
             return false
         }
-        pane.surface.sendKey(keyCode: keyCode, codepoint: codepoint, control: control, shift: shift)
+        guard let surface = pane.surface else { return false }
+        surface.sendKey(keyCode: keyCode, codepoint: codepoint, control: control, shift: shift)
         return true
     }
 

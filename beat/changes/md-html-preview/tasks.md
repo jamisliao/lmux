@@ -2368,13 +2368,13 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Files:**
 - Modify: `App/Sources/LmuxUI/Rewind.swift`
 
-- [ ] **Step 1: 全部替換（三種）**
+- [x] **Step 1: 全部替換（三種）**
 
 - 每一個 `pane.surface.inputHeld = ` 換成 `pane.surface?.inputHeld = `（共 4 處）。
 - 每一個 `pane.surface.alphaValue = 1` 換成 `pane.surface?.alphaValue = 1`（共 2 處）。
 - `_ = pane.surface.performBindingAction("scroll_to_bottom")` 換成 `_ = pane.surface?.performBindingAction("scroll_to_bottom")`（1 處）。
 
-- [ ] **Step 2: `finishRewind(...)` 結尾**
+- [x] **Step 2: `finishRewind(...)` 結尾**
 
 原本：
 
@@ -2388,7 +2388,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         if let point = pane.surface?.lastMousePoint { paneMouseMoved(pane, point) }
 ```
 
-- [ ] **Step 3: `freezeFrame(_:)`**
+- [x] **Step 3: `freezeFrame(_:)`**
 
 原本：
 
@@ -2414,7 +2414,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         surface.alphaValue = 0
 ```
 
-- [ ] **Step 4: `screenRows(_:)`**
+- [x] **Step 4: `screenRows(_:)`**
 
 原本：
 
@@ -2428,7 +2428,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
     func screenRows(_ pane: Pane) -> [String] { pane.surface?.viewportRows().rows.map(\.text) ?? [] }
 ```
 
-- [ ] **Step 5: `send(_:_:_:control:shift:)`**
+- [x] **Step 5: `send(_:_:_:control:shift:)`**
 
 原本：
 
@@ -2443,13 +2443,13 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         surface.sendKey(keyCode: keyCode, codepoint: codepoint, control: control, shift: shift)
 ```
 
-- [ ] **Step 6: 驗證**
+- [x] **Step 6: 驗證**
 
 Run: `beat/changes/md-html-preview/dev.sh errors Rewind.swift`
 Expected: `ERRORS TOTAL: 0`。
 另外：`grep -c 'pane\.surface\.' App/Sources/LmuxUI/Rewind.swift` → `0`。
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Rewind.swift
