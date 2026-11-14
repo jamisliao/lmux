@@ -120,7 +120,7 @@ final class RW {
     /// Click inside `pane`'s terminal (away from overlays), type a marker, find it in its pty.
     @discardableResult
     func clickAndType(_ pane: Pane, _ label: String, at frac: NSPoint = NSPoint(x: 0.3, y: 0.55)) async -> Bool {
-        let s = pane.surface
+        let s = pane.surface!
         guard s.window === w else {
             r.check("\(label): pane is in the window", false, steps.suffix(8).joined(separator: " > "))
             return false
@@ -266,7 +266,7 @@ func runRealWindow() async -> Int32 {
     }
     await dragCheck("the content header's title", from: rw.cg(header.title, NSPoint(x: 10, y: header.title.bounds.midY)),
                     by: CGVector(dx: -20, dy: -30), expectMove: true)
-    let s1 = p1.surface
+    let s1 = p1.surface!
     await rw.click(rw.center(s1))
     await dragCheck("the terminal", from: rw.cg(s1, NSPoint(x: 40, y: s1.bounds.height - 30)),
                     by: CGVector(dx: 260, dy: 60), expectMove: false)
@@ -314,13 +314,13 @@ func runRealWindow() async -> Int32 {
         r.check("green button enters full screen", await rw.waitUntil(4) { w.styleMask.contains(.fullScreen) })
         // The cluster and the traffic lights share the full-screen titlebar window's coordinates.
         func clusterRect() -> NSRect { root.cluster.convert(root.cluster.bounds, to: nil) }
-        await rw.move(rw.center(p1.surface))
+        await rw.move(rw.center(p1.surface!))
         r.check("full screen: the titlebar buttons sit at the left edge while the traffic lights are hidden",
                 await rw.waitUntil(4) { !root.trafficLightsVisible && abs(clusterRect().minX - LmuxTokens.Layout.rowInsetX) < 1 },
                 "cluster \(clusterRect()) lightsVisible=\(root.trafficLightsVisible)")
         await rw.shot("04-fullscreen")
         rw.steps.append("pointer to the top edge (reveal the titlebar)")
-        let top = CGPoint(x: rw.center(p1.surface).x, y: 0)
+        let top = CGPoint(x: rw.center(p1.surface!).x, y: 0)
         await rw.move(top)
         await rw.move(CGPoint(x: top.x + 1, y: 0))
         let revealed = await rw.waitUntil(4) { root.trafficLightsVisible }
@@ -328,7 +328,7 @@ func runRealWindow() async -> Int32 {
         r.check("…revealed (pointer at the top edge): right of the traffic lights, no overlap (revealed: \(revealed))",
                 !revealed || clear, "cluster \(clusterRect()) lights \(root.trafficLightsFrame.map { "\($0)" } ?? "nil")")
         await rw.shot("04b-fullscreen-revealed")
-        await rw.move(rw.center(p1.surface))
+        await rw.move(rw.center(p1.surface!))
         await rw.clickAndType(p1, "in full screen")
         rw.steps.append("⌃⌘F exit full screen")
         await rw.key(3, [.maskCommand, .maskControl], settle: 2500)  // F
@@ -377,7 +377,7 @@ func runRealWindow() async -> Int32 {
     r.section = "splits"
     w.setFrame(home, display: true)
     c.select(c.model.workspaces.first { $0.panes.contains { $0 === p1 } }!)
-    await rw.click(rw.center(p1.surface))
+    await rw.click(rw.center(p1.surface!))
     rw.steps.append("⌘D")
     await rw.cmd("d", settle: 800)
     let ws = c.model.selected!
@@ -385,7 +385,7 @@ func runRealWindow() async -> Int32 {
     let p2 = ws.panes[1]
     _ = await sinks.waitReady(p2.id, timeout: 5)
     await sleepMs(300)
-    r.check("the new pane of a split has no selection (no stray grey block)", !p2.surface.hasSelection)
+    r.check("the new pane of a split has no selection (no stray grey block)", !p2.surface!.hasSelection)
     await rw.shot("05a-after-split")
     if let split = p1.view.superview as? SplitContainerView {
         let d = split.divider
@@ -449,7 +449,7 @@ func runRealWindow() async -> Int32 {
         r.check("\(name) is removed from the view tree when dismissed",
                 v?.superview == nil && ov.card == nil && ov.toast == nil && ov.findBar == nil)
         if let rect {
-            let f = NSPoint(x: rect.midX / p1.surface.bounds.width, y: rect.midY / p1.surface.bounds.height)
+            let f = NSPoint(x: rect.midX / p1.surface!.bounds.width, y: rect.midY / p1.surface!.bounds.height)
             await rw.clickAndType(p1, "click where the \(name) was", at: f)
         }
     }
@@ -479,7 +479,7 @@ func runRealWindow() async -> Int32 {
     if let pF2 = c.split(pF, .right) { _ = await sinks.waitReady(pF2.id, timeout: 5) }
     // Let the flood finish and the shell title come back.
     _ = await rw.waitUntil(20) { FileManager.default.fileExists(atPath: sinks.dir.appendingPathComponent("\(pF.id).bin").path) }
-    pF.surface.onTitleChange?("…/tmp")
+    pF.surface!.onTitleChange?("…/tmp")
     await rw.clickAndType(pF, "after flood")
     await sleepMs(3000)
     let visible = c.model.selected?.panes.count ?? 0
@@ -629,7 +629,7 @@ func runRealWindow() async -> Int32 {
                 + "tip hidden=\(scene.left.view.overlay.tip.isHidden) turns=\(scene.left.hover.turns.count)")
         await rw.shot("polish-\(name)-hover")
         // ⇧⌘H, type, the panel; Esc Esc hands the keyboard back.
-        await rw.move(rw.cg(scene.right.surface, NSPoint(x: 300, y: 200)))
+        await rw.move(rw.cg(scene.right.surface!, NSPoint(x: 300, y: 200)))
         await rw.cmd("h", .maskShift, settle: 600)
         r.check("polish \(name): ⇧⌘H focuses the History field", w.firstResponder is NSText, "\(String(describing: w.firstResponder))")
         await rw.type("refund")
@@ -707,7 +707,7 @@ func randomAction(_ rw: RW, _ rng: inout SplitMix) async -> String {
         await rw.click(button(0), settle: 400); return "click sidebar toggle"
     case 4:
         guard let p = c.model.selected?.focusedPane, total < 10 else { return "noop" }
-        await rw.click(rw.center(p.surface))
+        await rw.click(rw.center(p.surface!))
         await rw.cmd("d", settle: 600)
         return "⌘D split"
     case 5:
@@ -716,7 +716,7 @@ func randomAction(_ rw: RW, _ rng: inout SplitMix) async -> String {
         return "close pane"
     case 6:
         guard let p = c.model.selected?.focusedPane else { return "noop" }
-        await rw.click(rw.center(p.surface))
+        await rw.click(rw.center(p.surface!))
         await rw.cmd("f", settle: 300)
         await rw.key(53, settle: 300)  // esc closes it
         if p.view.overlay.findBar != nil { c.searchEnded(p) }
@@ -740,13 +740,13 @@ func randomAction(_ rw: RW, _ rng: inout SplitMix) async -> String {
         return "drag divider \(Int(dx))"
     case 10:
         guard let p = c.model.selected?.panes.randomElement(using: &rng) else { return "noop" }
-        let s = p.surface
+        let s = p.surface!
         await rw.move(rw.cg(s, NSPoint(x: s.bounds.width * 0.5, y: s.bounds.height * 0.5)))
         await rw.move(rw.cg(s, NSPoint(x: s.bounds.width * 0.8, y: s.bounds.height * 0.2)))
         return "hover"
     case 11:
         guard let p = c.model.selected?.panes.randomElement(using: &rng) else { return "noop" }
-        await rw.scroll(at: rw.center(p.surface), lines: Int32(Int(rng.next() % 7)) - 3)
+        await rw.scroll(at: rw.center(p.surface!), lines: Int32(Int(rng.next() % 7)) - 3)
         return "scroll"
     default:
         let h = root.header

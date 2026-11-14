@@ -2829,7 +2829,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Files:**
 - Modify: `App/Sources/lmux-apptest/PaneTabs.swift`、`ZoomClearReorder.swift`、`ScrollbackTests.swift`、`CodexReal.swift`、`RealWindow.swift`（都在 `App/Sources/lmux-apptest/`）
 
-- [ ] **Step 1: 先改已知的宣告（RealWindow.swift 三處）**
+- [x] **Step 1: 先改已知的宣告（RealWindow.swift 三處）**
 
 | 原本 | 改成 |
 |---|---|
@@ -2837,22 +2837,22 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 | `    let s1 = p1.surface` | `    let s1 = p1.surface!` |
 | `        let s = p.surface` | `        let s = p.surface!` |
 
-- [ ] **Step 2: 列出錯誤，照「測試檔的修正規則」逐行修正**
+- [x] **Step 2: 列出錯誤，照「測試檔的修正規則」逐行修正**
 
 Run: `beat/changes/md-html-preview/dev.sh errors PaneTabs.swift ZoomClearReorder.swift ScrollbackTests.swift CodexReal.swift RealWindow.swift`
 Expected: 一串 error 行（數量不固定）。照規則修正後再跑，直到 `ERRORS TOTAL: 0`。
 
-- [ ] **Step 3: 驗證**
+- [x] **Step 3: 驗證**
 
 Run: `beat/changes/md-html-preview/dev.sh errors PaneTabs.swift ZoomClearReorder.swift ScrollbackTests.swift CodexReal.swift RealWindow.swift`
 Expected: `ERRORS TOTAL: 0`。
 
-- [ ] **Step 4: 確認只加了 `!`（或 `?.` 的那一種）**
+- [x] **Step 4: 確認只加了 `!`（或 `?.` 的那一種）**
 
 Run: `git diff -U0 -- App/Sources/lmux-apptest/PaneTabs.swift App/Sources/lmux-apptest/ZoomClearReorder.swift App/Sources/lmux-apptest/ScrollbackTests.swift App/Sources/lmux-apptest/CodexReal.swift App/Sources/lmux-apptest/RealWindow.swift | grep '^[-+][^-+]' | sed 's/^[-+]//; s/surface[!?]/surface/g; s/scroller!/scroller/g' | sort | uniq -u | head`
 Expected: 沒有輸出（每一行改動拿掉 `!`／`?` 後都跟原本相同）。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/lmux-apptest/PaneTabs.swift App/Sources/lmux-apptest/ZoomClearReorder.swift App/Sources/lmux-apptest/ScrollbackTests.swift App/Sources/lmux-apptest/CodexReal.swift App/Sources/lmux-apptest/RealWindow.swift
