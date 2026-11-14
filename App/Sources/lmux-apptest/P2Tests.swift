@@ -184,7 +184,7 @@ func hookEvent(_ c: LmuxController, _ p: Pane, _ name: String, session: String, 
 func hover(_ c: LmuxController, _ p: Pane, row: Int) async {
     let m = c.screenMap(p, maxAge: 0)
     guard row < m.rows.count else { return }
-    c.paneMouseMoved(p, NSPoint(x: 120, y: p.surface.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
+    c.paneMouseMoved(p, NSPoint(x: 120, y: p.surface!.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
     await sleepMs(60)
 }
 
@@ -339,18 +339,18 @@ func runP2(_ r: Report, _ c: LmuxController, _ w: NSWindow) async {
     // for Undo. Japanese / Chinese Enter only converts.
     c.inputSourceLanguages = { ["ko"] }
     pA.lastReturnAt = nil
-    pA.surface.setMarkedText("한", selectedRange: NSRange(location: 1, length: 0),
+    pA.surface!.setMarkedText("한", selectedRange: NSRange(location: 1, length: 0),
                              replacementRange: NSRange(location: NSNotFound, length: 0))
     await type("\r", window: w)
     r.check("Korean IME composing: Enter (commit + send) counts for Undo", !c.cardShown(pA) && pA.lastReturnAt != nil)
-    pA.surface.unmarkText()
+    pA.surface!.unmarkText()
     c.inputSourceLanguages = { ["ja"] }
     pA.lastReturnAt = nil
-    pA.surface.setMarkedText("にほんご", selectedRange: NSRange(location: 4, length: 0),
+    pA.surface!.setMarkedText("にほんご", selectedRange: NSRange(location: 4, length: 0),
                              replacementRange: NSRange(location: NSNotFound, length: 0))
     await type("\r", window: w)
     r.check("Japanese IME composing: Enter only converts (no Undo)", !c.cardShown(pA) && pA.lastReturnAt == nil)
-    pA.surface.unmarkText()
+    pA.surface!.unmarkText()
     c.inputSourceLanguages = LmuxController.currentInputSourceLanguages
 
     // ------------------------------------------------------------ undo send
@@ -501,7 +501,7 @@ func runP2(_ r: Report, _ c: LmuxController, _ w: NSWindow) async {
         await hover(c, pC, row: map.map!.inputRow!)
         r.check("hover on the input box shows nothing", c.hoveredTurn(pC) == nil && ov0.turnBand == nil)
         await hover(c, pC, row: replyRow)
-        pC.surface.onMouseExit?()
+        pC.surface!.onMouseExit?()
         r.check("leaving the pane hides the actions", c.hoveredTurn(pC) == nil && ov0.turnBand == nil)
         _ = await waitFor(1) { bar?.isHidden == true }
         r.check("…faded out, then hidden", bar?.isHidden == true && (bar?.alphaValue ?? 1) < 0.01)
@@ -513,7 +513,7 @@ func runP2(_ r: Report, _ c: LmuxController, _ w: NSWindow) async {
         let t0 = Date()
         for i in 0..<60 {
             let row = [h1.row, toolRow, replyRow, reply2Row][i % 4]
-            c.paneMouseMoved(pC, NSPoint(x: 120 + CGFloat(i), y: pC.surface.bounds.height - (map.rows[row].top + map.rowHeight / 2)))
+            c.paneMouseMoved(pC, NSPoint(x: 120 + CGFloat(i), y: pC.surface!.bounds.height - (map.rows[row].top + map.rowHeight / 2)))
         }
         await sleepMs(50)
         let elapsed = Date().timeIntervalSince(t0)
@@ -563,10 +563,10 @@ func runP2(_ r: Report, _ c: LmuxController, _ w: NSWindow) async {
         await hover(c, pC, row: replyRow)
         r.check("pill up before the drag", c.hoveredTurn(pC) == 1)
         let sy = map.rows[replyRow].top + map.rowHeight / 2
-        await click(pC.surface, at: NSPoint(x: 40, y: pC.surface.bounds.height - sy),
-                    dragTo: NSPoint(x: 260, y: pC.surface.bounds.height - sy))
+        await click(pC.surface!, at: NSPoint(x: 40, y: pC.surface!.bounds.height - sy),
+                    dragTo: NSPoint(x: 260, y: pC.surface!.bounds.height - sy))
         r.check("a selection drag hides the pill", c.hoveredTurn(pC) == nil && ov0.turnBand == nil)
-        r.check("…and the drag selected text", pC.surface.hasSelection, "")
+        r.check("…and the drag selected text", pC.surface!.hasSelection, "")
         await hover(c, pC, row: replyRow)
         r.check("…the next move shows it again", c.hoveredTurn(pC) == 1)
 
@@ -883,7 +883,7 @@ func runP2(_ r: Report, _ c: LmuxController, _ w: NSWindow) async {
     dead.executableURL = URL(fileURLWithPath: "/usr/bin/true")
     try? dead.run(); dead.waitUntilExit()
     pX.claudePID = dead.processIdentifier
-    pX.surface.onTitleChange?("…/tmp/xproj")
+    pX.surface!.onTitleChange?("…/tmp/xproj")
     r.check("Claude gone without SessionEnd (Ctrl-C twice): reset on the next shell title", !pX.runsClaude && !wsX.showsStateLine
             && wsX.title == "xproj", "\(wsX.title) runsClaude=\(pX.runsClaude)")
     pX.titleState = TitleState(); pX.titleState.title = "Mine"; pX.titleState.isManual = true
@@ -1247,7 +1247,7 @@ func bigTranscriptChecks(_ r: Report, _ c: LmuxController, fx: URL, created: ino
     // Hover over and over, and read Claude's title a few times.
     var moves: [Double] = []
     for i in 0..<40 {
-        let y = p.surface.bounds.height - CGFloat(10 + (i % 12) * 16)
+        let y = p.surface!.bounds.height - CGFloat(10 + (i % 12) * 16)
         let t0 = Date()
         c.paneMouseMoved(p, NSPoint(x: 200, y: y))
         moves.append(Date().timeIntervalSince(t0) * 1000)
@@ -1389,7 +1389,7 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     let t1 = await c.loadTurns(r1.pane)
     r.check("✎: lmux hides it and the turn after it (Claude writes its new branch with the next prompt)",
             t1.map(\.prompt) == ["remember PINEAPPLE"] && r1.pane.rewoundFrom == "rw-1-u2", t1.map(\.prompt).joined(separator: " / "))
-    r.check("…and the user's input to the pane is back", !r1.pane.surface.inputHeld)
+    r.check("…and the user's input to the pane is back", !r1.pane.surface!.inputHeld)
     // Claude's next prompt starts a new branch from turn 1: lmux follows it and drops the marker.
     let branch = """
     {"parentUuid":"rw-1-a1","isSidechain":false,"type":"user","message":{"role":"user","content":"the number 43"},"uuid":"rw-1-n1","timestamp":"2026-11-04T10:00:00.000Z","sessionId":"rw-1","promptSource":"typed"}
@@ -1516,8 +1516,8 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     // Scrolled up into the scrollback: lmux brings the viewport down, then reads.
     let many = (1...40).map { "prompt number \($0)" }
     let r19 = await rewindPane("19", prompts: many)
-    _ = r19.pane.surface.performBindingAction("scroll_page_up")
-    _ = r19.pane.surface.performBindingAction("scroll_page_up")
+    _ = r19.pane.surface!.performBindingAction("scroll_page_up")
+    _ = r19.pane.surface!.performBindingAction("scroll_page_up")
     let o19 = await c.rewind(r19.pane, turnUuid: "rw-19-u39", mode: .remove)
     r.check("scrolled up: back to the bottom first, then rewound", o19 == .done && acts(r19.log).contains("restore conversation 39"),
             "\(o19) " + acts(r19.log).joined(separator: "; "))
@@ -1583,14 +1583,14 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     _ = await waitFor(2) { r22.pane.busy }
     r.check("a rewind starting ends the pane's undo toast", c.pendingUndo == nil)
     r.check("…the pane's last frame is held over it while lmux drives the menu, the live terminal hidden under it",
-            r22.pane.view.overlay.freezeShown && r22.pane.surface.alphaValue == 0)
-    if let f = r22.pane.view.overlay.freeze as? FrozenFrameView, let l = r22.pane.surface.layer,
+            r22.pane.view.overlay.freezeShown && r22.pane.surface!.alphaValue == 0)
+    if let f = r22.pane.view.overlay.freeze as? FrozenFrameView, let l = r22.pane.surface!.layer,
        let surf = l.contents.map({ unsafeBitCast($0 as AnyObject, to: IOSurfaceRef.self) }) {
         r.check("…its own pixels, shown like the terminal's layer (top left, same scale, same size, Display P3)",
                 f.image.width == IOSurfaceGetWidth(surf) && f.image.height == IOSurfaceGetHeight(surf)
                 && f.layer?.contentsGravity == l.contentsGravity && f.layer?.contentsScale == l.contentsScale
-                && f.frame == r22.pane.view.overlay.bounds && r22.pane.view.overlay.frame == r22.pane.surface.frame && f.image.colorSpace?.name == CGColorSpace.displayP3,
-                "\(f.image.width)x\(f.image.height) \(f.layer?.contentsGravity.rawValue ?? "?")/\(l.contentsGravity.rawValue) \(f.layer?.contentsScale ?? 0)/\(l.contentsScale) \(f.frame)/\(r22.pane.surface.frame)")
+                && f.frame == r22.pane.view.overlay.bounds && r22.pane.view.overlay.frame == r22.pane.surface!.frame && f.image.colorSpace?.name == CGColorSpace.displayP3,
+                "\(f.image.width)x\(f.image.height) \(f.layer?.contentsGravity.rawValue ?? "?")/\(l.contentsGravity.rawValue) \(f.layer?.contentsScale ?? 0)/\(l.contentsScale) \(f.frame)/\(r22.pane.surface!.frame)")
     } else {
         r.check("…its own pixels, shown like the terminal's layer", false, "no frozen frame view")
     }
@@ -1603,9 +1603,9 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     r.check("…and the rewind finishes with its own keys only", o22 == .done
             && keys(r22.log) == ["esc", "esc", "top", "enter", "enter", "ctrl-u"], keys(r22.log).joined(separator: " "))
     r.check("…done: the pane shows itself again, no note left, the menu gone, input released",
-            !r22.pane.view.overlay.freezeShown && r22.pane.surface.alphaValue == 1 && r22.pane.view.overlay.toast == nil
+            !r22.pane.view.overlay.freezeShown && r22.pane.surface!.alphaValue == 1 && r22.pane.view.overlay.toast == nil
             && RewindMenu.read(rows(r22.pane)) == .closed
-            && !r22.pane.surface.inputHeld && !r22.pane.busy)
+            && !r22.pane.surface!.inputHeld && !r22.pane.busy)
 
     // Its tab switched away while lmux drives the menu: no key into the hidden pane (its waits end
     // at once, the Escs would come in a burst); stopped, and it says so once it shows again.
@@ -1620,7 +1620,7 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     await sleepMs(600)
     r.check("tab switched mid-rewind: stopped, not one key into the hidden pane, nothing restored",
             tab30 != nil && !c.onScreen(r30.pane) && o30 != .done && keys(r30.log) == keysAtHide
-            && !acts(r30.log).contains { $0.hasPrefix("restore") } && !r30.pane.busy && !r30.pane.surface.inputHeld,
+            && !acts(r30.log).contains { $0.hasPrefix("restore") } && !r30.pane.busy && !r30.pane.surface!.inputHeld,
             "\(o30) at hide: \(keysAtHide.joined(separator: " ")) now: \(keys(r30.log).joined(separator: " "))")
     r.check("…no note while it's hidden (it would time out unseen), none on the tab shown instead",
             r30.pane.view.overlay.toast == nil && tab30?.view.overlay.toast == nil)
@@ -1628,7 +1628,7 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     c.selectTab(r30.pane)
     r.check("…shown again: lmux closes Claude's menu (input held meanwhile), then says the rewind stopped",
             await waitFor(4) { RewindMenu.read(rows(r30.pane)) == .closed && r30.pane.view.overlay.toast?.text.string.contains("hidden") == true }
-            && !acts(r30.log).contains { $0.hasPrefix("restore") } && !r30.pane.busy && !r30.pane.surface.inputHeld,
+            && !acts(r30.log).contains { $0.hasPrefix("restore") } && !r30.pane.busy && !r30.pane.surface!.inputHeld,
             (r30.pane.view.overlay.toast?.text.string ?? "no toast") + " | " + acts(r30.log).joined(separator: "; "))
     // The same with its workspace switched away.
     let r34 = await rewindPane("34", prompts: ["alpha", "beta", "gamma"], ["lag_ms": 300])
@@ -1666,7 +1666,7 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
             if let e = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: mods, timestamp: 0,
                                         windowNumber: c.window.windowNumber, context: nil, characters: chars,
                                         charactersIgnoringModifiers: ign, isARepeat: false, keyCode: code) {
-                sh.surface.keyDown(with: e)
+                sh.surface!.keyDown(with: e)
             }
         }
         c.selectTab(sh)
@@ -1738,7 +1738,7 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     r.check("…and before it (the first turn: ⧉ ✎, no ×)", c.hoveredTurn(pSh) == 1
             && barFirst.map { !$0.edit.isHidden && $0.remove.isHidden && $0.frame.width == 2 * TurnActionBar.buttonSize.width + 6 } ?? false,
             "\(barFirst?.frame ?? .zero)")
-    pSh.surface.onMouseExit?()
+    pSh.surface!.onMouseExit?()
 
     // A prompt queued while Claude works: an Esc would send it. Refused before any key, ⌘Z too.
     let r23 = await rewindPane("23", prompts: ["alpha", "beta"], ["working": "footer", "queued": "continue"])
@@ -1746,7 +1746,7 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     r.check("queued messages on screen: refused, no key sent", o23 != .done && fakeLog(r23.log).isEmpty, fakeLog(r23.log).joined(separator: "; "))
     r23.pane.busy = true
     let u23 = await c.undo(prompt: "beta", in: r23.pane)
-    r.check("…⌘Z too: refused, no Esc, input released", u23 != .done && fakeLog(r23.log).isEmpty && !r23.pane.surface.inputHeld && !r23.pane.busy,
+    r.check("…⌘Z too: refused, no Esc, input released", u23 != .done && fakeLog(r23.log).isEmpty && !r23.pane.surface!.inputHeld && !r23.pane.busy,
             fakeLog(r23.log).joined(separator: "; "))
 
     // The menu stays up a while after "Restore conversation": lmux waits, never an Esc after that Return.
@@ -1764,7 +1764,7 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     if let other { c.selectTab(other) }
     let o25 = await t25.value
     r.check("its tab switched away mid-rewind: backed out, nothing picked, input released",
-            other != nil && o25 != .done && !acts(r25.log).contains { $0.hasPrefix("pick") } && !r25.pane.surface.inputHeld,
+            other != nil && o25 != .done && !acts(r25.log).contains { $0.hasPrefix("pick") } && !r25.pane.surface!.inputHeld,
             "\(o25) " + acts(r25.log).joined(separator: "; "))
     let r26 = await rewindPane("26", prompts: ["alpha", "beta"], ["lag_ms": 400])
     let t26 = Task { await c.rewind(r26.pane, turnUuid: "rw-26-u1", mode: .remove) }
@@ -1777,25 +1777,25 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     // Find, font size and Clear Screen don't act on a pane lmux is driving.
     let r27 = await rewindPane("27", prompts: ["alpha"])
     c.focus(r27.pane)
-    r27.pane.surface.inputHeld = true
+    r27.pane.surface!.inputHeld = true
     c.menuFind(nil)
     r.check("Find on a held pane: nothing", r27.pane.view.overlay.findBar == nil)
-    r27.pane.surface.inputHeld = false
+    r27.pane.surface!.inputHeld = false
 
     // The user's own keys, pastes and clicks don't reach the pane while lmux drives the menu.
     let r15 = await rewindPane("15", prompts: ["alpha", "beta"], ["lag_ms": 200])
     c.focus(r15.pane)
     let t15 = Task { await c.rewind(r15.pane, turnUuid: "rw-15-u1", mode: .remove) }
-    _ = await waitFor(2) { r15.pane.surface.inputHeld }
+    _ = await waitFor(2) { r15.pane.surface!.inputHeld }
     await type("jk\r", window: w)
-    r15.pane.surface.paste(nil)
+    r15.pane.surface!.paste(nil)
     let o15 = await t15.value
     r.check("keys typed meanwhile are dropped (no j / k / Return reach the menu)", o15 == .done
             && !fakeLog(r15.log).contains("typed") && keys(r15.log) == ["esc", "esc", "top", "enter", "enter", "ctrl-u"],
             keys(r15.log).joined(separator: " "))
-    r15.pane.surface.inputHeld = true
+    r15.pane.surface!.inputHeld = true
     r.check("`lmux send` to a pane lmux is driving: refused", c.send(text: "x", toPane: r15.pane.id, token: c.token(for: r15.pane)) == .paneBusy)
-    r15.pane.surface.inputHeld = false
+    r15.pane.surface!.inputHeld = false
 
     // 2.1.280's look (prompt bars on a background color, a "✻ … · done Wednesday 11:42 PM" line under
     // every reply, "● high · /effort" right above the input): the pointer on any row of a turn puts
