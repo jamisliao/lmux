@@ -362,8 +362,9 @@ extension LmuxController {
 
     /// Claude is working in `pane`: running since the last prompt, and that turn wasn't stopped
     /// with Esc (Claude Code sends no Stop hook then; the transcript ends with its interrupt marker).
+    /// Not while the turn is paused for background subagents: Claude is at its prompt then.
     func claudeWorking(_ pane: Pane) -> Bool {
-        guard case .running = pane.agent.state else { return false }
+        guard case .running = pane.agent.state, !pane.agent.awaitingBackgroundSubagents else { return false }
         return pane.hover.turns.last?.interrupted != true
     }
 

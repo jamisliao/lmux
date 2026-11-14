@@ -80,11 +80,14 @@ func runStatusExtras() async -> Int32 {
     await settle()
     r.check("a main Stop listing background subagents: still running, “2 subagents”",
             s.agent.state == .running && line2(S)?.age == "2 subagents", "\(String(describing: line2(S)))")
+    r.check("paused: Claude is at its prompt, not working (the last turn keeps ⧉ ✎ ×, rewind presses no Esc)",
+            !c.claudeWorking(s))
     hookEvent(c, s, "SubagentStop", session: "sx-2", ["agent_id": "bg-a", "agent_type": "general-purpose"])
     hookEvent(c, s, "UserPromptSubmit", session: "sx-2", ["prompt": "bg-a reported back"])
     await settle()
     r.check("one reports back: the other is still counted",
             s.agent.state == .running && line2(S)?.age == "1 subagent", "\(String(describing: line2(S)))")
+    r.check("woken by the report: Claude works again", c.claudeWorking(s))
     hookEvent(c, s, "SubagentStop", session: "sx-2", ["agent_id": "bg-b", "agent_type": "general-purpose"])
     hookEvent(c, s, "UserPromptSubmit", session: "sx-2", ["prompt": "bg-b reported back"])
     hookEvent(c, s, "Stop", session: "sx-2", ["last_assistant_message": "Both done.", "background_tasks": bg([])])
