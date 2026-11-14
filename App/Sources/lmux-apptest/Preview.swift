@@ -236,6 +236,32 @@ func runPreview() async -> Int32 {
         r.check("檔案被刪除後，預覽 tab 仍然留著", ws.panes.contains { $0 === p })
     }
 
+    // MARK: 預覽 tab 上的選單項目（Task 25）
+    // @feature: preview-tab.feature
+    // @scenario: 預覽 tab 上停用只對終端機有意義的功能
+    do {
+        r.section = "preview-menu"
+        let (_, a, p) = previewSetup(c, dir: fx, file: design)
+        func enabled(_ action: Selector) -> Bool {
+            c.validateMenuItem(NSMenuItem(title: "x", action: action, keyEquivalent: ""))
+        }
+        c.focus(p)
+        let off: [(String, Selector)] = [
+            ("Find…", #selector(LmuxController.menuFind(_:))),
+            ("Find Next", #selector(LmuxController.menuFindNext(_:))),
+            ("Find Previous", #selector(LmuxController.menuFindPrevious(_:))),
+            ("Undo Send", #selector(LmuxController.menuUndoSend(_:))),
+            ("Copy Original Reply", #selector(LmuxController.menuCopyOriginal(_:))),
+            ("Ghostty 的字級／Clear Screen", #selector(LmuxController.menuGhosttyBinding(_:))),
+        ]
+        for (name, sel) in off { r.check("預覽 tab 上停用 \(name)", !enabled(sel)) }
+        r.check("預覽 tab 上 Close Pane 仍可用", enabled(#selector(LmuxController.menuClosePane(_:))))
+        r.check("預覽 tab 上 Move Tab Right 仍可用", enabled(#selector(LmuxController.menuMoveTabRight(_:))))
+        r.check("預覽 tab 上 Split Right 仍可用", enabled(#selector(LmuxController.menuSplitRight(_:))))
+        c.focus(a)
+        r.check("回到終端機 tab：Find… 可用", enabled(#selector(LmuxController.menuFind(_:))))
+    }
+
     // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）
     return finish(r, c)
 }

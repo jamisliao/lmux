@@ -3728,7 +3728,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Modify: `App/Sources/LmuxUI/SidebarSelection.swift`（`validateMenuItem`）
 - Modify: `App/Sources/lmux-apptest/Preview.swift`
 
-- [ ] **Step 1: 加測試**
+- [x] **Step 1: 加測試**
 
 在 `App/Sources/lmux-apptest/Preview.swift` 的插入點註解**上面**加上：
 
@@ -3761,12 +3761,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: 有 `FAIL  [preview-menu] 預覽 tab 上停用 Find…`（以及另外 5 個「停用」項目）。
 
-- [ ] **Step 3: `validateMenuItem`**
+- [x] **Step 3: `validateMenuItem`**
 
 在 `App/Sources/LmuxUI/SidebarSelection.swift` 找到這一行：
 
@@ -3806,12 +3806,12 @@ extension LmuxController: NSMenuItemValidation {
     }
 ```
 
-- [ ] **Step 4: 執行，確認通過**
+- [x] **Step 4: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: 沒有 `FAIL`、`APPTEST EXIT: 0`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/SidebarSelection.swift App/Sources/lmux-apptest/Preview.swift
