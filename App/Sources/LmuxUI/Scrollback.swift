@@ -65,8 +65,8 @@ extension LmuxController {
     /// its prompt (Ghostty says nothing is running; on the alternate screen it never does).
     func savesScrollback(_ p: Pane) -> Bool {
         if Self.resumeCommand(p.claudeSessionID, saved: p.resumeCommand, agent: p.agentKind) != nil { return false }
-        guard Scrollback.fileName(p.id) != nil, !p.surface.needsConfirmQuit,
-              let pid = ClaudeProcess.representative(ofGroup: p.surface.foregroundPID),
+        guard Scrollback.fileName(p.id) != nil, let surface = p.surface, !surface.needsConfirmQuit,
+              let pid = ClaudeProcess.representative(ofGroup: surface.foregroundPID),
               let name = ClaudeProcess.name(pid) else { return false }
         return ClaudeProcess.shells.contains(name)
     }
@@ -79,7 +79,8 @@ extension LmuxController {
         let dir = scrollbackDir
         var made = false
         for p in model.workspaces.flatMap(\.panes) where savesScrollback(p) {
-            let text = Scrollback.trim(Scrollback.sanitize(p.surface.screenText(rows: Scrollback.maxLines)))
+            guard let surface = p.surface else { continue }
+            let text = Scrollback.trim(Scrollback.sanitize(surface.screenText(rows: Scrollback.maxLines)))
             guard !text.isEmpty, let name = Scrollback.fileName(p.id) else { continue }
             if !made {
                 guard (try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: false,
@@ -109,7 +110,7 @@ extension LmuxController {
         let text = Scrollback.trim(Scrollback.sanitize(raw))
         guard !text.isEmpty else { return }
         let shown = text.replacingOccurrences(of: "\n", with: "\r\n") + "\r\n" + Scrollback.divider
-        pane.surface.printOutput(shown)
+        pane.surface?.printOutput(shown)
     }
 
     /// The saved output, all of it (after a restore: what no pane took; before a save).

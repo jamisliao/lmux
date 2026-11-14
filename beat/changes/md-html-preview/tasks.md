@@ -2465,7 +2465,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Files:**
 - Modify: `App/Sources/LmuxUI/Search.swift`、`App/Sources/LmuxUI/Scrollback.swift`
 
-- [ ] **Step 1: Search.swift — 尋找列的回呼**
+- [x] **Step 1: Search.swift — 尋找列的回呼**
 
 把下面兩種各換掉（各 2 處）：
 - `pane?.surface.inputHeld` → `pane?.surface?.inputHeld`
@@ -2483,7 +2483,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
                 _ = pane.surface?.performBindingAction("end_search")
 ```
 
-- [ ] **Step 2: Search.swift — `menuFind(_:)`**
+- [x] **Step 2: Search.swift — `menuFind(_:)`**
 
 原本：
 
@@ -2499,7 +2499,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         if !s.performBindingAction("start_search") { searchStarted(p, needle: nil) }
 ```
 
-- [ ] **Step 3: Scrollback.swift — `savesScrollback(_:)`**
+- [x] **Step 3: Scrollback.swift — `savesScrollback(_:)`**
 
 原本：
 
@@ -2515,7 +2515,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
               let pid = ClaudeProcess.representative(ofGroup: surface.foregroundPID),
 ```
 
-- [ ] **Step 4: Scrollback.swift — `saveScrollback()`**
+- [x] **Step 4: Scrollback.swift — `saveScrollback()`**
 
 原本：
 
@@ -2530,7 +2530,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
             let text = Scrollback.trim(Scrollback.sanitize(surface.screenText(rows: Scrollback.maxLines)))
 ```
 
-- [ ] **Step 5: Scrollback.swift — `restoreScrollback(savedID:into:)`**
+- [x] **Step 5: Scrollback.swift — `restoreScrollback(savedID:into:)`**
 
 原本：
 
@@ -2544,12 +2544,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         pane.surface?.printOutput(shown)
 ```
 
-- [ ] **Step 6: 驗證**
+- [x] **Step 6: 驗證**
 
 Run: `beat/changes/md-html-preview/dev.sh errors Search.swift Scrollback.swift`
 Expected: `ERRORS TOTAL: 0`。
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Search.swift App/Sources/LmuxUI/Scrollback.swift
