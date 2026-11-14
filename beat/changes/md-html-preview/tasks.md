@@ -3892,7 +3892,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Modify: `App/Sources/LmuxUI/Persistence.swift`（`snapshotLayout`）
 - Modify: `App/Sources/lmux-apptest/Preview.swift`
 
-- [ ] **Step 1: 加測試**
+- [x] **Step 1: 加測試**
 
 在 `App/Sources/lmux-apptest/Preview.swift` 找到這兩行：
 
@@ -3935,12 +3935,12 @@ func layoutPaneIDs(_ n: LayoutFile.NodeState) -> [String] {
 
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: `[preview-restore]` 有 `FAIL`。
 
-- [ ] **Step 3: `snapshotLayout()` 的 `node` 函式**
+- [x] **Step 3: `snapshotLayout()` 的 `node` 函式**
 
 在 `App/Sources/LmuxUI/Persistence.swift` 找到：
 
@@ -3978,7 +3978,7 @@ Expected: `[preview-restore]` 有 `FAIL`。
         }
 ```
 
-- [ ] **Step 4: `snapshotLayout()` 的 workspace 清單**
+- [x] **Step 4: `snapshotLayout()` 的 workspace 清單**
 
 找到：
 
@@ -4003,18 +4003,18 @@ Expected: `[preview-restore]` 有 `FAIL`。
         f.selected = f.workspaces.contains { $0.id == model.selectedID } ? model.selectedID : f.workspaces.first?.id
 ```
 
-- [ ] **Step 5: 執行，確認通過**
+- [x] **Step 5: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: 沒有 `FAIL`、`APPTEST EXIT: 0`。
 
-- [ ] **Step 6: 既有的存檔與還原測試不受影響（很久，見「跑很久的指令」）**
+- [x] **Step 6: 既有的存檔與還原測試不受影響（很久，見「跑很久的指令」）**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-full; beat/changes/md-html-preview/dev.sh new-failures full`
 Expected: `NEW FAILURES: 0` 與 `MISSING CHECKS: 0`（`[restore]` 等還原檢查只在 full 裡跑）。
 不是 0：先重跑一次排除偶發失敗；還是不是 0 就**停止**，回報列出的項目。
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Persistence.swift App/Sources/lmux-apptest/Preview.swift

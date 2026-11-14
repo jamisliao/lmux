@@ -17,6 +17,12 @@ func previewSetup(_ c: LmuxController, dir: URL, file: URL) -> (ws: Workspace, a
     return (ws, a, p)
 }
 
+/// layout.json 一個節點底下所有 tab 的 id。
+func layoutPaneIDs(_ n: LayoutFile.NodeState) -> [String] {
+    if let children = n.children { return children.flatMap(layoutPaneIDs) }
+    return n.leafPanes.map(\.id)
+}
+
 @MainActor
 func runPreview() async -> Int32 {
     let r = Report()
@@ -276,6 +282,24 @@ func runPreview() async -> Int32 {
             .flatMap { ($0["panes"] as? [[String: Any]]) ?? [] }
             .compactMap { $0["id"] as? String }
         r.check("lmux list 不列出預覽 tab，仍列出終端機 tab", !ids.contains(p.id) && ids.contains(a.id), "\(ids)")
+    }
+
+    // MARK: 存檔不存預覽 tab（Task 27）
+    // @feature: preview-tab.feature
+    // @scenario: 重開 lmux 不還原預覽 tab
+    do {
+        r.section = "preview-restore"
+        let (ws, a, p) = previewSetup(c, dir: fx, file: design)
+        let lone = c.newPreviewTab(docs.appendingPathComponent("b.md"), after: a)!
+        c.moveTabToNewWorkspace(lone)
+        let loneWS = lone.workspace!
+        c.select(loneWS)  // 讓「只有預覽 tab 的 workspace」是選取中的 workspace
+        let layout = c.snapshotLayout()
+        let ids = layout.workspaces.first { $0.id == ws.id }.map { layoutPaneIDs($0.root) } ?? []
+        r.check("存檔時不存預覽 tab，留下終端機 tab", !ids.contains(p.id) && ids.contains(a.id), "\(ids)")
+        r.check("只有預覽 tab 的 workspace 不存", !layout.workspaces.contains { $0.id == loneWS.id })
+        r.check("選取中的 workspace 沒存時，selected 改指向存下來的 workspace",
+                layout.workspaces.contains { $0.id == layout.selected }, layout.selected ?? "nil")
     }
 
     // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）
