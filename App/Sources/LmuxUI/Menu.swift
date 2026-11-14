@@ -219,8 +219,8 @@ extension LmuxController {
     @objc func menuGhosttyBinding(_ s: Any?) {
         guard let action = (s as? NSMenuItem)?.representedObject as? String else { return }
         // Font size or Clear Screen would redraw a pane lmux is reading to drive Claude's rewind.
-        guard focusedPane?.surface.inputHeld != true else { NSSound.beep(); return }
-        _ = focusedPane?.surface.performBindingAction(action)
+        guard focusedPane?.surface?.inputHeld != true else { NSSound.beep(); return }
+        _ = focusedPane?.surface?.performBindingAction(action)
     }
 
     @objc func menuNewWorkspace(_ s: Any?) {

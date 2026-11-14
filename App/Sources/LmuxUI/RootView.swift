@@ -210,7 +210,7 @@ final class RootView: FlippedView {
     /// The titlebar buttons sit on the sidebar, or on the content header when it's hidden: they read
     /// like what's under them (the terminal's color: header, a sidebar that matches it).
     func updateClusterAppearance() {
-        cluster.adoptAppearance(on: model.sidebarVisible ? sidebarBackdrop.matchColor : model.selected?.focusedPane?.surface.terminalBackground)
+        cluster.adoptAppearance(on: model.sidebarVisible ? sidebarBackdrop.matchColor : model.selected?.focusedPane?.surface?.terminalBackground)
         // plugin 的 bar 與 sidebar 的列用同一套外觀（applySidebarLook 會先設定 sidebarHost 再呼叫這裡）。
         if let v = sidebarAccessory?.view, v.appearance?.name != sidebarHost.appearance?.name { v.appearance = sidebarHost.appearance }
     }
@@ -219,7 +219,7 @@ final class RootView: FlippedView {
     func updateHeader() {
         guard let ws = model.selected else { return }
         header.dotColor = T.Colors.workspaceAccents[ws.accent % T.Colors.workspaceAccents.count].nsColor
-        let bg = ws.focusedPane?.surface.terminalBackground
+        let bg = ws.focusedPane?.surface?.terminalBackground
         header.background = bg ?? T.Colors.windowBackground.nsColor
         header.zoomed = ws.isZoomed
         // Split, each pane header has its own; one pane (or zoomed), the content header says it.

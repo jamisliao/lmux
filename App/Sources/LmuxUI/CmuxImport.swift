@@ -726,7 +726,7 @@ extension LmuxController {
         if let i = u.initial, !model.workspaces.contains(where: { $0.id == i.id }) {
             let pane = makePane(cwd: i.cwd)
             pane.startedPlain = true
-            pane.surface.setOcclusion(visible: false)
+            pane.surface?.setOcclusion(visible: false)
             model.workspaces.insert(Workspace(id: i.id, accent: i.accent, root: SplitNode(pane: pane)), at: 0)
         }
         var untouched: [Workspace] = [], kept = 0
@@ -735,11 +735,11 @@ extension LmuxController {
             // Untouched: as it came, never typed in, the same agent session, and nothing but its shell
             // (the pane's first process, or an idle shell) or the agent the import resumed in the foreground.
             func onlyItsOwn(_ p: Pane) -> Bool {
-                let fg = p.surface.foregroundPID
+                let fg = p.foregroundPID
                 return p.runsClaude || runningProcess(p) == nil || (fg > 0 && getsid(fg) == fg)
             }
             let same = ws.panes.map(\.id) == w.panes && ws.customTitle == w.title && ws.panes.map(\.claudeSessionID) == w.sessions
-                && ws.panes.allSatisfy { !$0.surface.hadUserInput && onlyItsOwn($0) }
+                && ws.panes.allSatisfy { $0.surface?.hadUserInput != true && onlyItsOwn($0) }
             if same { untouched.append(ws) } else { kept += 1 }
         }
         if let id = u.selectedID, let ws = model.workspaces.first(where: { $0.id == id }) { select(ws) }
@@ -755,7 +755,7 @@ extension LmuxController {
     /// The shell lmux opened at launch, as it came: one pane, never typed in, not renamed, no Claude.
     func isUntouchedFirst(_ ws: Workspace) -> Bool {
         guard !ws.id.hasPrefix("cmux-"), ws.customTitle == nil, ws.panes.count == 1, let p = ws.panes.first else { return false }
-        return p.startedPlain && !p.surface.hadUserInput && p.claudeSessionID == nil
+        return p.startedPlain && p.surface?.hadUserInput != true && p.claudeSessionID == nil
     }
 
     func listJoined(_ a: [String]) -> String {

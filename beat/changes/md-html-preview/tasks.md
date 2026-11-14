@@ -2686,7 +2686,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Files:**
 - Modify: `App/Sources/LmuxUI/CmuxImport.swift`、`App/Sources/LmuxUI/RootView.swift`、`App/Sources/LmuxUI/Menu.swift`
 
-- [ ] **Step 1: CmuxImport.swift**
+- [x] **Step 1: CmuxImport.swift**
 
 四處，各換一次：
 
@@ -2697,11 +2697,11 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 | `ws.panes.allSatisfy { !$0.surface.hadUserInput && onlyItsOwn($0) }` | `ws.panes.allSatisfy { $0.surface?.hadUserInput != true && onlyItsOwn($0) }` |
 | `return p.startedPlain && !p.surface.hadUserInput && p.claudeSessionID == nil` | `return p.startedPlain && p.surface?.hadUserInput != true && p.claudeSessionID == nil` |
 
-- [ ] **Step 2: RootView.swift**
+- [x] **Step 2: RootView.swift**
 
 每一個 `focusedPane?.surface.terminalBackground` 換成 `focusedPane?.surface?.terminalBackground`（共 2 處）。
 
-- [ ] **Step 3: Menu.swift — `menuGhosttyBinding(_:)`**
+- [x] **Step 3: Menu.swift — `menuGhosttyBinding(_:)`**
 
 原本：
 
@@ -2717,12 +2717,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         _ = focusedPane?.surface?.performBindingAction(action)
 ```
 
-- [ ] **Step 4: 驗證**
+- [x] **Step 4: 驗證**
 
 Run: `beat/changes/md-html-preview/dev.sh errors CmuxImport.swift RootView.swift Menu.swift`
 Expected: `ERRORS TOTAL: 0`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/CmuxImport.swift App/Sources/LmuxUI/RootView.swift App/Sources/LmuxUI/Menu.swift
