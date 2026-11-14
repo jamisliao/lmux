@@ -575,6 +575,20 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         let dir = file.deletingLastPathComponent().path
         pane.cwd = dir
         pane.branch = GitBranch.read(cwd: dir)
+        // 點連結換頁、返回上一頁：標題與目前目錄跟著換（目錄用既有的 paneDidChangeDirectory）。
+        preview.onFileChange = { [weak self, weak pane] f in
+            guard let self, let pane else { return }
+            pane.title = f.lastPathComponent
+            self.paneDidChangeDirectory(pane, f.deletingLastPathComponent().path)
+            if let ws = pane.workspace, ws === self.model.selected {
+                self.refreshHeaders(ws)
+                self.root.updateHeader()
+            }
+        }
+        // 預覽裡點網址：跟在終端機 ⌘-click 網址一樣。
+        preview.openExternal = { [weak self] url in
+            GhosttyRuntime.openTerminalURL(url.absoluteString, kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN, window: self?.window)
+        }
         panesByID[pane.id] = pane
         return pane
     }

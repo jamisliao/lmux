@@ -209,6 +209,33 @@ func runPreview() async -> Int32 {
         r.check("Ghostty 的 OPEN_URL 跳出開啟選單", await waitFor(3) { asked == [design] }, "\(asked)")
     }
 
+    // MARK: 預覽裡換頁與點網址（Task 24）
+    // @feature: preview-tab.feature
+    // @scenario: 點相對路徑的 .md 連結，在同一個預覽 tab 換頁
+    // @scenario: 點網址連結，照終端機裡點連結的規則處理
+    // @scenario: 預覽中的檔案被刪除
+    do {
+        r.section = "preview-links"
+        let gone = docs.appendingPathComponent("gone.md")
+        try? "# Gone\n".write(to: gone, atomically: true, encoding: .utf8)
+        let (ws, _, p) = previewSetup(c, dir: fx, file: design)
+        _ = await waitFor(5) { p.preview?.webView.isLoading == false }
+        let count = ws.panes.count
+        p.preview!.show(docs.appendingPathComponent("b.md"))
+        r.check("預覽換頁後 tab 標題跟著換成 b.md", await waitFor(5) { p.headerTitle == "b.md" }, p.headerTitle)
+        r.check("預覽換頁時沒有開出新的 tab", ws.panes.count == count, "\(ws.panes.count)")
+        p.preview!.webView.goBack()
+        r.check("返回上一頁後 tab 標題改回 design.md", await waitFor(5) { p.headerTitle == "design.md" }, p.headerTitle)
+        opened.removeAll()
+        p.preview!.openExternal?(URL(string: "https://example.com/y")!)
+        r.check("預覽裡點網址：照終端機點連結的規則開啟", opened == [URL(string: "https://example.com/y")!], "\(opened)")
+        p.preview!.show(gone)
+        _ = await waitFor(5) { p.headerTitle == "gone.md" }
+        try? FileManager.default.removeItem(at: gone)
+        try? await Task.sleep(for: .milliseconds(800))
+        r.check("檔案被刪除後，預覽 tab 仍然留著", ws.panes.contains { $0 === p })
+    }
+
     // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）
     return finish(r, c)
 }
