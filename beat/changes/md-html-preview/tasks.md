@@ -792,7 +792,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
   - `static func url(for file: URL) -> URL`
   - `static func file(for url: URL) -> URL?`
 
-- [ ] **Step 1: 建立檢查腳本 `App/scripts/preview-webkit-check.swift`（整份照抄）**
+- [x] **Step 1: 建立檢查腳本 `App/scripts/preview-webkit-check.swift`（整份照抄）**
 
 ```swift
 // 預覽 tab 在真的 WKWebView 裡的自我檢查（scheme、資料夾監看、導覽規則）。不需要 libghostty，
@@ -923,12 +923,12 @@ enum PreviewWebKitCheck {
 }
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh webkit`
 Expected: 編譯失敗，訊息含 `cannot find 'PreviewSchemeHandler' in scope`。
 
-- [ ] **Step 3: 建立 `App/Sources/LmuxUI/PreviewScheme.swift`（整份照抄）**
+- [x] **Step 3: 建立 `App/Sources/LmuxUI/PreviewScheme.swift`（整份照抄）**
 
 ```swift
 import Foundation
@@ -1011,17 +1011,17 @@ final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
 }
 ```
 
-- [ ] **Step 4: 執行，確認通過**
+- [x] **Step 4: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh webkit`
 Expected: 6 行 `PASS`，最後一行 `WEBKIT CHECK: ok`。
 
-- [ ] **Step 5: 確認 app 能 build（第一個用到 WebKit 的檔案）**
+- [x] **Step 5: 確認 app 能 build（第一個用到 WebKit 的檔案）**
 
 Run: `beat/changes/md-html-preview/dev.sh build`
 Expected: `BUILD EXIT: 0`。
 
-- [ ] **Step 6: 只有 Step 5 出現 `Undefined symbols` 且提到 `WK` 時才做：連結 WebKit**
+- [x] **Step 6: 只有 Step 5 出現 `Undefined symbols` 且提到 `WK` 時才做：連結 WebKit**
 
 在 `App/Package.swift` 找到這一段：
 
@@ -1042,7 +1042,7 @@ Expected: `BUILD EXIT: 0`。
 
 再跑一次 `beat/changes/md-html-preview/dev.sh build`，Expected: `BUILD EXIT: 0`。Step 5 本來就是 0 的話，跳過這一步。
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/PreviewScheme.swift App/scripts/preview-webkit-check.swift
