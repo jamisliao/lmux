@@ -474,12 +474,12 @@ Each pane's state comes straight from Claude Code's hooks:
 
 The row and header add a few details, and only when there's something to say:
 
-- **Subagents.** While Claude runs subagents, the row's second line counts them on the right ("3 subagents"). The count starts over with each turn.
+- **Subagents.** While Claude runs subagents, the row's second line counts them on the right ("3 subagents"). Background subagents count too: if Claude ends its turn while some are still working, the row stays running, and the done alert waits until the last one has reported back and Claude is done. Otherwise the count starts over with each turn.
 - **Bypass mode.** In bypass permissions or auto mode, the pane's tab bar shows a small **bypass** or **auto** badge for the tab you're looking at. With the tab bar off, the pane's header shows it (with one pane, the header at the top). It never goes on the row. Claude reports its mode with each hook, so after `⇧Tab` the badge changes with your next prompt or Claude's next tool call, before that tool runs.
 - **Usage limits.** When Claude hits a usage limit and says when it resets, the row shows a still clock and "waiting for usage limit · resets 3pm" instead of turning failed: Claude Code continues the task by itself once the limit resets. If it won't (it asks you to press Enter), or 15 minutes after the reset time it still hasn't, you get the usual done alert. A plain 429 with no reset time still shows as failed.
 - **No output.** A running row with no hook event and no output for ten minutes says "no output for 12m", even when the pane is hidden. It's a hint, not a state: the row stays running, and the next hook clears it at once, new output within a minute.
 
-Stop Claude with Esc or `⌃C` and its row goes idle within about a second, with no alert. Claude sends no hook when it's interrupted, so lmux takes one look at what Claude just wrote to its transcript when you press the key; nothing polls. An Esc that only closed a menu leaves the row running.
+Stop Claude with Esc or `⌃C` and its row goes idle within about a second, with no alert. Claude sends no hook when it's interrupted, so lmux takes one look at what Claude just wrote to its transcript when you press the key; nothing polls. An Esc that only closed a menu leaves the row running, and so do Esc and `⌃C` while Claude only waits for background subagents: they keep working.
 
 A `claude -p` that Claude itself starts inside the pane (through its Bash tool) never changes the pane's session, state or title.
 

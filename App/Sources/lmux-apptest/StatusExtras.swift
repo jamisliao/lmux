@@ -66,6 +66,37 @@ func runStatusExtras() async -> Int32 {
     hookEvent(c, s, "SessionEnd", session: "sx-1", ["reason": "prompt_input_exit"])
     await settle()
     r.check("SessionEnd clears it", s.subagentCount == 0 && line2(S) == nil)
+    // Background subagents (Claude Code's Stop `background_tasks`): the main Stop pauses the turn,
+    // the row stays running and counts them, until a Stop that lists none.
+    func bg(_ ids: [String]) -> [[String: Any]] {
+        ids.map { ["id": $0, "type": "subagent", "status": "running", "description": "research"] }
+    }
+    hookEvent(c, s, "SessionStart", session: "sx-2", ["source": "startup"])
+    hookEvent(c, s, "UserPromptSubmit", session: "sx-2", ["prompt": "research in the background"])
+    for id in ["bg-a", "bg-b"] {
+        hookEvent(c, s, "SubagentStart", session: "sx-2", ["agent_id": id, "agent_type": "general-purpose"])
+    }
+    hookEvent(c, s, "Stop", session: "sx-2", ["last_assistant_message": "Started two agents.", "background_tasks": bg(["bg-a", "bg-b"])])
+    await settle()
+    r.check("a main Stop listing background subagents: still running, “2 subagents”",
+            s.agent.state == .running && line2(S)?.age == "2 subagents", "\(String(describing: line2(S)))")
+    r.check("paused: Claude is at its prompt, not working (the last turn keeps ⧉ ✎ ×, rewind presses no Esc)",
+            !c.claudeWorking(s))
+    hookEvent(c, s, "SubagentStop", session: "sx-2", ["agent_id": "bg-a", "agent_type": "general-purpose"])
+    hookEvent(c, s, "UserPromptSubmit", session: "sx-2", ["prompt": "bg-a reported back"])
+    await settle()
+    r.check("one reports back: the other is still counted",
+            s.agent.state == .running && line2(S)?.age == "1 subagent", "\(String(describing: line2(S)))")
+    r.check("woken by the report: Claude works again", c.claudeWorking(s))
+    hookEvent(c, s, "SubagentStop", session: "sx-2", ["agent_id": "bg-b", "agent_type": "general-purpose"])
+    hookEvent(c, s, "UserPromptSubmit", session: "sx-2", ["prompt": "bg-b reported back"])
+    hookEvent(c, s, "Stop", session: "sx-2", ["last_assistant_message": "Both done.", "background_tasks": bg([])])
+    await settle()
+    r.check("the Stop that lists none: done, no count",
+            s.agent.state == .done && s.subagentCount == 0 && !(line2(S)?.age ?? "").contains("subagent"),
+            "\(String(describing: line2(S)))")
+    hookEvent(c, s, "SessionEnd", session: "sx-2", ["reason": "prompt_input_exit"])
+    await settle()
     // Two running panes, same line 2: the count is the pane the row speaks for (the newer alert),
     // not the first pane that happens to show the same.
     let (T2, t1) = await pane("T")
