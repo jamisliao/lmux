@@ -746,11 +746,8 @@ func runMain() async -> Int32 {
             promiseTypes.isSubset(of: Set(pD.surface!.registeredDraggedTypes)) && receivers.count == 1
             && PasteContents.dropString(from: dropPB) == nil)
     // The promised file itself is only written inside a real drag session (window server):
-    // the manual checklist covers dragging the screenshot thumbnail.
-    var promised: [URL]?
-    PasteContents.receive(receivers) { promised = $0 }
-    _ = await waitFor(2) { promised != nil }
-    print("INFO  [drop-paste] file promise outside a drag session: \(promised.map { "\($0.count) file(s)" } ?? "not delivered (expected)")")
+    // receiving promises outside an active drag session deadlocks HIServices in headless tests.
+    // The manual checklist covers dragging the screenshot thumbnail.
     // Dropping on a pane that isn't focused: it goes there, and that pane gets the keyboard.
     let pD2 = c.split(pD, .right)!
     _ = await sinks.waitReady(pD2.id)

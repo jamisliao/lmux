@@ -19,9 +19,9 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
    var surface: SurfaceView? { if case .terminal(let s) = content { return s }; return nil }
    var preview: PreviewView? { if case .preview(let p) = content { return p }; return nil }
    ```
-   - 現有的 `init(id:surface:)`（`Model.swift:226`）保留，另加 `init(id:preview:)`。
+   - 現有的 `init(id:surface:)`（`Model.swift:243-246`）保留，另加 `init(id:preview:)`。
 2. `LmuxUI` 修改 22 個既有檔案：逐一判斷 `surface` 為 nil 時該怎麼做與整合預覽行為。結果有三種：跳過；回傳「不是終端機」（`lmux send` 的 `SendResult.notTerminal`）；或把「沒有程式」當成前景 process group 0（`Pane.foregroundPID`，呼叫端本來就檢查 `> 0`，見 `MessageActions.swift:157-158, 827-828`）。
-3. 測試 `App/Sources/lmux-apptest/` 修改 26 個上游檔案（25 個檔案共 262 處機械式改成 `surface!` + `main.swift` 接入 `--preview`；`lmux-imetest` 0 個檔案）。測試只建立終端機 tab，`!` 不會失敗。
+3. 測試 `App/Sources/lmux-apptest/` 修改 26 個上游檔案（25 個檔案共 293 處機械式改成 `surface!` + `main.swift` 接入 `--preview`；`lmux-imetest` 0 個檔案）。測試只建立終端機 tab，`!` 不會失敗。
 4. 這一段不新增任何預覽功能，`.preview` 還沒有地方建立。
 
 **檢查點**：`swift build` 成功，`App/scripts/apptest.sh --quick` 全部通過。沒過不往下做。
@@ -42,7 +42,7 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
 
 #### C.1 開啟選單（`open-menu.feature`）
 
-1. **攔截點**：controller 的 `handleGhosttyAction`（`App/Sources/LmuxUI/Controller.swift:1143`）加 `GHOSTTY_ACTION_OPEN_URL`。（plan 階段改的：原本要改 `GhosttyRuntime`，但 `runtime.actionHandler` 會先問 controller（`GhosttyRuntime.swift:162`），而且 controller 已經有 surface → pane 的對照（`panesBySurface`）。這樣少動一個上游檔案。）
+1. **攔截點**：controller 的 `handleGhosttyAction`（`App/Sources/LmuxUI/Controller.swift:1197`，實際分支在 1331–1343）加 `GHOSTTY_ACTION_OPEN_URL`。（plan 階段改的：原本要改 `GhosttyRuntime`，但 `runtime.actionHandler` 會先問 controller（`GhosttyRuntime.swift:162`），而且 controller 已經有 surface → pane 的對照（`panesBySurface`）。這樣少動一個上游檔案。）
    - 這個回呼是在 renderer 的鎖還拿著時被呼叫：先複製字串，下一輪 run loop 再處理（`GhosttyRuntime.swift:230-243` 也是延後處理）。用 `RunLoop.main.perform(inModes: [.common])`，不用 `DispatchQueue.main.async`：開啟選單會跑巢狀的 run loop，在 GCD 的 main block 裡跑的話，選單開著時 libghostty 的繪製會停住（architecture review 指出）。
    - 新檔 `OpenMenu.swift` 的 `openTerminalLink(_:kind:pane:view:)`：kind 是 `UNKNOWN`（⌘-click 的文字），或 `OSC8` 且是 `file://`，而且 `PreviewTarget.resolve` 有結果時，跳出開啟選單；其他呼叫公開的 `GhosttyRuntime.openTerminalURL`，結果與原本相同。
    - 既有的連結測試（`App/Sources/lmux-apptest/Parity.swift:191-221`）直接呼叫 `GhosttyRuntime.openTerminalURL`，不受影響。
@@ -64,7 +64,7 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
 1. **建立**：`Tabs.swift` 加 `newPreviewTab(_ url: URL, after pane: Pane)`，插入位置的算法與 `newTab`（`App/Sources/LmuxUI/Tabs.swift:25-32`）相同，再呼叫既有的 `insert`。
 2. **標題**：檔名。換頁後跟著換。
 3. **目前目錄**：`Pane.cwd` 設成檔案所在資料夾。這樣 ⌘T 與分割會沿用它（`Tabs.swift:28`），sidebar 也顯示這個資料夾。
-4. **焦點**：`focusCurrent()`（`App/Sources/LmuxUI/Controller.swift:964-976`）在預覽 tab 時，把 first responder 交給 WKWebView。
+4. **焦點**：`focusCurrent()`（`App/Sources/LmuxUI/Controller.swift:1008-1025`）在預覽 tab 時，把 first responder 交給 WKWebView。
 5. **選單列**：lmux 的 Copy 是 `copy:`、target 是 nil（`App/Sources/LmuxUI/Menu.swift:71`），沿 responder chain 交給 WKWebView。Find…／Find Next／Find Previous／Undo Send／Copy Original Reply 的 target 是 controller（`Menu.swift:154` `item.target = self`），在 `validateMenuItem`（`App/Sources/LmuxUI/SidebarSelection.swift:159`）裡，預覽 tab 是 focused tab 時回傳 false。Paste 的 target 是 nil，controller 停用不了；改成保證焦點在 WKWebView 時 responder chain 上沒有任何終端機（apptest 檢查）。
 6. **不顯示**：Rewind 按鈕、捲軸 overlay（`SurfaceScroller`）、拖放檔案的提示。
 7. **CLI**（`App/Sources/LmuxUI/ControlServer.swift`）：
@@ -114,8 +114,8 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
      - 方案 2：預覽 tab 背後仍跑一個 shell，把 WKWebView 蓋在 surface 上。約 6 個檔案，但漏改一處時，鍵盤輸入會跑進看不見的 shell，沒有錯誤訊息。否決。
      - 預覽 tab 用獨立型別，`Pane` 不動：要改 tab 樹的 API，正式程式 23 個檔案、測試 34 個檔案，沒有比較省。否決。
      - `surface` 宣告成 `SurfaceView!`：測試不用改，但漏改一處 lmux 就當掉，所有 tab 的 shell 一起結束。否決。
-   - 代價：動到 44 個上游檔案，之後合併上游 lmux 時衝突變多。
-   - ADR 判斷：難以改回（44 個檔案）、看到程式碼會意外（為什麼每個 surface 都是 optional）、有真的取捨（三個替代方案）→ 符合三個條件，使用者同意寫 ADR。See `docs/adr/0001-pane-surface-optional.md`.
+   - 代價：動到 48 個上游檔案，之後合併上游 lmux 時衝突變多。
+   - ADR 判斷：難以改回（48 個檔案）、看到程式碼會意外（為什麼每個 surface 都是 optional）、有真的取捨（三個替代方案）→ 符合三個條件，使用者同意寫 ADR。See `docs/adr/0001-pane-surface-optional.md`.
 2. **一個 change，超過 20 個檔案。**
    - 理由：使用者 2026-11-13 決定。用 A 段之後的檢查點，保留「重構先驗證」的好處。
    - ADR 判斷：流程決定，不是架構 → 不寫 ADR。
@@ -190,5 +190,5 @@ WebKit 要不要在 `App/Package.swift` 加 `.linkedFramework("WebKit")`：Swift
 - **已處理（architecture review）**：確認卡片（例如 Close Workspace）顯示在預覽 tab 上時，原本只能用終端機的 `keyInterceptor` 接 ⏎／esc；預覽 tab 改用 local key monitor。手動驗證清單第 16 項。
 - **ponytail**：FSEvents 會監看整個子資料夾樹。預覽 repo 根目錄的 README 時，build 的大量事件也會送到主執行緒（只做路徑比對）。真的慢再改成只看上層資料夾的 `DispatchSource`。
 - **ponytail**：Markdown 在主執行緒轉換（S3：504 KB 約 0.19 秒，`-O` build；debug build 會更慢）。真的卡到再改背景執行緒，並處理已經 stop 的 scheme task。
-- **合併上游**：A 段動到 44 個上游檔案。合併 `sooftware/lmux` 新版時，這些檔案都可能衝突。
+- **合併上游**：A 段動到 48 個上游檔案。合併 `sooftware/lmux` 新版時，這些檔案都可能衝突。
 - 本機 build 與測試的已知問題（GNU libtool、`LMUX_*` 變數、Xcode 27 的 swiftbuild）見 memory 的 lmux-local-build-and-test-pitfalls。

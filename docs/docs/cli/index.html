@@ -57,11 +57,11 @@
 <h1>The lmux CLI</h1>
 <p>lmux, a macOS terminal for Claude Code and Codex, ships a small command line tool, <code>lmux</code>, for scripts and agents. It's on the <code>PATH</code> in every lmux pane; the Homebrew cask also links it for other terminals (<a href="../install/">Install</a>). It talks to the running lmux app over a local socket.</p>
 <h2 id="lmux-list"><code>lmux list</code><a class="h-anchor" href="#lmux-list" aria-label="Link to this section">#</a></h2>
-<p>Lists workspaces and their panes: ids, titles, folders, each pane's agent state (<code>idle</code>, <code>running</code>, <code>needs input</code>, <code>done</code>, <code>failed</code>) and agent (<code>claude</code>, <code>codex</code>, or <a href="../any-agent/">another agent's name</a>). <code>--json</code> also has each pane's <code>session</code> and <code>workspaceTitle</code>. The selected workspace is marked with <code>*</code>. Each tab is listed as its own pane, with its position (<code>tab 2/3</code>) and <code>*</code> on the visible one. In JSON: <code>tab</code>, <code>tabs</code> and <code>tabShown</code>.</p>
+<p>Lists workspaces and their terminal panes: ids, titles, folders, each pane's agent state (<code>idle</code>, <code>running</code>, <code>needs input</code>, <code>done</code>, <code>failed</code>) and agent (<code>claude</code>, <code>codex</code>, or <a href="../any-agent/">another agent's name</a>). <code>--json</code> also has each pane's <code>session</code> and <code>workspaceTitle</code>. The selected workspace is marked with <code>*</code>. Each terminal tab is listed as its own pane, with its position (<code>tab 2/3</code>) and <code>*</code> on the visible one (preview tabs are omitted). In JSON: <code>tab</code>, <code>tabs</code> and <code>tabShown</code>.</p>
 <pre tabindex="0"><code class="lang-sh">lmux list
 lmux list --json   # the same, as JSON</code></pre>
 <h2 id="lmux-send"><code>lmux send</code><a class="h-anchor" href="#lmux-send" aria-label="Link to this section">#</a></h2>
-<p>Types text into a pane. <code>\n</code> presses Return (<code>\t</code> and <code>\\</code> work too).</p>
+<p>Types text into a terminal pane (targeting a preview tab fails with <code>not a terminal</code>). <code>\n</code> presses Return (<code>\t</code> and <code>\\</code> work too).</p>
 <pre tabindex="0"><code class="lang-sh">lmux send "npm test\n"            # into this pane
 lmux send --pane &lt;id&gt; "y\n"       # into a pane by id (lmux list shows them)</code></pre>
 <p>Without <code>--pane</code>, it's the pane it runs in (<code>$LMUX_PANE_ID</code>). From inside a pane, <code>send</code> may only target that same pane, so an agent can't type into the wrong one by mistake. To lift that:</p>
