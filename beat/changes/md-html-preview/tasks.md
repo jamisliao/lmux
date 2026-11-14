@@ -4106,7 +4106,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Modify: `beat/changes/md-html-preview/features/open-menu.feature`、`beat/changes/md-html-preview/features/preview-tab.feature`
 - Create: `beat/changes/md-html-preview/manual-verification.md`
 
-- [ ] **Step 1: 完整回歸**
+- [x] **Step 1: 完整回歸**
 
 Run: `beat/changes/md-html-preview/dev.sh build && beat/changes/md-html-preview/dev.sh check && beat/changes/md-html-preview/dev.sh webkit | tail -1`
 Expected: `BUILD EXIT: 0`、`preview check: ok`、`WEBKIT CHECK: ok`。
@@ -4114,7 +4114,7 @@ Expected: `BUILD EXIT: 0`、`preview check: ok`、`WEBKIT CHECK: ok`。
 Run（很久，見「跑很久的指令」）: `beat/changes/md-html-preview/dev.sh apptest-full; beat/changes/md-html-preview/dev.sh new-failures full`
 Expected: `NEW FAILURES: 0` 與 `MISSING CHECKS: 0`。不是 0：先重跑一次；還是不是 0 就停止回報。
 
-- [ ] **Step 2: 在 feature 檔加上 `# @covered-by:`**
+- [x] **Step 2: 在 feature 檔加上 `# @covered-by:`**
 
 格式：在場景的 tag 行與 `場景:`／`場景大綱:` 行之間，加一行註解。依下表加（場景名稱要一字不差）：
 
@@ -4154,7 +4154,7 @@ Expected: `NEW FAILURES: 0` 與 `MISSING CHECKS: 0`。不是 0：先重跑一次
 確認：`grep -c '@covered-by' beat/changes/md-html-preview/features/*.feature`
 Expected（兩行）：`beat/changes/md-html-preview/features/open-menu.feature:8`、`beat/changes/md-html-preview/features/preview-tab.feature:21`。
 
-- [ ] **Step 3: 建立 `beat/changes/md-html-preview/manual-verification.md`（整份照抄）**
+- [x] **Step 3: 建立 `beat/changes/md-html-preview/manual-verification.md`（整份照抄）**
 
 ```markdown
 # 手動驗證：md-html-preview
@@ -4184,7 +4184,7 @@ Expected（兩行）：`beat/changes/md-html-preview/features/open-menu.feature:
 | 17 | （已知限制） | 預覽 tab 是 focused tab 時，按 Ghostty 的分割方向鍵（例如 ⌘⌥→） | 記錄：沒有反應是已知限制；⌘[、⌘] 仍可切換 pane | |
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add beat/changes/md-html-preview/features/open-menu.feature beat/changes/md-html-preview/features/preview-tab.feature beat/changes/md-html-preview/manual-verification.md
@@ -4193,7 +4193,7 @@ git commit -m "test(md-html-preview): 標註 @covered-by，新增手動驗證清
 Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 ```
 
-- [ ] **Step 5: 回報**
+- [x] **Step 5: 回報**
 
 回報下面幾項。不要 push。
 - 每個 task 的 commit：`git log --oneline main..HEAD`
