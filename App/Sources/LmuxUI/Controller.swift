@@ -680,6 +680,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if let s = pane.surface { panesBySurface[ObjectIdentifier(s)] = nil }
         pane.view.removeFromSuperview()
         pane.surface?.close()
+        pane.preview?.close()
     }
 
     // MARK: - Workspaces

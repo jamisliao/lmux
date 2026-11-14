@@ -302,6 +302,28 @@ func runPreview() async -> Int32 {
                 layout.workspaces.contains { $0.id == layout.selected }, layout.selected ?? "nil")
     }
 
+    // MARK: 移動、分割、關閉、開新 tab（Task 28）
+    // @feature: preview-tab.feature
+    // @scenario: 預覽 tab 可以像終端機 tab 一樣移動、分割與關閉
+    // @scenario: 在預覽 tab 上開新 tab，新的終端機從檔案所在資料夾開始
+    do {
+        r.section = "preview-move"
+        let (ws, a, p) = previewSetup(c, dir: fx, file: design)
+        let fileBefore = p.preview!.fileURL
+        c.moveTab(p, splitting: a, .right)
+        r.check("預覽 tab 拖到右側分割後與 A 並排", ws.isSplit && ws.visiblePanes.contains { $0 === p } && ws.visiblePanes.contains { $0 === a })
+        r.check("移動後仍顯示原本的檔案", p.preview!.fileURL == fileBefore)
+        c.focus(p)
+        let t = c.newTab(p)
+        r.check("在預覽 tab 上開新 tab：新的終端機從檔案所在資料夾開始",
+                t?.surface != nil && t?.cwd == docs.standardizedFileURL.path, "\(t?.cwd ?? "nil")")
+        if let t { c.closePane(t) }
+        c.closePane(p)
+        r.check("關閉預覽 tab 後它消失", !ws.panes.contains { $0 === p })
+        r.check("關閉預覽 tab 後 A 成為 focused tab", ws.focusedPane === a)
+        r.check("關閉預覽 tab 時釋放它的預覽（停止監看與載入）", p.preview?.isClosed == true)
+    }
+
     // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）
     return finish(r, c)
 }

@@ -4033,7 +4033,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 說明：前面的重構應該已經讓移動、分割、開新 tab 對預覽 tab 也成立；這個 task 只為它們加測試，失敗時**不要改正式程式**，停下來回報。唯一要改的程式是關閉時呼叫 `PreviewView.close()`（Step 3）。
 
-- [ ] **Step 1: 加測試**
+- [x] **Step 1: 加測試**
 
 在插入點註解**上面**加上：
 
@@ -4062,12 +4062,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 ```
 
-- [ ] **Step 2: 執行，確認只有「釋放」那一項失敗**
+- [x] **Step 2: 執行，確認只有「釋放」那一項失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: `[preview-move]` 只有一個 `FAIL`：`關閉預覽 tab 時釋放它的預覽（停止監看與載入）`。其他項目有 `FAIL`：停止，回報那幾行，不要改正式程式。
 
-- [ ] **Step 3: `discard(_:)` 關閉預覽**
+- [x] **Step 3: `discard(_:)` 關閉預覽**
 
 在 `App/Sources/LmuxUI/Controller.swift` 找到（Task 8 改過的）：
 
@@ -4084,12 +4084,12 @@ Expected: `[preview-move]` 只有一個 `FAIL`：`關閉預覽 tab 時釋放它�
         pane.preview?.close()
 ```
 
-- [ ] **Step 4: 執行，確認通過**
+- [x] **Step 4: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: 沒有 `FAIL`、`APPTEST EXIT: 0`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Controller.swift App/Sources/lmux-apptest/Preview.swift
