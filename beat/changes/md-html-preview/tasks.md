@@ -1979,7 +1979,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Interfaces:**
 - Produces: `SendResult.notTerminal`；CLI `send` 指到預覽 tab 時回傳 `{"ok": false, "error": "not a terminal: <id>"}`。
 
-- [ ] **Step 1: `splitLeaf(...)`**
+- [x] **Step 1: `splitLeaf(...)`**
 
 原本：
 
@@ -1993,7 +1993,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
             newPane.surface?.setOcclusion(visible: false)
 ```
 
-- [ ] **Step 2: `rebuildContent()`**
+- [x] **Step 2: `rebuildContent()`**
 
 原本：
 
@@ -2007,7 +2007,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
             p.surface?.setOcclusion(visible: windowShown && visible)
 ```
 
-- [ ] **Step 3: `focusCurrent()`**
+- [x] **Step 3: `focusCurrent()`**
 
 原本：
 
@@ -2029,7 +2029,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         }
 ```
 
-- [ ] **Step 4: `ensureFocus()`**
+- [x] **Step 4: `ensureFocus()`**
 
 原本：
 
@@ -2047,7 +2047,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
     }
 ```
 
-- [ ] **Step 5: `SendResult` 加一種結果**
+- [x] **Step 5: `SendResult` 加一種結果**
 
 原本：
 
@@ -2061,7 +2061,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
     public enum SendResult: Equatable { case sent, noSuchPane, notTerminal, crossPaneDenied, externalDenied, paneBusy }
 ```
 
-- [ ] **Step 6: `send(text:toPane:token:peerPID:)`**
+- [x] **Step 6: `send(text:toPane:token:peerPID:)`**
 
 原本：
 
@@ -2091,7 +2091,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         surface.sendText(text)
 ```
 
-- [ ] **Step 7: ControlServer.swift 處理新的結果**
+- [x] **Step 7: ControlServer.swift 處理新的結果**
 
 原本：
 
@@ -2109,12 +2109,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
                 return ["ok": false, "error": "not a terminal: \(pane)"]
 ```
 
-- [ ] **Step 8: 驗證**
+- [x] **Step 8: 驗證**
 
 Run: `beat/changes/md-html-preview/dev.sh errors Controller.swift ControlServer.swift`
 Expected: `ERRORS TOTAL: 0`。
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Controller.swift App/Sources/LmuxUI/ControlServer.swift

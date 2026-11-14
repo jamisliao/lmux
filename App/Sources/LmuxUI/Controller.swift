@@ -800,7 +800,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             rebuildContent()
             focusCurrent()
         } else {
-            newPane.surface.setOcclusion(visible: false)
+            newPane.surface?.setOcclusion(visible: false)
         }
         scheduleSave()
     }
@@ -955,7 +955,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             let visible = isShown && (zoomed == nil || p === zoomed)
             p.view.showsHeader = ws.isSplit && zoomed == nil
             if let leaf, leaf.hasStrip, isShown { p.view.tabStrip = leaf.strip } else { p.view.tabStrip = nil }
-            p.surface.setOcclusion(visible: windowShown && visible)
+            p.surface?.setOcclusion(visible: windowShown && visible)
             if visible { scheduleOverlayRefresh(p); showPendingRewindNote(p) }
         }
         root.updateHeader()
@@ -970,10 +970,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         // resignFirstResponder; clear stale focus so only one surface claims
         // key equivalents (performKeyEquivalent walks every visible surface).
         for ws in model.workspaces {
-            for p in ws.panes where p !== pane && p.surface.focused { p.surface.focusDidChange(false) }
+            for p in ws.panes where p !== pane && p.surface?.focused == true { p.surface?.focusDidChange(false) }
         }
-        if window.firstResponder !== pane.surface {
-            window.makeFirstResponder(pane.surface)
+        if let s = pane.surface, window.firstResponder !== s {
+            window.makeFirstResponder(s)
         }
         refreshPaneChrome()
     }
@@ -1022,7 +1022,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         let fr = window.firstResponder
         if fr is NSText { return }
         if let s = fr as? SurfaceView, ws.visiblePanes.contains(where: { $0.surface === s }) { return }
-        window.makeFirstResponder(pane.surface)
+        if let s = pane.surface { window.makeFirstResponder(s) }
     }
 
     /// Clicking anywhere on a pane (terminal, header) focuses it.
@@ -1326,18 +1326,20 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     // MARK: - CLI
 
-    public enum SendResult: Equatable { case sent, noSuchPane, crossPaneDenied, externalDenied, paneBusy }
+    public enum SendResult: Equatable { case sent, noSuchPane, notTerminal, crossPaneDenied, externalDenied, paneBusy }
 
     /// `lmux send`: type text into a pane. A process inside pane X (its token) may only type into X
     /// (unless `allowCrossPaneSend`); a caller without a valid token only when `allowExternalSend`
     /// is on, and then still not from inside another pane (its tty says which).
     public func send(text: String, toPane id: String, token: String? = nil, peerPID: Int? = nil) -> SendResult {
         guard let p = panesByID[id] else { return .noSuchPane }
+        // 預覽 tab 沒有終端機，不能打字進去（beat: preview-tab.feature）。
+        guard let surface = p.surface else { return .notTerminal }
         if pane(token: token) == nil, !allowExternalSend { return .externalDenied }
         if let caller = callerPane(token: token, peerPID: peerPID), caller !== p, !allowCrossPaneSend { return .crossPaneDenied }
         // lmux is driving Claude Code's rewind menu there: typed text would land in it.
-        if p.surface.inputHeld { return .paneBusy }
-        p.surface.sendText(text)
+        if surface.inputHeld { return .paneBusy }
+        surface.sendText(text)
         // Input that presses Return is the one that can start a turn (`lmux wait` waits for what comes after).
         if text.hasSuffix("\n") || text.hasSuffix("\r") {
             p.lastSentAt = Date()

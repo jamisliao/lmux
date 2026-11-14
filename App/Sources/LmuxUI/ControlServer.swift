@@ -357,6 +357,8 @@ extension LmuxController {
                 return ["ok": false, "error": Self.externalSendOff]
             case .paneBusy:
                 return ["ok": false, "error": "that pane is busy rewinding Claude Code; try again in a moment"]
+            case .notTerminal:
+                return ["ok": false, "error": "not a terminal: \(pane)"]
             }
         case "notify":
             guard let text = req["text"] as? String else { return ["ok": false, "error": "notify needs text"] }
