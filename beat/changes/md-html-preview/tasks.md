@@ -367,7 +367,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 說明：這個檔案約 220 行，超過「每個 task 約 200 行」的建議。它只有一個職責（Markdown → HTML），拆開反而要在兩個 task 之間插入程式碼，容易貼錯，所以整份一次建立。
 
-- [ ] **Step 1: 把 `App/scripts/preview-check.swift` 整份換成下面的內容**
+- [x] **Step 1: 把 `App/scripts/preview-check.swift` 整份換成下面的內容**
 
 ```swift
 // 預覽 tab 的路徑判斷（App/Sources/LmuxUI/PreviewTarget.swift）與 Markdown 轉 HTML
@@ -515,12 +515,12 @@ enum PreviewCheck {
 }
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh check`
 Expected: 編譯失敗，訊息含 `cannot find 'MarkdownHTML' in scope`。
 
-- [ ] **Step 3: 建立 `App/Sources/LmuxUI/MarkdownHTML.swift`（整份照抄）**
+- [x] **Step 3: 建立 `App/Sources/LmuxUI/MarkdownHTML.swift`（整份照抄）**
 
 ```swift
 import Foundation
@@ -754,17 +754,17 @@ enum MarkdownHTML {
 }
 ```
 
-- [ ] **Step 4: 執行，確認通過**
+- [x] **Step 4: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh check`
 Expected: 最後一行 `preview check: ok`。
 
-- [ ] **Step 5: 確認 app 仍能 build**
+- [x] **Step 5: 確認 app 仍能 build**
 
 Run: `beat/changes/md-html-preview/dev.sh build`
 Expected: `BUILD EXIT: 0`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/MarkdownHTML.swift App/scripts/preview-check.swift
