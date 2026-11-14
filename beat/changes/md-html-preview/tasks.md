@@ -3538,7 +3538,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 說明：`handleGhosttyAction` 是在 renderer 的鎖還拿著時被呼叫。一定要先把字串複製出來，到下一輪 run loop 再處理（`App/Sources/LmuxTerminal/GhosttyRuntime.swift:230-243` 也是延後處理）。這裡用 `RunLoop.main.perform`，不用 `DispatchQueue.main.async`：開啟選單會跑巢狀的 run loop，如果在 GCD 的 main block 裡跑，選單開著時其他 main queue 的工作（libghostty 的繪製）會全部停住。
 
-- [ ] **Step 1: 加測試**
+- [x] **Step 1: 加測試**
 
 在 `App/Sources/lmux-apptest/Preview.swift` 的插入點註解**上面**加上：
 
@@ -3567,12 +3567,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: `FAIL  [open-url-action] Ghostty 的 OPEN_URL 由 lmux 處理`。
 
-- [ ] **Step 3: `handleGhosttyAction` 加上 OPEN_URL**
+- [x] **Step 3: `handleGhosttyAction` 加上 OPEN_URL**
 
 在 `App/Sources/LmuxUI/Controller.swift` 找到：
 
@@ -3607,18 +3607,18 @@ Expected: `FAIL  [open-url-action] Ghostty 的 OPEN_URL 由 lmux 處理`。
             return nil
 ```
 
-- [ ] **Step 4: 執行，確認通過**
+- [x] **Step 4: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: 沒有 `FAIL`、`APPTEST EXIT: 0`。
 
-- [ ] **Step 5: 既有的連結測試不受影響**
+- [x] **Step 5: 既有的連結測試不受影響**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-quick; beat/changes/md-html-preview/dev.sh new-failures quick`
 Expected: `NEW FAILURES: 0` 與 `MISSING CHECKS: 0`（`[parity]`、`[security]` 的連結檢查都還通過）。
 不是 0：先重跑一次排除偶發失敗；還是不是 0 就**停止**，回報列出的項目。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Controller.swift App/Sources/lmux-apptest/Preview.swift

@@ -187,6 +187,28 @@ func runPreview() async -> Int32 {
         r.check("在新 tab 預覽：成為 focused tab", p != nil && ws.focusedPane === p)
     }
 
+    // MARK: Ghostty 的 OPEN_URL 走開啟選單（Task 23）
+    // @feature: open-menu.feature
+    // @scenario: ⌘-click 可預覽檔案的路徑跳出開啟選單
+    do {
+        r.section = "open-url-action"
+        var asked: [URL] = []
+        LmuxController.openMenuTestHook = { asked.append($0); return nil }
+        defer { LmuxController.openMenuTestHook = nil }
+        let ws = c.newWorkspace(cwd: fx.path)
+        let a = ws.panes[0]
+        a.cwd = fx.path
+        var action = ghostty_action_s()
+        action.tag = GHOSTTY_ACTION_OPEN_URL
+        let handled: Bool? = "docs/design.md".withCString { ptr in
+            action.action.open_url = ghostty_action_open_url_s(kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN, url: ptr,
+                                                               len: UInt(strlen(ptr)))
+            return c.runtime.actionHandler?(ghostty_target_s(), action, a.surface)
+        }
+        r.check("Ghostty 的 OPEN_URL 由 lmux 處理", handled == true, "\(String(describing: handled))")
+        r.check("Ghostty 的 OPEN_URL 跳出開啟選單", await waitFor(3) { asked == [design] }, "\(asked)")
+    }
+
     // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）
     return finish(r, c)
 }

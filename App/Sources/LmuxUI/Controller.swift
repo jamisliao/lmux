@@ -1298,6 +1298,19 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             guard pendingUndo != nil else { return false }
             onMain { _ = self.undoSend() }
             return true
+        case GHOSTTY_ACTION_OPEN_URL:
+            // ⌘-click 的連結（beat: open-menu.feature）。這裡是在 renderer 的鎖還拿著時被呼叫：先複製字串，
+            // 下一輪 run loop 再處理。用 RunLoop.perform 而不用 DispatchQueue.main.async：選單會跑巢狀的
+            // run loop，在 GCD 的 main block 裡跑的話，選單開著時 libghostty 的繪製會停住。
+            let v = action.action.open_url
+            guard let ptr = v.url,
+                  let str = String(data: Data(bytes: ptr, count: Int(v.len)), encoding: .utf8) else { return nil }
+            let kind = v.kind
+            RunLoop.main.perform(inModes: [.common]) { [weak self] in
+                MainActor.assumeIsolated { self?.openTerminalLink(str, kind: kind, pane: pane, view: view) }
+            }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
+            return true
         default:
             return nil
         }
