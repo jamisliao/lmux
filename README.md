@@ -53,7 +53,7 @@ Terminal apps these days ship with a browser, SSH workspaces, even PR badges. Wi
 ## Highlights
 
 - **Light.**<br>
-  A 25 MB app that idles near 0% CPU, whether you have one workspace open or twenty. It's native Swift on libghostty. No Electron, no browser engine, and about ten settings.
+  A 25 MB app that idles near 0% CPU, whether you have one workspace open or twenty. It's native Swift on libghostty (with macOS `WKWebView` loaded only for opt-in `.md` / `.html` preview tabs). No Electron, and about ten settings.
 
 - **Quit, update, reboot. It all comes back.**<br>
   Same workspaces, splits and folders, and every Claude Code or Codex session resumes where it left off. Closed one last week? History (`⇧⌘H`) finds it and brings it back.
@@ -191,7 +191,7 @@ Anything from typo fixes to whole modules is welcome, as long as it fits the rul
 > Any CLI runs in it. Resume, History and the hover actions are built for Claude Code and Codex, the two I live in, but any agent gets status and notifications by reporting its state the way Codex does, with one escape sequence (OSC 7501): `printf '\e]7501;state=blocked:app=my-agent\e\\'`, printed by `my-agent` itself ([how](docs/agents.md#any-agent-osc-7501)). Linux and Windows, no. lmux is native AppKit on libghostty, and a port would be a different app.
 
 **Does it phone home?**
-> No. lmux makes no network calls at all. No telemetry, no crash reports, not even an update check (Homebrew does that). Everything it writes to disk, and how to remove it, is listed in [one paragraph on the features page](docs/features.md#what-does-lmux-write-to-disk-and-how-do-i-remove-it).
+> No. lmux itself makes no network calls—no telemetry, no crash reports, not even an update check (Homebrew does that). Only when you open a preview tab does macOS `WKWebView` load remote scripts or images referenced by that HTML or Markdown file. Everything it writes to disk, and how to remove it, is listed in [one paragraph on the features page](docs/features.md#what-does-lmux-write-to-disk-and-how-do-i-remove-it).
 
 More questions: [FAQ](https://lmux.dev/docs/faq/)
 

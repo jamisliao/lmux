@@ -1,6 +1,6 @@
 # Privacy & files on disk
 
-lmux, a macOS terminal for Claude Code and Codex, makes no network calls at all: no telemetry, no crash reports, not even an update check (Homebrew does that). Everything it knows stays in a few files on your Mac, listed here with how to remove each one.
+lmux, a macOS terminal for Claude Code and Codex, makes no network calls itself: no telemetry, no crash reports, not even an update check (Homebrew does that). Only when you open an opt-in `.md` or `.html` preview tab does macOS `WKWebView` fetch remote scripts or images referenced by that file. Everything lmux knows stays in a few files on your Mac, listed here with how to remove each one.
 
 ## What lmux writes
 

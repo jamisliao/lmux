@@ -11,7 +11,7 @@
 
 1. **開啟選單**
    - ⌘-click 終端機裡的**可預覽檔案**路徑（`.md`、`.markdown`、`.html`、`.htm`），在滑鼠位置跳出**開啟選單**。
-   - 選單第一列顯示完整路徑（不能點），下面是：在新 tab 預覽、用預設 app 開、在 Finder 顯示、複製路徑。
+   - 選單第一列顯示完整路徑（不能點；太長時中間省略，完整路徑保留在 tooltip），下面是：在新 tab 預覽、用預設 app 開、在 Finder 顯示、複製路徑。
    - 路徑後面帶 `:行號`（例如 `foo.md:12`）時，去掉行號再判斷。
    - OSC 8 連結指向本機的可預覽檔案（`file://`）時，也跳出開啟選單。
    - 其他路徑與網址、檔案不存在、相對路徑補不成絕對路徑時：照原本流程。
@@ -20,7 +20,7 @@
    - tab 標題是檔名。
    - 預覽 tab 可以像終端機 tab 一樣移動、分割、關閉。
    - 重開 lmux 不還原預覽 tab。只有預覽 tab 的 workspace 也不還原。
-   - 只對終端機有意義的選單項目在預覽 tab 上停用：Find…、Find Next、Find Previous、Undo Send、Copy Original Reply（`App/Sources/LmuxUI/Menu.swift:69-78`）。Paste 沒有指定 target（沿 responder chain 傳遞），controller 無法停用它；改成保證它不會貼進任何終端機。預覽上沒有 Rewind 按鈕。
+   - 只對終端機有意義的選單項目在預覽 tab 上停用：Find…、Find Next、Find Previous、Undo Send、Copy Original Reply、以及 Ghostty 字級調整與 Clear Screen（`App/Sources/LmuxUI/Menu.swift:69-78`）。Paste 沒有指定 target（沿 responder chain 傳遞），controller 無法停用它；改成保證它不會貼進任何終端機。預覽上沒有 Rewind 按鈕。
    - `lmux send` 指定預覽 tab 時回傳錯誤。`lmux list` 不列出預覽 tab。
    - 預覽 tab 選取的文字可以用 ⌘C 複製。
    - 在預覽 tab 上開新 tab 或分割時，新的終端機從檔案所在資料夾開始。
@@ -48,7 +48,7 @@
 - **改動量：約 50 個檔案（估計），超過「20 個檔案」的上限。** 使用者 2026-11-13 在 explore 對話中同意這次超過，並同意不拆成兩個 change。
   - `Pane.surface` 改 optional：LmuxUI 18 個檔案、101 處；測試（`lmux-apptest`、`lmux-imetest`）26 個檔案、289 處，測試是機械式改成 `surface!`（`grep '\.surface\b'` 計數）。
   - 新增：預覽畫面、Markdown 轉 HTML、開啟選單。
-  - 修改：`Controller.swift`（攔截 ⌘-click、焦點）、`Tabs.swift`、`Persistence.swift`、`ControlServer.swift`（CLI）、`SidebarSelection.swift`（選單停用）、`MessageActions.swift`（確認卡片在預覽 tab 上的鍵盤）。`GhosttyRuntime.swift` 不改。
+  - 修改：`Controller.swift`（攔截 ⌘-click、焦點）、`Tabs.swift`、`Persistence.swift`、`ControlServer.swift`（CLI）、`SidebarSelection.swift`（選單停用）、`MessageActions.swift`（確認卡片在預覽 tab 上的鍵盤）、`Titles.swift`（預覽 tab 重新命名提示字樣），以及同步更新 `README.md`、`App/README.md`、`docs/architecture.md` 既有「不使用 WebKit／不連網」描述。`GhosttyRuntime.swift` 不改。
 - **與上游 lmux 合併的成本變高。** 這個 fork 追蹤 `sooftware/lmux`。`surface` 改 optional 動到 44 個上游檔案，之後每次合併上游都可能在這些檔案衝突。
 - **新的系統框架：WebKit。** Apple 內建，不是第三方依賴。
 - **安全**：HTML 預覽允許連網，頁面的 JS 可以把頁面自己的內容送到任意網址。頁面的 JS 讀不到本機的其他檔案（2026-11-13 實測，含 security review 找到並修掉的 iframe 繞道）。cookie 與 storage 不保存。Markdown 頁面允許載入網路圖片（打開檔案時圖片的主機會知道）。

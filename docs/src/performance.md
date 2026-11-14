@@ -31,7 +31,7 @@ The full method, and how to run it yourself (locally or on a GitHub-hosted Mac),
 
 ## Why it stays light
 
-- Native Swift on libghostty: no browser engine, no Electron.
+- Native Swift on libghostty: no Electron, with macOS `WKWebView` loaded only for opt-in `.md` / `.html` preview tabs.
 - Windows that are hidden, minimized or covered stop drawing. Nothing animates unless it means something, and what does animate runs on Core Animation, off the main thread.
 - An unfocused pane that hasn't drawn for 3 seconds releases its GPU resources, and rebuilds them in about 3 ms when it's needed again.
 - Nothing polls: agent state comes from hooks and from the agents' own reports.

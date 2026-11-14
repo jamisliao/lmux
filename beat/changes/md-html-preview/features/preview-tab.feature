@@ -8,11 +8,6 @@
   我想要 在 lmux 的 tab 裡直接看到 .md 與 .html 渲染後的樣子，而且內容跟著檔案更新
   以便 不切換到其他 app，就能確認 agent 寫出來的文件
 
-  架構（示意）:
-    可預覽檔案 ─┬─ .md ──▶ Foundation 解析 ──▶ Swift 產生 HTML ─┐
-                └─ .html ─────────────────────────────────────────┴─▶ WKWebView（預覽 tab）
-    監看檔案所在資料夾 ── 檔案改變 ──▶ 重新渲染
-
   Markdown 支援範圍:
     | 語法                               | 顯示方式                           |
     | 標題、清單、表格、引用、連結、圖片 | 排版後的樣子                       |
@@ -33,7 +28,9 @@
   # --- Markdown 渲染 ---
 
   @e2e @happy-path
-  # @covered-by: App/scripts/preview-check.swift、App/scripts/preview-webkit-check.swift
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: Markdown 顯示成排版後的樣子
     假設 "design.md" 含有標題、清單、表格、程式碼區塊與引用
     當 使用者用 **預覽 tab** 開啟它
@@ -61,7 +58,8 @@
     那麼 兩個區塊都顯示成等寬字加底色的原始文字
 
   @behavior @edge-case
-  # @covered-by: App/scripts/preview-check.swift、App/scripts/preview-webkit-check.swift
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/scripts/preview-webkit-check.swift
   場景: Markdown 裡的 HTML 標籤顯示成文字，不執行
     假設 Markdown 有一段文字 "前文 <script>alert(1)</script> 後文"
     當 這份 Markdown 在 **預覽 tab** 顯示
@@ -77,7 +75,7 @@
     那麼 預覽裡顯示這張圖片
 
   @e2e @happy-path
-  # @covered-by: manual — beat/changes/md-html-preview/manual-verification.md
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: Markdown 預覽跟著 lmux 的外觀設定切換深淺色
     假設 一個 **預覽 tab** 正在顯示 Markdown
     當 使用者把 lmux 的外觀設定從 Light 改成 Dark
@@ -87,7 +85,7 @@
   # --- HTML 渲染 ---
 
   @e2e @happy-path
-  # @covered-by: manual — beat/changes/md-html-preview/manual-verification.md
+  # @covered-by: App/scripts/preview-webkit-check.swift
   場景: HTML 從網路載入的 script 正常執行
     假設 "report.html" 從 CDN 載入一個 JS 函式庫
     當 使用者用 **預覽 tab** 開啟它
@@ -127,6 +125,7 @@
 
   @e2e @error-handling
   # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 預覽中的檔案被刪除
     假設 一個 **預覽 tab** 正在顯示 "design.md"
     當 "design.md" 被刪除
@@ -136,18 +135,26 @@
   # --- 預覽裡的連結 ---
 
   @e2e @happy-path
-  # @covered-by: App/scripts/preview-webkit-check.swift、App/Sources/lmux-apptest/Preview.swift（preview-links）
+  # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 點相對路徑的 .md 連結，在同一個預覽 tab 換頁
     假設 一個 **預覽 tab** 正在顯示 "docs/a.md"，裡面有連到 "b.md" 的連結
     而且 "docs/b.md" 存在
     當 使用者點這個連結
     那麼 同一個預覽 tab 改成顯示 "docs/b.md"，tab 標題改成 "b.md"
     而且 沒有開出新的 **tab**
+
+  @e2e @happy-path
+  # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  場景: 在預覽裡用觸控板兩指往右滑，回到上一頁
+    假設 一個 **預覽 tab** 從 "docs/a.md" 點連結換到了 "docs/b.md"
     當 使用者在預覽上用觸控板兩指往右滑
     那麼 預覽 tab 回到 "docs/a.md"，tab 標題改回 "a.md"
 
   @e2e @happy-path
-  # @covered-by: App/scripts/preview-webkit-check.swift（含 script 自己點、meta refresh）、App/Sources/lmux-apptest/Preview.swift（preview-links）
+  # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 點網址連結，照終端機裡點連結的規則處理
     假設 一個 **預覽 tab** 正在顯示的頁面有連到 "https://example.com" 的連結
     當 使用者點這個連結
@@ -158,50 +165,61 @@
   # --- tab 行為 ---
 
   @e2e @happy-path
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（preview-tab）
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 預覽 tab 的標題是檔名
     當 使用者用 **預覽 tab** 開啟 "/Users/me/repo/docs/design.md"
     那麼 這個預覽 tab 的標題是 "design.md"
 
   @e2e @happy-path
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（preview-move）
-  場景: 預覽 tab 可以像終端機 tab 一樣移動、分割與關閉
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  場景: 預覽 tab 可以像終端機 tab 一樣移動與分割
     假設 一個 **workspace** 有 **終端機 tab** A 與 **預覽 tab** P
     當 使用者把 P 拖到 A 的右側分割
     那麼 A 與 P 左右並排，P 仍然顯示原本的檔案
+
+  @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  場景: 關閉預覽 tab 後，相鄰 tab 成為 focused tab
+    假設 一個 **workspace** 有 **終端機 tab** A 與 **預覽 tab** P 左右並排
+    而且 P 是 **focused tab**
     當 使用者按 ⌘W 關閉 P
     那麼 P 消失，A 成為 **focused tab**
 
   @e2e @edge-case
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（preview-move）
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 在預覽 tab 上開新 tab，新的終端機從檔案所在資料夾開始
-    假設 lmux 沒有關掉「split 沿用目前目錄」（split-inherit-working-directory）
+    假設「新 tab 沿用目前目錄」的設定為開啟
     而且 **預覽 tab** P 顯示 "/Users/me/repo/docs/design.md"，P 是 **focused tab**
     當 使用者按 ⌘T
     那麼 新的 **終端機 tab** 的目前目錄是 "/Users/me/repo/docs"
 
   @e2e @happy-path
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（preview-focus）；⌘C 見 manual-verification.md
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 預覽 tab 是 focused tab 時，鍵盤操作作用在預覽上
     假設 一個 **workspace** 有 **終端機 tab** A 與 **預覽 tab** P
     而且 P 是 **focused tab**
     當 使用者打字 "ls" 再按 Enter
     那麼 A 的終端機沒有收到 "ls"
+
+  @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  場景: 在預覽 tab 選取文字並按 ⌘C 會複製到剪貼簿
+    假設 一個 **workspace** 有 **預覽 tab** P，裡面顯示文字
     當 使用者在 P 選取一段文字，按 ⌘C
     那麼 剪貼簿內容是選取的那段文字
 
   @e2e @edge-case
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（preview-menu、preview-focus）；Rewind 按鈕見 manual-verification.md
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 預覽 tab 上停用只對終端機有意義的功能
     假設 **預覽 tab** P 是 **focused tab**
     當 使用者打開選單列
-    那麼 "Find…"、"Find Next"、"Find Previous"、"Undo Send"、"Copy Original Reply" 是停用狀態
+    那麼 "Find…"、"Find Next"、"Find Previous"、"Undo Send"、"Copy Original Reply" 與 Ghostty 字級調整／Clear Screen 是停用狀態
     而且 "Close Pane"、"Move Tab Right"、"Split Right" 仍然可以用
     而且 按 Paste 不會貼進任何終端機
     而且 預覽上沒有 Rewind 按鈕
 
   @e2e @error-handling
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（preview-cli）
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: CLI 指定預覽 tab 時回傳錯誤
     假設 **預覽 tab** P 存在
     當 使用者執行 "lmux send"，目標是 P
@@ -209,7 +227,7 @@
     而且 "lmux list" 的結果不列出 P
 
   @e2e @edge-case
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（preview-restore，只驗存檔內容）；實際重開見 manual-verification.md
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 重開 lmux 不還原預覽 tab
     假設 **workspace** W1 有 **終端機 tab** A 與 **預覽 tab** P
     而且 **workspace** W2 只有 **預覽 tab**

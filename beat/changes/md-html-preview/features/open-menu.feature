@@ -16,7 +16,7 @@
 
   開啟選單的內容:
     | 位置    | 項目               | 結果                                   |
-    | 第 1 列 | 完整路徑（不能點） | 讓使用者確認實際要開的檔案             |
+    | 第 1 列 | 完整路徑（不能點；路徑太長時中間用 … 省略，tooltip 顯示全文） | 讓使用者確認實際要開的檔案             |
     | 第 2 列 | 在新 tab 預覽      | 開出預覽 tab                           |
     | 第 3 列 | 用預設 app 開      | 與加入選單前的 ⌘-click 相同            |
     | 第 4 列 | 在 Finder 顯示     | Finder 開啟並選取這個檔案              |
@@ -30,17 +30,19 @@
   # --- 跳出開啟選單 ---
 
   @e2e @happy-path
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（open-menu、open-url-action）
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: ⌘-click 可預覽檔案的路徑跳出開啟選單
     假設 一個 **終端機 tab** 的目前目錄裡有 "docs/design.md"
     而且 終端機輸出了文字 "docs/design.md"
     當 使用者按住 ⌘ 點這段文字
     那麼 滑鼠位置跳出 **開啟選單**
-    而且 選單第 1 列是 "docs/design.md" 的完整路徑，不能點
+    而且 選單第 1 列是 "docs/design.md" 的完整路徑（路徑太長時中間用 … 省略，tooltip 顯示全文），不能點
     而且 選單接著列出 "在新 tab 預覽"、"用預設 app 開"、"在 Finder 顯示"、"複製路徑"
 
-  @behavior @edge-case
-  # @covered-by: App/scripts/preview-check.swift、App/Sources/lmux-apptest/Preview.swift（open-menu）
+  @e2e @edge-case
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 路徑後面帶行號時，去掉行號再判斷
     假設 一個 **終端機 tab** 的目前目錄裡有 "docs/design.md"
     而且 終端機輸出了文字 "docs/design.md:12"
@@ -49,7 +51,8 @@
     而且 選單第 1 列的路徑結尾是 "docs/design.md"，不含 ":12"
 
   @e2e @edge-case
-  # @covered-by: App/scripts/preview-check.swift、App/Sources/lmux-apptest/Preview.swift（open-menu）
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: OSC 8 連結指向本機的可預覽檔案時也跳出開啟選單
     假設 終端機輸出一個 OSC 8 連結，文字是 "設計文件"，指向 "file:///tmp/demo/design.md"
     而且 "/tmp/demo/design.md" 存在
@@ -57,8 +60,9 @@
     那麼 跳出 **開啟選單**
     而且 選單第 1 列是 "/tmp/demo/design.md"
 
-  @behavior @edge-case
-  # @covered-by: App/scripts/preview-check.swift、App/Sources/lmux-apptest/Preview.swift（open-menu）
+  @e2e @edge-case
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景大綱: 不是存在的可預覽檔案時，照原本流程
     假設 終端機輸出了文字 "<輸出>"
     而且 <情況>
@@ -72,8 +76,9 @@
       | docs/missing.md               | 這個檔案不存在           |
       | https://example.com/readme.md | 這是網址，不是本機檔案   |
 
-  @behavior @edge-case
-  # @covered-by: App/scripts/preview-check.swift、App/Sources/lmux-apptest/Preview.swift（open-menu）
+  @e2e @edge-case
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: shell 沒回報目前目錄時，相對路徑照原本流程
     假設 一個 **終端機 tab** 的 shell 沒有回報目前目錄
     而且 終端機輸出了文字 "docs/design.md"
@@ -84,7 +89,7 @@
   # --- 選單項目 ---
 
   @e2e @happy-path
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（preview-tab、open-menu）
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 選「在新 tab 預覽」開出預覽 tab
     假設 一個 **workspace** 有 **終端機 tab** A 與它右邊的 **tab** B
     而且 A 是 **focused tab**
@@ -94,7 +99,7 @@
     而且 這個預覽 tab 成為 **focused tab**
 
   @e2e @happy-path
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（open-menu）
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景大綱: 選單的其他項目
     假設 一個 **終端機 tab** 跳出了 "docs/design.md" 的 **開啟選單**
     當 使用者選 "<項目>"
@@ -108,7 +113,7 @@
       | 複製路徑       | 剪貼簿內容是這個檔案的完整路徑                |
 
   @e2e @edge-case
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift（open-menu）
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 不選任何項目就關掉選單
     假設 一個 **終端機 tab** 跳出了 "docs/design.md" 的 **開啟選單**
     當 使用者按 Esc 或點選單外面

@@ -30,11 +30,11 @@ Any CLI runs in it. Resume, History and the hover actions are built for Claude C
 
 ## Does it phone home?
 
-No. lmux makes no network calls at all. No telemetry, no crash reports, not even an update check (Homebrew does that). Everything it writes to disk, and how to remove it, is in [Privacy & files on disk](privacy.md).
+No. lmux itself makes no network calls—no telemetry, no crash reports, not even an update check (Homebrew does that). Only when you open a preview tab does macOS `WKWebView` load remote scripts or images referenced by that `.md` or `.html` file. Everything it writes to disk, and how to remove it, is in [Privacy & files on disk](privacy.md).
 
 ## Will lmux get an in-app browser or computer use?
 
-No. Putting a browser engine in the terminal would defeat the whole point. Claude Code already drives browsers and your screen through MCP servers (Playwright, for one) and Claude in Chrome, and lmux is just the terminal Claude Code runs in. If you want to script lmux itself, the bundled [`lmux` CLI](cli.md) can list panes, send input to them and wait for an agent to finish ([`lmux wait`](cli.md#lmux-wait)), so Claude can start a Codex review in a new workspace and read the result. See [lmux for agents](https://github.com/sooftware/lmux/blob/main/docs/agents.md).
+No. Putting a full web browser in the terminal would defeat the whole point (lmux only uses macOS `WKWebView` for opt-in local `.md` / `.html` preview tabs). Claude Code already drives browsers and your screen through MCP servers (Playwright, for one) and Claude in Chrome, and lmux is just the terminal Claude Code runs in. If you want to script lmux itself, the bundled [`lmux` CLI](cli.md) can list panes, send input to them and wait for an agent to finish ([`lmux wait`](cli.md#lmux-wait)), so Claude can start a Codex review in a new workspace and read the result. See [lmux for agents](https://github.com/sooftware/lmux/blob/main/docs/agents.md).
 
 ## Why "lmux"?
 

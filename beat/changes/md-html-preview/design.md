@@ -52,7 +52,7 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
    3. `file://` 轉成路徑。
    4. 副檔名（不分大小寫）是 `md`、`markdown`、`html`、`htm`，而且檔案存在、不是資料夾，才回傳 true。
 3. **選單**：`NSMenu.popUp(positioning:at:in:)`，位置是滑鼠在 surface 裡的座標。
-   - 第 1 列：完整路徑，停用狀態。路徑太長時中間用 … 省略。
+   - 第 1 列：完整路徑，停用狀態。路徑超過 90 字元時把資料夾的中間用 … 省略，檔名一定完整保留（`room = max(10, limit - name.count - 2)`；即使加上很長的檔名會讓第 1 列超過 90 字元，也完整保留檔名，並把完整路徑放在 tooltip）。
    - 「用預設 app 開」：用解析後的完整路徑呼叫 `GhosttyRuntime.openTerminalURL`。不再比對 OSC 8 連結的文字是否與目標相符：選單第 1 列已經顯示真正的路徑。
    - 「在 Finder 顯示」：`NSWorkspace.shared.activateFileViewerSelecting`。
    - 「複製路徑」：寫入 `GhosttyRuntime.standardPasteboard`。
@@ -74,11 +74,19 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
 
 #### C.3 渲染（`preview-tab.feature` 的 Markdown 與 HTML）
 
-新檔（plan 階段拆成三個，每個只做一件事）：`PreviewView.swift`（一個 `NSView`，裡面是 `WKWebView`，加上導覽規則）、`PreviewScheme.swift`（`lmux-preview` scheme）、`PreviewWatcher.swift`（FSEvents）。
+架構（示意）：
+
+```
+可預覽檔案 ─┬─ .md ──▶ Foundation 解析 ──▶ Swift 產生 HTML ─┐
+            └─ .html ─────────────────────────────────────────┴─▶ WKWebView（預覽 tab）
+監看檔案所在資料夾 ── 檔案改變 ──▶ 重新渲染
+```
+
+新檔（plan 階段拆分，每個只做一件事）：`PreviewView.swift`（一個 `NSView`，裡面是 `WKWebView` 與生命週期／狀態）、`PreviewViewNavigation.swift`（導覽規則與安全邊界）、`PreviewScheme.swift`（`lmux-preview` scheme）、`PreviewWatcher.swift`（FSEvents）。
 
 1. **共用設定**：每個預覽 tab 一個 `WKWebViewConfiguration`，`websiteDataStore = .nonPersistent()`，`allowsBackForwardNavigationGestures = true`。
 2. **Markdown**：載入 `lmux-preview:///<絕對路徑>`。
-   - `WKURLSchemeHandler` 收到 `.md` 請求：讀檔、用 `MarkdownHTML` 轉成 HTML 後回傳（在主執行緒；S3 實測 504 KB 約 0.19 秒）。其他副檔名直接回傳檔案內容，MIME 由副檔名決定。
+   - `WKURLSchemeHandler` 收到 `.md` 請求：讀檔、用 `MarkdownHTML` 轉成 HTML 後回傳（在主執行緒；S3 實測 504 KB 約 0.19 秒）。Markdown 以外只回傳非 SVG 的圖片（MIME 由副檔名決定），不回傳其他副檔名。
    - 相對路徑的圖片與 `.md` 連結會自動解析成同一個 scheme，所以圖片、換頁、返回都由 WebKit 處理。
    - 這個 scheme 的頁面關閉 JavaScript（`WKWebpagePreferences.allowsContentJavaScript = false`，在導覽決策時設定）。
 3. **`MarkdownHTML`**（新檔 `MarkdownHTML.swift`，只用 Foundation，可單獨測試）：
@@ -143,11 +151,14 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
 | `App/Sources/LmuxUI/SidebarSelection.swift` | lmux 原始檔 | C.2.5：`validateMenuItem` 停用的項目 |
 | `App/Sources/LmuxUI/ControlServer.swift` | lmux 原始檔 | C.2.7：`list`、`send` |
 | `App/Sources/LmuxUI/Persistence.swift` | lmux 原始檔 | C.2.8：略過預覽 tab |
+| `App/Sources/LmuxUI/Titles.swift` | lmux 原始檔 | C.2：`promptRenamePane` 預覽 tab 提示字樣（改用檔名而非 agent 標題） |
+| `README.md`、`App/README.md`、`docs/architecture.md` | 文件 | 同步更新原先「無 WebKit／無網路連線」描述為選用預覽 tab 的隔離說明 |
 | `App/Sources/LmuxUI/PreviewTarget.swift` | 新檔 | C.1.2：路徑正規化與判斷 |
 | `App/Sources/LmuxUI/MarkdownHTML.swift` | 新檔 | C.3.3：Markdown 轉 HTML |
 | `App/Sources/LmuxUI/PreviewScheme.swift` | 新檔 | C.3.2：`lmux-preview` scheme handler |
 | `App/Sources/LmuxUI/PreviewWatcher.swift` | 新檔 | C.3.6：FSEvents |
-| `App/Sources/LmuxUI/PreviewView.swift` | 新檔 | C.3：`PreviewView`、導覽規則、自動更新 |
+| `App/Sources/LmuxUI/PreviewView.swift` | 新檔 | C.3：`PreviewView`、`WKWebView` 設定、監看與狀態 |
+| `App/Sources/LmuxUI/PreviewViewNavigation.swift` | 新檔 | C.3：預覽導覽與安全邊界規則（從 `PreviewView.swift` 拆出） |
 | `App/Sources/LmuxUI/OpenMenu.swift` | 新檔 | C.1：`openTerminalLink`、開啟選單 |
 | `App/scripts/preview-check.swift` | 新檔（腳本） | `PreviewTarget` 與 `MarkdownHTML` 的自我檢查，比照 `message-text-check.swift` 用 `swiftc` 單獨編譯執行 |
 | `App/scripts/preview-webkit-check.swift` | 新檔（腳本） | scheme、FSEvents、`PreviewView` 在真的 WKWebView 裡的自我檢查 |
@@ -160,8 +171,8 @@ WebKit 要不要在 `App/Package.swift` 加 `.linkedFramework("WebKit")`：Swift
 
 ### 測試方式
 
-- `@behavior` 場景：`App/scripts/preview-check.swift`（`swiftc` 編譯 `PreviewTarget.swift`、`MarkdownHTML.swift` 與這支腳本後執行）。
-- `@e2e` 場景：`App/scripts/apptest.sh --quick` 加上新的 `Preview.swift`。測試前先 `unset` 所有 `LMUX_*` 變數，免得指令送進使用者正在用的 lmux。
+- `@behavior` 場景：`App/scripts/preview-check.swift` 與 `App/scripts/preview-webkit-check.swift`（已接進 `App/scripts/apptest.sh` 的 preview suite，CI 也會執行）。
+- `@e2e` 場景：`App/scripts/apptest.sh --quick` 加上 `Preview.swift`（`App/scripts/apptest.sh --preview` 單獨重現預覽全套檢查）。測試前先 `unset` 所有 `LMUX_*` 變數，免得指令送進使用者正在用的 lmux。
 - 畫面相關（深淺色、圖片、兩指滑動、選單位置）：使用者手動驗證，紀錄寫在 `manual-verification.md`。
 
 ### Risks
@@ -171,7 +182,7 @@ WebKit 要不要在 `App/Package.swift` 加 `.linkedFramework("WebKit")`：Swift
 - **限制**：只改同資料夾的 CSS 或圖片，預覽不會自動更新。要看新樣式得關掉再開。
 - **限制**：HTML 讀不到所在資料夾以外的檔案（例如 `../assets/x.css`），也連不過去（S2：WebKit 直接擋）。
 - **已查證（S2 與 security review）**：HTML 頁面的 JavaScript 用 `fetch` 讀不到同資料夾或資料夾外的檔案（`TypeError: Load failed`），用 iframe、`<img>`、`fetch` 取用 `lmux-preview:` 也都被擋（`preview-webkit-check.swift` 的安全檢查）。允許連網的風險只剩「頁面自己的內容送上網路」。
-- **已處理（security review）**：`/dev/zero` 或指向它的 symlink：`PreviewTarget` 只接受一般檔案；scheme 只讀一般檔案、最多 20 MB。檔名含看不見的控制字元（例如 U+202E）：不跳開啟選單，走原本流程。`file://` 只接受本機。
+- **已處理（security review）**：`/dev/zero` 或指向它的 symlink：`PreviewTarget` 只接受一般檔案；scheme 只讀一般檔案，Markdown 最多 2 MB、HTML 與圖片最多 20 MB。檔名含看不見的控制字元（例如 U+202E，保留 Emoji 所需的 ZWJ U+200D）：不跳開啟選單，走原本流程。`file://` 只接受本機。
 - **限制（architecture review）**：預覽 tab 是 focused tab 時，Ghostty 自己的 keybinding（例如分割方向鍵、resize_split、使用者自訂的 keybind）不會動，因為它們要有 focused 的終端機。⌘[、⌘] 與 tab 切換是 lmux 的選單項目，仍然可以用。字級與 Clear Screen 在預覽 tab 上停用。
 - **已處理（architecture review）**：確認卡片（例如 Close Workspace）顯示在預覽 tab 上時，原本只能用終端機的 `keyInterceptor` 接 ⏎／esc；預覽 tab 改用 local key monitor。手動驗證清單第 16 項。
 - **ponytail**：FSEvents 會監看整個子資料夾樹。預覽 repo 根目錄的 README 時，build 的大量事件也會送到主執行緒（只做路徑比對）。真的慢再改成只看上層資料夾的 `DispatchSource`。
