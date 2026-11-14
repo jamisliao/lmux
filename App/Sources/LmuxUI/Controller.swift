@@ -987,6 +987,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         }
         if let s = pane.surface, window.firstResponder !== s {
             window.makeFirstResponder(s)
+        } else if let preview = pane.preview, (window.firstResponder as? NSView)?.isDescendant(of: preview.webView) != true {
+            // 預覽 tab：焦點交給 WKWebView（beat: preview-tab.feature）。
+            window.makeFirstResponder(preview.webView)
         }
         refreshPaneChrome()
     }
@@ -1035,7 +1038,12 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         let fr = window.firstResponder
         if fr is NSText { return }
         if let s = fr as? SurfaceView, ws.visiblePanes.contains(where: { $0.surface === s }) { return }
-        if let s = pane.surface { window.makeFirstResponder(s) }
+        if let v = fr as? NSView, ws.visiblePanes.contains(where: { $0.preview.map { v.isDescendant(of: $0) } == true }) { return }
+        if let s = pane.surface {
+            window.makeFirstResponder(s)
+        } else if let preview = pane.preview {
+            window.makeFirstResponder(preview.webView)
+        }
     }
 
     /// Clicking anywhere on a pane (terminal, header) focuses it.

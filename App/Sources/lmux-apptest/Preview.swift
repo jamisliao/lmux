@@ -61,6 +61,27 @@ func runPreview() async -> Int32 {
         }
     }
 
+    // MARK: 預覽 tab 的焦點（Task 21）
+    // @feature: preview-tab.feature
+    // @scenario: 預覽 tab 是 focused tab 時，鍵盤操作作用在預覽上
+    do {
+        r.section = "preview-focus"
+        let (_, a, p) = previewSetup(c, dir: fx, file: design)
+        c.focus(p)
+        let fr = c.window!.firstResponder
+        r.check("預覽 tab 取得焦點：first responder 在它的 WKWebView 裡",
+                (fr as? NSView)?.isDescendant(of: p.preview!.webView) == true, "\(String(describing: fr))")
+        var chain: NSResponder? = fr
+        var reachesTerminal = false
+        while let x = chain {
+            if x is SurfaceView { reachesTerminal = true }
+            chain = x.nextResponder
+        }
+        r.check("預覽 tab 是 focused tab 時，打字與 Paste 不會進到終端機", !reachesTerminal)
+        c.focus(a)
+        r.check("回到終端機 tab：first responder 是它的終端機", c.window!.firstResponder === a.surface)
+    }
+
     // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）
     return finish(r, c)
 }

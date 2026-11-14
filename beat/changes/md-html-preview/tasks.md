@@ -3159,7 +3159,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Modify: `App/Sources/LmuxUI/Controller.swift`（`focusCurrent`、`ensureFocus`）
 - Modify: `App/Sources/lmux-apptest/Preview.swift`
 
-- [ ] **Step 1: 加測試**
+- [x] **Step 1: 加測試**
 
 在 `App/Sources/lmux-apptest/Preview.swift` 找到：
 
@@ -3193,12 +3193,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: `FAIL  [preview-focus] 預覽 tab 取得焦點：first responder 在它的 WKWebView 裡`。
 
-- [ ] **Step 3: `focusCurrent()`**
+- [x] **Step 3: `focusCurrent()`**
 
 在 `App/Sources/LmuxUI/Controller.swift` 找到（Task 9 改過的）：
 
@@ -3219,7 +3219,7 @@ Expected: `FAIL  [preview-focus] 預覽 tab 取得焦點：first responder 在�
         }
 ```
 
-- [ ] **Step 4: `ensureFocus()`**
+- [x] **Step 4: `ensureFocus()`**
 
 找到（`ensureFocus()` 裡，Task 9 改過的）：
 
@@ -3242,12 +3242,12 @@ Expected: `FAIL  [preview-focus] 預覽 tab 取得焦點：first responder 在�
     }
 ```
 
-- [ ] **Step 5: 執行，確認通過**
+- [x] **Step 5: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: 沒有 `FAIL`、`APPTEST EXIT: 0`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Controller.swift App/Sources/lmux-apptest/Preview.swift
