@@ -1745,13 +1745,13 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Interfaces:**
 - Consumes: `Pane.foregroundPID`（Task 6）。
 
-- [ ] **Step 1: Agent.swift — 全部替換**
+- [x] **Step 1: Agent.swift — 全部替換**
 
 把檔案裡**每一個** `pane.surface.foregroundPID` 換成 `pane.foregroundPID`（共 9 處）。
 
 確認：`grep -c 'surface.foregroundPID' App/Sources/LmuxUI/Agent.swift` → `0`；`grep -c 'pane.foregroundPID' App/Sources/LmuxUI/Agent.swift` → `9`。
 
-- [ ] **Step 2: Agent.swift — 標題那一行**
+- [x] **Step 2: Agent.swift — 標題那一行**
 
 原本：
 
@@ -1765,7 +1765,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
                 if last?.interrupted == true || (n == 1 && (compacting || pane.surface?.title.hasPrefix("✳") == true)) {
 ```
 
-- [ ] **Step 3: CodexSetup.swift**
+- [x] **Step 3: CodexSetup.swift**
 
 原本：
 
@@ -1779,7 +1779,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         let p = e.claudePID ?? ClaudeProcess.representative(ofGroup: pane.foregroundPID)
 ```
 
-- [ ] **Step 4: HooksHint.swift**
+- [x] **Step 4: HooksHint.swift**
 
 原本：
 
@@ -1793,12 +1793,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         let fg = pane.foregroundPID
 ```
 
-- [ ] **Step 5: 驗證**
+- [x] **Step 5: 驗證**
 
 Run: `beat/changes/md-html-preview/dev.sh errors Agent.swift CodexSetup.swift HooksHint.swift`
 Expected: `ERRORS TOTAL: 0`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Agent.swift App/Sources/LmuxUI/CodexSetup.swift App/Sources/LmuxUI/HooksHint.swift

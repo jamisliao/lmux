@@ -32,7 +32,7 @@ extension LmuxController {
 
     func checkHooksHint(_ pane: Pane) {
         guard !pane.hooksHeard, !pane.hooksHinted, self.pane(id: pane.id) != nil else { return }
-        let fg = pane.surface.foregroundPID
+        let fg = pane.foregroundPID
         // Claude Code only: Codex has its own one-time notice (noticeCodexStarting).
         guard fg > 0, let pid = ClaudeProcess.representative(ofGroup: fg), Self.isClaudeNotCodex(pid) else { return }
         // Started since the check was armed: give it the full delay (SessionStart comes within a second).
