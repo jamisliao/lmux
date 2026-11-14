@@ -200,7 +200,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
   - `static func isMarkdown(_ url: URL) -> Bool`
   - `static let extensions: Set<String>`
 
-- [ ] **Step 1: 先寫檢查腳本 `App/scripts/preview-check.swift`（整份照抄）**
+- [x] **Step 1: 先寫檢查腳本 `App/scripts/preview-check.swift`（整份照抄）**
 
 ```swift
 // 預覽 tab 的路徑判斷（App/Sources/LmuxUI/PreviewTarget.swift）的自我檢查（Task 2 會換成含 Markdown 的完整版）。不需要 libghostty，單獨編譯執行：
@@ -269,12 +269,12 @@ enum PreviewCheck {
 }
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh check`
 Expected: 編譯失敗，訊息含 `cannot find 'PreviewTarget' in scope`。
 
-- [ ] **Step 3: 建立 `App/Sources/LmuxUI/PreviewTarget.swift`（整份照抄）**
+- [x] **Step 3: 建立 `App/Sources/LmuxUI/PreviewTarget.swift`（整份照抄）**
 
 ```swift
 import Foundation
@@ -328,17 +328,17 @@ enum PreviewTarget {
 }
 ```
 
-- [ ] **Step 4: 執行，確認通過**
+- [x] **Step 4: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh check`
 Expected: 最後一行 `preview check: ok`。
 
-- [ ] **Step 5: 確認 app 仍能 build**
+- [x] **Step 5: 確認 app 仍能 build**
 
 Run: `beat/changes/md-html-preview/dev.sh build`
 Expected: `BUILD EXIT: 0`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/PreviewTarget.swift App/scripts/preview-check.swift
