@@ -38,7 +38,7 @@ extension LmuxController {
         let pc = leaf.pinnedCount
         let at = tab.pinned ? min(index, pc) : max(index, pc)
         leaf.tabs.insert(tab, at: min(max(at, 0), leaf.tabs.count))
-        tab.surface.setOcclusion(visible: false)
+        tab.surface?.setOcclusion(visible: false)
         ws.structureChanged()
         if select {
             // Zoomed on another pane: the zoom ends, so the focused tab is on screen.
@@ -88,8 +88,8 @@ extension LmuxController {
         leaf.content = .pane(tab)
         if ws.focusedPane === old { ws.focusedPane = tab }
         if ws.zoomedPane === old { ws.zoomedPane = tab }
-        old.surface.focusDidChange(false)
-        old.surface.setOcclusion(visible: false)
+        old.surface?.focusDidChange(false)
+        old.surface?.setOcclusion(visible: false)
         ws.structureChanged()
         return true
     }
@@ -196,8 +196,8 @@ extension LmuxController {
         guard let ws = tab.workspace, let leaf = ws.root.find(tab), let i = leaf.tabs.firstIndex(where: { $0 === tab }) else { return }
         // The zoom ends only if it was on this tab's pane (it goes, or shows another tab).
         if let z = ws.zoomedPane, ws.root.find(z) === leaf { ws.zoomedPane = nil }
-        tab.surface.focusDidChange(false)
-        tab.surface.setOcclusion(visible: false)
+        tab.surface?.focusDidChange(false)
+        tab.surface?.setOcclusion(visible: false)
         tab.view.tabStrip = nil
         tab.view.removeFromSuperview()
         tab.workspace = nil
@@ -383,7 +383,7 @@ extension LmuxController {
         // Its own pane: only an edge does something, and only when another tab stays behind.
         let own = leaf.tabs.contains { $0 === tab }
         guard let target = own ? leaf.tabs.first(where: { $0 !== tab }) : pane else { return nil }
-        let area = pane.surface.frame
+        let area = pane.surface?.frame ?? pane.preview?.frame ?? pv.bounds
         let p = pv.convert(windowPoint, from: nil)
         let fx = (p.x - area.minX) / max(1, area.width), fy = (p.y - area.minY) / max(1, area.height)
         let edge: CGFloat = 0.25
@@ -529,11 +529,11 @@ public final class TabStripView: NSView {
                         width: min(Self.maxTabWidth, max(Self.minTabWidth, full)))
         }
         let sel = tabs.firstIndex { $0 === shown } ?? 0
-        let bg = shown?.surface.terminalBackground ?? T.Colors.windowBackground.nsColor
+        let bg = shown?.surface?.terminalBackground ?? T.Colors.windowBackground.nsColor
         let f = shown?.isFocused ?? false
         let z = shown.map { $0.workspace?.zoomedPane === $0 } ?? false
         let mb = shown?.modeBadge
-        adoptAppearance(on: shown?.surface.terminalBackground)
+        adoptAppearance(on: shown?.surface?.terminalBackground)
         if new != items || sel != selected || bg != background || f != focused || z != zoomed || mb != modeBadge {
             let moved = sel != selected || new != items || mb != modeBadge
             modeBadge = mb

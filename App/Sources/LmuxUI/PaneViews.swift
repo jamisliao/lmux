@@ -142,8 +142,8 @@ public final class PaneView: FlippedView {
     let header = PaneHeaderView()
     let ring = RingView()
     let overlay = PaneOverlayView(frame: .zero)
-    /// The scrollback's overlay scroller (over the terminal, under lmux's overlays).
-    let scroller: SurfaceScroller
+    /// The scrollback's overlay scroller (over the terminal, under lmux's overlays). 預覽 tab 沒有捲軸，是 nil。
+    let scroller: SurfaceScroller?
     /// The workspace is split; the header shows only if the pane also has a title.
     var showsHeader = false { didSet { updateHeaderVisibility() } }
 
@@ -173,16 +173,22 @@ public final class PaneView: FlippedView {
 
     init(pane: Pane) {
         self.pane = pane
-        scroller = SurfaceScroller(surface: pane.surface)
+        scroller = pane.surface.map { SurfaceScroller(surface: $0) }
         super.init(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         header.isHidden = true
         addSubview(header)
-        addSubview(pane.surface)
-        addSubview(scroller)
+        switch pane.content {
+        case .terminal(let surface):
+            addSubview(surface)
+            if let scroller { addSubview(scroller) }
+            surface.onDropTarget = { [weak self] on in self?.overlay.dropTarget = on }
+            surface.onLinkHover = { [weak self] url, pointer in self?.overlay.showLink(url, pointer: pointer) }
+        case .preview(let preview):
+            // 預覽 tab：放 WKWebView，不放捲軸（beat: preview-tab.feature）。
+            addSubview(preview)
+        }
         addSubview(overlay)
         addSubview(ring)
-        pane.surface.onDropTarget = { [weak self] on in self?.overlay.dropTarget = on }
-        pane.surface.onLinkHover = { [weak self] url, pointer in self?.overlay.showLink(url, pointer: pointer) }
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -194,8 +200,9 @@ public final class PaneView: FlippedView {
         header.frame = NSRect(x: 0, y: 0, width: bounds.width, height: header.isHidden ? 0 : hh)
         tabStrip?.frame = NSRect(x: 0, y: 0, width: bounds.width, height: hh)
         let sf = NSRect(x: 0, y: hh, width: bounds.width, height: max(0, bounds.height - hh))
-        pane?.surface.frame = sf
-        scroller.frame = sf
+        pane?.surface?.frame = sf
+        pane?.preview?.frame = sf
+        scroller?.frame = sf
         overlay.frame = sf
         ring.frame = bounds
     }

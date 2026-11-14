@@ -2568,13 +2568,13 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Interfaces:**
 - Produces: `PaneView.scroller` 改成 `SurfaceScroller?`（預覽 tab 是 nil）。預覽 tab 的 `PaneView` 裡放 `PreviewView`，不放捲軸。
 
-- [ ] **Step 1: Tabs.swift — 全部替換（兩種）**
+- [x] **Step 1: Tabs.swift — 全部替換（兩種）**
 
 - 每一個 `tab.surface.` 換成 `tab.surface?.`（共 3 處）。
 - 每一個 `old.surface.` 換成 `old.surface?.`（共 2 處）。
 - 每一個 `shown?.surface.terminalBackground` 換成 `shown?.surface?.terminalBackground`（共 2 處）。
 
-- [ ] **Step 2: Tabs.swift — 拖曳放置的區域**
+- [x] **Step 2: Tabs.swift — 拖曳放置的區域**
 
 原本：
 
@@ -2588,7 +2588,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         let area = pane.surface?.frame ?? pane.preview?.frame ?? pv.bounds
 ```
 
-- [ ] **Step 3: PaneViews.swift — scroller 的宣告**
+- [x] **Step 3: PaneViews.swift — scroller 的宣告**
 
 原本：
 
@@ -2604,7 +2604,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
     let scroller: SurfaceScroller?
 ```
 
-- [ ] **Step 4: PaneViews.swift — `init(pane:)`**
+- [x] **Step 4: PaneViews.swift — `init(pane:)`**
 
 原本：
 
@@ -2648,7 +2648,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
     }
 ```
 
-- [ ] **Step 5: PaneViews.swift — `layout()`**
+- [x] **Step 5: PaneViews.swift — `layout()`**
 
 原本：
 
@@ -2665,12 +2665,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         scroller?.frame = sf
 ```
 
-- [ ] **Step 6: 驗證**
+- [x] **Step 6: 驗證**
 
 Run: `beat/changes/md-html-preview/dev.sh errors Tabs.swift PaneViews.swift`
 Expected: `ERRORS TOTAL: 0`。
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Tabs.swift App/Sources/LmuxUI/PaneViews.swift
