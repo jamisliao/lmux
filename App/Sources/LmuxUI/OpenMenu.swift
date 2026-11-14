@@ -36,16 +36,28 @@ extension LmuxController {
         GhosttyRuntime.openTerminalURL(value, kind: kind, window: view?.window, label: label)
     }
 
+    private func isLivePane(_ pane: Pane) -> Bool {
+        guard let ws = pane.workspace else { return false }
+        return model.workspaces.contains { $0 === ws }
+    }
+
     /// 跳出開啟選單，執行使用者選的項目。
     func showOpenMenu(_ file: URL, pane: Pane, view: SurfaceView?) {
+        guard isLivePane(pane) else { return }
         let choice: OpenChoice?
         if let hook = Self.openMenuTestHook {
             choice = hook(file)
         } else {
             // headless（測試、截圖）不顯示任何選單。
-            guard !headless, let view, view.window != nil else { return }
+            if headless { return }
+            guard let view, view.window != nil else {
+                GhosttyRuntime.openTerminalURL(file.path, kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN,
+                                               window: view?.window ?? (window as NSWindow?))
+                return
+            }
             choice = popUpOpenMenu(file, in: view)
         }
+        guard isLivePane(pane) else { return }
         guard let choice else {
             focusCurrent()
             return

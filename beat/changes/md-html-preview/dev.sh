@@ -46,9 +46,9 @@ case "${1:-}" in
     swiftc -parse-as-library -o "$OUT/preview-check" $(existing PreviewTarget MarkdownHTML) App/scripts/preview-check.swift \
       && "$OUT/preview-check" ;;
   webkit)
-    # shellcheck disable=SC2046
+    # shellcheck disable=SC2046,SC2086
     swiftc -parse-as-library -o "$OUT/preview-webkit-check" \
-      $(existing PreviewTarget MarkdownHTML PreviewScheme PreviewWatcher PreviewView) App/scripts/preview-webkit-check.swift \
+      $(existing PreviewTarget MarkdownHTML PreviewScheme PreviewWatcher PreviewView PreviewViewNavigation) App/scripts/preview-webkit-check*.swift \
       && "$OUT/preview-webkit-check" ;;
   apptest-preview)
     App/scripts/apptest.sh --preview > "$OUT/preview.log" 2>&1; code=$?

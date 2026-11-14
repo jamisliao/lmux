@@ -114,6 +114,8 @@ final class Delegate: NSObject, NSApplicationDelegate {
                 code = await runContrastMatrix(URL(fileURLWithPath: args[i + 1]))
             } else if args.contains("--compat") {
                 code = await runCompat()
+            } else if args.contains("--preview-restore") {
+                code = await runPreviewRestore()
             } else if args.contains("--preview") {
                 code = await runPreview()
             } else if args.contains("--parity") {

@@ -2,10 +2,22 @@ import AppKit
 import GhosttyKit
 import LmuxTerminal
 @testable import LmuxUI
+import WebKit
 
 // `lmux-apptest --preview`：預覽 tab 與 ⌘-click 的開啟選單（beat/changes/md-html-preview）。
 // 開啟選單由 `LmuxController.openMenuTestHook` 回答，不會真的跳出；開啟檔案與網址由
 // `GhosttyRuntime.openURL` 接住，不會真的打開任何東西。
+
+struct PreviewFixtures {
+    let root: URL
+    let docs: URL
+    let design: URL
+}
+
+@MainActor
+final class PreviewExternalSpy {
+    var urls: [URL] = []
+}
 
 /// 一個新的 workspace：終端機 tab A（目前目錄是 `dir`），A 右邊是 `file` 的預覽 tab P。
 @MainActor
@@ -24,31 +36,69 @@ func layoutPaneIDs(_ n: LayoutFile.NodeState) -> [String] {
 }
 
 @MainActor
+func firstTerminalInChain(from start: NSResponder?) -> SurfaceView? {
+    var cur = start
+    while let r = cur {
+        if let s = r as? SurfaceView { return s }
+        cur = r.nextResponder
+    }
+    return nil
+}
+
+@MainActor
+func validatedPasteTarget(from start: NSResponder?) -> NSResponder? {
+    let item = NSMenuItem(title: "Paste", action: #selector(SurfaceView.paste(_:)), keyEquivalent: "v")
+    var cur = start
+    while let r = cur {
+        if r.responds(to: #selector(SurfaceView.paste(_:))) {
+            if let v = r as? NSMenuItemValidation, !v.validateMenuItem(item) { cur = r.nextResponder; continue }
+            if let v = r as? NSUserInterfaceValidations, !v.validateUserInterfaceItem(item) { cur = r.nextResponder; continue }
+            return r
+        }
+        cur = r.nextResponder
+    }
+    return nil
+}
+
+@MainActor
+func waitBodyContains(_ web: WKWebView, _ needle: String, timeout: Double = 5) async -> Bool {
+    let end = Date().addingTimeInterval(timeout)
+    while Date() < end {
+        if let text = try? await web.evaluateJavaScript("document.body && document.body.innerText") as? String,
+           text.contains(needle) { return true }
+        await sleepMs(50)
+    }
+    return false
+}
+
+@MainActor
 func runPreview() async -> Int32 {
     let r = Report()
-    var opened: [URL] = []
-    GhosttyRuntime.openURL = { opened.append($0) }
+    let external = PreviewExternalSpy()
+    GhosttyRuntime.openURL = { external.urls.append($0) }
     let c = makeController()
     // 測試用的檔案：<LMUX_STATE_DIR>/preview-fixtures/docs/{design.md, b.md, notes.txt}
-    let fx = URL(fileURLWithPath: env["LMUX_STATE_DIR"]!).appendingPathComponent("preview-fixtures", isDirectory: true)
-    let docs = fx.appendingPathComponent("docs", isDirectory: true)
+    let root = URL(fileURLWithPath: env["LMUX_STATE_DIR"]!).appendingPathComponent("preview-fixtures", isDirectory: true)
+    let docs = root.appendingPathComponent("docs", isDirectory: true)
     try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
-    try? "# Design\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n[b](b.md)\n"
+    try? "# Design\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n[b](b.md) [ext](https://example.com/y)\n"
         .write(to: docs.appendingPathComponent("design.md"), atomically: true, encoding: .utf8)
     try? "# B\n".write(to: docs.appendingPathComponent("b.md"), atomically: true, encoding: .utf8)
     try? "notes\n".write(to: docs.appendingPathComponent("notes.txt"), atomically: true, encoding: .utf8)
     let design = docs.appendingPathComponent("design.md").standardizedFileURL
+    let fixtures = PreviewFixtures(root: root, docs: docs, design: design)
 
     // MARK: 建立預覽 tab（Task 20）
     // @feature: open-menu.feature
     // @scenario: 選「在新 tab 預覽」開出預覽 tab
     // @feature: preview-tab.feature
     // @scenario: 預覽 tab 的標題是檔名
+    // @scenario: Markdown 顯示成排版後的樣子
     do {
         r.section = "preview-tab"
-        let ws = c.newWorkspace(cwd: fx.path)
+        let ws = c.newWorkspace(cwd: root.path)
         let a = ws.panes[0]
-        a.cwd = fx.path
+        a.cwd = root.path
         let b = c.newTab(a)!
         c.focus(a)
         let p = c.newPreviewTab(design, after: a)
@@ -61,6 +111,12 @@ func runPreview() async -> Int32 {
             r.check("預覽 tab 的目前目錄是檔案所在資料夾", p.cwd == docs.standardizedFileURL.path, p.cwd ?? "nil")
             r.check("預覽 tab 顯示這個檔案", p.preview?.fileURL.standardizedFileURL == design)
             r.check("c.pane(id:) 找得到預覽 tab", c.pane(id: p.id) === p)
+            r.check("預覽 tab 的標題列支援雙擊重新命名", p.view.header.onDoubleClick != nil)
+            p.view.header.onDoubleClick?()
+            c.renamePane(p, to: "自訂預覽")
+            r.check("預覽 tab 可手動改名，改名後顯示自訂標題", p.headerTitle == "自訂預覽", p.headerTitle)
+            c.renamePane(p, to: nil)
+            r.check("清除自訂標題後回復檔名", p.headerTitle == "design.md", p.headerTitle)
             let loaded = await waitFor(5) { p.preview?.webView.isLoading == false && p.preview?.webView.url != nil }
             let h1 = try? await p.preview?.webView.evaluateJavaScript("document.querySelector('h1').textContent")
             r.check("預覽 tab 顯示排版後的 Markdown", loaded && (h1 as? String) == "Design", "\(String(describing: h1))")
@@ -70,260 +126,105 @@ func runPreview() async -> Int32 {
     // MARK: 預覽 tab 的焦點（Task 21）
     // @feature: preview-tab.feature
     // @scenario: 預覽 tab 是 focused tab 時，鍵盤操作作用在預覽上
+    // @scenario: 在預覽 tab 選取文字並按 ⌘C 會複製到剪貼簿
+    // @scenario: 預覽 tab 上停用只對終端機有意義的功能
     do {
         r.section = "preview-focus"
-        let (_, a, p) = previewSetup(c, dir: fx, file: design)
+        let (_, a, p) = previewSetup(c, dir: root, file: design)
+        r.check("終端機 A sink 就緒", await sinks.waitReady(a.id))
+        _ = await waitFor(5) { p.preview?.webView.isLoading == false && p.preview?.webView.url != nil }
         c.focus(p)
         let fr = c.window!.firstResponder
         r.check("預覽 tab 取得焦點：first responder 在它的 WKWebView 裡",
                 (fr as? NSView)?.isDescendant(of: p.preview!.webView) == true, "\(String(describing: fr))")
-        var chain: NSResponder? = fr
-        var reachesTerminal = false
-        while let x = chain {
-            if x is SurfaceView { reachesTerminal = true }
-            chain = x.nextResponder
-        }
-        r.check("預覽 tab 是 focused tab 時，打字與 Paste 不會進到終端機", !reachesTerminal)
-        c.focus(a)
-        r.check("回到終端機 tab：first responder 是它的終端機", c.window!.firstResponder === a.surface)
-    }
-
-    // MARK: 開啟選單（Task 22）
-    // @feature: open-menu.feature
-    // @scenario: ⌘-click 可預覽檔案的路徑跳出開啟選單
-    // @scenario: 路徑後面帶行號時，去掉行號再判斷
-    // @scenario: OSC 8 連結指向本機的可預覽檔案時也跳出開啟選單
-    // @scenario: 不是存在的可預覽檔案時，照原本流程
-    // @scenario: shell 沒回報目前目錄時，相對路徑照原本流程
-    // @scenario: 選「在新 tab 預覽」開出預覽 tab
-    // @scenario: 選單的其他項目
-    // @scenario: 不選任何項目就關掉選單
-    do {
-        r.section = "open-menu"
-        var asked: [URL] = []
-        var answer: LmuxController.OpenChoice?
-        var revealed: [URL] = []
-        var prompts: [UntrustedURLPrompt] = []
-        LmuxController.openMenuTestHook = { asked.append($0); return answer }
-        LmuxController.revealInFinder = { revealed.append($0) }
-        UntrustedURLAlert.testHook = { prompts.append($0); return false }
-        defer {
-            LmuxController.openMenuTestHook = nil
-            UntrustedURLAlert.testHook = nil
-        }
-        let ws = c.newWorkspace(cwd: fx.path)
-        let a = ws.panes[0]
-        a.cwd = fx.path
-        let b = c.newTab(a)!
-        c.focus(a)
-        func click(_ value: String, _ kind: ghostty_action_open_url_kind_e = GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN) {
-            c.openTerminalLink(value, kind: kind, pane: a, view: a.surface)
-        }
-        /// 同一個值：經過 openTerminalLink，與直接走原本流程（GhosttyRuntime.openTerminalURL），開啟的東西與詢問都一樣。
-        func sameAsBefore(_ value: String, _ kind: ghostty_action_open_url_kind_e = GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN) -> Bool {
-            opened.removeAll(); prompts.removeAll()
-            GhosttyRuntime.openTerminalURL(value, kind: kind, window: a.surface?.window)
-            let before = (opened, prompts)
-            opened.removeAll(); prompts.removeAll()
-            click(value, kind)
-            return opened == before.0 && prompts == before.1
-        }
-        func real(_ u: URL) -> String { u.resolvingSymlinksInPath().path }
-
-        // 選單本身
-        let menu = LmuxController.makeOpenMenu(design, target: nil)
-        r.check("選單第 1 列是完整路徑，不能點", menu.items.first?.title == design.path && menu.items.first?.isEnabled == false,
-                menu.items.first?.title ?? "nil")
-        r.check("選單項目依序是 在新 tab 預覽、用預設 app 開、在 Finder 顯示、複製路徑",
-                menu.items.dropFirst(2).map(\.title) == ["在新 tab 預覽", "用預設 app 開", "在 Finder 顯示", "複製路徑"],
-                "\(menu.items.map(\.title))")
-        let longPath = "/" + String(repeating: "abcdefgh/", count: 15) + "design.md"
-        r.check("太長的路徑省略資料夾中間，檔名完整保留",
-                LmuxController.shortPath(longPath).hasSuffix("/design.md") && LmuxController.shortPath(longPath).count <= 90,
-                LmuxController.shortPath(longPath))
-
-        // 跳出選單；關掉選單
-        answer = nil
-        c.window!.makeFirstResponder(nil)
-        opened.removeAll()
-        click("docs/design.md")
-        r.check("⌘-click 可預覽檔案的路徑：跳出開啟選單，問的是這個檔案", asked == [design], "\(asked)")
-        r.check("關掉選單：沒有開出預覽 tab，也沒有開啟任何東西",
-                ws.panes.count == 2 && opened.isEmpty && revealed.isEmpty, "\(ws.panes.count) \(opened) \(revealed)")
-        r.check("關掉選單：焦點回到終端機", c.window!.firstResponder === a.surface)
-        asked.removeAll()
-        click("docs/design.md:12")
-        r.check("路徑帶行號：去掉行號後仍跳出選單", asked == [design], "\(asked)")
-        asked.removeAll()
-        click(design.absoluteString, GHOSTTY_ACTION_OPEN_URL_KIND_OSC8)
-        r.check("OSC 8 的 file:// 連結：跳出選單", asked == [design], "\(asked)")
-
-        // 照原本流程
-        asked.removeAll()
-        r.check("不是可預覽檔案：照原本流程開啟",
-                sameAsBefore(docs.appendingPathComponent("notes.txt").path) && opened.count == 1, "\(opened)")
-        r.check("檔案不存在：照原本流程", sameAsBefore("docs/missing.md"))
-        r.check("網址：照原本流程開啟",
-                sameAsBefore("https://example.com/readme.md") && opened == [URL(string: "https://example.com/readme.md")!],
-                "\(opened)")
-        a.cwd = nil
-        r.check("shell 沒回報目前目錄：相對路徑照原本流程", sameAsBefore("docs/design.md"))
-        a.cwd = fx.path
-        r.check("設定檔類（text）的連結：照原本流程", sameAsBefore(design.path, GHOSTTY_ACTION_OPEN_URL_KIND_TEXT))
-        r.check("照原本流程的這幾種都沒有跳出選單", asked.isEmpty, "\(asked)")
-
-        // 選單項目
-        answer = .defaultApp; opened.removeAll()
-        click("docs/design.md")
-        r.check("用預設 app 開：交給系統開這個檔案", opened.map(real) == [real(design)], "\(opened)")
-        answer = .finder
-        click("docs/design.md")
-        r.check("在 Finder 顯示：交給 Finder 選取這個檔案", revealed == [design], "\(revealed)")
-        answer = .copyPath
-        click("docs/design.md")
-        r.check("複製路徑：剪貼簿是完整路徑", GhosttyRuntime.standardPasteboard.string(forType: .string) == design.path,
-                GhosttyRuntime.standardPasteboard.string(forType: .string) ?? "nil")
-        r.check("其他項目都不開出預覽 tab", ws.panes.count == 2, "\(ws.panes.count)")
-        answer = .preview
-        click("docs/design.md")
-        let leaf = ws.root.find(a)
-        let p = leaf?.tabs.first { $0.preview != nil }
-        r.check("在新 tab 預覽：插在 A 與 B 之間", leaf?.tabs.map(\.id) == [a.id, p?.id ?? "-", b.id],
-                "\(leaf?.tabs.map(\.id) ?? [])")
-        r.check("在新 tab 預覽：成為 focused tab", p != nil && ws.focusedPane === p)
-    }
-
-    // MARK: Ghostty 的 OPEN_URL 走開啟選單（Task 23）
-    // @feature: open-menu.feature
-    // @scenario: ⌘-click 可預覽檔案的路徑跳出開啟選單
-    do {
-        r.section = "open-url-action"
-        var asked: [URL] = []
-        LmuxController.openMenuTestHook = { asked.append($0); return nil }
-        defer { LmuxController.openMenuTestHook = nil }
-        let ws = c.newWorkspace(cwd: fx.path)
-        let a = ws.panes[0]
-        a.cwd = fx.path
-        var action = ghostty_action_s()
-        action.tag = GHOSTTY_ACTION_OPEN_URL
-        let handled: Bool? = "docs/design.md".withCString { ptr in
-            action.action.open_url = ghostty_action_open_url_s(kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN, url: ptr,
-                                                               len: UInt(strlen(ptr)))
-            return c.runtime.actionHandler?(ghostty_target_s(), action, a.surface)
-        }
-        r.check("Ghostty 的 OPEN_URL 由 lmux 處理", handled == true, "\(String(describing: handled))")
-        r.check("Ghostty 的 OPEN_URL 跳出開啟選單", await waitFor(3) { asked == [design] }, "\(asked)")
-    }
-
-    // MARK: 預覽裡換頁與點網址（Task 24）
-    // @feature: preview-tab.feature
-    // @scenario: 點相對路徑的 .md 連結，在同一個預覽 tab 換頁
-    // @scenario: 點網址連結，照終端機裡點連結的規則處理
-    // @scenario: 預覽中的檔案被刪除
-    do {
-        r.section = "preview-links"
-        let gone = docs.appendingPathComponent("gone.md")
-        try? "# Gone\n".write(to: gone, atomically: true, encoding: .utf8)
-        let (ws, _, p) = previewSetup(c, dir: fx, file: design)
-        _ = await waitFor(5) { p.preview?.webView.isLoading == false }
-        let count = ws.panes.count
-        p.preview!.show(docs.appendingPathComponent("b.md"))
-        r.check("預覽換頁後 tab 標題跟著換成 b.md", await waitFor(5) { p.headerTitle == "b.md" }, p.headerTitle)
-        r.check("預覽換頁時沒有開出新的 tab", ws.panes.count == count, "\(ws.panes.count)")
-        p.preview!.webView.goBack()
-        r.check("返回上一頁後 tab 標題改回 design.md", await waitFor(5) { p.headerTitle == "design.md" }, p.headerTitle)
-        opened.removeAll()
-        p.preview!.openExternal?(URL(string: "https://example.com/y")!)
-        r.check("預覽裡點網址：照終端機點連結的規則開啟", opened == [URL(string: "https://example.com/y")!], "\(opened)")
-        p.preview!.show(gone)
-        _ = await waitFor(5) { p.headerTitle == "gone.md" }
-        try? FileManager.default.removeItem(at: gone)
-        try? await Task.sleep(for: .milliseconds(800))
-        r.check("檔案被刪除後，預覽 tab 仍然留著", ws.panes.contains { $0 === p })
-    }
-
-    // MARK: 預覽 tab 上的選單項目（Task 25）
-    // @feature: preview-tab.feature
-    // @scenario: 預覽 tab 上停用只對終端機有意義的功能
-    do {
-        r.section = "preview-menu"
-        let (_, a, p) = previewSetup(c, dir: fx, file: design)
-        func enabled(_ action: Selector) -> Bool {
-            c.validateMenuItem(NSMenuItem(title: "x", action: action, keyEquivalent: ""))
-        }
-        c.focus(p)
-        let off: [(String, Selector)] = [
-            ("Find…", #selector(LmuxController.menuFind(_:))),
-            ("Find Next", #selector(LmuxController.menuFindNext(_:))),
-            ("Find Previous", #selector(LmuxController.menuFindPrevious(_:))),
-            ("Undo Send", #selector(LmuxController.menuUndoSend(_:))),
-            ("Copy Original Reply", #selector(LmuxController.menuCopyOriginal(_:))),
-            ("Ghostty 的字級／Clear Screen", #selector(LmuxController.menuGhosttyBinding(_:))),
-        ]
-        for (name, sel) in off { r.check("預覽 tab 上停用 \(name)", !enabled(sel)) }
-        r.check("預覽 tab 上 Close Pane 仍可用", enabled(#selector(LmuxController.menuClosePane(_:))))
-        r.check("預覽 tab 上 Move Tab Right 仍可用", enabled(#selector(LmuxController.menuMoveTabRight(_:))))
-        r.check("預覽 tab 上 Split Right 仍可用", enabled(#selector(LmuxController.menuSplitRight(_:))))
-        c.focus(a)
-        r.check("回到終端機 tab：Find… 可用", enabled(#selector(LmuxController.menuFind(_:))))
-    }
-
-    // MARK: CLI（Task 26）
-    // @feature: preview-tab.feature
-    // @scenario: CLI 指定預覽 tab 時回傳錯誤
-    do {
-        r.section = "preview-cli"
-        let (_, a, p) = previewSetup(c, dir: fx, file: design)
-        r.check("lmux send 指定預覽 tab：回傳不是終端機", c.send(text: "x", toPane: p.id) == .notTerminal)
-        let reply = c.handleControl(["cmd": "send", "pane": p.id, "text": "x"])
-        r.check("CLI 的 send 錯誤訊息說明不是終端機", (reply["error"] as? String) == "not a terminal: \(p.id)", "\(reply)")
-        let list = c.handleControl(["cmd": "list"])
-        let ids = ((list["workspaces"] as? [[String: Any]]) ?? [])
-            .flatMap { ($0["panes"] as? [[String: Any]]) ?? [] }
-            .compactMap { $0["id"] as? String }
-        r.check("lmux list 不列出預覽 tab，仍列出終端機 tab", !ids.contains(p.id) && ids.contains(a.id), "\(ids)")
-    }
-
-    // MARK: 存檔不存預覽 tab（Task 27）
-    // @feature: preview-tab.feature
-    // @scenario: 重開 lmux 不還原預覽 tab
-    do {
-        r.section = "preview-restore"
-        let (ws, a, p) = previewSetup(c, dir: fx, file: design)
-        let lone = c.newPreviewTab(docs.appendingPathComponent("b.md"), after: a)!
-        c.moveTabToNewWorkspace(lone)
-        let loneWS = lone.workspace!
-        c.select(loneWS)  // 讓「只有預覽 tab 的 workspace」是選取中的 workspace
-        let layout = c.snapshotLayout()
-        let ids = layout.workspaces.first { $0.id == ws.id }.map { layoutPaneIDs($0.root) } ?? []
-        r.check("存檔時不存預覽 tab，留下終端機 tab", !ids.contains(p.id) && ids.contains(a.id), "\(ids)")
-        r.check("只有預覽 tab 的 workspace 不存", !layout.workspaces.contains { $0.id == loneWS.id })
-        r.check("選取中的 workspace 沒存時，selected 改指向存下來的 workspace",
-                layout.workspaces.contains { $0.id == layout.selected }, layout.selected ?? "nil")
-    }
-
-    // MARK: 移動、分割、關閉、開新 tab（Task 28）
-    // @feature: preview-tab.feature
-    // @scenario: 預覽 tab 可以像終端機 tab 一樣移動、分割與關閉
-    // @scenario: 在預覽 tab 上開新 tab，新的終端機從檔案所在資料夾開始
-    do {
-        r.section = "preview-move"
-        let (ws, a, p) = previewSetup(c, dir: fx, file: design)
-        let fileBefore = p.preview!.fileURL
+        let reachesTerminalTab = firstTerminalInChain(from: fr) != nil
+        let pasteTargetTab = validatedPasteTarget(from: fr)
+        GhosttyRuntime.standardPasteboard.clearContents()
+        GhosttyRuntime.standardPasteboard.setString("LMUX_PASTE_ISOLATED", forType: .string)
+        let sinkBefore = sinks.bytes(a.id).count
+        await type("ls\r", window: c.window!)
+        await cmd("v", window: c.window!)
+        let pasteTabToSurface = pasteTargetTab is SurfaceView
+        _ = fr?.tryToPerform(#selector(SurfaceView.paste(_:)), with: nil)
+        await sleepMs(150)
+        let sinkAfter = sinks.bytes(a.id).count
+        r.check("預覽 tab 是 focused tab 時，打字與 Paste 不會進到終端機",
+                !reachesTerminalTab && !pasteTabToSurface && sinkAfter == sinkBefore,
+                "reaches=\(reachesTerminalTab) target=\(String(describing: pasteTabToSurface ? pasteTargetTab : nil)) sink=\(sinkBefore)->\(sinkAfter)")
+        _ = try? await p.preview!.webView.evaluateJavaScript("window.getSelection().selectAllChildren(document.querySelector('h1'))")
+        let sel = try? await p.preview!.webView.evaluateJavaScript("window.getSelection().toString()") as? String
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        let copiedByMenu = c.window!.firstResponder?.tryToPerform(#selector(NSText.copy(_:)), with: nil) == true
+        let copied = await waitFor(2) { pb.string(forType: .string) == "Design" }
+        r.check("預覽 tab 是 focused tab 時，copy: 複製的是預覽裡的文字",
+                copiedByMenu && copied, "sel=\(String(describing: sel)) pb=\(pb.string(forType: .string) ?? "nil")")
+        // 分割情境下終端機仍在視窗內，⌘V / Paste 仍不能貼進 A
         c.moveTab(p, splitting: a, .right)
-        r.check("預覽 tab 拖到右側分割後與 A 並排", ws.isSplit && ws.visiblePanes.contains { $0 === p } && ws.visiblePanes.contains { $0 === a })
-        r.check("移動後仍顯示原本的檔案", p.preview!.fileURL == fileBefore)
         c.focus(p)
-        let t = c.newTab(p)
-        r.check("在預覽 tab 上開新 tab：新的終端機從檔案所在資料夾開始",
-                t?.surface != nil && t?.cwd == docs.standardizedFileURL.path, "\(t?.cwd ?? "nil")")
-        if let t { c.closePane(t) }
-        c.closePane(p)
-        r.check("關閉預覽 tab 後它消失", !ws.panes.contains { $0 === p })
-        r.check("關閉預覽 tab 後 A 成為 focused tab", ws.focusedPane === a)
-        r.check("關閉預覽 tab 時釋放它的預覽（停止監看與載入）", p.preview?.isClosed == true)
+        let frSplit = c.window!.firstResponder
+        let reachesTerminalSplit = firstTerminalInChain(from: frSplit) != nil
+        let pasteTargetSplit = validatedPasteTarget(from: frSplit)
+        GhosttyRuntime.standardPasteboard.clearContents()
+        GhosttyRuntime.standardPasteboard.setString("LMUX_SPLIT_PASTE_ISOLATED", forType: .string)
+        let sinkSplitBefore = sinks.bytes(a.id).count
+        await cmd("v", window: c.window!)
+        _ = frSplit?.tryToPerform(#selector(SurfaceView.paste(_:)), with: nil)
+        await sleepMs(150)
+        let sinkSplitAfter = sinks.bytes(a.id).count
+        r.check("分割配置且預覽為焦點時，Paste 不會貼進並排的終端機",
+                !reachesTerminalSplit && !(pasteTargetSplit is SurfaceView) && sinkSplitAfter == sinkSplitBefore,
+                "reaches=\(reachesTerminalSplit) target=\(String(describing: pasteTargetSplit)) sink=\(sinkSplitBefore)->\(sinkSplitAfter)")
+        c.focus(a)
+        r.check("回到終端機 tab：first responder 是它的終端機",
+                c.window!.firstResponder === a.surface && validatedPasteTarget(from: c.window!.firstResponder) === a.surface)
+        await type("ls\r", window: c.window!)
+        r.check("聚焦終端機 tab 後，打字確實寫入終端機 sink", await sinks.wait(a.id, contains: "ls"))
+        // 正向對照：單行純文字貼上（不含會觸發 headless confirmReadClipboard 拒絕的 \r/\n）應確實送入終端機 sink
+        GhosttyRuntime.standardPasteboard.clearContents()
+        GhosttyRuntime.standardPasteboard.setString("LMUX_TERM_PASTE_ACTION", forType: .string)
+        let pasteDeliveredByResponder = c.window!.firstResponder?.tryToPerform(#selector(SurfaceView.paste(_:)), with: nil) == true
+        let gotActionPaste = await sinks.wait(a.id, contains: "LMUX_TERM_PASTE_ACTION")
+        GhosttyRuntime.standardPasteboard.clearContents()
+        GhosttyRuntime.standardPasteboard.setString("LMUX_TERM_CMD_V", forType: .string)
+        await cmd("v", window: c.window!)
+        let gotCmdVPaste = await sinks.wait(a.id, contains: "LMUX_TERM_CMD_V")
+        r.check("聚焦終端機 tab 後，paste(_:) 與 ⌘V 確實貼入終端機 sink",
+                pasteDeliveredByResponder && gotActionPaste && gotCmdVPaste,
+                "tryToPerform=\(pasteDeliveredByResponder) action=\(gotActionPaste) cmdV=\(gotCmdVPaste)")
     }
 
-    // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）
+    // MARK: 深淺色外觀切換
+    // @feature: preview-tab.feature
+    // @scenario: Markdown 預覽跟著 lmux 的外觀設定切換深淺色
+    do {
+        r.section = "preview-appearance"
+        let (_, _, p) = previewSetup(c, dir: root, file: design)
+        _ = await waitFor(5) { p.preview?.webView.isLoading == false && p.preview?.webView.url != nil }
+        c.setAppearance(.dark)
+        var isDark = false
+        for _ in 0..<40 {
+            let m = try? await p.preview?.webView.evaluateJavaScript("window.matchMedia('(prefers-color-scheme: dark)').matches") as? Bool
+            let bg = try? await p.preview?.webView.evaluateJavaScript("getComputedStyle(document.documentElement).backgroundColor") as? String
+            let fg = try? await p.preview?.webView.evaluateJavaScript("getComputedStyle(document.body).color") as? String
+            if m == true, bg == "rgb(13, 17, 23)", fg == "rgb(230, 237, 243)" { isDark = true; break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        r.check("lmux 切換成 Dark 時，預覽跟著變深色", isDark)
+        c.setAppearance(.light)
+        var isLight = false
+        for _ in 0..<40 {
+            let m = try? await p.preview?.webView.evaluateJavaScript("window.matchMedia('(prefers-color-scheme: dark)').matches") as? Bool
+            let bg = try? await p.preview?.webView.evaluateJavaScript("getComputedStyle(document.documentElement).backgroundColor") as? String
+            let fg = try? await p.preview?.webView.evaluateJavaScript("getComputedStyle(document.body).color") as? String
+            if m == false, bg == "rgb(255, 255, 255)", fg == "rgb(36, 41, 47)" { isLight = true; break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        r.check("lmux 切換成 Light 時，預覽跟著變淺色", isLight)
+        c.setAppearance(.system)
+    }
+
+    await runPreviewInteractionChecks(r, c, fixtures, external: external)
+    await runPreviewPersistenceChecks(r, c, fixtures)
     return finish(r, c)
 }

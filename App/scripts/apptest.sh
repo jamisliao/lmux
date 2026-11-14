@@ -106,10 +106,33 @@ if [ "${1:-}" = "--rewind" ]; then
   LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --rewind 2>/dev/null | filter || status=1
   exit $status
 fi
-if [ "${1:-}" = "--preview" ]; then
+run_preview_suite() {
+  local swift_ui="$APP_DIR/Sources/LmuxUI"
   mkdir -p "$T/preview"
-  LMUX_STATE_DIR="$T/preview" LMUX_PANE_COMMAND="$T/sink.sh" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/preview/lmux-config" \
-    "$BIN/lmux-apptest" --preview 2>/dev/null | filter || status=1
+  # Keep Homebrew's GNU libtool out of PATH while invoking Apple swiftc.
+  if PATH="/usr/bin:$PATH" xcrun swiftc -parse-as-library -o "$T/bin/preview-check" \
+      "$swift_ui/PreviewTarget.swift" "$swift_ui/MarkdownHTML.swift" \
+      "$APP_DIR/scripts/preview-check.swift"; then
+    "$T/bin/preview-check" | filter || { echo "FAIL  [preview] preview-check.swift"; status=1; }
+  else
+    echo "FAIL  [preview] swiftc preview-check.swift failed"; status=1
+  fi
+  if PATH="/usr/bin:$PATH" xcrun swiftc -parse-as-library -o "$T/bin/preview-webkit-check" \
+      "$swift_ui/PreviewTarget.swift" "$swift_ui/MarkdownHTML.swift" \
+      "$swift_ui/PreviewScheme.swift" "$swift_ui/PreviewWatcher.swift" \
+      "$swift_ui/PreviewView.swift" "$swift_ui/PreviewViewNavigation.swift" \
+      "$APP_DIR"/scripts/preview-webkit-check*.swift; then
+    "$T/bin/preview-webkit-check" | filter || status=1
+  else
+    echo "FAIL  [preview] swiftc preview-webkit-check.swift failed"; status=1
+  fi
+  for phase in --preview --preview-restore; do
+    LMUX_STATE_DIR="$T/preview" LMUX_PANE_COMMAND="$T/sink.sh" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/preview/lmux-config" \
+      "$BIN/lmux-apptest" $phase 2>/dev/null | filter || status=1
+  done
+}
+if [ "${1:-}" = "--preview" ]; then
+  run_preview_suite
   exit $status
 fi
 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
@@ -178,9 +201,7 @@ LMUX_STATE_DIR="$T/contrast" LMUX_CONTRAST_DIR="$APP_DIR/scripts/contrast" LMUX_
 mkdir -p "$T/parity"
 LMUX_STATE_DIR="$T/parity" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --parity 2>/dev/null | filter || status=1
 # 預覽 tab 與 ⌘-click 的開啟選單（beat: md-html-preview）。不讀使用者的 Ghostty 設定（⌘T 沿用目錄的檢查）。
-mkdir -p "$T/preview"
-LMUX_STATE_DIR="$T/preview" LMUX_PANE_COMMAND="$T/sink.sh" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/preview/lmux-config" \
-  "$BIN/lmux-apptest" --preview 2>/dev/null | filter || status=1
+run_preview_suite
 # A new user's first days: the README's shortcut table on a real (isolated) zsh, a keybind in the
 # "user's" Ghostty config (XDG_CONFIG_HOME on a temp dir), edge cases, cmux leftovers.
 mkdir -p "$T/newuser" "$T/xdg"

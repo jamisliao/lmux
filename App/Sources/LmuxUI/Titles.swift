@@ -138,7 +138,9 @@ extension LmuxController {
         guard !headless else { return }
         let alert = NSAlert()
         alert.messageText = "Rename Tab"
-        alert.informativeText = "Leave empty to use \(pane.runsCodex ? "Codex" : "Claude Code")’s own title for the session."
+        alert.informativeText = pane.preview != nil
+            ? "Leave empty to use the file name."
+            : "Leave empty to use \(pane.runsCodex ? "Codex" : "Claude Code")’s own title for the session."
         let field = NSTextField(string: pane.titleState.isManual ? (pane.titleState.title ?? "") : "")
         field.placeholderString = pane.headerTitle
         field.frame = NSRect(x: 0, y: 0, width: 260, height: 24)

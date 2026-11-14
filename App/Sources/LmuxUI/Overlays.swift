@@ -343,6 +343,8 @@ final class ConfirmCard: PanelView {
     let detail = NSTextField(wrappingLabelWithString: "")
     let cancel: OverlayButton
     let confirm: OverlayButton
+    /// Local key monitor attached when the card sits on a preview pane (no `SurfaceView` interceptor).
+    var keyMonitor: Any?
     init(message: NSAttributedString, detail: String, confirmTitle: String, accent: NSColor?,
          onCancel: @escaping () -> Void, onConfirm: @escaping () -> Void) {
         cancel = OverlayButton(title: "Cancel", shortcut: "esc", style: .secondary, action: onCancel)
@@ -358,6 +360,10 @@ final class ConfirmCard: PanelView {
         for v in [self.message, self.detail, cancel, confirm] as [NSView] { addSubview(v) }
     }
     required init?(coder: NSCoder) { fatalError() }
+
+    deinit {
+        if let m = keyMonitor { NSEvent.removeMonitor(m) }
+    }
 
     /// Card width that shows everything on one line without truncation.
     var naturalWidth: CGFloat {

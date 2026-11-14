@@ -116,9 +116,14 @@ extension LmuxController {
     func searchEnded(_ pane: Pane) {
         let ov = pane.view.overlay
         guard let bar = ov.findBar else { return }
+        let frView = window.firstResponder as? NSView
+        let barFocused = frView === bar || frView?.isDescendant(of: bar) == true
+        let lostFocus = window.firstResponder == nil || window.firstResponder === window
         bar.removeFromSuperview()
         ov.findBar = nil
-        if pane.workspace === model.selected, pane.workspace?.focusedPane === pane { window.makeFirstResponder(pane.surface) }
+        if (barFocused || lostFocus), pane.workspace === model.selected, pane.workspace?.focusedPane === pane {
+            focusCurrent()
+        }
     }
 
     func searchCounts(_ pane: Pane, total: Int?, selected: Int?) {

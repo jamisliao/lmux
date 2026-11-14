@@ -272,6 +272,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             let fg = p.foregroundPID
             if fg > 0 { killpg(fg, SIGHUP) }
             p.surface?.close()
+            p.preview?.close()
         }
     }
     private var didShutdown = false
@@ -589,6 +590,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         preview.openExternal = { [weak self] url in
             GhosttyRuntime.openTerminalURL(url.absoluteString, kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN, window: self?.window)
         }
+        pane.view.header.onDoubleClick = { [weak self, weak pane] in
+            guard let self, let pane else { return }
+            self.promptRenamePane(pane)
+        }
         panesByID[pane.id] = pane
         return pane
     }
@@ -678,6 +683,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         panesByID[pane.id] = nil
         scheduleWaitCheck()  // (a wait on it, or on its workspace, may be over: target gone)
         if let s = pane.surface { panesBySurface[ObjectIdentifier(s)] = nil }
+        dismissCard(pane)
         pane.view.removeFromSuperview()
         pane.surface?.close()
         pane.preview?.close()
@@ -991,6 +997,13 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         root.layoutSubtreeIfNeeded()
     }
 
+    func isFirstResponder(in pane: Pane) -> Bool {
+        let fr = window.firstResponder
+        if let s = pane.surface { return fr === s }
+        if let preview = pane.preview { return (fr as? NSView)?.isDescendant(of: preview.webView) == true }
+        return false
+    }
+
     /// Give keyboard focus to the selected workspace's focused pane.
     public func focusCurrent() {
         guard let pane = model.selected?.focusedPane else { return }
@@ -1000,11 +1013,13 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         for ws in model.workspaces {
             for p in ws.panes where p !== pane && p.surface?.focused == true { p.surface?.focusDidChange(false) }
         }
-        if let s = pane.surface, window.firstResponder !== s {
-            window.makeFirstResponder(s)
-        } else if let preview = pane.preview, (window.firstResponder as? NSView)?.isDescendant(of: preview.webView) != true {
-            // 預覽 tab：焦點交給 WKWebView（beat: preview-tab.feature）。
-            window.makeFirstResponder(preview.webView)
+        if !isFirstResponder(in: pane) {
+            if let s = pane.surface {
+                window.makeFirstResponder(s)
+            } else if let preview = pane.preview {
+                // 預覽 tab：焦點交給 WKWebView（beat: preview-tab.feature）。
+                window.makeFirstResponder(preview.webView)
+            }
         }
         refreshPaneChrome()
     }
@@ -1074,7 +1089,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         sidebarEscapeArmed = false
         // A press on the terminal itself (not on an overlay control) may start a text selection.
         if hit is SurfaceView { pressedPane = pane }
-        if model.selected?.focusedPane !== pane || window.firstResponder !== pane.surface {
+        if model.selected?.focusedPane !== pane || !isFirstResponder(in: pane) {
             focus(pane)
         }
     }
@@ -1321,7 +1336,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             guard let ptr = v.url,
                   let str = String(data: Data(bytes: ptr, count: Int(v.len)), encoding: .utf8) else { return nil }
             let kind = v.kind
-            RunLoop.main.perform(inModes: [.common]) { [weak self] in
+            RunLoop.main.perform(inModes: [.common]) { [weak self, weak pane, weak view] in
                 MainActor.assumeIsolated { self?.openTerminalLink(str, kind: kind, pane: pane, view: view) }
             }
             CFRunLoopWakeUp(CFRunLoopGetMain())
@@ -1382,10 +1397,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     /// is on, and then still not from inside another pane (its tty says which).
     public func send(text: String, toPane id: String, token: String? = nil, peerPID: Int? = nil) -> SendResult {
         guard let p = panesByID[id] else { return .noSuchPane }
-        // 預覽 tab 沒有終端機，不能打字進去（beat: preview-tab.feature）。
-        guard let surface = p.surface else { return .notTerminal }
         if pane(token: token) == nil, !allowExternalSend { return .externalDenied }
         if let caller = callerPane(token: token, peerPID: peerPID), caller !== p, !allowCrossPaneSend { return .crossPaneDenied }
+        // 預覽 tab 沒有終端機，不能打字進去（beat: preview-tab.feature）。
+        guard let surface = p.surface else { return .notTerminal }
         // lmux is driving Claude Code's rewind menu there: typed text would land in it.
         if surface.inputHeld { return .paneBusy }
         surface.sendText(text)

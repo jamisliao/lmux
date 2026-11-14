@@ -1,9 +1,13 @@
 // 預覽 tab 在真的 WKWebView 裡的自我檢查（scheme、資料夾監看、導覽規則）。不需要 libghostty，
 // 不顯示任何視窗（視窗放在螢幕外），單獨編譯執行：
-//   beat/changes/md-html-preview/dev.sh webkit
+//   swiftc -parse-as-library -o /tmp/preview-webkit-check \
+//     App/Sources/LmuxUI/{PreviewTarget,MarkdownHTML,PreviewScheme,PreviewWatcher,PreviewView,PreviewViewNavigation}.swift \
+//     App/scripts/preview-webkit-check*.swift && /tmp/preview-webkit-check
+// （或直接執行 beat/changes/md-html-preview/dev.sh webkit）
 // 每一項印 PASS 或 FAIL；最後一行是 `WEBKIT CHECK: ok` 或 `WEBKIT CHECK: FAILED (n)`。
 
 import AppKit
+import Darwin
 import WebKit
 
 @main
@@ -41,6 +45,45 @@ enum PreviewWebKitCheck {
         return false
     }
 
+    @MainActor static func waitJS(_ web: WKWebView, _ code: String, _ seconds: Double = 6,
+                                  where pred: (Any?) -> Bool) async -> Bool {
+        let end = Date().addingTimeInterval(seconds)
+        while Date() < end {
+            if pred(await js(web, code)) { return true }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return false
+    }
+
+    @MainActor static func waitBody(_ web: WKWebView, contains: String, also: String? = nil, excluding: String? = nil) async -> Bool {
+        await waitJS(web, "document.body && document.body.innerText") { val in
+            guard let s = val as? String, s.contains(contains) else { return false }
+            if let also, !s.contains(also) { return false }
+            return excluding.map { !s.contains($0) } ?? true
+        }
+    }
+
+    @MainActor static func pumpEvents(_ events: [NSEvent]) {
+        for ev in events { NSApp.postEvent(ev, atStart: false) }
+        while let ev = NSApp.nextEvent(matching: .any, until: nil, inMode: .default, dequeue: true) {
+            NSApp.sendEvent(ev)
+        }
+    }
+
+    @MainActor static func sendMouseDrag(from: NSPoint, to: NSPoint, in targetWin: NSWindow) {
+        let down = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: from, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: targetWin.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+        )!
+        let up = NSEvent.mouseEvent(
+            with: .leftMouseUp, location: to, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: targetWin.windowNumber,
+            context: nil, eventNumber: 0, clickCount: 1, pressure: 0
+        )!
+        pumpEvents([down, up])
+    }
+
     /// 測試用的資料夾：docs/a.md（圖片、連結）、docs/b.md、docs/img/flow.png、
     /// site/index.html（CSS、圖片、script、連到 c.md 與外部網址）、site/c.md、site/secret.txt。
     static func makeFixtures() -> URL {
@@ -48,7 +91,6 @@ enum PreviewWebKitCheck {
         let docs = root.appendingPathComponent("docs"), site = root.appendingPathComponent("site")
         try? FileManager.default.createDirectory(at: docs.appendingPathComponent("img"), withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: site, withIntermediateDirectories: true)
-        // 1x1 的 PNG
         let png = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")!
         try? png.write(to: docs.appendingPathComponent("img/flow.png"))
         try? png.write(to: site.appendingPathComponent("logo.png"))
@@ -59,8 +101,8 @@ enum PreviewWebKitCheck {
         try? "body{background:rgb(1, 2, 3)}".write(to: site.appendingPathComponent("style.css"), atomically: true, encoding: .utf8)
         try? "secret".write(to: site.appendingPathComponent("secret.txt"), atomically: true, encoding: .utf8)
         try? """
-        <html><head><link rel="stylesheet" href="style.css"></head><body><img src="logo.png">
-        <a id="md" href="c.md">c</a><a id="web" href="https://example.com/x">web</a>
+        <html><head><link rel="stylesheet" href="style.css"></head><body><h1>SiteHome</h1><img src="logo.png">
+        <a id="md" href="c.md">c</a><a id="web" href="https://example.com/x">web</a><a id="sub" href="sub/child.html">sub</a>
         <script>window.ran = true; window.prev = localStorage.getItem('k'); localStorage.setItem('k', 'v');</script>
         </body></html>
         """.write(to: site.appendingPathComponent("index.html"), atomically: true, encoding: .utf8)
@@ -77,6 +119,7 @@ enum PreviewWebKitCheck {
             await watcherChecks(root)
             await viewChecks(root)
             await securityChecks(root)
+            await regressionChecks(root)
             try? FileManager.default.removeItem(at: root)
             print(failures == 0 ? "WEBKIT CHECK: ok" : "WEBKIT CHECK: FAILED (\(failures))")
             exit(failures == 0 ? 0 : 1)
@@ -96,6 +139,19 @@ enum PreviewWebKitCheck {
     }
 
     // MARK: - PreviewSchemeHandler
+
+    final class MockSchemeTask: NSObject, WKURLSchemeTask {
+        let request: URLRequest
+        var receivedResponse = false
+        var receivedData = Data()
+        var finished = false
+        var failedError: Error?
+        init(request: URLRequest) { self.request = request }
+        func didReceive(_ response: URLResponse) { receivedResponse = true }
+        func didReceive(_ data: Data) { receivedData.append(data) }
+        func didFinish() { finished = true }
+        func didFailWithError(_ error: Error) { failedError = error }
+    }
 
     // @feature: preview-tab.feature
     // @scenario: Markdown 用相對路徑引用的圖片顯示出來
@@ -118,13 +174,37 @@ enum PreviewWebKitCheck {
         check("相對連結解析成同一個 scheme",
               (href as? String) == PreviewSchemeHandler.url(for: root.appendingPathComponent("docs/b.md")).absoluteString,
               "\(String(describing: href))")
-        web.load(URLRequest(url: PreviewSchemeHandler.url(for: root.appendingPathComponent("docs/missing.md"))))
-        var missing = false
-        for _ in 0..<60 {
-            if let s = await js(web, "document.body && document.body.innerText") as? String, s.contains("檔案已不存在") { missing = true; break }
-            try? await Task.sleep(for: .milliseconds(100))
+
+        let docs = root.appendingPathComponent("docs")
+        let svg = docs.appendingPathComponent("img/vector.svg")
+        let txt = docs.appendingPathComponent("img/plain.txt")
+        let zeroPng = docs.appendingPathComponent("img/zero.png")
+        let hugePng = docs.appendingPathComponent("img/huge.png")
+        try? "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>window.svgRan=true</script></svg>"
+            .write(to: svg, atomically: true, encoding: .utf8)
+        try? "plain".write(to: txt, atomically: true, encoding: .utf8)
+        try? FileManager.default.createSymbolicLink(at: zeroPng, withDestinationURL: URL(fileURLWithPath: "/dev/zero"))
+        FileManager.default.createFile(atPath: hugePng.path, contents: nil)
+        if let fh = try? FileHandle(forWritingTo: hugePng) {
+            try? fh.truncate(atOffset: UInt64(PreviewSchemeHandler.maxBytes + 4096))
+            try? fh.close()
         }
-        check("不存在的 Markdown 顯示「檔案已不存在」", missing)
+        check("scheme 拒收 SVG", PreviewSchemeHandler.response(for: svg) == nil)
+        check("scheme 拒收非圖片（.txt）", PreviewSchemeHandler.response(for: txt) == nil)
+        check("scheme 拒收指向 /dev/zero 的圖片 symlink", PreviewSchemeHandler.response(for: zeroPng) == nil)
+        check("scheme 拒收超過上限的圖片", PreviewSchemeHandler.response(for: hugePng) == nil)
+        let badImgMD = docs.appendingPathComponent("badimg.md")
+        try? "# BadImg\n\n![s](img/vector.svg) ![t](img/plain.txt) ![z](img/zero.png) ![h](img/huge.png)\n"
+            .write(to: badImgMD, atomically: true, encoding: .utf8)
+        web.load(URLRequest(url: PreviewSchemeHandler.url(for: badImgMD)))
+        check("badimg 載入", await waitH1(web, "BadImg"))
+        _ = await wait { !web.isLoading }
+        try? await Task.sleep(for: .milliseconds(250))
+        let zeroWidths = await js(web, "Array.from(document.images).filter(i => i.complete && i.naturalWidth === 0).length")
+        check("Markdown 裡的 SVG / 非圖片 / 裝置 / 超限圖片皆無法載入", (zeroWidths as? Int) == 4, "\(String(describing: zeroWidths))")
+
+        web.load(URLRequest(url: PreviewSchemeHandler.url(for: root.appendingPathComponent("docs/missing.md"))))
+        check("不存在的 Markdown 顯示「檔案已不存在」", await waitBody(web, contains: "檔案已不存在"))
     }
 
     // MARK: - PreviewWatcher
@@ -140,7 +220,6 @@ enum PreviewWebKitCheck {
         let watcher = PreviewWatcher(file: file) { calls += 1 }
         defer { watcher.stop() }
         try? await Task.sleep(for: .milliseconds(300))
-        // 直接改寫（不換檔）
         var before = calls
         if let fh = try? FileHandle(forWritingTo: file) {
             fh.truncateFile(atOffset: 0)
@@ -148,21 +227,17 @@ enum PreviewWebKitCheck {
             try? fh.close()
         }
         check("直接改寫檔案時通知", await wait { calls > before }, "calls=\(calls)")
-        // 寫暫存檔再改名蓋掉（replaceItemAt）
         before = calls
         let tmp = root.appendingPathComponent("docs/.watched.md.tmp")
         try? "# 2\n".write(to: tmp, atomically: false, encoding: .utf8)
         _ = try? FileManager.default.replaceItemAt(file, withItemAt: tmp)
         check("寫暫存檔再改名蓋掉時通知", await wait { calls > before }, "calls=\(calls)")
-        // Foundation 的 atomically 寫入（同樣是暫存檔再改名），第二次也要收到
         before = calls
         try? "# 3\n".write(to: file, atomically: true, encoding: .utf8)
         check("改名蓋掉之後再改，仍然通知", await wait { calls > before }, "calls=\(calls)")
-        // 刪除
         before = calls
         try? FileManager.default.removeItem(at: file)
         check("檔案被刪除時通知", await wait { calls > before }, "calls=\(calls)")
-        // 同資料夾的其他檔案改變：不通知
         try? await Task.sleep(for: .milliseconds(300))
         before = calls
         try? "x".write(to: root.appendingPathComponent("docs/other.md"), atomically: true, encoding: .utf8)
@@ -170,175 +245,41 @@ enum PreviewWebKitCheck {
         check("同資料夾的其他檔案改變時不通知", calls == before, "calls=\(calls) before=\(before)")
     }
 
-    // MARK: - PreviewView
-
-    // @feature: preview-tab.feature
-    // @scenario: Markdown 顯示成排版後的樣子
-    // @scenario: Markdown 裡的 HTML 標籤顯示成文字，不執行
-    // @scenario: HTML 讀得到同資料夾的 CSS 與圖片
-    // @scenario: 重新開啟預覽時，不保留上一次的 cookie 與 storage
-    // @scenario: 點相對路徑的 .md 連結，在同一個預覽 tab 換頁
-    // @scenario: 點網址連結，照終端機裡點連結的規則處理
-    // @scenario: 預覽中的檔案被刪除
-    @MainActor static func viewChecks(_ root: URL) async {
-        let a = root.appendingPathComponent("docs/a.md")
-        var changes: [String] = []
-        var external: [URL] = []
-        let v = PreviewView(fileURL: a)
-        v.onFileChange = { changes.append($0.lastPathComponent) }
-        v.openExternal = { external.append($0) }
-        let win = host(v)
-        defer { win.close() }
-
-        // Markdown
-        check("Markdown 頁面顯示出來", await waitH1(v.webView, "A 文件"))
-        check("Markdown 頁面走 lmux-preview scheme", v.webView.url?.scheme == PreviewSchemeHandler.scheme, v.webView.url?.absoluteString ?? "nil")
-        check("Markdown 裡的 <script> 沒有執行", v.webView.title != "pwned", v.webView.title ?? "nil")
-        check("開啟時通知檔案（a.md）", changes.last == "a.md", "\(changes)")
-
-        // Markdown 頁面的 script 不會執行：插入一個帶 onerror 的圖片，onerror 不應該跑
-        _ = await js(v.webView, "document.body.insertAdjacentHTML('beforeend', '<img src=\"nope.png\" onerror=\"document.title=\\'jsran\\'\">')")
-        try? await Task.sleep(for: .milliseconds(500))
-        check("Markdown 頁面裡的 script（onerror）不會執行", v.webView.title != "jsran", v.webView.title ?? "nil")
-
-        // 換頁與返回：真的點頁面上的 b.md 連結
-        _ = await js(v.webView, "document.querySelector('a').click()")
-        check("點 b.md 連結後換到 b.md", await waitH1(v.webView, "B 文件"))
-        check("換頁後 fileURL 與通知是 b.md", v.fileURL.lastPathComponent == "b.md" && changes.last == "b.md", "\(v.fileURL) \(changes)")
-        v.webView.goBack()
-        check("返回上一頁回到 a.md", await waitH1(v.webView, "A 文件"))
-        check("返回後 fileURL 與通知是 a.md", v.fileURL.lastPathComponent == "a.md" && changes.last == "a.md", "\(v.fileURL) \(changes)")
-
-        // HTML
-        let index = root.appendingPathComponent("site/index.html")
-        v.show(index)
-        _ = await wait { v.webView.url?.lastPathComponent == "index.html" && !v.webView.isLoading }
-        try? await Task.sleep(for: .milliseconds(300))
-        let bg = await js(v.webView, "getComputedStyle(document.body).backgroundColor")
-        check("HTML 套用同資料夾的 CSS", (bg as? String) == "rgb(1, 2, 3)", "\(String(describing: bg))")
-        let logo = await js(v.webView, "document.images[0].complete && document.images[0].naturalWidth")
-        check("HTML 顯示同資料夾的圖片", (logo as? Int) == 1, "\(String(describing: logo))")
-        let ran = await js(v.webView, "window.ran === true")
-        check("HTML 的 script 有執行", (ran as? Bool) == true, "\(String(describing: ran))")
-        let prev = await js(v.webView, "window.prev")
-        check("第一次開啟時 storage 是空的", prev == nil || prev is NSNull, "\(String(describing: prev))")
-        let fetched = try? await v.webView.callAsyncJavaScript(
-            "try { const r = await fetch('secret.txt'); return await r.text() } catch (e) { return 'blocked' }",
-            contentWorld: .page)
-        check("HTML 的 script 讀不到同資料夾的其他檔案", (fetched as? String) == "blocked", "\(String(describing: fetched))")
-
-        // 頁面的 script 自己點外部連結（使用者沒有點）：不開
-        _ = await js(v.webView, "document.getElementById('web').click()")
-        try? await Task.sleep(for: .milliseconds(500))
-        check("script 自己點 https 連結時不開任何東西", external.isEmpty, "\(external)")
-        // 使用者點了外部連結：交給 openExternal，頁面不變
-        v.noteUserClick()
-        _ = await js(v.webView, "document.getElementById('web').click()")
-        check("使用者點 https 連結交給 openExternal", await wait { external.last?.absoluteString == "https://example.com/x" }, "\(external)")
-        try? await Task.sleep(for: .milliseconds(300))
-        check("點 https 連結後頁面不變", v.webView.url?.lastPathComponent == "index.html", v.webView.url?.absoluteString ?? "nil")
-
-        // HTML 連到同資料夾的 Markdown：改走 scheme
-        _ = await js(v.webView, "document.getElementById('md').click()")
-        check("HTML 連到的 Markdown 經 scheme 顯示", await waitH1(v.webView, "C 文件"))
-        check("HTML 連到的 Markdown 用 lmux-preview scheme", v.webView.url?.scheme == PreviewSchemeHandler.scheme, v.webView.url?.absoluteString ?? "nil")
-
-        // 另一個 PreviewView 不共享 storage
-        let v2 = PreviewView(fileURL: index)
-        let win2 = host(v2)
-        defer { win2.close() }
-        _ = await wait { v2.webView.url?.lastPathComponent == "index.html" && !v2.webView.isLoading }
-        try? await Task.sleep(for: .milliseconds(300))
-        let prev2 = await js(v2.webView, "window.prev")
-        check("新的預覽讀不到上一個預覽存的 storage", prev2 == nil || prev2 is NSNull, "\(String(describing: prev2))")
-
-        // 自動更新與刪除
-        let w = root.appendingPathComponent("docs/live.md")
-        try? "# 版本一\n".write(to: w, atomically: true, encoding: .utf8)
-        v.show(w)
-        check("開啟 live.md", await waitH1(v.webView, "版本一"))
-        try? await Task.sleep(for: .milliseconds(300))
-        try? "# 版本二\n".write(to: w, atomically: true, encoding: .utf8)
-        check("檔案改寫後自動顯示新內容", await waitH1(v.webView, "版本二"))
-        try? FileManager.default.removeItem(at: w)
-        var gone = false
-        for _ in 0..<60 {
-            if let s = await js(v.webView, "document.body && document.body.innerText") as? String,
-               s.contains("檔案已不存在"), s.contains(w.path) { gone = true; break }
-            try? await Task.sleep(for: .milliseconds(100))
+    /// 本機 loopback 測試伺服器：回傳一個會設 `window.remoteRan = true` 的 script。
+    static func startLocalServer() -> (port: UInt16, stop: () -> Void) {
+        let fd = Darwin.socket(AF_INET, SOCK_STREAM, 0)
+        var yes: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, socklen_t(MemoryLayout<Int32>.size))
+        var addr = sockaddr_in()
+        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        addr.sin_family = sa_family_t(AF_INET)
+        addr.sin_addr.s_addr = inet_addr("127.0.0.1")
+        addr.sin_port = 0
+        _ = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) }
         }
-        check("檔案被刪除後顯示「檔案已不存在」與完整路徑", gone)
-        try? "# 版本三\n".write(to: w, atomically: true, encoding: .utf8)
-        check("檔案重新出現後，預覽恢復顯示檔案", await waitH1(v.webView, "版本三"))
-
-        // 關閉：不再監看檔案
-        v.close()
-        check("close() 之後是關閉狀態", v.isClosed)
-        try? "# 版本四\n".write(to: w, atomically: true, encoding: .utf8)
-        try? await Task.sleep(for: .milliseconds(1200))
-        let after = await js(v.webView, "document.querySelector('h1') && document.querySelector('h1').textContent") as? String
-        check("close() 之後檔案改變不再重新載入", after != "版本四", after ?? "nil")
-    }
-
-    // MARK: - 安全
-
-    // @feature: preview-tab.feature
-    // @scenario: Markdown 裡的 HTML 標籤顯示成文字，不執行
-    // @scenario: 點網址連結，照終端機裡點連結的規則處理
-    @MainActor static func securityChecks(_ root: URL) async {
-        let site = root.appendingPathComponent("site"), docs = root.appendingPathComponent("docs")
-        let other = root.appendingPathComponent("other")
-        try? FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
-        let secret = other.appendingPathComponent("secret.txt")
-        try? "TOP-SECRET".write(to: secret, atomically: true, encoding: .utf8)
-        let flow = docs.appendingPathComponent("img/flow.png").path
-        // 惡意 HTML：用 iframe 嵌入 lmux-preview、直接 fetch lmux-preview、用 <img> 載入 lmux-preview
-        try? """
-        <html><body><img id="probe" src="lmux-preview://\(flow)"><script>
-        window.leak = 'none'; window.direct = 'none';
-        if (location.protocol === 'file:') {
-          window.addEventListener('message', e => { window.leak = String(e.data); });
-          const f = document.createElement('iframe'); f.src = 'lmux-preview://' + location.pathname; document.body.append(f);
-          fetch('lmux-preview://\(secret.path)').then(r => r.text()).then(t => { window.direct = t }).catch(e => { window.direct = 'blocked' });
-        } else {
-          fetch('lmux-preview://\(secret.path)').then(r => r.text()).then(t => parent.postMessage(t, '*')).catch(e => parent.postMessage('blocked', '*'));
+        _ = Darwin.listen(fd, 8)
+        var bound = sockaddr_in()
+        var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+        _ = withUnsafeMutablePointer(to: &bound) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &len) }
         }
-        </script></body></html>
-        """.write(to: site.appendingPathComponent("evil.html"), atomically: true, encoding: .utf8)
-        try? "<html><head><meta http-equiv=\"refresh\" content=\"0;url=https://example.com/phish\"></head><body>r</body></html>"
-            .write(to: site.appendingPathComponent("refresh.html"), atomically: true, encoding: .utf8)
-        try? "# Zero\n\n![z](/dev/zero)\n".write(to: docs.appendingPathComponent("zero.md"), atomically: true, encoding: .utf8)
-        try? FileManager.default.createSymbolicLink(at: docs.appendingPathComponent("link.md"),
-                                                    withDestinationURL: URL(fileURLWithPath: "/dev/zero"))
-
-        var external: [URL] = []
-        let v = PreviewView(fileURL: site.appendingPathComponent("evil.html"))
-        v.openExternal = { external.append($0) }
-        let win = host(v)
-        defer { win.close() }
-        _ = await wait { v.webView.url?.lastPathComponent == "evil.html" && !v.webView.isLoading }
-        try? await Task.sleep(for: .seconds(2))
-        let leak = await js(v.webView, "window.leak") as? String ?? "nil"
-        check("HTML 頁面用 iframe 讀不到其他資料夾的檔案", !leak.contains("TOP-SECRET"), leak)
-        let direct = await js(v.webView, "window.direct") as? String ?? "nil"
-        check("HTML 頁面直接 fetch lmux-preview 讀不到檔案", direct == "blocked", direct)
-        let probe = await js(v.webView, "document.getElementById('probe').naturalWidth")
-        check("HTML 頁面用 <img> 載入 lmux-preview 會失敗", (probe as? Int) == 0, "\(String(describing: probe))")
-
-        v.show(site.appendingPathComponent("refresh.html"))
-        _ = await wait { v.webView.url?.lastPathComponent == "refresh.html" && !v.webView.isLoading }
-        try? await Task.sleep(for: .milliseconds(1500))
-        check("meta refresh 不會把預覽換成網頁", v.webView.url?.lastPathComponent == "refresh.html" && external.isEmpty,
-              "\(v.webView.url?.absoluteString ?? "nil") \(external)")
-
-        v.show(docs.appendingPathComponent("zero.md"))
-        check("Markdown 引用 /dev/zero 不會卡住", await waitH1(v.webView, "Zero"))
-        v.show(docs.appendingPathComponent("link.md"))
-        var linkMissing = false
-        for _ in 0..<60 {
-            if let s = await js(v.webView, "document.body && document.body.innerText") as? String, s.contains("檔案已不存在") { linkMissing = true; break }
-            try? await Task.sleep(for: .milliseconds(100))
+        let port = UInt16(bigEndian: bound.sin_port)
+        DispatchQueue.global().async {
+            let body = Data("window.remoteRan = true;\n".utf8)
+            let head = "HTTP/1.1 200 OK\r\nContent-Type: application/javascript; charset=utf-8\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n"
+            let payload = Data(head.utf8) + body
+            while true {
+                let c = Darwin.accept(fd, nil, nil)
+                if c < 0 { break }
+                var buf = [UInt8](repeating: 0, count: 1024)
+                _ = Darwin.read(c, &buf, buf.count)
+                payload.withUnsafeBytes { p in
+                    if let base = p.baseAddress { _ = Darwin.write(c, base, payload.count) }
+                }
+                Darwin.close(c)
+            }
         }
-        check("指向 /dev/zero 的 .md symlink 不讀，顯示「檔案已不存在」", linkMissing)
+        return (port, { Darwin.close(fd) })
     }
 }

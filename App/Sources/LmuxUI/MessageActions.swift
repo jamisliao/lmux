@@ -558,14 +558,13 @@ extension LmuxController {
             surface.keyInterceptor = answer
         } else {
             // 預覽 tab 沒有終端機可以攔按鍵：用 local monitor 接 ⏎／esc（beat: preview-tab.feature）。
-            // ponytail: 卡片關掉後，下一個按鍵才把 monitor 移除；沒有按鍵就一直留著（不攔任何東西）。
-            var monitor: Any?
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak card] event in
-                guard let card, card.superview != nil else {
-                    if let m = monitor {
-                        NSEvent.removeMonitor(m)
-                        monitor = nil
-                    }
+            // 只在卡片目前顯示在 key/focused window、且焦點仍在這個預覽 pane（非輸入欄位）時才攔截。
+            card.keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self, weak pane, weak card] event in
+                guard let self, let pane, let card, card.superview != nil,
+                      let win = card.window, event.window === win,
+                      !(win.firstResponder is NSText),
+                      pane.workspace === self.model.selected,
+                      pane.workspace?.focusedPane === pane else {
                     return event
                 }
                 return answer(event) ? nil : event
@@ -574,6 +573,10 @@ extension LmuxController {
     }
 
     func dismissCard(_ pane: Pane) {
+        if let m = pane.view.overlay.card?.keyMonitor {
+            NSEvent.removeMonitor(m)
+            pane.view.overlay.card?.keyMonitor = nil
+        }
         pane.view.overlay.card?.removeFromSuperview()
         pane.view.overlay.card = nil
         pane.surface?.keyInterceptor = nil

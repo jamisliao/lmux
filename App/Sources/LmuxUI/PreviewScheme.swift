@@ -13,8 +13,9 @@ import WebKit
 /// - 這個 scheme 的頁面不執行 JavaScript（`PreviewView` 關掉，頁面也帶 CSP）。
 final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "lmux-preview"
-    /// 一個請求最多讀多少位元組（Markdown 與圖片）。
+    /// 一個請求最多讀多少位元組（圖片與 HTML）；Markdown 另外收緊避免主執行緒轉換大檔卡頓。
     static let maxBytes = 20 * 1024 * 1024
+    static let maxMarkdownBytes = 2 * 1024 * 1024
 
     /// 檔案對應的 `lmux-preview:///<路徑>`。
     static func url(for file: URL) -> URL {
@@ -27,7 +28,9 @@ final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
 
     /// `lmux-preview:` 網址代表的檔案；其他網址回傳 nil。
     static func file(for url: URL) -> URL? {
-        guard url.scheme == scheme else { return nil }
+        guard url.scheme?.lowercased() == scheme,
+              (url.host ?? "").isEmpty,
+              url.path.hasPrefix("/") else { return nil }
         return URL(fileURLWithPath: url.path)
     }
 
@@ -37,25 +40,53 @@ final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
         return type.conforms(to: .image) && !type.conforms(to: .svg)
     }
 
+    enum FileCheck { case ok(URL), missing, tooLarge }
+
+    /// 檢查 `file` 的真實目標是否為一般檔案且不超過 `limit`；區分不存在（含資料夾、裝置檔）與超過大小限制。
+    static func inspectRegularFile(_ file: URL, maxBytes limit: Int = maxBytes) -> FileCheck {
+        let real = PreviewTarget.resolvingPath(file)
+        guard let values = try? real.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
+              values.isRegularFile == true, let size = values.fileSize else { return .missing }
+        return size <= limit ? .ok(real) : .tooLarge
+    }
+
+    enum FileReadResult { case ok(Data), missing, tooLarge }
+
+    /// 一般檔案、而且不超過 `limit` 才讀；區分不存在（含資料夾、裝置檔、symlink）與超過大小限制。
+    static func readRegularFileResult(_ file: URL, maxBytes limit: Int = maxBytes) -> FileReadResult {
+        switch inspectRegularFile(file, maxBytes: limit) {
+        case .ok(let real): return (try? Data(contentsOf: real)).map { .ok($0) } ?? .missing
+        case .missing: return .missing
+        case .tooLarge: return .tooLarge
+        }
+    }
+
     /// 一般檔案、而且不超過 `maxBytes` 才讀；資料夾、裝置檔（`/dev/zero`）、指向它們的 symlink 都回傳 nil。
     static func readRegularFile(_ file: URL) -> Data? {
-        let real = file.resolvingSymlinksInPath()
-        guard let values = try? real.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
-              values.isRegularFile == true, (values.fileSize ?? 0) <= maxBytes else { return nil }
-        return try? Data(contentsOf: real)
+        if case .ok(let data) = readRegularFileResult(file) { return data }
+        return nil
     }
 
     /// 這個 scheme 對 `file` 的回應：內容與 MIME type；不給的檔案回傳 nil。
     static func response(for file: URL) -> (data: Data, mime: String)? {
+        let real = PreviewTarget.resolvingPath(file)
+        guard !PreviewTarget.hasUnsafeScalar(file.path),
+              !PreviewTarget.hasUnsafeScalar(real.path) else { return nil }
         if PreviewTarget.isMarkdown(file) {
-            guard let data = readRegularFile(file) else {
+            guard PreviewTarget.isMarkdown(real) else { return nil }
+            switch readRegularFileResult(real, maxBytes: maxMarkdownBytes) {
+            case .ok(let data):
+                let text = String(decoding: data, as: UTF8.self)
+                return (Data(MarkdownHTML.page(text, title: file.lastPathComponent).utf8), "text/html")
+            case .tooLarge:
+                return (Data(MarkdownHTML.tooLargePage(path: file.path, maxMB: maxMarkdownBytes / (1024 * 1024)).utf8), "text/html")
+            case .missing:
                 return (Data(MarkdownHTML.missingPage(path: file.path).utf8), "text/html")
             }
-            let text = String(decoding: data, as: UTF8.self)
-            return (Data(MarkdownHTML.page(text, title: file.lastPathComponent).utf8), "text/html")
         }
-        guard isServableImage(file), let data = readRegularFile(file) else { return nil }
-        let mime = UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+        guard isServableImage(file), isServableImage(real),
+              let data = readRegularFile(real) else { return nil }
+        let mime = UTType(filenameExtension: real.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
         return (data, mime)
     }
 
@@ -63,7 +94,7 @@ final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
     // 真的卡到再改成背景執行緒，並且不回應已經 stop 的 task。
     func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         guard let url = task.request.url, let file = Self.file(for: url),
-              task.request.mainDocumentURL?.scheme == Self.scheme,
+              task.request.mainDocumentURL?.scheme?.lowercased() == Self.scheme,
               let (data, mime) = Self.response(for: file) else {
             task.didFailWithError(URLError(.noPermissionsToReadFile))
             return

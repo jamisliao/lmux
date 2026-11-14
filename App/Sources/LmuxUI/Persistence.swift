@@ -155,7 +155,9 @@ extension LmuxController {
         var f = LayoutFile()
         f.workspaces = model.workspaces.compactMap { ws -> LayoutFile.WorkspaceState? in
             guard let root = node(ws.root) else { return nil }  // 只有預覽 tab 的 workspace 不存
-            let focused = ws.focusedPane?.surface != nil ? ws.focusedPane?.id : nil
+            let focused: String? = ws.focusedPane.flatMap { fp in
+                fp.surface != nil ? fp.id : ws.root.find(fp)?.tabs.first { $0.surface != nil }?.id
+            }
             let zoomed = ws.zoomedPane?.surface != nil ? ws.zoomedPane?.id : nil
             return .init(id: ws.id, customTitle: ws.customTitle, accent: ws.accent,
                          focusedPane: focused, zoomedPane: zoomed, root: root)

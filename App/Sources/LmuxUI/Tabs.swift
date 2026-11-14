@@ -36,7 +36,8 @@ extension LmuxController {
     /// （與 ⌘T 同位置），並成為 focused tab。
     @discardableResult
     public func newPreviewTab(_ file: URL, after pane: Pane) -> Pane? {
-        guard let ws = pane.workspace, let leaf = ws.root.find(pane) else { return nil }
+        guard let ws = pane.workspace, model.workspaces.contains(where: { $0 === ws }),
+              let leaf = ws.root.find(pane) else { return nil }
         let tab = makePreviewPane(file: file)
         let at = (leaf.tabs.firstIndex { $0 === pane } ?? leaf.tabs.count - 1) + 1
         insert(tab, into: leaf, at: at, ws, select: true)
@@ -483,6 +484,7 @@ public final class TabStripView: NSView {
         let id: String
         let title: String
         let agent: Bool
+        let preview: Bool
         /// The badge: it needs you, or an alert nobody has seen.
         let badge: Bool
         let pinned: Bool
@@ -535,7 +537,7 @@ public final class TabStripView: NSView {
             let title = !header.isEmpty ? header : p.headerTitle.isEmpty ? "Terminal" : p.headerTitle
             let w = ceil((title as NSString).size(withAttributes: [.font: Self.font]).width)
             let full = Self.padX + Self.iconSize + Self.spacing + w + Self.spacing + Self.slot + Self.padX
-            return Item(id: p.id, title: title, agent: p.runsClaude,
+            return Item(id: p.id, title: title, agent: p.runsClaude, preview: p.preview != nil,
                         badge: (p.needsInput || p.unread > 0) && !(p === shown && p.isFocused), pinned: p.pinned,
                         width: min(Self.maxTabWidth, max(Self.minTabWidth, full)))
         }
@@ -666,7 +668,7 @@ public final class TabStripView: NSView {
             separator.setFill()
             NSRect(x: r.maxX - 1, y: 0, width: 1, height: r.height - (i + 1 == selected ? 1 : 0)).fill()
             let color = sel ? active : inactive
-            symbol(item.agent ? "sparkle" : "terminal", 10, color,
+            symbol(item.agent ? "sparkle" : (item.preview ? "doc.text" : "terminal"), 10, color,
                    in: NSRect(x: r.minX + Self.padX, y: (r.height - Self.iconSize) / 2, width: Self.iconSize, height: Self.iconSize),
                    weight: .medium)
             let tx = r.minX + Self.padX + Self.iconSize + Self.spacing
