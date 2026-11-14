@@ -3828,7 +3828,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Modify: `App/Sources/LmuxUI/ControlServer.swift`
 - Modify: `App/Sources/lmux-apptest/Preview.swift`
 
-- [ ] **Step 1: 加測試**
+- [x] **Step 1: 加測試**
 
 在 `App/Sources/lmux-apptest/Preview.swift` 的插入點註解**上面**加上：
 
@@ -3851,12 +3851,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: `FAIL  [preview-cli] lmux list 不列出預覽 tab，仍列出終端機 tab`。前兩項（send）在 Task 9 已經做好，這裡是補測，應該是 PASS。
 
-- [ ] **Step 3: `list` 跳過預覽 tab**
+- [x] **Step 3: `list` 跳過預覽 tab**
 
 在 `App/Sources/LmuxUI/ControlServer.swift` 找到：
 
@@ -3870,12 +3870,12 @@ Expected: `FAIL  [preview-cli] lmux list 不列出預覽 tab，仍列出終端�
                  "panes": ws.panes.filter { $0.surface != nil }.map { p in
 ```
 
-- [ ] **Step 4: 執行，確認通過**
+- [x] **Step 4: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: 沒有 `FAIL`、`APPTEST EXIT: 0`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/ControlServer.swift App/Sources/lmux-apptest/Preview.swift

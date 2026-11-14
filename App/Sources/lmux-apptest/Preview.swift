@@ -262,6 +262,22 @@ func runPreview() async -> Int32 {
         r.check("回到終端機 tab：Find… 可用", enabled(#selector(LmuxController.menuFind(_:))))
     }
 
+    // MARK: CLI（Task 26）
+    // @feature: preview-tab.feature
+    // @scenario: CLI 指定預覽 tab 時回傳錯誤
+    do {
+        r.section = "preview-cli"
+        let (_, a, p) = previewSetup(c, dir: fx, file: design)
+        r.check("lmux send 指定預覽 tab：回傳不是終端機", c.send(text: "x", toPane: p.id) == .notTerminal)
+        let reply = c.handleControl(["cmd": "send", "pane": p.id, "text": "x"])
+        r.check("CLI 的 send 錯誤訊息說明不是終端機", (reply["error"] as? String) == "not a terminal: \(p.id)", "\(reply)")
+        let list = c.handleControl(["cmd": "list"])
+        let ids = ((list["workspaces"] as? [[String: Any]]) ?? [])
+            .flatMap { ($0["panes"] as? [[String: Any]]) ?? [] }
+            .compactMap { $0["id"] as? String }
+        r.check("lmux list 不列出預覽 tab，仍列出終端機 tab", !ids.contains(p.id) && ids.contains(a.id), "\(ids)")
+    }
+
     // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）
     return finish(r, c)
 }
