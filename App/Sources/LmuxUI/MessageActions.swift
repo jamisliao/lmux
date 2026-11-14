@@ -154,7 +154,7 @@ enum ClaudeProcess {
     @MainActor static func foregroundName(_ pane: Pane) -> String? {
         if pane.runsClaude { return pane.agentKind == .codex ? "Codex" : "Claude Code" }
         if let app = pane.programApp { return app }
-        let fg = pane.surface.foregroundPID
+        let fg = pane.foregroundPID
         guard fg > 0 else { return nil }
         if let c = pane.foregroundCache, c.group == fg { return c.name }
         let n = representative(ofGroup: fg).flatMap(name)
@@ -233,7 +233,7 @@ extension LmuxController {
     // MARK: - Wiring
 
     func installMessageActions(_ pane: Pane) {
-        let s = pane.surface
+        guard let s = pane.surface else { return }
         s.onMouseMove = { [weak self, weak pane] p in
             guard let self, let pane, pane.runsClaude else { return }
             self.paneMouseMoved(pane, p)
@@ -253,8 +253,9 @@ extension LmuxController {
 
     /// Rows of the viewport and their turn roles, re-read at most every `maxAge` seconds.
     func screenMap(_ pane: Pane, maxAge: TimeInterval = 0.4) -> HoverCache {
+        guard let surface = pane.surface else { return HoverCache() }
         if Date().timeIntervalSince(pane.hover.readAt) > maxAge || pane.hover.map == nil {
-            let (rows, h) = pane.surface.viewportRows()
+            let (rows, h) = surface.viewportRows()
             pane.hover.rows = rows
             pane.hover.rowHeight = h
             pane.hover.readAt = Date()
@@ -329,7 +330,8 @@ extension LmuxController {
     func updateHover(_ pane: Pane) {
         guard let p = pane.hover.point else { hideHoverActions(pane); return }
         let c = screenMap(pane)
-        let y = pane.surface.bounds.height - p.y
+        guard let surface = pane.surface else { hideHoverActions(pane); return }
+        let y = surface.bounds.height - p.y
         guard let map = c.map, c.rowHeight > 0,
               let row = c.rows.firstIndex(where: { y >= $0.top && y < $0.top + c.rowHeight }),
               row < map.turnOfRow.count, let turn = map.turnOfRow[row],
@@ -371,7 +373,8 @@ extension LmuxController {
     func textRight(_ pane: Pane, _ text: String) -> CGFloat {
         let trimmed = text.replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression)
         let cols = trimmed.unicodeScalars.reduce(0) { $0 + (TurnLocator.isWide($1) ? 2 : 1) }
-        return pane.surface.terminalPadding.width + CGFloat(cols) * max(1, pane.surface.cellSize.width)
+        guard let surface = pane.surface else { return 0 }
+        return surface.terminalPadding.width + CGFloat(cols) * max(1, surface.cellSize.width)
     }
 
     /// A text-selection drag in the pane hides the pill until the pointer moves again.
@@ -382,7 +385,8 @@ extension LmuxController {
 
     /// Blank row runs of the viewport (overlay coordinates), for placing cards.
     func freeRuns(_ pane: Pane) -> [(top: CGFloat, bottom: CGFloat)] {
-        let (rows, h) = pane.surface.viewportRows()
+        guard let surface = pane.surface else { return [] }
+        let (rows, h) = surface.viewportRows()
         var out: [(CGFloat, CGFloat)] = []
         var start: CGFloat?
         for r in rows {
@@ -486,9 +490,9 @@ extension LmuxController {
         ov.inputRuleRow = (c.rows[rule].top, c.rowHeight)
         ov.inputLabel.text = ws.title
         ov.inputLabel.accent = T.Colors.workspaceAccents[ws.accent % T.Colors.workspaceAccents.count].nsColor
-        ov.inputLabel.background = pane.surface.terminalBackground ?? T.Colors.windowBackground.nsColor
-        ov.inputLabel.adoptAppearance(on: pane.surface.terminalBackground)
-        ov.inputRuleStart = pane.surface.terminalPadding.width
+        ov.inputLabel.background = pane.surface?.terminalBackground ?? T.Colors.windowBackground.nsColor
+        ov.inputLabel.adoptAppearance(on: pane.surface?.terminalBackground)
+        ov.inputRuleStart = pane.surface?.terminalPadding.width ?? 0
         if !placed || before != (ov.inputLabel.text, ov.inputRuleStart) { ov.needsLayout = true }
         ov.inputLabel.isHidden = false
     }
@@ -499,7 +503,7 @@ extension LmuxController {
     /// is the screen mapped again and the label re-placed. No timer, no polling.
     func paneDrewFrame(_ pane: Pane) {
         guard pane.runsClaude, pane.workspace === model.selected, model.workspaces.count >= 2 else { return }
-        let y = pane.surface.cursorY
+        guard let y = pane.surface?.cursorY else { return }
         guard y != pane.lastFrameCursorY else { return }
         pane.lastFrameCursorY = y
         if overlayWork[pane.id] == nil { scheduleOverlayRefresh(pane, delay: 0.1) }
@@ -537,7 +541,7 @@ extension LmuxController {
             card.confirm.shortcut = nil
             return
         }
-        pane.surface.keyInterceptor = { [weak card] event in
+        let answer: (NSEvent) -> Bool = { [weak card] event in
             guard let card else { return false }
             // A held key's auto-repeat (the Enter that raised the guard) never answers the card.
             if event.isARepeat { return true }
@@ -550,12 +554,29 @@ extension LmuxController {
                 return false
             }
         }
+        if let surface = pane.surface {
+            surface.keyInterceptor = answer
+        } else {
+            // 預覽 tab 沒有終端機可以攔按鍵：用 local monitor 接 ⏎／esc（beat: preview-tab.feature）。
+            // ponytail: 卡片關掉後，下一個按鍵才把 monitor 移除；沒有按鍵就一直留著（不攔任何東西）。
+            var monitor: Any?
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak card] event in
+                guard let card, card.superview != nil else {
+                    if let m = monitor {
+                        NSEvent.removeMonitor(m)
+                        monitor = nil
+                    }
+                    return event
+                }
+                return answer(event) ? nil : event
+            }
+        }
     }
 
     func dismissCard(_ pane: Pane) {
         pane.view.overlay.card?.removeFromSuperview()
         pane.view.overlay.card = nil
-        pane.surface.keyInterceptor = nil
+        pane.surface?.keyInterceptor = nil
     }
 
     static func bold(_ prefix: String, _ strong: String, _ suffix: String) -> NSAttributedString {
@@ -670,7 +691,7 @@ extension LmuxController {
         // Enter while an IME composes (Japanese, Chinese) confirms the conversion: it sends nothing.
         // Korean is different: Enter commits the syllable AND sends the line, so it counts for
         // Undo like any other Enter.
-        if pane.surface.hasMarkedText(), !inputSourceLanguages().contains(where: { $0.hasPrefix("ko") }) { return }
+        if pane.surface?.hasMarkedText() == true, !inputSourceLanguages().contains(where: { $0.hasPrefix("ko") }) { return }
         noteReturn(pane)
         // The prompt leaves the input box and Claude redraws below it: the label goes with
         // the old box and comes back over the new one.
@@ -800,13 +821,13 @@ extension LmuxController {
 
     /// Name of the foreground process if it's not an idle shell (nil = safe to close).
     func runningProcess(_ pane: Pane) -> String? {
-        let fg = pane.surface.foregroundPID
+        let fg = pane.foregroundPID
         if fg > 0, let pid = ClaudeProcess.representative(ofGroup: fg) {
             let name = ClaudeProcess.name(pid) ?? "a process"
             if ClaudeProcess.shells.contains(name) { return nil }
             return pane.runsClaude ? (pane.agentKind == .codex ? "Codex" : "Claude Code") : name
         }
-        return pane.surface.needsConfirmQuit ? "a process" : nil
+        return pane.surface?.needsConfirmQuit == true ? "a process" : nil
     }
 }
 

@@ -2130,13 +2130,13 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 **Files:**
 - Modify: `App/Sources/LmuxUI/MessageActions.swift`
 
-- [ ] **Step 1: 全部替換**
+- [x] **Step 1: 全部替換**
 
 把檔案裡**每一個** `pane.surface.foregroundPID` 換成 `pane.foregroundPID`（共 2 處）。
 
 確認：`grep -c 'surface.foregroundPID' App/Sources/LmuxUI/MessageActions.swift` → `0`。
 
-- [ ] **Step 2: `installMessageActions(_:)`**
+- [x] **Step 2: `installMessageActions(_:)`**
 
 原本：
 
@@ -2150,7 +2150,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         guard let s = pane.surface else { return }
 ```
 
-- [ ] **Step 3: `screenMap(_:maxAge:)`**
+- [x] **Step 3: `screenMap(_:maxAge:)`**
 
 原本：
 
@@ -2169,7 +2169,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
             let (rows, h) = surface.viewportRows()
 ```
 
-- [ ] **Step 4: `updateHover(_:)`**
+- [x] **Step 4: `updateHover(_:)`**
 
 原本：
 
@@ -2184,7 +2184,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         let y = surface.bounds.height - p.y
 ```
 
-- [ ] **Step 5: `textRight(_:_:)`**
+- [x] **Step 5: `textRight(_:_:)`**
 
 原本：
 
@@ -2199,7 +2199,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         return surface.terminalPadding.width + CGFloat(cols) * max(1, surface.cellSize.width)
 ```
 
-- [ ] **Step 6: `freeRuns(_:)`**
+- [x] **Step 6: `freeRuns(_:)`**
 
 原本：
 
@@ -2216,7 +2216,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         let (rows, h) = surface.viewportRows()
 ```
 
-- [ ] **Step 7: `refreshInputLabel(_:)`**
+- [x] **Step 7: `refreshInputLabel(_:)`**
 
 原本：
 
@@ -2234,7 +2234,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         ov.inputRuleStart = pane.surface?.terminalPadding.width ?? 0
 ```
 
-- [ ] **Step 8: `paneDrewFrame(_:)`**
+- [x] **Step 8: `paneDrewFrame(_:)`**
 
 原本：
 
@@ -2248,7 +2248,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         guard let y = pane.surface?.cursorY else { return }
 ```
 
-- [ ] **Step 9: `showCard(...)` 與 `dismissCard(_:)`**
+- [x] **Step 9: `showCard(...)` 與 `dismissCard(_:)`**
 
 確認卡片（例如 Close Workspace）可能顯示在預覽 tab 上。預覽 tab 沒有終端機可以攔 ⏎／esc，改用 local monitor。
 
@@ -2319,7 +2319,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         pane.surface?.keyInterceptor = nil
 ```
 
-- [ ] **Step 10: `returnKey(_:)`**
+- [x] **Step 10: `returnKey(_:)`**
 
 原本：
 
@@ -2333,7 +2333,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         if pane.surface?.hasMarkedText() == true, !inputSourceLanguages().contains(where: { $0.hasPrefix("ko") }) { return }
 ```
 
-- [ ] **Step 11: `runningProcess(_:)`**
+- [x] **Step 11: `runningProcess(_:)`**
 
 原本：
 
@@ -2347,12 +2347,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         return pane.surface?.needsConfirmQuit == true ? "a process" : nil
 ```
 
-- [ ] **Step 12: 驗證**
+- [x] **Step 12: 驗證**
 
 Run: `beat/changes/md-html-preview/dev.sh errors MessageActions.swift`
 Expected: `ERRORS TOTAL: 0`。
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/MessageActions.swift
