@@ -67,7 +67,24 @@ public enum AgentDisplay: Equatable {
 public final class Pane: Identifiable {
     /// Also `LMUX_PANE_ID` in the pane's environment.
     public let id: String
-    @ObservationIgnored public let surface: SurfaceView
+    /// tab 顯示的內容：終端機，或一個檔案的預覽（beat: preview-tab.feature）。
+    public enum Content {
+        case terminal(SurfaceView)
+        case preview(PreviewView)
+    }
+    @ObservationIgnored public let content: Content
+    /// 終端機；預覽 tab 是 nil。
+    public var surface: SurfaceView? {
+        if case .terminal(let s) = content { return s }
+        return nil
+    }
+    /// 預覽；終端機 tab 是 nil。
+    public var preview: PreviewView? {
+        if case .preview(let p) = content { return p }
+        return nil
+    }
+    /// 終端機前景程式的 process group；預覽 tab 沒有程式，是 0（跟沒有前景程式的終端機一樣）。
+    public var foregroundPID: pid_t { surface?.foregroundPID ?? 0 }
     @ObservationIgnored public private(set) lazy var view = PaneView(pane: self)
     @ObservationIgnored public weak var workspace: Workspace?
 
@@ -225,7 +242,12 @@ public final class Pane: Identifiable {
 
     init(id: String, surface: SurfaceView) {
         self.id = id
-        self.surface = surface
+        self.content = .terminal(surface)
+    }
+
+    init(id: String, preview: PreviewView) {
+        self.id = id
+        self.content = .preview(preview)
     }
 
     public var display: AgentDisplay {

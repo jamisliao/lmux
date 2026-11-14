@@ -1663,7 +1663,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
   - `public var foregroundPID: pid_t`（預覽 tab 是 0）
   - `init(id: String, surface: SurfaceView)`（原本就有）、`init(id: String, preview: PreviewView)`（新增）
 
-- [ ] **Step 1: 換掉 surface 的宣告**
+- [x] **Step 1: 換掉 surface 的宣告**
 
 原本：
 
@@ -1694,7 +1694,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
     public var foregroundPID: pid_t { surface?.foregroundPID ?? 0 }
 ```
 
-- [ ] **Step 2: 換掉 init**
+- [x] **Step 2: 換掉 init**
 
 原本：
 
@@ -1719,12 +1719,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
     }
 ```
 
-- [ ] **Step 3: 確認 Model.swift 自己沒有錯誤**
+- [x] **Step 3: 確認 Model.swift 自己沒有錯誤**
 
 Run: `beat/changes/md-html-preview/dev.sh errors Model.swift`
 Expected: `ERRORS IN Model.swift: 0`。（其他檔案會有錯誤，這是預期的。）
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Model.swift
