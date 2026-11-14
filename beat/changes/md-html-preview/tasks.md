@@ -73,7 +73,7 @@ If the main assertion is `toHaveBeenCalledWith`, rewrite to assert on the functi
 **Interfaces:**
 - Produces: `dev.sh` 的子指令（見上面「共用指令」）。`$TMPDIR/md-html-preview/baseline-quick.log`、`baseline-full.log`：起點的 apptest 結果，後面的 task 拿來比。
 
-- [ ] **Step 1: 建立 `beat/changes/md-html-preview/dev.sh`，內容如下（整份照抄）**
+- [x] **Step 1: 建立 `beat/changes/md-html-preview/dev.sh`，內容如下（整份照抄）**
 
 ```bash
 #!/bin/bash
@@ -155,28 +155,28 @@ case "${1:-}" in
 esac
 ```
 
-- [ ] **Step 2: 加上執行權限**
+- [x] **Step 2: 加上執行權限**
 
 Run: `chmod +x beat/changes/md-html-preview/dev.sh && beat/changes/md-html-preview/dev.sh`
 Expected: 印出 9 行說明，第 1 行是 `# md-html-preview 實作用的指令（給照 tasks.md 實作的 agent 用）。在 worktree 的任何位置執行：`。結束碼 2 是正常的（沒有給子指令），不要改 dev.sh。
 
-- [ ] **Step 3: 確認起點能 build**
+- [x] **Step 3: 確認起點能 build**
 
 Run: `beat/changes/md-html-preview/dev.sh build`
 Expected: 最後一行 `BUILD EXIT: 0`。
 不是 0：**停止**，回報輸出。不要修。
 
-- [ ] **Step 4: 跑 apptest 主要那一輪，存成基準**
+- [x] **Step 4: 跑 apptest 主要那一輪，存成基準**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-quick; cp "${TMPDIR:-/tmp}/md-html-preview/quick.log" "${TMPDIR:-/tmp}/md-html-preview/baseline-quick.log"; grep -c '^RESULT' "${TMPDIR:-/tmp}/md-html-preview/baseline-quick.log"; grep -c '^FAIL' "${TMPDIR:-/tmp}/md-html-preview/baseline-quick.log"`
 Expected: 倒數第 2 行（RESULT 的數量）至少是 1，否則 apptest 沒跑完，停下來回報。最後一行是起點就有的 FAIL 數量（可能是 0）：這些 FAIL 不是這次改動造成的，記在回報裡，不要修。
 
-- [ ] **Step 5: 跑 apptest 全部，存成基準（很久，見「跑很久的指令」）**
+- [x] **Step 5: 跑 apptest 全部，存成基準（很久，見「跑很久的指令」）**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-full; cp "${TMPDIR:-/tmp}/md-html-preview/full.log" "${TMPDIR:-/tmp}/md-html-preview/baseline-full.log"; grep -c '^RESULT' "${TMPDIR:-/tmp}/md-html-preview/baseline-full.log"; grep -c '^FAIL' "${TMPDIR:-/tmp}/md-html-preview/baseline-full.log"`
 Expected: 同 Step 4：RESULT 至少 1；最後一行是起點就有的 FAIL 數量，記在回報裡。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add beat/changes/md-html-preview/dev.sh
