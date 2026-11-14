@@ -231,5 +231,47 @@ extension PreviewWebKitCheck {
         let backToFlowPage = await waitH1(v.webView, "FlowHTML")
         check("子目錄回歸：b.md -> goBack() 回 sub/child.html 再 goBack() 回上層 page.html 成功",
               backToFlowChild && backToFlowPage, "child=\(backToFlowChild) page=\(backToFlowPage)")
+
+        // W-Dim4: 跨 scheme 返回時子目錄 HTML 暫時缺失，重建後仍保留上層 root 授權
+        let flowChild = flowDir.appendingPathComponent("sub/child.html")
+        _ = await js(v.webView, "document.getElementById('sub').click(); true")
+        _ = await waitH1(v.webView, "FlowChild")
+        _ = await js(v.webView, "document.getElementById('b').click(); true")
+        _ = await waitH1(v.webView, "FlowB")
+        try? FileManager.default.removeItem(at: flowChild)
+        v.webView.goBack()
+        _ = await waitBody(v.webView, contains: "檔案已不存在")
+        try? "<html><head><link rel=\"stylesheet\" href=\"../flow.css\"></head><body><h1>FlowChildRestored</h1></body></html>"
+            .write(to: flowChild, atomically: true, encoding: .utf8)
+        let flowChildRestored = await waitH1(v.webView, "FlowChildRestored")
+        let flowChildColor = await js(v.webView, "getComputedStyle(document.body).color") as? String ?? ""
+        check("子目錄回歸：跨 scheme 返回缺失的 sub/child.html 後重建，仍保留上層 flow.css 權限",
+              flowChildRestored && flowChildColor == "rgb(4, 5, 6)", "restored=\(flowChildRestored) color=\(flowChildColor)")
+
+        // W-Dim4: WebContent 終止重載子目錄 HTML 時保留上層 root 授權
+        v.show(site.appendingPathComponent("index.html"))
+        _ = await waitH1(v.webView, "SiteHome")
+        _ = await js(v.webView, "document.getElementById('sub').click(); true")
+        _ = await waitH1(v.webView, "ChildRebuilt")
+        v.webViewWebContentProcessDidTerminate(v.webView)
+        let terminatedReloadOK = await waitH1(v.webView, "ChildRebuilt")
+        let terminatedCSS = await js(v.webView, "getComputedStyle(document.body).backgroundColor") as? String ?? ""
+        check("子目錄回歸：WebContent 重啟重載 sub/child.html 仍保有上層 style.css 權限",
+              terminatedReloadOK && terminatedCSS == "rgb(1, 2, 3)", "ok=\(terminatedReloadOK) css=\(terminatedCSS)")
+
+        // W-Dim4: 初始開啟指到資料夾外非 HTML 的 symlink，root 釘在檔案本身資料夾而非外部目標資料夾
+        let badOut = site.appendingPathComponent("bad-out.html")
+        try? FileManager.default.removeItem(at: badOut)
+        try? FileManager.default.createSymbolicLink(at: badOut, withDestinationURL: root.appendingPathComponent("other/secret.txt"))
+        v.show(badOut)
+        _ = await waitBody(v.webView, contains: "檔案已不存在")
+        try? FileManager.default.removeItem(at: badOut)
+        try? FileManager.default.createSymbolicLink(at: badOut, withDestinationURL: root.appendingPathComponent("other/probe.html"))
+        try? await Task.sleep(for: .milliseconds(500))
+        let stillMissing = await waitBody(v.webView, contains: "檔案已不存在")
+        let probeScripts = await js(v.webView, "document.scripts.length") as? Int ?? -1
+        check("安全回歸：初始外指非 HTML symlink 不將 root 錯釘到外部資料夾",
+              stillMissing && probeScripts == 0 && v.webView.url?.lastPathComponent != "probe.html",
+              "missing=\(stillMissing) scripts=\(probeScripts) url=\(v.webView.url?.lastPathComponent ?? "nil")")
     }
 }

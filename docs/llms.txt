@@ -3,7 +3,7 @@
 > lmux is a light, native macOS terminal for running Claude Code and Codex CLI all day. It's a 25 MB app
 > built on libghostty (Ghostty's terminal core) with a sidebar of workspaces, splits in any direction, and
 > agent status in the sidebar, so you can see which of many Claude Code or Codex sessions is working, done
-> or waiting for you. It's free, MIT licensed, and makes no network calls. A lightweight alternative to cmux.
+> or waiting for you. It's free, MIT licensed, and makes no network calls of its own. A lightweight alternative to cmux.
 
 Key facts:
 
@@ -47,7 +47,7 @@ Key facts:
 - [lmux vs cmux](https://lmux.dev/docs/vs-cmux/): lmux is a lightweight alternative to cmux: the same sidebar and splits, built on libghostty, in a 25 MB app with about ten settings. Here's when to pick which.
 - [Switching from cmux](https://lmux.dev/docs/from-cmux/): lmux is a lightweight alternative to cmux that borrows its layout, so the sidebar and splits work the way you're used to. Moving over should feel like…
 - [Performance](https://lmux.dev/docs/performance/): lmux's one rule is to stay light. It's a 25 MB native macOS terminal that idles near 0% CPU, whether you have one workspace open or twenty.
-- [Privacy & files on disk](https://lmux.dev/docs/privacy/): lmux, a macOS terminal for Claude Code and Codex, makes no network calls at all: no telemetry, no crash reports, not even an update check (Homebrew does…
+- [Privacy & files on disk](https://lmux.dev/docs/privacy/): lmux, a macOS terminal for Claude Code and Codex, makes no network calls itself: no telemetry, no crash reports, not even an update check (Homebrew does…
 - [Troubleshooting](https://lmux.dev/docs/troubleshooting/): Fixes for the few things that go wrong: Claude's dark prompt band, a sidebar that never updates, Codex hooks, macOS permission prompts, CLI errors.
 - [FAQ](https://lmux.dev/docs/faq/): Is lmux a cmux alternative, why not Ghostty and tmux, does it work with Codex or without Claude Code, does it phone home, and more.
 

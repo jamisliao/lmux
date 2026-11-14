@@ -10,7 +10,7 @@ Walk the person through it step by step. Ask before changing any file, show them
 - One window: a sidebar of **workspaces** (like tabs), each holding one or more **panes** (splits in any direction).
 - It shows each agent's state per pane (running, needs you, done, failed), lets the user take back a Claude Code turn, and resumes every Claude Code and Codex session after a relaunch.
 - It never wraps `claude` or `codex`. It listens to their hooks and reads the files they already write. `✎`, `×` and `⌘Z` drive Claude Code's own rewind menu in the running `claude`; lmux never edits a transcript.
-- No network calls at all: no telemetry, no update check.
+- No network calls from lmux itself: no telemetry, no update check (only opt-in preview tabs use macOS `WKWebView` to load remote assets referenced by the opened file).
 
 ## Requirements
 

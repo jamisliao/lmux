@@ -181,7 +181,7 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         p.preview!.show(gone)
         _ = await waitFor(5) { p.headerTitle == "gone.md" }
         try? FileManager.default.removeItem(at: gone)
-        let missingRendered = await waitBodyContains(p.preview!.webView, "檔案已不存在")
+        let missingRendered = await waitPreviewJS(p.preview?.webView, "Boolean(document.body?.innerText.includes('檔案已不存在'))")
         r.check("檔案被刪除後顯示「檔案已不存在」，且預覽 tab 仍然留著", missingRendered && ws.panes.contains { $0 === p })
     }
 

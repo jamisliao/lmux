@@ -56,10 +56,16 @@ public final class PreviewView: NSView, WKNavigationDelegate {
 
     /// 載入 `file`：Markdown 走 scheme；HTML 驗證為合法一般檔案後從磁碟載入，只開放它所在的資料夾。
     public func show(_ file: URL) {
-        show(file, fromWatcher: false)
+        show(file, fromWatcher: false, preserveRoot: false)
     }
 
-    func show(_ file: URL, fromWatcher: Bool) {
+    private func existingHTMLRoot(containing target: URL) -> URL? {
+        [pinnedHTMLRoot, fileAccessDirectory, visitedHTMLRoots[PreviewTarget.canonicalPath(target.path)]]
+            .compactMap { $0 }
+            .first { Self.isInsideDirectory(target, directory: $0) }
+    }
+
+    func show(_ file: URL, fromWatcher: Bool = false, preserveRoot: Bool = false) {
         let real = PreviewTarget.resolvingPath(file)
         if PreviewTarget.hasUnsafeScalar(file.path) {
             if !fromWatcher {
@@ -88,7 +94,8 @@ public final class PreviewView: NSView, WKNavigationDelegate {
             webView.load(URLRequest(url: previewURL))
             return
         }
-        let resolvedDir = real.deletingLastPathComponent()
+        let fallbackDir = (preserveRoot ? existingHTMLRoot(containing: real) : nil)
+            ?? PreviewTarget.resolvingPath(file.deletingLastPathComponent())
         if fromWatcher {
             let root = pinnedHTMLRoot ?? fileAccessDirectory
             if let root, !Self.isInsideDirectory(real, directory: root) {
@@ -98,14 +105,14 @@ public final class PreviewView: NSView, WKNavigationDelegate {
         }
         guard !PreviewTarget.hasUnsafeScalar(real.path),
               PreviewTarget.isHTML(file), PreviewTarget.isHTML(real) else {
-            if !fromWatcher, PreviewTarget.isHTML(file) { pinnedHTMLRoot = resolvedDir }
+            if !fromWatcher, PreviewTarget.isHTML(file) { pinnedHTMLRoot = fallbackDir }
             showFallbackHTML(MarkdownHTML.missingPage(path: file.path), for: file, keepPinnedHTMLRoot: fromWatcher || PreviewTarget.isHTML(file))
             return
         }
         switch PreviewSchemeHandler.inspectRegularFile(real) {
         case .ok(let checked):
             let accessDir = checked.deletingLastPathComponent()
-            let activeRoot = (fromWatcher ? pinnedHTMLRoot : nil) ?? accessDir
+            let activeRoot = (preserveRoot ? existingHTMLRoot(containing: checked) : nil) ?? accessDir
             if fromWatcher, let root = pinnedHTMLRoot, !Self.isInsideDirectory(checked, directory: root) {
                 showFallbackHTML(MarkdownHTML.missingPage(path: file.path), for: file, keepPinnedHTMLRoot: true)
                 return
@@ -117,14 +124,14 @@ public final class PreviewView: NSView, WKNavigationDelegate {
             let readRoot = Self.readAccessDirectory(for: target, accessDir: accessDir, root: activeRoot)
             webView.loadFileURL(target, allowingReadAccessTo: readRoot)
         case .tooLarge:
-            if !fromWatcher { pinnedHTMLRoot = resolvedDir }
+            if !fromWatcher || pinnedHTMLRoot == nil { pinnedHTMLRoot = fallbackDir }
             showFallbackHTML(
                 MarkdownHTML.tooLargePage(path: file.path, maxMB: PreviewSchemeHandler.maxBytes / (1024 * 1024)),
                 for: file,
                 keepPinnedHTMLRoot: true
             )
         case .missing:
-            if !fromWatcher { pinnedHTMLRoot = resolvedDir }
+            if !fromWatcher || pinnedHTMLRoot == nil { pinnedHTMLRoot = fallbackDir }
             showFallbackHTML(MarkdownHTML.missingPage(path: file.path), for: file, keepPinnedHTMLRoot: true)
         }
     }
@@ -225,7 +232,7 @@ public final class PreviewView: NSView, WKNavigationDelegate {
             let real = PreviewTarget.resolvingPath(self.fileURL)
             if PreviewTarget.isMarkdown(self.fileURL) {
                 if PreviewTarget.hasUnsafeScalar(real.path) || !PreviewTarget.isMarkdown(real) || self.isShowingFallbackPage {
-                    self.show(self.fileURL, fromWatcher: true)
+                    self.show(self.fileURL, fromWatcher: true, preserveRoot: true)
                 } else {
                     self.webView.reload()
                 }
@@ -241,7 +248,7 @@ public final class PreviewView: NSView, WKNavigationDelegate {
                !self.isShowingFallbackPage {
                 self.webView.reload()
             } else {
-                self.show(self.fileURL, fromWatcher: true)
+                self.show(self.fileURL, fromWatcher: true, preserveRoot: true)
             }
         }
     }

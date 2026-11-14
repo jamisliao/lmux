@@ -158,6 +158,8 @@ enum PreviewCheck {
         expect(!html("![x](data:text/html,%3Cscript%3E)").contains("<img"), "text/html data: URL 圖片被拿掉")
         expect(html("[loc](file:///tmp/a.html#s1)").contains("<a href=\"lmux-preview:///tmp/a.html#s1\">loc</a>"),
                "本機 file:// 連結改寫成 lmux-preview://（保留錨點）")
+        expect(html("[loc2](file://localhost/tmp/a.html)").contains("<a href=\"lmux-preview:///tmp/a.html\">loc2</a>"),
+               "file://localhost 連結改寫成 lmux-preview://")
         expect(!html("[rem](file://remotehost/tmp/a.html)").contains("href="), "遠端主機 file:// 連結被拿掉")
         expect(html("![pic](file:///tmp/a.png)").contains("<img src=\"lmux-preview:///tmp/a.png\" alt=\"pic\">"),
                "本機 file:// 圖片改寫成 lmux-preview://")
@@ -217,6 +219,11 @@ enum PreviewCheck {
                && headingsHTML.contains("<h3 id=\"中文-標題\">中文 標題</h3>")
                && headingsHTML.contains("<a href=\"#hello-world\">"),
                "S8 headings: \(headingsHTML)")
+        let collideHTML = MarkdownHTML.body("# Foo 1\n\n# Foo\n\n# Foo\n")
+        expect(collideHTML.contains("<h1 id=\"foo-1\">Foo 1</h1>")
+               && collideHTML.contains("<h1 id=\"foo\">Foo</h1>")
+               && collideHTML.contains("<h1 id=\"foo-2\">Foo</h1>"),
+               "heading ID collision avoided: \(collideHTML)")
 
         print("preview check: ok")
     }

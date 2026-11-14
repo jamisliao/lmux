@@ -106,7 +106,7 @@ extension PreviewView {
 
     public func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         guard !isClosed else { return }
-        show(fileURL)
+        show(fileURL, preserveRoot: true)
     }
 
     func consumePendingShow(matching url: URL) -> Bool {
@@ -225,7 +225,7 @@ extension PreviewView {
                     let allowedMissing = (fileAccessDirectory ?? pinnedHTMLRoot)
                         .map { Self.isInsideDirectory(real, directory: $0) }
                         ?? (visitedHTMLRoots[PreviewTarget.canonicalPath(real.path)] != nil)
-                    if allowedMissing { show(url) }
+                    if allowedMissing { show(url, preserveRoot: true) }
                 }
                 return
             }

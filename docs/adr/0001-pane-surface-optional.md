@@ -1,6 +1,6 @@
 # Pane.surface 改成 optional，讓 tab 能裝終端機以外的內容
 
-為了加入預覽 tab（顯示 .md 與 .html），`Pane` 改成持有「終端機」或「預覽」其中一種內容，`Pane.surface` 因此變成 optional。我們選這個做法，是因為大部分漏改的地方會直接編譯失敗（例外：`===`、`!==` 與 `makeFirstResponder(_:)` 接受 optional，這幾處要人工確認）；代價是動到 44 個上游檔案（LmuxUI 18 個、測試 26 個），之後合併上游 lmux 時衝突會變多。
+為了加入預覽 tab（顯示 .md 與 .html），`Pane` 改成持有「終端機」或「預覽」其中一種內容，`Pane.surface` 因此變成 optional。我們選這個做法，是因為大部分漏改的地方會直接編譯失敗（例外：`===`、`!==` 與 `makeFirstResponder(_:)` 接受 optional，這幾處要人工確認）；代價是動到 48 個上游檔案（`LmuxUI` 22 個、`lmux-apptest` 26 個，其中 25 個測試檔改用 `.surface!`；`lmux-imetest` 0 個），之後合併上游 lmux 時衝突會變多。
 
 ## Considered Options
 

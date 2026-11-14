@@ -96,7 +96,7 @@ enum MarkdownHTML {
     }
 
     private static func previewLink(_ url: URL) -> String? {
-        guard (url.host ?? "").isEmpty else { return nil }
+        guard url.port == nil, PreviewTarget.isLocalFileHost(url.host) else { return nil }
         var c = URLComponents()
         c.scheme = "lmux-preview"
         c.host = ""
@@ -146,6 +146,7 @@ enum MarkdownHTML {
         var headingSavedOut: String?
         var headingPlain = ""
         var usedHeadingIDs: [String: Int] = [:]
+        var assignedHeadingIDs: Set<String> = []
 
         mutating func add(text: String, blocks: [PresentationIntent.IntentType],
                           inline: InlinePresentationIntent, link: URL?, image: URL?) {
@@ -196,9 +197,18 @@ enum MarkdownHTML {
             }
             while slug.hasSuffix("-") { slug.removeLast() }
             guard !slug.isEmpty else { return nil }
-            let count = usedHeadingIDs[slug, default: 0]
-            usedHeadingIDs[slug] = count + 1
-            return count == 0 ? slug : "\(slug)-\(count)"
+            let candidate: String
+            if usedHeadingIDs[slug, default: 0] == 0, !assignedHeadingIDs.contains(slug) {
+                candidate = slug
+                usedHeadingIDs[slug] = 1
+            } else {
+                var n = max(1, usedHeadingIDs[slug, default: 1])
+                while assignedHeadingIDs.contains("\(slug)-\(n)") { n += 1 }
+                candidate = "\(slug)-\(n)"
+                usedHeadingIDs[slug] = n + 1
+            }
+            assignedHeadingIDs.insert(candidate)
+            return candidate
         }
 
         /// 空的格子不會有任何 run：補上空格子，欄位才不會錯位。
@@ -211,8 +221,7 @@ enum MarkdownHTML {
 
         private mutating func openBlock(_ b: PresentationIntent.IntentType) {
             switch b.kind {
-            case .paragraph:
-                out += "<p>"; open.append((b, "</p>"))
+            case .paragraph: out += "<p>"; open.append((b, "</p>"))
             case .header(let level):
                 let n = min(max(level, 1), 6)
                 headingLevel = n
@@ -220,36 +229,28 @@ enum MarkdownHTML {
                 headingSavedOut = out
                 out = ""
                 open.append((b, "</h\(n)>"))
-            case .orderedList:
-                out += "<ol>"; open.append((b, "</ol>"))
-            case .unorderedList:
-                out += "<ul>"; open.append((b, "</ul>"))
-            case .listItem:
-                out += "<li>"; open.append((b, "</li>"))
+            case .orderedList: out += "<ol>"; open.append((b, "</ol>"))
+            case .unorderedList: out += "<ul>"; open.append((b, "</ul>"))
+            case .listItem: out += "<li>"; open.append((b, "</li>"))
             case .codeBlock(let lang):
                 let cls = lang.map { " class=\"language-\(MarkdownHTML.escape($0))\"" } ?? ""
                 out += "<pre><code\(cls)>"; open.append((b, "</code></pre>"))
-            case .blockQuote:
-                out += "<blockquote>"; open.append((b, "</blockquote>"))
-            case .thematicBreak:
-                out += "<hr>"; open.append((b, ""))
+            case .blockQuote: out += "<blockquote>"; open.append((b, "</blockquote>"))
+            case .thematicBreak: out += "<hr>"; open.append((b, ""))
             case .table(let cols):
                 columns = cols
                 out += "<table>"; open.append((b, "</table>"))
             case .tableHeaderRow:
                 nextCell = 0
                 out += "<thead><tr>"; open.append((b, "</tr></thead>"))
-            case .tableRow:
-                nextCell = 0
-                out += "<tr>"; open.append((b, "</tr>"))
+            case .tableRow: nextCell = 0; out += "<tr>"; open.append((b, "</tr>"))
             case .tableCell(let column):
                 let header = open.last.map { if case .tableHeaderRow = $0.intent.kind { return true }; return false } ?? false
                 let tag = header ? "th" : "td"
                 while nextCell < column { out += "<\(tag)></\(tag)>"; nextCell += 1 }
                 nextCell = column + 1
                 out += "<\(tag)\(align(column))>"; open.append((b, "</\(tag)>"))
-            default:
-                out += "<div>"; open.append((b, "</div>"))
+            default: out += "<div>"; open.append((b, "</div>"))
             }
         }
 
@@ -290,11 +291,8 @@ enum MarkdownHTML {
     pre{background:var(--code-bg);padding:12px 16px;border-radius:6px;overflow:auto}pre code{padding:0;background:none}
     blockquote{margin:0 0 1em;padding:0 1em;color:var(--muted);border-left:4px solid var(--border)}
     .callout{color:var(--fg);border-left-color:var(--note)}.callout-title{font-weight:600;color:var(--note)}
-    .callout-tip{border-left-color:var(--tip)}.callout-tip .callout-title{color:var(--tip)}
-    .callout-important{border-left-color:var(--important)}.callout-important .callout-title{color:var(--important)}
-    .callout-warning{border-left-color:var(--warning)}.callout-warning .callout-title{color:var(--warning)}
-    .callout-caution{border-left-color:var(--caution)}.callout-caution .callout-title{color:var(--caution)}
-    table{border-collapse:collapse;margin:0 0 1em}th,td{border:1px solid var(--border);padding:6px 13px}
-    img{max-width:100%}li>p{margin:0}hr{border:0;border-top:1px solid var(--border)}
+    .callout-tip{border-left-color:var(--tip)}.callout-tip .callout-title{color:var(--tip)}.callout-important{border-left-color:var(--important)}.callout-important .callout-title{color:var(--important)}
+    .callout-warning{border-left-color:var(--warning)}.callout-warning .callout-title{color:var(--warning)}.callout-caution{border-left-color:var(--caution)}.callout-caution .callout-title{color:var(--caution)}
+    table{border-collapse:collapse;margin:0 0 1em}th,td{border:1px solid var(--border);padding:6px 13px}img{max-width:100%}li>p{margin:0}hr{border:0;border-top:1px solid var(--border)}
     """
 }

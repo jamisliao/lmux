@@ -14,6 +14,7 @@ extension PreviewWebKitCheck {
     // @scenario: 在預覽裡用觸控板兩指往右滑，回到上一頁
     // @scenario: 點網址連結，照終端機裡點連結的規則處理
     // @scenario: 檔案內容改變後，預覽自動更新
+    // @scenario: 以「寫暫存檔再改名」方式存檔，預覽也會更新
     // @scenario: 預覽中的檔案被刪除
     @MainActor static func viewChecks(_ root: URL) async {
         let a = root.appendingPathComponent("docs/a.md")
@@ -209,6 +210,10 @@ extension PreviewWebKitCheck {
         try? await Task.sleep(for: .milliseconds(300))
         try? "# 版本二\n".write(to: w, atomically: true, encoding: .utf8)
         check("檔案改寫後自動顯示新內容", await waitH1(v.webView, "版本二"))
+        let wTmp = w.deletingLastPathComponent().appendingPathComponent(".live-swap.md.tmp")
+        try? "# 版本二B\n".write(to: wTmp, atomically: false, encoding: .utf8)
+        _ = try? FileManager.default.replaceItemAt(w, withItemAt: wTmp)
+        check("以「寫暫存檔再改名」方式存檔時預覽自動更新", await waitH1(v.webView, "版本二B"))
         try? FileManager.default.removeItem(at: w)
         check("檔案被刪除後顯示「檔案已不存在」與完整路徑",
               await waitBody(v.webView, contains: "檔案已不存在", also: w.path))

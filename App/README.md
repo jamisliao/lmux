@@ -14,13 +14,14 @@ checkout doesn't have. `scripts/bootstrap.sh` clones Ghostty at the commit in `G
 scripts/bootstrap.sh             # once: vendor/ghostty at GHOSTTY_COMMIT, Zig, GhosttyKit.xcframework
 App/scripts/bundle.sh            # release build -> App/build/lmux.app (+ bin/lmux, bin/lmux-hook, icon)
 open App/build/lmux.app          # run it
-App/scripts/apptest.sh           # app harness, headless: workspaces, splits, focus, hooks, CLI, persistence,
+App/scripts/apptest.sh           # app harness, headless: workspaces, splits, focus, hooks, CLI, persistence, previews,
                                  #   + a fresh process with a 50MB transcript (memory budget) and key->pty latency
                                  #   + --compat: real programs off the happy path (wide text, 2M lines, binary garbage,
                                  #   title/bell/OSC storms, kitty keys, mouse, 10MB paste, resize storms, vim/less/top,
                                  #   malformed hooks, corrupted layout.json / settings.plist)
-App/scripts/apptest.sh --quick   # main pass only (~1 min); scripts/install-git-hooks.sh (opt-in) runs it
+App/scripts/apptest.sh --quick   # main pass only (incl. preview checks); scripts/install-git-hooks.sh (opt-in) runs it
                                  #   + Core swift test before every git push
+App/scripts/apptest.sh --preview # Markdown/HTML preview suite alone (preview-check, WKWebView checks, preview UI)
 App/scripts/apptest.sh --screenshots DIR   # + DIR/p1-*.png, DIR/p2-*.png, dark and light (offscreen render)
 App/scripts/apptest.sh --real-window [DIR] # CI ONLY (refuses unless GITHUB_ACTIONS=true): VISIBLE window driven by real
                                  #   CGEvents: window drag, traffic lights, titlebar buttons, divider/sidebar/window

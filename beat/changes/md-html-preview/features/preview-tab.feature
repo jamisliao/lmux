@@ -29,7 +29,7 @@
 
   @e2e @happy-path
   # @covered-by: App/scripts/preview-check.swift
-  # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
   # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: Markdown 顯示成排版後的樣子
     假設 "design.md" 含有標題、清單、表格、程式碼區塊與引用
@@ -59,7 +59,8 @@
 
   @behavior @edge-case
   # @covered-by: App/scripts/preview-check.swift
-  # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/scripts/preview-webkit-check-security.swift
   場景: Markdown 裡的 HTML 標籤顯示成文字，不執行
     假設 Markdown 有一段文字 "前文 <script>alert(1)</script> 後文"
     當 這份 Markdown 在 **預覽 tab** 顯示
@@ -68,6 +69,7 @@
 
   @e2e @edge-case
   # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: Markdown 用相對路徑引用的圖片顯示出來
     假設 "docs/design.md" 引用了 "img/flow.png"
     而且 "docs/img/flow.png" 存在
@@ -85,21 +87,24 @@
   # --- HTML 渲染 ---
 
   @e2e @happy-path
-  # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: HTML 從網路載入的 script 正常執行
     假設 "report.html" 從 CDN 載入一個 JS 函式庫
     當 使用者用 **預覽 tab** 開啟它
     那麼 這個函式庫載入成功，頁面上依賴它的內容顯示出來
 
   @e2e @happy-path
-  # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: HTML 讀得到同資料夾的 CSS 與圖片
     假設 "site/index.html" 引用了 "site/style.css" 與 "site/logo.png"
     當 使用者用 **預覽 tab** 開啟 "site/index.html"
     那麼 頁面套用了 "style.css" 的樣式，也顯示 "logo.png"
 
   @e2e @edge-case
-  # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 重新開啟預覽時，不保留上一次的 cookie 與 storage
     假設 一個 **預覽 tab** 開啟的 HTML 在 localStorage 存了一筆資料
     而且 使用者關掉這個預覽 tab
@@ -110,6 +115,8 @@
 
   @e2e @happy-path
   # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 檔案內容改變後，預覽自動更新
     假設 一個 **預覽 tab** 正在顯示 "design.md"
     當 另一個程式改寫了 "design.md" 的內容
@@ -117,6 +124,8 @@
 
   @e2e @edge-case
   # @covered-by: App/scripts/preview-webkit-check.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/Sources/lmux-apptest/Preview.swift
   場景: 以「寫暫存檔再改名」方式存檔，預覽也會更新
     假設 一個 **預覽 tab** 正在顯示 "design.md"
     當 另一個程式把新內容寫到暫存檔，再改名蓋掉 "design.md"
@@ -125,7 +134,8 @@
 
   @e2e @error-handling
   # @covered-by: App/scripts/preview-webkit-check.swift
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 預覽中的檔案被刪除
     假設 一個 **預覽 tab** 正在顯示 "design.md"
     當 "design.md" 被刪除
@@ -135,8 +145,8 @@
   # --- 預覽裡的連結 ---
 
   @e2e @happy-path
-  # @covered-by: App/scripts/preview-webkit-check.swift
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 點相對路徑的 .md 連結，在同一個預覽 tab 換頁
     假設 一個 **預覽 tab** 正在顯示 "docs/a.md"，裡面有連到 "b.md" 的連結
     而且 "docs/b.md" 存在
@@ -145,16 +155,17 @@
     而且 沒有開出新的 **tab**
 
   @e2e @happy-path
-  # @covered-by: App/scripts/preview-webkit-check.swift
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 在預覽裡用觸控板兩指往右滑，回到上一頁
     假設 一個 **預覽 tab** 從 "docs/a.md" 點連結換到了 "docs/b.md"
     當 使用者在預覽上用觸控板兩指往右滑
     那麼 預覽 tab 回到 "docs/a.md"，tab 標題改回 "a.md"
 
   @e2e @happy-path
-  # @covered-by: App/scripts/preview-webkit-check.swift
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/scripts/preview-webkit-check-security.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 點網址連結，照終端機裡點連結的規則處理
     假設 一個 **預覽 tab** 正在顯示的頁面有連到 "https://example.com" 的連結
     當 使用者點這個連結
@@ -171,14 +182,14 @@
     那麼 這個預覽 tab 的標題是 "design.md"
 
   @e2e @happy-path
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewPersistence.swift
   場景: 預覽 tab 可以像終端機 tab 一樣移動與分割
     假設 一個 **workspace** 有 **終端機 tab** A 與 **預覽 tab** P
     當 使用者把 P 拖到 A 的右側分割
     那麼 A 與 P 左右並排，P 仍然顯示原本的檔案
 
   @e2e @happy-path
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewPersistence.swift
   場景: 關閉預覽 tab 後，相鄰 tab 成為 focused tab
     假設 一個 **workspace** 有 **終端機 tab** A 與 **預覽 tab** P 左右並排
     而且 P 是 **focused tab**
@@ -186,7 +197,7 @@
     那麼 P 消失，A 成為 **focused tab**
 
   @e2e @edge-case
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewPersistence.swift
   場景: 在預覽 tab 上開新 tab，新的終端機從檔案所在資料夾開始
     假設「新 tab 沿用目前目錄」的設定為開啟
     而且 **預覽 tab** P 顯示 "/Users/me/repo/docs/design.md"，P 是 **focused tab**
@@ -210,6 +221,7 @@
 
   @e2e @edge-case
   # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 預覽 tab 上停用只對終端機有意義的功能
     假設 **預覽 tab** P 是 **focused tab**
     當 使用者打開選單列
@@ -219,7 +231,7 @@
     而且 預覽上沒有 Rewind 按鈕
 
   @e2e @error-handling
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: CLI 指定預覽 tab 時回傳錯誤
     假設 **預覽 tab** P 存在
     當 使用者執行 "lmux send"，目標是 P
@@ -227,7 +239,7 @@
     而且 "lmux list" 的結果不列出 P
 
   @e2e @edge-case
-  # @covered-by: App/Sources/lmux-apptest/Preview.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewPersistence.swift
   場景: 重開 lmux 不還原預覽 tab
     假設 **workspace** W1 有 **終端機 tab** A 與 **預覽 tab** P
     而且 **workspace** W2 只有 **預覽 tab**

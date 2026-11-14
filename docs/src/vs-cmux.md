@@ -42,7 +42,7 @@ cmux does a lot that lmux leaves out on purpose. If you need any of this, use cm
 - **The command palette and sidebar extras.** cmux has a command palette, and its sidebar shows ports, pull requests, logs and progress. It also has a right sidebar for files, pane flash and a custom sidebar tint.
 - **Knobs.** cmux has about two hundred settings. lmux has about ten.
 
-lmux isn't planning to add any of these. A browser engine or a remote daemon alone would make it a much bigger app.
+lmux isn't planning to add any of these (it only embeds macOS `WKWebView` for opt-in local `.md` / `.html` preview tabs). A general in-app browser or a remote daemon alone would make it a much bigger app.
 
 ## Moving over
 

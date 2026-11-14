@@ -61,11 +61,11 @@ func validatedPasteTarget(from start: NSResponder?) -> NSResponder? {
 }
 
 @MainActor
-func waitBodyContains(_ web: WKWebView, _ needle: String, timeout: Double = 5) async -> Bool {
+func waitPreviewJS(_ web: WKWebView?, _ expr: String, timeout: Double = 5) async -> Bool {
+    guard let web else { return false }
     let end = Date().addingTimeInterval(timeout)
     while Date() < end {
-        if let text = try? await web.evaluateJavaScript("document.body && document.body.innerText") as? String,
-           text.contains(needle) { return true }
+        if (try? await web.evaluateJavaScript(expr) as? Bool) == true { return true }
         await sleepMs(50)
     }
     return false
@@ -80,8 +80,10 @@ func runPreview() async -> Int32 {
     // 測試用的檔案：<LMUX_STATE_DIR>/preview-fixtures/docs/{design.md, b.md, notes.txt}
     let root = URL(fileURLWithPath: env["LMUX_STATE_DIR"]!).appendingPathComponent("preview-fixtures", isDirectory: true)
     let docs = root.appendingPathComponent("docs", isDirectory: true)
-    try? FileManager.default.createDirectory(at: docs, withIntermediateDirectories: true)
-    try? "# Design\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n[b](b.md) [ext](https://example.com/y)\n"
+    try? FileManager.default.createDirectory(at: docs.appendingPathComponent("img"), withIntermediateDirectories: true)
+    let pngData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")!
+    try? pngData.write(to: docs.appendingPathComponent("img/dot.png"))
+    try? "# Design\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n![dot](img/dot.png)\n\n[b](b.md) [ext](https://example.com/y)\n"
         .write(to: docs.appendingPathComponent("design.md"), atomically: true, encoding: .utf8)
     try? "# B\n".write(to: docs.appendingPathComponent("b.md"), atomically: true, encoding: .utf8)
     try? "notes\n".write(to: docs.appendingPathComponent("notes.txt"), atomically: true, encoding: .utf8)
@@ -94,6 +96,7 @@ func runPreview() async -> Int32 {
     // @feature: preview-tab.feature
     // @scenario: 預覽 tab 的標題是檔名
     // @scenario: Markdown 顯示成排版後的樣子
+    // @scenario: Markdown 用相對路徑引用的圖片顯示出來
     do {
         r.section = "preview-tab"
         let ws = c.newWorkspace(cwd: root.path)
@@ -119,7 +122,12 @@ func runPreview() async -> Int32 {
             r.check("清除自訂標題後回復檔名", p.headerTitle == "design.md", p.headerTitle)
             let loaded = await waitFor(5) { p.preview?.webView.isLoading == false && p.preview?.webView.url != nil }
             let h1 = try? await p.preview?.webView.evaluateJavaScript("document.querySelector('h1').textContent")
+            let imgOK = await waitPreviewJS(
+                p.preview?.webView,
+                "Boolean(document.querySelector('img')) && document.querySelector('img').complete && document.querySelector('img').naturalWidth === 1"
+            )
             r.check("預覽 tab 顯示排版後的 Markdown", loaded && (h1 as? String) == "Design", "\(String(describing: h1))")
+            r.check("Markdown 相對路徑圖片在預覽 tab 中顯示", imgOK)
         }
     }
 
@@ -224,7 +232,69 @@ func runPreview() async -> Int32 {
         c.setAppearance(.system)
     }
 
+    // @feature: preview-tab.feature
+    // @scenario: HTML 從網路載入的 script 正常執行
+    // @scenario: HTML 讀得到同資料夾的 CSS 與圖片
+    // @scenario: 重新開啟預覽時，不保留上一次的 cookie 與 storage
+    // @scenario: 檔案內容改變後，預覽自動更新
+    // @scenario: 以「寫暫存檔再改名」方式存檔，預覽也會更新
+    do {
+        r.section = "preview-render-e2e"
+        let siteDir = root.appendingPathComponent("site-e2e", isDirectory: true)
+        try? FileManager.default.createDirectory(at: siteDir, withIntermediateDirectories: true)
+        try? pngData.write(to: siteDir.appendingPathComponent("logo.png"))
+        try? "body{background:rgb(4,5,6)}".write(to: siteDir.appendingPathComponent("site.css"), atomically: true, encoding: .utf8)
+        let srv = startLoopbackScriptServer()
+        defer { srv.stop() }
+        let pageHTML = siteDir.appendingPathComponent("report.html")
+        let htmlSrc = """
+        <html><head><link rel="stylesheet" href="site.css"><script src="http://127.0.0.1:\(srv.port)/lib.js"></script></head>
+        <body><h1>V1</h1><img src="logo.png"><script>window.seenPrev=localStorage.getItem('k');localStorage.setItem('k','kept');</script></body></html>
+        """
+        try? htmlSrc.write(to: pageHTML, atomically: true, encoding: .utf8)
+        let (_, _, p1) = previewSetup(c, dir: siteDir, file: pageHTML)
+        let htmlReady = await waitPreviewJS(
+            p1.preview?.webView,
+            "window.remoteRan === true && getComputedStyle(document.body).backgroundColor === 'rgb(4, 5, 6)' && document.querySelector('img')?.naturalWidth === 1"
+        )
+        r.check("E2E HTML 載入同資料夾 CSS／圖片與網路 script", htmlReady)
+        await sleepMs(250)
+        try? htmlSrc.replacingOccurrences(of: "V1", with: "V2").write(to: pageHTML, atomically: true, encoding: .utf8)
+        r.check("E2E 檔案改寫後預覽 tab 自動更新",
+                await waitPreviewJS(p1.preview?.webView, "Boolean(document.body?.innerText.includes('V2'))"))
+        let swapURL = siteDir.appendingPathComponent(".swap.html.tmp")
+        try? htmlSrc.replacingOccurrences(of: "V1", with: "V3").write(to: swapURL, atomically: false, encoding: .utf8)
+        _ = try? FileManager.default.replaceItemAt(pageHTML, withItemAt: swapURL)
+        r.check("E2E 寫暫存檔再改名時預覽 tab 自動更新",
+                await waitPreviewJS(p1.preview?.webView, "Boolean(document.body?.innerText.includes('V3'))"))
+        c.closePane(p1)
+        let (_, _, p2) = previewSetup(c, dir: siteDir, file: pageHTML)
+        let isolated = await waitPreviewJS(p2.preview?.webView, "window.seenPrev === null")
+        r.check("E2E 關閉後重開 HTML 不保留上一次的 storage", isolated)
+        c.closePane(p2)
+    }
+
     await runPreviewInteractionChecks(r, c, fixtures, external: external)
     await runPreviewPersistenceChecks(r, c, fixtures)
     return finish(r, c)
+}
+
+private func startLoopbackScriptServer() -> (port: UInt16, stop: () -> Void) {
+    let fd = Darwin.socket(AF_INET, SOCK_STREAM, 0)
+    var yes: Int32 = 1; setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, socklen_t(MemoryLayout<Int32>.size))
+    var addr = sockaddr_in(sin_len: UInt8(MemoryLayout<sockaddr_in>.size), sin_family: sa_family_t(AF_INET), sin_port: 0, sin_addr: in_addr(s_addr: inet_addr("127.0.0.1")), sin_zero: (0, 0, 0, 0, 0, 0, 0, 0))
+    _ = withUnsafePointer(to: &addr) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size)) } }
+    _ = Darwin.listen(fd, 8)
+    var bound = sockaddr_in(); var len = socklen_t(MemoryLayout<sockaddr_in>.size)
+    _ = withUnsafeMutablePointer(to: &bound) { $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &len) } }
+    DispatchQueue.global().async {
+        let body = Data("window.remoteRan = true;\n".utf8)
+        let payload = Data("HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\nContent-Length: \(body.count)\r\nConnection: close\r\n\r\n".utf8) + body
+        while case let conn = Darwin.accept(fd, nil, nil), conn >= 0 {
+            var buf = [UInt8](repeating: 0, count: 512); _ = Darwin.read(conn, &buf, buf.count)
+            payload.withUnsafeBytes { if let p = $0.baseAddress { _ = Darwin.write(conn, p, payload.count) } }
+            Darwin.close(conn)
+        }
+    }
+    return (UInt16(bigEndian: bound.sin_port), { Darwin.close(fd) })
 }

@@ -20,8 +20,8 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
    var preview: PreviewView? { if case .preview(let p) = content { return p }; return nil }
    ```
    - 現有的 `init(id:surface:)`（`Model.swift:226`）保留，另加 `init(id:preview:)`。
-2. LmuxUI 18 個檔案、101 處 `.surface`：逐一判斷 surface 為 nil 時該怎麼做。結果有三種：跳過；回傳「不是終端機」（`lmux send` 的 `SendResult.notTerminal`）；或把「沒有程式」當成前景 process group 0（`Pane.foregroundPID`，呼叫端本來就檢查 `> 0`，見 `MessageActions.swift:183`）。
-3. 測試 26 個檔案、289 處：機械式改成 `surface!`。測試只建立終端機 tab，`!` 不會失敗。
+2. `LmuxUI` 修改 22 個既有檔案：逐一判斷 `surface` 為 nil 時該怎麼做與整合預覽行為。結果有三種：跳過；回傳「不是終端機」（`lmux send` 的 `SendResult.notTerminal`）；或把「沒有程式」當成前景 process group 0（`Pane.foregroundPID`，呼叫端本來就檢查 `> 0`，見 `MessageActions.swift:157-158, 827-828`）。
+3. 測試 `App/Sources/lmux-apptest/` 修改 26 個上游檔案（25 個檔案共 262 處機械式改成 `surface!` + `main.swift` 接入 `--preview`；`lmux-imetest` 0 個檔案）。測試只建立終端機 tab，`!` 不會失敗。
 4. 這一段不新增任何預覽功能，`.preview` 還沒有地方建立。
 
 **檢查點**：`swift build` 成功，`App/scripts/apptest.sh --quick` 全部通過。沒過不往下做。
@@ -142,9 +142,9 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
 
 | 檔案 | 類型 | 改動 |
 |---|---|---|
-| `App/Sources/LmuxUI/Model.swift` | lmux 原始檔 | A：`Pane.Content`、`surface` 改 optional、`init(id:preview:)` |
-| LmuxUI 其他 17 個用到 `.surface` 的檔案 | lmux 原始檔 | A：處理 surface 是 nil（Controller、MessageActions、Rewind、Search、Agent、Tabs、PaneViews、Scrollback、CmuxImport、RootView、Menu、Snapshot、Persistence、HooksHint、CodexSetup、Attention、Appearance） |
-| `App/Sources/lmux-apptest/`、`App/Sources/lmux-imetest/` 共 26 個檔案 | lmux 測試 | A：`surface` → `surface!` |
+| `App/Sources/LmuxUI/Model.swift` | lmux 原始檔 | A：`Pane.Content`、`surface` 改 optional、`init(id:preview:)`、`foregroundPID` 預設 `0` |
+| `App/Sources/LmuxUI/` 其餘 21 個修改檔 | lmux 原始檔 | A / C：處理 `surface == nil` 與預覽整合（`Agent`、`Appearance`、`Attention`、`CmuxImport`、`CodexSetup`、`Controller`、`ControlServer`、`HooksHint`、`Menu`、`MessageActions`、`Overlays`、`PaneViews`、`Persistence`、`Rewind`、`RootView`、`Scrollback`、`Search`、`SidebarSelection`、`Snapshot`、`Tabs`、`Titles`） |
+| `App/Sources/lmux-apptest/` 26 個修改檔 | lmux 測試 | A：`pane.surface` → `.surface!`（25 個檔案）與 `main.swift`（`--preview`） |
 | `App/Sources/LmuxUI/PaneViews.swift` | lmux 原始檔 | A：`PaneView` 依內容放 surface 或 `PreviewView`；C.2.6 預覽不放 scroller |
 | `App/Sources/LmuxUI/Tabs.swift` | lmux 原始檔 | C.2：`newPreviewTab` |
 | `App/Sources/LmuxUI/Controller.swift` | lmux 原始檔 | C.1：`handleGhosttyAction` 的 OPEN_URL；C.2：`makePreviewPane`、`focusCurrent`、`ensureFocus` |
@@ -152,7 +152,9 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
 | `App/Sources/LmuxUI/ControlServer.swift` | lmux 原始檔 | C.2.7：`list`、`send` |
 | `App/Sources/LmuxUI/Persistence.swift` | lmux 原始檔 | C.2.8：略過預覽 tab |
 | `App/Sources/LmuxUI/Titles.swift` | lmux 原始檔 | C.2：`promptRenamePane` 預覽 tab 提示字樣（改用檔名而非 agent 標題） |
-| `README.md`、`App/README.md`、`docs/architecture.md` | 文件 | 同步更新原先「無 WebKit／無網路連線」描述為選用預覽 tab 的隔離說明 |
+| `App/Sources/LmuxUI/Overlays.swift`、`Menu.swift`、`MessageActions.swift` | lmux 原始檔 | C.2：預覽 pane 的確認／通知覆蓋層、選單驗證與前景程序檢查 |
+| `README.md`、`App/README.md`、`docs/` | 文件 | 同步更新原先「無 WebKit／無網路／純終端機 tab」描述為選用預覽 tab 的隔離說明 |
+| `docs/adr/0001-pane-surface-optional.md` | ADR | 記錄 `Pane.surface` 改 optional 的建築決策與受影響檔案範圍 |
 | `App/Sources/LmuxUI/PreviewTarget.swift` | 新檔 | C.1.2：路徑正規化與判斷 |
 | `App/Sources/LmuxUI/MarkdownHTML.swift` | 新檔 | C.3.3：Markdown 轉 HTML |
 | `App/Sources/LmuxUI/PreviewScheme.swift` | 新檔 | C.3.2：`lmux-preview` scheme handler |
@@ -161,8 +163,9 @@ C.3 新檔（還沒接進 app，用單獨編譯的檢查腳本驗證）
 | `App/Sources/LmuxUI/PreviewViewNavigation.swift` | 新檔 | C.3：預覽導覽與安全邊界規則（從 `PreviewView.swift` 拆出） |
 | `App/Sources/LmuxUI/OpenMenu.swift` | 新檔 | C.1：`openTerminalLink`、開啟選單 |
 | `App/scripts/preview-check.swift` | 新檔（腳本） | `PreviewTarget` 與 `MarkdownHTML` 的自我檢查，比照 `message-text-check.swift` 用 `swiftc` 單獨編譯執行 |
-| `App/scripts/preview-webkit-check.swift` | 新檔（腳本） | scheme、FSEvents、`PreviewView` 在真的 WKWebView 裡的自我檢查 |
-| `App/Sources/lmux-apptest/Preview.swift` | 新檔（測試） | `@e2e` 場景（`lmux-apptest --preview`） |
+| `App/scripts/preview-webkit-check*.swift` | 新檔（4 個腳本） | `preview-webkit-check.swift` 與拆出的 `-view`、`-security`、`-regressions` 腳本，在真的 `WKWebView` 驗證渲染、沙盒與迴歸案例 |
+| `App/Sources/lmux-apptest/Preview*.swift` | 新檔（3 個測試） | `Preview.swift`、`PreviewInteractions.swift`、`PreviewPersistence.swift`（`--preview` 全套 `@e2e` 場景） |
+| `App/scripts/apptest.sh` | lmux 腳本 | 整合預覽檢查與 `--preview` 模式 |
 | `beat/changes/md-html-preview/dev.sh` | 新檔（開發用） | build、檢查、apptest 的固定指令（先 unset `LMUX_*`） |
 
 `App/Sources/LmuxTerminal/GhosttyRuntime.swift` 不改（見 C.1.1）。
