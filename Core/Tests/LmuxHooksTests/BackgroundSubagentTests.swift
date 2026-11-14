@@ -125,7 +125,8 @@ import Testing
         #expect(a.activeSubagents.count == PaneAgent.subagentCap)
     }
 
-    /// 場景: 一個背景 subagent 回報後，其他還在執行的仍計入
+    // @feature: background-subagent-count.feature
+    // @scenario: 一個背景 subagent 回報後，其他還在執行的仍計入
     @Test func oneReportingBackKeepsTheOthersCounted() throws {
         var a = PaneAgent()
         let t = try run([Payloads.prompt, start("a"), start("b"), mainStop(subagents: ["a", "b"]),
@@ -135,14 +136,16 @@ import Testing
         #expect(!a.awaitingBackgroundSubagents)  // the main agent works again: the pause is over
     }
 
-    /// 場景: 背景 subagent 執行期間送出新 prompt，計數保留
+    // @feature: background-subagent-count.feature
+    // @scenario: 背景 subagent 執行期間送出新 prompt，計數保留
     @Test func aNewPromptWhilePausedKeepsTheCount() throws {
         var a = PaneAgent()
         _ = try run([Payloads.prompt, start("a"), mainStop(subagents: ["a"]), Payloads.prompt], agent: &a)
         #expect(a.state == .running && a.activeSubagents == ["a"])
     }
 
-    /// 場景: 漏收背景 subagent 做完的事件，下一次結束一輪時校正
+    // @feature: background-subagent-count.feature
+    // @scenario: 漏收背景 subagent 做完的事件，下一次結束一輪時校正
     @Test func theNextStopCorrectsAMissedSubagentStop() throws {
         var a = PaneAgent()
         _ = try run([Payloads.prompt, start("a"), start("b"), mainStop(subagents: ["a", "b"]),
@@ -152,7 +155,8 @@ import Testing
         #expect(t[0].to == .running && t[0].notify == nil && a.activeSubagents == ["b"])
     }
 
-    /// 場景: 暫停中收到閒置提醒，row 變成 Done
+    // @feature: background-subagent-count.feature
+    // @scenario: 暫停中收到閒置提醒，row 變成 Done
     @Test func idlePromptWhilePausedEndsAsDone() throws {
         var a = PaneAgent()
         let t = try run([Payloads.prompt, start("a"), mainStop(subagents: ["a"]), Payloads.notifIdle], agent: &a)
@@ -163,7 +167,8 @@ import Testing
         #expect(a.activeSubagents.isEmpty)
     }
 
-    /// 場景: 從 Done 開始新的一輪時，清掉上一輪殘留的計數
+    // @feature: background-subagent-count.feature
+    // @scenario: 從 Done 開始新的一輪時，清掉上一輪殘留的計數
     @Test func aNewTurnAfterDoneDropsLeftovers() throws {
         var a = PaneAgent()
         // idle_prompt recovers a missed Stop as done but leaves x counted.
@@ -173,7 +178,8 @@ import Testing
         #expect(a.state == .running && a.activeSubagents.isEmpty)
     }
 
-    /// 場景: 主 agent 結束一輪時，背景 subagent 的權限對話框還沒回答，row 維持需要輸入
+    // @feature: background-subagent-count.feature
+    // @scenario: 主 agent 結束一輪時，背景 subagent 的權限對話框還沒回答，row 維持需要輸入
     @Test func aDialogStillUpWhenTheTurnPausesStays() throws {
         var a = PaneAgent()
         let t = try run([Payloads.prompt, start("a"), ask("a"), mainStop(subagents: ["a"])], agent: &a)
@@ -183,7 +189,8 @@ import Testing
         #expect(try run([toolDone("a")], agent: &a)[0].to == .running)
     }
 
-    /// 場景: 暫停中回答背景 subagent 的權限對話框，row 回到執行中
+    // @feature: background-subagent-count.feature
+    // @scenario: 暫停中回答背景 subagent 的權限對話框，row 回到執行中
     @Test func answeringASubagentDialogWhilePausedRuns() throws {
         var a = PaneAgent()
         _ = try run([Payloads.prompt, start("a"), mainStop(subagents: ["a"]), ask("a")], agent: &a)
@@ -196,7 +203,8 @@ import Testing
         #expect(b.userTyped().to == .idle)
     }
 
-    /// 場景: 暫停中按 Esc 或 Ctrl+C，row 維持執行中
+    // @feature: background-subagent-count.feature
+    // @scenario: 暫停中按 Esc 或 Ctrl+C，row 維持執行中
     @Test func escWhilePausedKeepsRunning() throws {
         var a = PaneAgent()
         _ = try run([Payloads.prompt, start("a"), mainStop(subagents: ["a"])], agent: &a)
@@ -205,7 +213,8 @@ import Testing
         #expect(a.activeSubagents == ["a"] && a.awaitingBackgroundSubagents)
     }
 
-    /// 場景: 主 agent 處理背景 subagent 的回報時，按 Esc 仍能中斷
+    // @feature: background-subagent-count.feature
+    // @scenario: 主 agent 處理背景 subagent 的回報時，按 Esc 仍能中斷
     @Test func escInTheWokenTurnStillInterrupts() throws {
         var a = PaneAgent()
         _ = try run([Payloads.prompt, start("a"), start("b"), mainStop(subagents: ["a", "b"]),
