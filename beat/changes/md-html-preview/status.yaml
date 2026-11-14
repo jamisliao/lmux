@@ -1,6 +1,6 @@
 name: md-html-preview
 created: 2026-11-13
-phase: implement
+phase: verify
 pipeline:
   proposal: { status: done }
   gherkin: { status: done }
