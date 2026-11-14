@@ -2913,18 +2913,18 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 **Files:** 無（只驗證）
 
-- [ ] **Step 1: build**
+- [x] **Step 1: build**
 
 Run: `beat/changes/md-html-preview/dev.sh build`
 Expected: `BUILD EXIT: 0`。
 
-- [ ] **Step 2: 完整回歸（很久，見「跑很久的指令」）**
+- [x] **Step 2: 完整回歸（很久，見「跑很久的指令」）**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-full; beat/changes/md-html-preview/dev.sh new-failures full`
 Expected: `NEW FAILURES: 0` 與 `MISSING CHECKS: 0`。
 不是 0：先重跑一次 `apptest-full` 與 `new-failures full`，排除偶發失敗。還是不是 0：**停止**，回報列出的項目與 `${TMPDIR:-/tmp}/md-html-preview/full.log` 裡對應的行。重構不應該讓任何既有測試失敗或消失。
 
-- [ ] **Step 3: 兩個檢查腳本仍通過**
+- [x] **Step 3: 兩個檢查腳本仍通過**
 
 Run: `beat/changes/md-html-preview/dev.sh check && beat/changes/md-html-preview/dev.sh webkit | tail -1`
 Expected: `preview check: ok` 與 `WEBKIT CHECK: ok`。
@@ -2950,7 +2950,7 @@ Expected: `preview check: ok` 與 `WEBKIT CHECK: ok`。
   - apptest：`lmux-apptest --preview`、`func runPreview() async -> Int32`、`func previewSetup(_ c: LmuxController, dir: URL, file: URL) -> (ws: Workspace, a: Pane, p: Pane)`
   - `App/Sources/lmux-apptest/Preview.swift` 裡的插入點註解：`    // 新的檢查段落加在這一行上面（tasks.md 的 Task 21-28）`
 
-- [ ] **Step 1: 建立 `App/Sources/lmux-apptest/Preview.swift`（整份照抄）**
+- [x] **Step 1: 建立 `App/Sources/lmux-apptest/Preview.swift`（整份照抄）**
 
 ```swift
 import AppKit
@@ -3021,7 +3021,7 @@ func runPreview() async -> Int32 {
 }
 ```
 
-- [ ] **Step 2: main.swift 加上 `--preview`**
+- [x] **Step 2: main.swift 加上 `--preview`**
 
 在 `App/Sources/lmux-apptest/main.swift` 找到：
 
@@ -3039,7 +3039,7 @@ func runPreview() async -> Int32 {
                 code = await runParity()
 ```
 
-- [ ] **Step 3: apptest.sh 加上 `--preview`（兩處）**
+- [x] **Step 3: apptest.sh 加上 `--preview`（兩處）**
 
 找到：
 
@@ -3076,12 +3076,12 @@ LMUX_STATE_DIR="$T/preview" LMUX_PANE_COMMAND="$T/sink.sh" LMUX_IGNORE_GHOSTTY_C
   "$BIN/lmux-apptest" --preview 2>/dev/null | filter || status=1
 ```
 
-- [ ] **Step 4: 執行，確認失敗**
+- [x] **Step 4: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh build; grep -c "no member 'newPreviewTab'" "${TMPDIR:-/tmp}/md-html-preview/build.log"`
 Expected: 最後一行至少是 1（build 失敗，因為 `newPreviewTab` 還不存在）。
 
-- [ ] **Step 5: Controller.swift 加 `makePreviewPane`**
+- [x] **Step 5: Controller.swift 加 `makePreviewPane`**
 
 在 `App/Sources/LmuxUI/Controller.swift` 找到 `makePane` 的結尾：
 
@@ -3111,7 +3111,7 @@ Expected: 最後一行至少是 1（build 失敗，因為 `newPreviewTab` 還不
     }
 ```
 
-- [ ] **Step 6: Tabs.swift 加 `newPreviewTab`**
+- [x] **Step 6: Tabs.swift 加 `newPreviewTab`**
 
 在 `App/Sources/LmuxUI/Tabs.swift` 找到 `newTab` 的結尾：
 
@@ -3137,12 +3137,12 @@ Expected: 最後一行至少是 1（build 失敗，因為 `newPreviewTab` 還不
     }
 ```
 
-- [ ] **Step 7: 執行，確認通過**
+- [x] **Step 7: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh apptest-preview`
 Expected: 8 行 `PASS  [preview-tab]`、沒有 `FAIL`、`RESULT: PASS`、`APPTEST EXIT: 0`。
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Controller.swift App/Sources/LmuxUI/Tabs.swift App/Sources/lmux-apptest/Preview.swift App/Sources/lmux-apptest/main.swift App/scripts/apptest.sh

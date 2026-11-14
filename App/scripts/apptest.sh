@@ -106,6 +106,12 @@ if [ "${1:-}" = "--rewind" ]; then
   LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --rewind 2>/dev/null | filter || status=1
   exit $status
 fi
+if [ "${1:-}" = "--preview" ]; then
+  mkdir -p "$T/preview"
+  LMUX_STATE_DIR="$T/preview" LMUX_PANE_COMMAND="$T/sink.sh" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/preview/lmux-config" \
+    "$BIN/lmux-apptest" --preview 2>/dev/null | filter || status=1
+  exit $status
+fi
 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"
@@ -171,6 +177,10 @@ LMUX_STATE_DIR="$T/contrast" LMUX_CONTRAST_DIR="$APP_DIR/scripts/contrast" LMUX_
 # Ghostty parity: the scrollback's overlay scroller, link hover and ⌘-click (opening is captured).
 mkdir -p "$T/parity"
 LMUX_STATE_DIR="$T/parity" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --parity 2>/dev/null | filter || status=1
+# 預覽 tab 與 ⌘-click 的開啟選單（beat: md-html-preview）。不讀使用者的 Ghostty 設定（⌘T 沿用目錄的檢查）。
+mkdir -p "$T/preview"
+LMUX_STATE_DIR="$T/preview" LMUX_PANE_COMMAND="$T/sink.sh" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/preview/lmux-config" \
+  "$BIN/lmux-apptest" --preview 2>/dev/null | filter || status=1
 # A new user's first days: the README's shortcut table on a real (isolated) zsh, a keybind in the
 # "user's" Ghostty config (XDG_CONFIG_HOME on a temp dir), edge cases, cmux leftovers.
 mkdir -p "$T/newuser" "$T/xdg"

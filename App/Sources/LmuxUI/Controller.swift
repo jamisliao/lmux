@@ -566,6 +566,19 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         return pane
     }
 
+    /// 預覽 tab 的 Pane（beat: preview-tab.feature）：沒有終端機、不跑程式、沒有 LMUX_PANE_ID。
+    /// 目前目錄是檔案所在資料夾：在它上面開新 tab 或分割時，新的終端機從那裡開始。
+    func makePreviewPane(file: URL) -> Pane {
+        let preview = PreviewView(fileURL: file)
+        let pane = Pane(id: UUID().uuidString, preview: preview)
+        pane.title = file.lastPathComponent
+        let dir = file.deletingLastPathComponent().path
+        pane.cwd = dir
+        pane.branch = GitBranch.read(cwd: dir)
+        panesByID[pane.id] = pane
+        return pane
+    }
+
     /// Variables that describe the process lmux was launched FROM (a Claude Code session, cmux,
     /// another terminal or multiplexer) and would mislead programs in lmux's panes: a claude
     /// that sees CLAUDE_CODE_CHILD_SESSION turns transcript saving off (no message actions, History or

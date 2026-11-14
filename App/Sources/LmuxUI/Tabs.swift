@@ -32,6 +32,17 @@ extension LmuxController {
         return tab
     }
 
+    /// 開啟選單的「在新 tab 預覽」（beat: open-menu.feature）：`file` 的預覽 tab，插在 `pane` 的右邊
+    /// （與 ⌘T 同位置），並成為 focused tab。
+    @discardableResult
+    public func newPreviewTab(_ file: URL, after pane: Pane) -> Pane? {
+        guard let ws = pane.workspace, let leaf = ws.root.find(pane) else { return nil }
+        let tab = makePreviewPane(file: file)
+        let at = (leaf.tabs.firstIndex { $0 === pane } ?? leaf.tabs.count - 1) + 1
+        insert(tab, into: leaf, at: at, ws, select: true)
+        return tab
+    }
+
     /// Put `tab` (new, or moved from another pane) into `leaf` at `index` (kept on its side of the
     /// pinned tabs), shown and focused unless `select` is false.
     func insert(_ tab: Pane, into leaf: SplitNode, at index: Int, _ ws: Workspace, select: Bool) {
