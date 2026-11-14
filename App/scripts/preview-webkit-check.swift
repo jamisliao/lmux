@@ -74,6 +74,7 @@ enum PreviewWebKitCheck {
         Task { @MainActor in
             let root = makeFixtures()
             await schemeChecks(root)
+            await watcherChecks(root)
             try? FileManager.default.removeItem(at: root)
             print(failures == 0 ? "WEBKIT CHECK: ok" : "WEBKIT CHECK: FAILED (\(failures))")
             exit(failures == 0 ? 0 : 1)
@@ -122,5 +123,48 @@ enum PreviewWebKitCheck {
             try? await Task.sleep(for: .milliseconds(100))
         }
         check("不存在的 Markdown 顯示「檔案已不存在」", missing)
+    }
+
+    // MARK: - PreviewWatcher
+
+    // @feature: preview-tab.feature
+    // @scenario: 檔案內容改變後，預覽自動更新
+    // @scenario: 以「寫暫存檔再改名」方式存檔，預覽也會更新
+    // @scenario: 預覽中的檔案被刪除
+    @MainActor static func watcherChecks(_ root: URL) async {
+        let file = root.appendingPathComponent("docs/watched.md")
+        try? "# 0\n".write(to: file, atomically: false, encoding: .utf8)
+        var calls = 0
+        let watcher = PreviewWatcher(file: file) { calls += 1 }
+        defer { watcher.stop() }
+        try? await Task.sleep(for: .milliseconds(300))
+        // 直接改寫（不換檔）
+        var before = calls
+        if let fh = try? FileHandle(forWritingTo: file) {
+            fh.truncateFile(atOffset: 0)
+            fh.write(Data("# 1\n".utf8))
+            try? fh.close()
+        }
+        check("直接改寫檔案時通知", await wait { calls > before }, "calls=\(calls)")
+        // 寫暫存檔再改名蓋掉（replaceItemAt）
+        before = calls
+        let tmp = root.appendingPathComponent("docs/.watched.md.tmp")
+        try? "# 2\n".write(to: tmp, atomically: false, encoding: .utf8)
+        _ = try? FileManager.default.replaceItemAt(file, withItemAt: tmp)
+        check("寫暫存檔再改名蓋掉時通知", await wait { calls > before }, "calls=\(calls)")
+        // Foundation 的 atomically 寫入（同樣是暫存檔再改名），第二次也要收到
+        before = calls
+        try? "# 3\n".write(to: file, atomically: true, encoding: .utf8)
+        check("改名蓋掉之後再改，仍然通知", await wait { calls > before }, "calls=\(calls)")
+        // 刪除
+        before = calls
+        try? FileManager.default.removeItem(at: file)
+        check("檔案被刪除時通知", await wait { calls > before }, "calls=\(calls)")
+        // 同資料夾的其他檔案改變：不通知
+        try? await Task.sleep(for: .milliseconds(300))
+        before = calls
+        try? "x".write(to: root.appendingPathComponent("docs/other.md"), atomically: true, encoding: .utf8)
+        try? await Task.sleep(for: .milliseconds(800))
+        check("同資料夾的其他檔案改變時不通知", calls == before, "calls=\(calls) before=\(before)")
     }
 }

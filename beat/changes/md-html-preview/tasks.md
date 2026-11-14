@@ -1066,7 +1066,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
   - `func stop()`
   - `static func canonical(_ p: String) -> String`
 
-- [ ] **Step 1: 在檢查腳本加上監看的檢查**
+- [x] **Step 1: 在檢查腳本加上監看的檢查**
 
 在 `App/scripts/preview-webkit-check.swift` 找到：
 
@@ -1140,12 +1140,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 }
 ```
 
-- [ ] **Step 2: 執行，確認失敗**
+- [x] **Step 2: 執行，確認失敗**
 
 Run: `beat/changes/md-html-preview/dev.sh webkit`
 Expected: 編譯失敗，訊息含 `cannot find 'PreviewWatcher' in scope`。
 
-- [ ] **Step 3: 建立 `App/Sources/LmuxUI/PreviewWatcher.swift`（整份照抄）**
+- [x] **Step 3: 建立 `App/Sources/LmuxUI/PreviewWatcher.swift`（整份照抄）**
 
 ```swift
 import CoreServices
@@ -1200,17 +1200,17 @@ final class PreviewWatcher {
 }
 ```
 
-- [ ] **Step 4: 執行，確認通過**
+- [x] **Step 4: 執行，確認通過**
 
 Run: `beat/changes/md-html-preview/dev.sh webkit`
 Expected: 11 行 `PASS`（scheme 6 行、監看 5 行），最後一行 `WEBKIT CHECK: ok`。
 
-- [ ] **Step 5: 確認 app 仍能 build**
+- [x] **Step 5: 確認 app 仍能 build**
 
 Run: `beat/changes/md-html-preview/dev.sh build`
 Expected: `BUILD EXIT: 0`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/PreviewWatcher.swift App/scripts/preview-webkit-check.swift
