@@ -809,6 +809,7 @@ func runMain() async -> Int32 {
 
     // ------------------------------------------------- P2: message actions, guard, titles, History
     await runP2(r, c, w)
+    await forkChecks(r, c)
 
     // ------------------------------------------------------ hooks installer
     r.section = "hooks-setup"

@@ -55,6 +55,7 @@ extension LmuxController {
         add(file, "New Tab", #selector(menuNewTab(_:)), ghostty: "new_tab", fallback: ("t", .command))
         add(file, "Split Right", #selector(menuSplitRight(_:)), ghostty: "new_split:right", fallback: ("d", .command))
         add(file, "Split Down", #selector(menuSplitDown(_:)), ghostty: "new_split:down", fallback: ("d", [.command, .shift]))
+        add(file, "Fork Session", #selector(menuForkSession(_:)))
         file.addItem(.separator())
         closePaneMenuItem = add(file, "Close Pane", #selector(menuClosePane(_:)), ghostty: "close_surface", fallback: ("w", .command))
         add(file, "Close Other Tabs", #selector(menuCloseOtherTabs(_:)), fallback: ("t", [.command, .option]), id: "closeOtherTabs")
@@ -242,6 +243,7 @@ extension LmuxController {
     var focusedLeafHasTabs: Bool { focusedPane.flatMap { $0.workspace?.root.find($0) }?.hasTabs ?? false }
     @objc func menuSplitRight(_ s: Any?) { if let p = focusedPane { split(p, .right) } }
     @objc func menuSplitDown(_ s: Any?) { if let p = focusedPane { split(p, .down) } }
+    @objc func menuForkSession(_ s: Any?) { if let p = focusedPane { forkSession(p) } }
     @objc func menuClosePane(_ s: Any?) {
         if model.isMultiSelection { requestCloseWorkspaces(model.selectedWorkspaces) } else if let p = focusedPane { requestClosePane(p) }
     }

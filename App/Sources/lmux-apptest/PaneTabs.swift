@@ -273,7 +273,7 @@ func runPaneTabs() async -> Int32 {
     let m = c.tabMenu(for: a2)
     r.check("right-click menu: cmux's items in cmux's order", titles(m) == [
         "Rename Tab…", "Remove Custom Tab Name", "—", "Close Tab", "Close Tabs to Left", "Close Tabs to Right", "Close Other Tabs", "Move Tab",
-        "Move to Left Pane", "Move to Right Pane", "—", "New Terminal Tab to Right", "—", "Zoom Pane", "Pin Tab", "Mark Tab as Unread",
+        "Move to Left Pane", "Move to Right Pane", "—", "New Terminal Tab to Right", "Fork Session", "—", "Zoom Pane", "Pin Tab", "Mark Tab as Unread",
     ], titles(m).joined(separator: " | "))
     r.check("…what doesn't apply is disabled (no tab to its right, no pane to its left)",
             m.item(withTitle: "Close Tabs to Right")?.isEnabled == false && m.item(withTitle: "Move to Left Pane")?.isEnabled == false
