@@ -372,6 +372,59 @@ func runE2E() async -> Int32 {
     await escEsc(c, p)
     _ = await waitFor(3) { inputText(p) == "" }
 
+    // 12) × → Remove and Restore Files (#9): Claude Code's own "Restore code and conversation" on the
+    //     real binary; the file its Write tool made goes back (here: is gone again).
+    let note2 = (cwd as NSString).appendingPathComponent("note2.txt")
+    let n12 = await c.loadTurns(p).count
+    await submit(c, p, "WRITEFILE \(note2) now")
+    await waitReply(r, c, p, turn: n12 + 1, "a prompt that writes note2.txt answered", timeout: 60)
+    r.check("the Write tool wrote note2.txt", FileManager.default.fileExists(atPath: note2))
+    if await hoverRow(c, p, turn: n12 + 1) {
+        p.view.overlay.turnBar?.remove.performClick()
+        let alt = p.view.overlay.card?.alternate
+        r.check("× on a turn that edited files: the card offers Remove and Restore Files", alt != nil,
+                p.view.overlay.card?.detail.stringValue ?? "no card")
+        alt?.performClick()
+        r.check("Restore Files: done", await rewindFinished(p))
+        dump(p, "after Remove and Restore Files")
+        let n12after = await c.loadTurns(p).count
+        r.check("Restore Files: the turn is gone", n12after == n12, "\(n12after)")
+        r.check("Restore Files: note2.txt is back to before (gone)", !FileManager.default.fileExists(atPath: note2))
+        r.check("Restore Files: note.txt (an earlier, removed turn's file) untouched",
+                (try? String(contentsOfFile: note, encoding: .utf8)) == "written by the mock\n")
+        r.check("Restore Files: no failure note", !(p.view.overlay.toast?.text.string ?? "").contains("Can’t"),
+                p.view.overlay.toast?.text.string ?? "")
+        r.check("Restore Files: the same claude process", sameClaude())
+    } else {
+        r.check("hover over the note2 prompt", false)
+    }
+    await escEsc(c, p)
+    _ = await waitFor(3) { inputText(p) == "" }
+
+    // 13) Fork Session (#10): a new tab resumes a copy of this conversation under a new session id.
+    if let fork = c.forkSession(p) {
+        let forked = await waitFor(40) { fork.claudeSessionID != nil && inputText(fork) != nil }
+        r.check("Fork Session: claude starts in the new tab with its own session id",
+                forked && fork.claudeSessionID != p.claudeSessionID, "fork=\(fork.claudeSessionID ?? "nil") orig=\(p.claudeSessionID ?? "nil")")
+        if forked {
+            await submit(c, fork, "FORKPROBE what do you remember")
+            _ = await waitOnFile(fork.transcriptPath ?? "", timeout: 30) { (await c.loadTurns(fork)).last?.hasReply == true }
+            let req13 = apiRequest(with: "FORKPROBE what do you remember") ?? []
+            r.check("…the fork carries the conversation (Claude sends turn 1 from the original)",
+                    req13.contains { $0.contains("PINEAPPLE") },
+                    req13.isEmpty ? "no request; fork screen: " + rows(fork).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.suffix(12).joined(separator: " / ")
+                        : req13.joined(separator: " | "))
+            let origTurns = await c.loadTurns(p)
+            r.check("…the original pane keeps its own session and turns",
+                    p.claudeSessionID != fork.claudeSessionID && origTurns.first?.prompt == "remember PINEAPPLE"
+                    && !origTurns.contains { $0.prompt.contains("FORKPROBE") })
+            for _ in 0..<3 { fork.surface.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
+            _ = await waitFor(5) { fork.claudeSessionID == nil }
+        }
+    } else {
+        r.check("Fork Session on the e2e pane", false, "forkCommand nil: \(p.resumeCommand ?? "no resume command")")
+    }
+
     r.check("one claude process for the whole run", sameClaude())
     if env["LMUX_E2E_DUMP"] == "1" { for l in c.actionLog { print("      log: \(l)") } }
 

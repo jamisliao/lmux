@@ -1292,10 +1292,11 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     // App/scripts/claude-rewind-fake.py draws the rewind menu row for row like Claude Code 2.1.280 and
     // logs every key it reads and what was chosen; the transcript fixture holds the same prompts.
     let fakeScript = URL(fileURLWithPath: env["LMUX_SCRIPTS_DIR"] ?? "scripts").appendingPathComponent("claude-rewind-fake.py").path
-    func rewindPane(_ name: String, prompts: [String], menu: [String]? = nil, _ extra: [String: Any] = [:]) async
+    /// `tools`: each turn's tool calls (files Claude edited), in the transcript only.
+    func rewindPane(_ name: String, prompts: [String], menu: [String]? = nil, tools: [(String, String)] = [], _ extra: [String: Any] = [:]) async
         -> (pane: Pane, log: String, path: String) {
         let path = fx.appendingPathComponent("rw-\(name).jsonl").path
-        try? fixtureJSONL(session: "rw-\(name)", cwd: "/tmp", turns: prompts.map { FixtureTurn(prompt: $0, reply: "OK") })
+        try? fixtureJSONL(session: "rw-\(name)", cwd: "/tmp", turns: prompts.map { FixtureTurn(prompt: $0, reply: "OK", tools: tools) })
             .write(toFile: path, atomically: true, encoding: .utf8)
         let spec = fx.appendingPathComponent("rw-\(name).json")
         var o: [String: Any] = ["prompts": menu ?? prompts]
@@ -1425,6 +1426,121 @@ func rewindChecks(_ r: Report, _ c: LmuxController, _ w: NSWindow, fx: URL) asyn
     r.check("×: rewound, then the input cleared", acts(r3.log) == ["open", "pick 2", "choose Restore conversation 2",
                                                                   "restore conversation 2", "clear input"]
             && input(r3.pane) == "", acts(r3.log).joined(separator: "; "))
+
+    // × with files Claude edited (issue #9): the card offers Remove (⏎, conversation only) and Remove and Restore Files.
+    let edited = [("Edit", "/tmp/rw-code/note.txt")]
+    c.settings.removeAction = .ask
+    /// A remembered × runs without a card: until Claude has restored and lmux is done.
+    func ranDirectly(_ p: Pane, _ log: String) async -> Bool {
+        await waitFor(20) { acts(log).contains { $0.hasPrefix("restore ") } && !p.busy }
+    }
+    let rc1 = await rewindPane("c1", prompts: ["first", "second one", "third"], tools: edited, ["files": true])
+    c.requestRewind(rc1.pane, turnIndex: 2, edit: false)
+    let card1 = rc1.pane.view.overlay.card
+    let dc1 = card1?.detail.stringValue ?? ""
+    r.check("× with files edited: [Remove] (⏎) and [Remove and Restore Files], and “Don’t ask again”",
+            card1?.confirm.title == "Remove" && card1?.alternate?.title == "Remove and Restore Files"
+            && card1?.remember?.title == "Don’t ask again" && card1?.remember?.state == .off, dc1)
+    r.check("…the text tells them apart: own tools, other sessions’ edits, not shell commands",
+            dc1.contains("With Remove, the files changed (note.txt) stay as they are") && dc1.contains("edited with its own tools")
+            && dc1.contains("other sessions") && dc1.contains("Changes made by shell commands stay"), dc1)
+    card1?.alternate?.performClick()
+    _ = await waitFor(2) { rc1.pane.busy }
+    _ = await waitFor(20) { !rc1.pane.busy }
+    r.check("Remove and Restore Files: Esc Esc, ↑ ↑, Return, Return on the default, then Ctrl+U to clear",
+            keys(rc1.log) == ["esc", "esc", "up", "up", "enter", "enter", "ctrl-u"], keys(rc1.log).joined(separator: " "))
+    r.check("…“Restore code and conversation” on message 2, the input cleared; nothing remembered (box unchecked)",
+            acts(rc1.log) == ["open", "pick 2", "choose Restore code and conversation 2", "restore code 2", "clear input"]
+            && input(rc1.pane) == "" && c.settings.removeAction == .ask, acts(rc1.log).joined(separator: "; "))
+    // No files edited from that turn on: the card as before, [Remove] only.
+    let rc2 = await rewindPane("c2", prompts: ["first", "second one"], ["files": true])
+    c.requestRewind(rc2.pane, turnIndex: 2, edit: false)
+    r.check("× with no files edited: [Remove] only, nothing about files",
+            rc2.pane.view.overlay.card?.alternate == nil && rc2.pane.view.overlay.card?.confirm.title == "Remove"
+            && !(rc2.pane.view.overlay.card?.detail.stringValue ?? "").contains("file"))
+    rc2.pane.view.overlay.card?.cancel.performClick()
+    // [Remove] (the default) with files edited and checkpoints there: never a code option. Checked: remembered.
+    let rc3 = await rewindPane("c3", prompts: ["first", "second one"], tools: edited, ["files": true])
+    c.requestRewind(rc3.pane, turnIndex: 2, edit: false)
+    rc3.pane.view.overlay.card?.remember?.state = .on
+    _ = await confirmAndWait(rc3.pane)
+    r.check("× [Remove] with file checkpoints: “Restore conversation” only, never a code option",
+            acts(rc3.log) == ["open", "pick 2", "choose Restore conversation 2", "restore conversation 2", "clear input"]
+            && !acts(rc3.log).contains { $0.contains("code") }, acts(rc3.log).joined(separator: "; "))
+    r.check("…“Don’t ask again” remembered Remove, in lmux’s settings file", c.settings.removeAction == .remove
+            && LmuxSettings(url: c.settings.url).removeAction == .remove)
+    let rc4 = await rewindPane("c4", prompts: ["first", "second one"], tools: edited, ["files": true])
+    c.requestRewind(rc4.pane, turnIndex: 2, edit: false)
+    let noCard4 = !c.cardShown(rc4.pane)
+    let ran4 = await ranDirectly(rc4.pane, rc4.log)
+    r.check("…the next × runs Remove with no card, conversation only",
+            noCard4 && ran4 && acts(rc4.log).contains("restore conversation 2")
+            && !acts(rc4.log).contains { $0.contains("code") }, acts(rc4.log).joined(separator: "; "))
+    // Settings › General shows it and sets it back to Ask: × asks again.
+    let sm = SettingsModel(controller: c)
+    r.check("Settings: “× on a Claude message” shows Remove", sm.removeAction == .remove)
+    sm.setRemoveAction(.ask)
+    let rc5 = await rewindPane("c5", prompts: ["first", "second one"], tools: edited, ["files": true])
+    c.requestRewind(rc5.pane, turnIndex: 2, edit: false)
+    r.check("…set back to Ask (saved): × shows its card again",
+            c.settings.removeAction == .ask && LmuxSettings(url: c.settings.url).removeAction == .ask && c.cardShown(rc5.pane))
+    // Checked, then Remove and Restore Files: remembered too.
+    rc5.pane.view.overlay.card?.remember?.state = .on
+    rc5.pane.view.overlay.card?.alternate?.performClick()
+    _ = await waitFor(2) { rc5.pane.busy }
+    _ = await waitFor(20) { !rc5.pane.busy }
+    r.check("“Don’t ask again” + Remove and Restore Files: restored code, remembered (Settings shows it)",
+            acts(rc5.log).contains("restore code 2") && c.settings.removeAction == .removeAndRestoreFiles
+            && SettingsModel(controller: c).removeAction == .removeAndRestoreFiles, acts(rc5.log).joined(separator: "; "))
+    let rc6 = await rewindPane("c6", prompts: ["first", "second one"], tools: edited, ["files": true])
+    c.requestRewind(rc6.pane, turnIndex: 2, edit: false)
+    let noCard6 = !c.cardShown(rc6.pane)
+    let ran6 = await ranDirectly(rc6.pane, rc6.log)
+    r.check("…the next × restores files with no card",
+            noCard6 && ran6 && acts(rc6.log).contains("restore code 2"),
+            acts(rc6.log).joined(separator: "; "))
+    let rc7 = await rewindPane("c7", prompts: ["first", "second one"], ["files": true])
+    c.requestRewind(rc7.pane, turnIndex: 2, edit: false)
+    let noCard7 = !c.cardShown(rc7.pane)
+    let ran7 = await ranDirectly(rc7.pane, rc7.log)
+    r.check("…on a turn with no files edited: plain Remove, no card, no note (nothing to restore)",
+            noCard7 && ran7 && acts(rc7.log).contains("restore conversation 2")
+            && rc7.pane.view.overlay.toast == nil, acts(rc7.log).joined(separator: "; "))
+    // ✎ stays conversation-only whatever × does: its card has no second button, no checkbox.
+    let rc8 = await rewindPane("c8", prompts: ["first", "second one"], tools: edited, ["files": true])
+    c.requestRewind(rc8.pane, turnIndex: 2, edit: true)
+    r.check("✎ (× set to restore files): its card is Edit only, no checkbox",
+            rc8.pane.view.overlay.card?.confirm.title == "Edit" && rc8.pane.view.overlay.card?.alternate == nil
+            && rc8.pane.view.overlay.card?.remember == nil)
+    _ = await confirmAndWait(rc8.pane)
+    r.check("…and “Restore conversation” only, the prompt back in the input",
+            acts(rc8.log) == ["open", "pick 2", "choose Restore conversation 2", "restore conversation 2"]
+            && input(rc8.pane) == "second one", acts(rc8.log).joined(separator: "; "))
+    // ⌘Z follows ×: restoring files remembered, the prompt back in the input.
+    let rc9 = await rewindPane("c9", prompts: ["first", "second one"], tools: edited, ["files": true])
+    rc9.pane.busy = true
+    let uc9 = await c.undo(prompt: "second one", in: rc9.pane)
+    r.check("⌘Z with × set to restore files: “Restore code and conversation”, the prompt back",
+            uc9 == .done && acts(rc9.log) == ["open", "pick 2", "choose Restore code and conversation 2", "restore code 2"]
+            && input(rc9.pane) == "second one", "\(uc9) " + acts(rc9.log).joined(separator: "; "))
+    // No "Restore code and conversation" in Claude's menu (no file checkpoints): backs out, no Return on any option.
+    let rc10 = await rewindPane("c10", prompts: ["first", "second one"], tools: edited)
+    let oc10 = await c.rewind(rc10.pane, turnUuid: "rw-c10-u2", mode: .remove, restoreCode: true)
+    r.check("restoring files without that option: fails with the reason, Esc out of the confirmation, nothing chosen",
+            oc10 == .failed("no code checkpoint") && keys(rc10.log) == ["esc", "esc", "up", "enter", "esc", "esc"]
+            && acts(rc10.log) == ["open", "pick 2", "close"] && RewindMenu.read(rows(rc10.pane)) == .closed,
+            "\(oc10) " + keys(rc10.log).joined(separator: " "))
+    let tc10 = await c.loadTurns(rc10.pane)
+    r.check("…a note says why; both turns still there",
+            (rc10.pane.view.overlay.toast?.text.string ?? "").contains("no file checkpoint") && tc10.count == 2,
+            rc10.pane.view.overlay.toast?.text.string ?? "no note")
+    // Claude restores without a confirmation (no checkpoints): the conversation only, and lmux says so.
+    let rc11 = await rewindPane("c11", prompts: ["first", "second one"], tools: edited, ["direct": true])
+    let oc11 = await c.rewind(rc11.pane, turnUuid: "rw-c11-u2", mode: .remove, restoreCode: true)
+    r.check("restoring files when Claude restores right away: a failure that says only the conversation was rewound",
+            oc11 == .failed("no code checkpoint") && (rc11.pane.view.overlay.toast?.text.string ?? "").contains("conversation only"),
+            "\(oc11) " + (rc11.pane.view.overlay.toast?.text.string ?? "no note"))
+    c.settings.removeAction = .ask
 
     // The same prompt twice: × on the first "yes" goes past the later one, by position.
     let r4 = await rewindPane("4", prompts: ["yes", "fix it", "yes"])

@@ -98,6 +98,10 @@ lmux_isolated_shell "$T/shell"
 if [ -d "$APP_DIR/build/lmux.app/Contents/Resources/ghostty" ]; then
   export GHOSTTY_RESOURCES_DIR="$APP_DIR/build/lmux.app/Contents/Resources/ghostty"
 fi
+# A pane lmux opens itself (Fork Session) runs the real binary, not the claude-e2e wrapper: its shell
+# gets the mock API from here (CLAUDE_CONFIG_DIR comes from the forked session, as on restore).
+export ANTHROPIC_API_KEY="$KEY" ANTHROPIC_BASE_URL="http://127.0.0.1:$PORT"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 DISABLE_AUTOUPDATER=1 DISABLE_TELEMETRY=1
 MODE=--e2e
 [ "${1:-}" = "--bench" ] && MODE=--e2e-bench
 [ "${1:-}" = "--hover" ] && MODE=--e2e-hover
