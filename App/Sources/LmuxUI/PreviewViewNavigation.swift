@@ -52,7 +52,7 @@ extension PreviewView {
         }
         if scheme == PreviewSchemeHandler.scheme {
             // 只允許 Swift 主動載入、Markdown 頁面內連結/重整或歷史上一頁，禁止本機 HTML 主動跳轉到 lmux-preview://。
-            // 純文字檔更嚴：頁面內的連結也不接受（下方 isText 分支）。
+            // 純文字檔更嚴：頁面內的連結也不接受（下方 .text 分支）。
             let fromPreview = sourceScheme == PreviewSchemeHandler.scheme
                 && (currentScheme == nil || currentScheme == PreviewSchemeHandler.scheme)
             let isReload = action.navigationType == .reload && currentScheme == PreviewSchemeHandler.scheme
@@ -67,7 +67,8 @@ extension PreviewView {
                 decisionHandler(.cancel, preferences)
                 return
             }
-            if PreviewTarget.isText(file) {
+            switch PreviewTarget.kind(file) {
+            case .text?:
                 // 純文字檔只在 Swift 主動載入（開啟選單、監看、WebContent 重啟）、重新整理、上一頁／下一頁時顯示；
                 // 頁面裡連到純文字檔的連結不換頁（beat: plain-text-preview.feature）。
                 guard isProgrammaticShow || isReload || action.navigationType == .backForward,
@@ -79,11 +80,12 @@ extension PreviewView {
                 activeNavigationURL = url
                 decisionHandler(.allow, preferences)
                 return
-            }
-            if !PreviewTarget.isMarkdown(file) {
+            case .html?, nil:
                 decisionHandler(.cancel, preferences)
                 openHTMLFromPreview(file, real: real)
                 return
+            case .markdown?:
+                break
             }
             guard PreviewTarget.isMarkdown(real) else {
                 decisionHandler(.cancel, preferences)

@@ -74,19 +74,19 @@ final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
         let real = PreviewTarget.resolvingPath(file)
         guard !PreviewTarget.hasUnsafeScalar(file.path),
               !PreviewTarget.hasUnsafeScalar(real.path) else { return nil }
-        if PreviewTarget.usesPreviewScheme(file) {
-            guard PreviewTarget.kind(real) == PreviewTarget.kind(file) else { return nil }
-            if PreviewTarget.isText(file) && !mainDocument { return nil }
+        if let fileKind = PreviewTarget.kind(file), fileKind != .html {
+            guard PreviewTarget.kind(real) == fileKind else { return nil }
+            if fileKind == .text && !mainDocument { return nil }
             switch readRegularFileResult(real, maxBytes: maxMarkdownBytes) {
             case .ok(let data):
                 let text = String(decoding: data, as: UTF8.self)
                 let page: String
-                switch PreviewTarget.kind(file) {
-                case .markdown?:
+                switch fileKind {
+                case .markdown:
                     page = MarkdownHTML.page(text, title: file.lastPathComponent)
-                case .text?:
+                case .text:
                     page = MarkdownHTML.textPage(text, title: file.lastPathComponent)
-                case .html?, nil:
+                case .html:
                     return nil
                 }
                 return (Data(page.utf8), "text/html")

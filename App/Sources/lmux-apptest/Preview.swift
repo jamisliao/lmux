@@ -77,7 +77,7 @@ func runPreview() async -> Int32 {
     let external = PreviewExternalSpy()
     GhosttyRuntime.openURL = { external.urls.append($0) }
     let c = makeController()
-    // 測試用的檔案：<LMUX_STATE_DIR>/preview-fixtures/docs/{design.md, b.md, notes.txt}
+    // 測試用的檔案：<LMUX_STATE_DIR>/preview-fixtures/docs/{design.md, b.md}
     let root = URL(fileURLWithPath: env["LMUX_STATE_DIR"]!).appendingPathComponent("preview-fixtures", isDirectory: true)
     let docs = root.appendingPathComponent("docs", isDirectory: true)
     try? FileManager.default.createDirectory(at: docs.appendingPathComponent("img"), withIntermediateDirectories: true)
@@ -86,7 +86,6 @@ func runPreview() async -> Int32 {
     try? "# Design\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n![dot](img/dot.png)\n\n[b](b.md) [ext](https://example.com/y)\n"
         .write(to: docs.appendingPathComponent("design.md"), atomically: true, encoding: .utf8)
     try? "# B\n".write(to: docs.appendingPathComponent("b.md"), atomically: true, encoding: .utf8)
-    try? "notes\n".write(to: docs.appendingPathComponent("notes.txt"), atomically: true, encoding: .utf8)
     let design = docs.appendingPathComponent("design.md").standardizedFileURL
     let fixtures = PreviewFixtures(root: root, docs: docs, design: design)
 

@@ -147,5 +147,10 @@ enum PreviewTarget {
     static func isText(_ url: URL) -> Bool { kind(url) == .text }
 
     /// 經 `lmux-preview` scheme 顯示的檔案：Markdown 與純文字檔。HTML 不是（用 `loadFileURL`）。
-    static func usesPreviewScheme(_ url: URL) -> Bool { isMarkdown(url) || isText(url) }
+    static func usesPreviewScheme(_ url: URL) -> Bool {
+        switch kind(url) {
+        case .markdown, .text: return true
+        case .html, nil: return false
+        }
+    }
 }
