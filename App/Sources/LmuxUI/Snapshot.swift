@@ -36,7 +36,7 @@ extension LmuxController {
         // Terminal pixels.
         let ci = CIContext()
         for pane in model.selected?.panes ?? [] {
-            let s = pane.surface
+            guard let s = pane.surface else { continue }
             guard s.window != nil, let contents = s.layer?.contents else { continue }
             let surf = unsafeBitCast(contents as AnyObject, to: IOSurfaceRef.self)
             let img = CIImage(ioSurface: surf)

@@ -160,7 +160,7 @@ func polishHoverPrompt(_ c: LmuxController, _ s: PolishScene) async {
     pl.hover.readAt = .distantPast
     let m = c.screenMap(pl, maxAge: 0)
     if let h = m.map?.promptHeads().first {
-        c.paneMouseMoved(pl, NSPoint(x: 200, y: pl.surface.bounds.height - (m.rows[h.row].top + m.rowHeight / 2)))
+        c.paneMouseMoved(pl, NSPoint(x: 200, y: pl.surface!.bounds.height - (m.rows[h.row].top + m.rowHeight / 2)))
     }
     await sleepMs(150)
     pl.view.overlay.showTip("Remove this message and everything after it")

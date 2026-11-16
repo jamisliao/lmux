@@ -62,9 +62,9 @@ func tabPoint(_ s: TabStripView, _ i: Int) -> NSPoint { NSPoint(x: s.tabRect(i).
 func point(_ p: NSPoint, of view: NSView, in s: NSView) -> NSPoint { s.convert(view.convert(p, to: nil), from: nil) }
 
 @MainActor
-func isHidden(_ p: Pane) -> Bool { p.surface.window == nil && !p.surface.occlusionVisible }
+func isHidden(_ p: Pane) -> Bool { p.surface!.window == nil && !p.surface!.occlusionVisible }
 @MainActor
-func isShown(_ p: Pane) -> Bool { p.surface.window != nil && p.surface.occlusionVisible }
+func isShown(_ p: Pane) -> Bool { p.surface!.window != nil && p.surface!.occlusionVisible }
 
 /// A menu's titles, separators as "—".
 @MainActor
@@ -94,7 +94,7 @@ func runPaneTabs() async -> Int32 {
     let one = t1.view.tabStrip
     r.check("one tab: the tab bar shows anyway (cmux's default), one tab in it, no pane header",
             one != nil && one?.items.count == 1 && one?.selected == 0 && t1.view.header.isHidden, "\(one?.items ?? [])")
-    r.check("…30 pt high, the terminal under it", t1.surface.frame.minY == 30 && TabStripView.height == 30, "\(t1.surface.frame)")
+    r.check("…30 pt high, the terminal under it", t1.surface!.frame.minY == 30 && TabStripView.height == 30, "\(t1.surface!.frame)")
     let w0 = one?.items.first?.width ?? 0
     r.check("…the tab is sized to its title (48–220 pt), not stretched", w0 >= 48 && w0 < 220 && one!.bounds.width > 300, "\(w0)")
     // The strip sits on the terminal's background: it follows a light / dark switch (the theme pair).
@@ -105,11 +105,11 @@ func runPaneTabs() async -> Int32 {
     for mode in [LmuxSettings.Appearance.light, .dark] {
         c.setAppearance(mode)
         let dark = mode == .dark
-        _ = await waitFor(5) { (luma(t1.surface.terminalBackground) < 0.5) == dark }
+        _ = await waitFor(5) { (luma(t1.surface!.terminalBackground) < 0.5) == dark }
         r.check("the strip's background follows a switch to \(mode) (the terminal's own background, its text tokens)",
-                one?.background == t1.surface.terminalBackground && (luma(one?.background) < 0.5) == dark
+                one?.background == t1.surface!.terminalBackground && (luma(one?.background) < 0.5) == dark
                 && (one?.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua) == dark,
-                "strip \(luma(one?.background)) terminal \(luma(t1.surface.terminalBackground))")
+                "strip \(luma(one?.background)) terminal \(luma(t1.surface!.terminalBackground))")
     }
     c.setAppearance(.system)
     c.validateMenuItem(c.closePaneMenuItem!)
@@ -126,13 +126,13 @@ func runPaneTabs() async -> Int32 {
             c.model.workspaces.count == 1 && leaf != nil && leaf === ws.root.find(t2) && leaf?.tabs.count == 2)
     r.check("…the new tab is shown and focused, the first stops rendering",
             ws.focusedPane === t2 && leaf?.shownTab === t2 && isShown(t2) && isHidden(t1)
-            && w.firstResponder === t2.surface, "t1 window \(t1.surface.window != nil) occl \(t1.surface.occlusionVisible)")
+            && w.firstResponder === t2.surface, "t1 window \(t1.surface!.window != nil) occl \(t1.surface!.occlusionVisible)")
     let strip = t2.view.tabStrip
     r.check("…the same strip moves to the shown tab's view: 2 tabs, the second selected",
             strip != nil && strip === leaf?.strip && strip === one && strip?.superview === t2.view && strip?.items.count == 2
             && strip?.selected == 1 && t2.view.header.isHidden, "\(strip?.items.map(\.title) ?? [])")
-    r.check("…the terminal sits under the strip", t2.surface.frame.minY == TabStripView.height
-            && t2.surface.frame.height == t2.view.bounds.height - TabStripView.height, "\(t2.surface.frame)")
+    r.check("…the terminal sits under the strip", t2.surface!.frame.minY == TabStripView.height
+            && t2.surface!.frame.height == t2.view.bounds.height - TabStripView.height, "\(t2.surface!.frame)")
     r.check("…still one leaf: not a split", !ws.isSplit && ws.visiblePanes.count == 1)
     c.validateMenuItem(c.closePaneMenuItem!)
     r.check("…⌘W says Close Tab", c.closePaneMenuItem?.title == "Close Tab", c.closePaneMenuItem?.title ?? "-")
@@ -356,7 +356,7 @@ func runPaneTabs() async -> Int32 {
     if let hit = c.tabDrop(for: a2, at: s2.convert(r2mid, to: nil)), case .pane(let target) = hit.0 {
         let rect = hit.1
         r.check("over a pane's middle: into that pane, the whole pane highlighted", target === r2
-                && abs(rect.height - r2.surface.frame.height) < 1, "\(rect)")
+                && abs(rect.height - r2.surface!.frame.height) < 1, "\(rect)")
     } else { r.check("over a pane's middle", false) }
     await click(s2, at: tabPoint(s2, 1), dragTo: r2mid)
     r.check("…dropped: at the end of that pane's tabs, shown", sw.root.find(r2)?.tabs.map(\.id) == [r2.id, a2.id]
@@ -368,7 +368,7 @@ func runPaneTabs() async -> Int32 {
     if let hit = c.tabDrop(for: a2, at: s3.convert(r1edge, to: nil)), case .split(let target, .right) = hit.0 {
         let rect = hit.1
         r.check("over a pane's edge (outer quarter): a split on that side, its half highlighted", target === r1
-                && abs(rect.width - r1.surface.frame.width / 2) < 1, "\(rect)")
+                && abs(rect.width - r1.surface!.frame.width / 2) < 1, "\(rect)")
     } else { r.check("over a pane's edge", false) }
     await click(s3, at: tabPoint(s3, 1), dragTo: r1edge)
     r.check("…dropped: the pane splits, the tab on the right of it, focused", sw.visiblePanes.count == 4
@@ -453,7 +453,7 @@ func runPaneTabs() async -> Int32 {
     // The setting: the tab bar only with two or more tabs (cmux's "multiple-tabs").
     c.setTabBarWithOneTab(false)
     r.check("setting off: a one-tab pane has no strip; split panes get their header back",
-            sw.visiblePanes.allSatisfy { $0.view.tabStrip == nil } && !r1.view.header.isHidden && r1.surface.frame.minY < 30)
+            sw.visiblePanes.allSatisfy { $0.view.tabStrip == nil } && !r1.view.header.isHidden && r1.surface!.frame.minY < 30)
     let two = c.newTab(r1)
     if let two { _ = await sinks.waitReady(two.id) }
     r.check("…two tabs: the strip again", two?.view.tabStrip != nil && two.map { sw.root.find($0)?.hasStrip } == true)

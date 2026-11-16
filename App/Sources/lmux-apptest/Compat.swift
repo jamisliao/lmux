@@ -82,7 +82,7 @@ func runCompat() async -> Int32 {
         for (n, s, cols) in samples {
             r.check("\(n): cursor after \(s.debugDescription) at column \(cols)", got[n] == cols, "got \(got[n].map(String.init) ?? "-")")
         }
-        let screen = ws.panes[0].surface.readText()
+        let screen = ws.panes[0].surface!.readText()
         for (n, s, _) in samples where !["combining", "rtl"].contains(n) {
             r.check("\(n): reads back from the screen", screen.contains(s), screen.prefix(300).description)
         }
@@ -113,7 +113,7 @@ func runCompat() async -> Int32 {
         r.check("2M lines + a 300k-char line finish", done, String(format: "%.1fs", secs))
         r.check("the UI never froze for more than 1s meanwhile", stall < 1000, String(format: "worst main-queue gap %.0f ms, %.1fs total", stall, secs))
         print(String(format: "      huge output: %.1fs, worst main-queue gap %.0f ms", secs, stall))
-        let lines = ws.panes[0].surface.readText().split(separator: "\n")
+        let lines = ws.panes[0].surface!.readText().split(separator: "\n")
         r.check("the screen ends with the long line wrapped (no crash, still drawing)", lines.contains { $0.hasPrefix("xxxxxxxx") })
         c.closeWorkspace(ws)
     }
@@ -137,7 +137,7 @@ func runCompat() async -> Int32 {
         let done = await waitFile("garbage.done", 60)
         let stall = m.stop()
         r.check("3MB of /dev/urandom then RIS: the app survives", done)
-        r.check("…and the terminal draws text again", await waitFor(3) { ws.panes[0].surface.readText().contains("GARBAGE-SURVIVED") })
+        r.check("…and the terminal draws text again", await waitFor(3) { ws.panes[0].surface!.readText().contains("GARBAGE-SURVIVED") })
         r.check("…the UI never froze for more than 1s", stall < 1000, String(format: "%.0f ms", stall))
         r.check("…the window title is still sane", (ws.panes[0].title.count) <= 4096, "\(ws.panes[0].title.count) chars")
         c.closeWorkspace(ws)
@@ -213,19 +213,19 @@ func runCompat() async -> Int32 {
             var mark = 0
             func bytes() -> String { String(out("\(name).bin").unicodeScalars.dropFirst(mark)).unicodeScalars.map { $0.value < 0x20 || $0.value == 0x7f ? String(format: "\\x%02x", $0.value) : String($0) }.joined() }
             // `lmux send` (also how forget / restore type a command)
-            p.surface.sendText("ab\n")
+            p.surface!.sendText("ab\n")
             await sleepMs(300)
             let sent = bytes()
             r.check("flags \(flags): `lmux send \"ab\\n\"` arrives as ab + Return", sent.hasPrefix("ab") && (sent.contains("\\x0d") || sent.contains("[13u")), sent)
             mark = out("\(name).bin").unicodeScalars.count
             // Ctrl-C the way forget interrupts Claude.
-            p.surface.sendKey(keyCode: 8, codepoint: 0x63, control: true)
+            p.surface!.sendKey(keyCode: 8, codepoint: 0x63, control: true)
             await sleepMs(300)
             let cc = bytes()
             mark = out("\(name).bin").unicodeScalars.count
             r.check("flags \(flags): forget's Ctrl-C reaches the program", cc.contains("\\x03") || cc.contains("99;5u"), cc)
             // Esc key
-            p.surface.sendKey(keyCode: 53, codepoint: 0x1b)
+            p.surface!.sendKey(keyCode: 53, codepoint: 0x1b)
             await sleepMs(300)
             let esc = bytes()
             r.check("flags \(flags): Esc reaches the program", esc.contains("\\x1b"), esc)
@@ -259,7 +259,7 @@ func runCompat() async -> Int32 {
         _ = await waitFile("mouse.ready")
         await sleepMs(300)
         c.focus(p)
-        let s = p.surface
+        let s = p.surface!
         let at = NSPoint(x: 100, y: s.bounds.height - 60)
         if let mv = NSEvent.mouseEvent(with: .mouseMoved, location: s.convert(at, to: nil), modifierFlags: [],
                                        timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: w.windowNumber,
@@ -355,11 +355,11 @@ func runCompat() async -> Int32 {
         w.contentView?.layoutSubtreeIfNeeded()
         await sleepMs(800)
         let stall = m.stop()
-        let gs = ghostty_surface_size(p.surface.surface!)
+        let gs = ghostty_surface_size(p.surface!.surface!)
         let last = out("resize.log").split(separator: "\n").last.map(String.init) ?? ""
         r.check("after 200 resizes + sidebar toggles, the program's size = the terminal's", last == "\(gs.rows) \(gs.columns)",
                 "program \(last), terminal \(gs.rows) \(gs.columns)")
-        r.check("…and the screen shows the final size", await waitFor(2) { p.surface.readText().contains("size \(gs.rows) x \(gs.columns)") })
+        r.check("…and the screen shows the final size", await waitFor(2) { p.surface!.readText().contains("size \(gs.rows) x \(gs.columns)") })
         r.check("…the UI never froze for more than 1s", stall < 1000, String(format: "%.0f ms", stall))
         c.closeWorkspace(ws)
     }
@@ -385,7 +385,7 @@ func runCompat() async -> Int32 {
         await sleepMs(200)
         c.windowShownOverride = nil
         c.syncOcclusion()
-        r.check("output while occluded is there once visible again", await waitFor(2) { p.surface.readText().contains("written-while-hidden") })
+        r.check("output while occluded is there once visible again", await waitFor(2) { p.surface!.readText().contains("written-while-hidden") })
         // Appearance switch at runtime, a few times.
         for a in [NSAppearance.Name.aqua, .darkAqua, .aqua, .darkAqua] {
             NSApp.appearance = NSAppearance(named: a)
@@ -393,7 +393,7 @@ func runCompat() async -> Int32 {
         }
         NSApp.appearance = nil
         await sleepMs(150)
-        r.check("appearance switches: the pane still draws", p.surface.readText().contains("written-while-hidden"))
+        r.check("appearance switches: the pane still draws", p.surface!.readText().contains("written-while-hidden"))
         c.closeWorkspace(ws)
     }
 
@@ -412,8 +412,8 @@ func runCompat() async -> Int32 {
             await shown(ws)
             let p = ws.panes[0]
             c.focus(p)
-            let up = await waitFor(8) { p.surface.readText().contains(ready) }
-            r.check("\(name): starts and draws", up, p.surface.readText().prefix(200).description)
+            let up = await waitFor(8) { p.surface!.readText().contains(ready) }
+            r.check("\(name): starts and draws", up, p.surface!.readText().prefix(200).description)
             for i in 0..<5 {  // resize while it runs
                 w.setFrame(NSRect(x: -10000, y: -10000, width: 900 + CGFloat(i * 80), height: 600 + CGFloat(i * 40)), display: false)
                 await sleepMs(60)
@@ -431,7 +431,7 @@ func runCompat() async -> Int32 {
             }
             let quit = await waitFile("\(name).exit", 8)
             r.check("\(name): quits on its own keys (exit status 0)", quit && out("\(name).exit").contains("=0"), out("\(name).exit"))
-            let screen = p.surface.readText()
+            let screen = p.surface!.readText()
             r.check("\(name): the normal screen is back (alternate screen left)", until() && screen.contains("\(name)-exit=0")
                     && !screen.contains("line 30 "), screen.suffix(200).description)
             c.closeWorkspace(ws)
@@ -586,12 +586,12 @@ func runCompat() async -> Int32 {
         let p = ws.panes[0]
         c.split(p, .right).map { _ in () }  // narrow it so the line wraps
         await sleepMs(400)
-        _ = await waitFor(3) { p.surface.readText().contains("next line") }
-        let cols = Int(ghostty_surface_size(p.surface.surface!).columns)
+        _ = await waitFor(3) { p.surface!.readText().contains("next line") }
+        let cols = Int(ghostty_surface_size(p.surface!.surface!).columns)
         let pb = GhosttyRuntime.standardPasteboard
         pb.clearContents()
-        _ = p.surface.performBindingAction("select_all")
-        _ = p.surface.performBindingAction("copy_to_clipboard")
+        _ = p.surface!.performBindingAction("select_all")
+        _ = p.surface!.performBindingAction("copy_to_clipboard")
         let copied = pb.string(forType: .string) ?? ""
         r.check("the line really wraps (\(long.count) chars, \(cols) columns)", long.count > cols)
         r.check("copying it gives the line whole, no newline at the wrap", copied.contains(long + "\nnext line"), copied.debugDescription)
@@ -625,7 +625,7 @@ func runCompat() async -> Int32 {
                 guard composing, let s = c.model.selected?.focusedPane?.surface else { return }
                 s.setMarkedText("ㅎ", selectedRange: NSRange(location: 1, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
             }
-            func done() { c.model.selected?.focusedPane?.surface.unmarkText() }
+            func done() { c.model.selected?.focusedPane?.surface?.unmarkText() }
             var results: [(String, Bool)] = []
             func step(_ name: String, _ ch: String, _ code: UInt16, _ mods: NSEvent.ModifierFlags, _ ok: () -> Bool) async {
                 compose(); await press(ch, code, mods); done()
@@ -778,7 +778,7 @@ func runCompat() async -> Int32 {
         """
         let ws = c.newWorkspace(program: program("cjk", code))
         await shown(ws)
-        let p = ws.panes[0], s = p.surface
+        let p = ws.panes[0], s = p.surface!
         c.focus(p)
         _ = await waitFile("cjk.ready")
         await sleepMs(300)
@@ -878,7 +878,7 @@ func runCompat() async -> Int32 {
                 && main == "main 2 3", backs.description + " " + main)
         w.setFrame(NSRect(x: -10000, y: -10000, width: 1280, height: 800), display: false)
         await sleepMs(300)
-        r.check("the main screen isn't blank afterwards", p.surface.readText().contains("MAIN-MARK"), p.surface.readText().prefix(120).description)
+        r.check("the main screen isn't blank afterwards", p.surface!.readText().contains("MAIN-MARK"), p.surface!.readText().prefix(120).description)
         c.closeWorkspace(ws)
     }
 

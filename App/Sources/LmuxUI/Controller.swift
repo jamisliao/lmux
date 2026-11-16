@@ -269,9 +269,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         controlServer?.stop()
         retirePaneTokens(paneIDByToken.filter { pane(id: $0.value)?.ranCodex == true }.map { ($0.key, $0.value) })
         for p in model.workspaces.flatMap(\.panes) {
-            let fg = p.surface.foregroundPID
+            let fg = p.foregroundPID
             if fg > 0 { killpg(fg, SIGHUP) }
-            p.surface.close()
+            p.surface?.close()
+            p.preview?.close()
         }
     }
     private var didShutdown = false
@@ -356,7 +357,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     /// `SurfaceView.windowIsKey`).
     func syncSurfaceFocus() {
         guard let ws = model.selected else { return }
-        for p in ws.panes { p.surface.focusDidChange(p.surface.windowIsKey && window.firstResponder === p.surface) }
+        for p in ws.panes {
+            guard let s = p.surface else { continue }
+            s.focusDidChange(s.windowIsKey && window.firstResponder === s)
+        }
     }
 
     /// After a screen change: a window whose titlebar no screen shows comes back onto the screen it
@@ -399,7 +403,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         for ws in model.workspaces {
             // Zoomed: the other panes are out of the window and stay occluded.
             for p in ws.panes {
-                p.surface.setOcclusion(visible: shown && ws === model.selected && (ws.zoomedPane == nil || p === ws.zoomedPane))
+                p.surface?.setOcclusion(visible: shown && ws === model.selected && (ws.zoomedPane == nil || p === ws.zoomedPane))
             }
         }
     }
@@ -415,7 +419,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             MainActor.assumeIsolated {
                 guard let self, self.window.attachedSheet == nil else { return }
                 if !(self.window.firstResponder is NSText) { self.focusCurrent() }
-                self.model.selected?.focusedPane?.surface.inputContext?.activate()
+                self.model.selected?.focusedPane?.surface?.inputContext?.activate()
             }
         }
     }
@@ -457,7 +461,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     /// Panes whose process would be killed by quitting (not an idle shell), per Ghostty's
     /// `confirm-close-surface` (libghostty answers it per surface).
     public var panesNeedingQuitConfirmation: [Pane] {
-        model.workspaces.flatMap(\.panes).filter { $0.surface.needsConfirmQuit }
+        model.workspaces.flatMap(\.panes).filter { $0.surface?.needsConfirmQuit == true }
     }
 
     /// ⌘Q: like Ghostty, ask before killing running processes.
@@ -563,6 +567,37 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         return pane
     }
 
+    /// 預覽 tab 的 Pane（beat: preview-tab.feature）：沒有終端機、不跑程式、沒有 LMUX_PANE_ID。
+    /// 目前目錄是檔案所在資料夾：在它上面開新 tab 或分割時，新的終端機從那裡開始。
+    func makePreviewPane(file: URL) -> Pane {
+        let preview = PreviewView(fileURL: file)
+        let pane = Pane(id: UUID().uuidString, preview: preview)
+        pane.title = file.lastPathComponent
+        let dir = file.deletingLastPathComponent().path
+        pane.cwd = dir
+        pane.branch = GitBranch.read(cwd: dir)
+        // 點連結換頁、返回上一頁：標題與目前目錄跟著換（目錄用既有的 paneDidChangeDirectory）。
+        preview.onFileChange = { [weak self, weak pane] f in
+            guard let self, let pane else { return }
+            pane.title = f.lastPathComponent
+            self.paneDidChangeDirectory(pane, f.deletingLastPathComponent().path)
+            if let ws = pane.workspace, ws === self.model.selected {
+                self.refreshHeaders(ws)
+                self.root.updateHeader()
+            }
+        }
+        // 預覽裡點網址：跟在終端機 ⌘-click 網址一樣。
+        preview.openExternal = { [weak self] url in
+            GhosttyRuntime.openTerminalURL(url.absoluteString, kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN, window: self?.window)
+        }
+        pane.view.header.onDoubleClick = { [weak self, weak pane] in
+            guard let self, let pane else { return }
+            self.promptRenamePane(pane)
+        }
+        panesByID[pane.id] = pane
+        return pane
+    }
+
     /// Variables that describe the process lmux was launched FROM (a Claude Code session, cmux,
     /// another terminal or multiplexer) and would mislead programs in lmux's panes: a claude
     /// that sees CLAUDE_CODE_CHILD_SESSION turns transcript saving off (no message actions, History or
@@ -611,7 +646,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if let p = pane(token: token) { return p }
         guard let pid = peerPID, pid > 0, let tpgid = Self.terminalForegroundGroup(pid_t(pid)) else { return nil }
         // Each pane's pty has its own foreground process group (what Ghostty reports).
-        return panesByID.values.first { $0.surface.foregroundPID == tpgid }
+        return panesByID.values.first { $0.surface != nil && $0.foregroundPID == tpgid }
     }
 
     /// The foreground process group of `pid`'s controlling terminal, nil without one.
@@ -647,9 +682,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         pane.programArgvWatch?.cancel()
         panesByID[pane.id] = nil
         scheduleWaitCheck()  // (a wait on it, or on its workspace, may be over: target gone)
-        panesBySurface[ObjectIdentifier(pane.surface)] = nil
+        if let s = pane.surface { panesBySurface[ObjectIdentifier(s)] = nil }
+        dismissCard(pane)
         pane.view.removeFromSuperview()
-        pane.surface.close()
+        pane.surface?.close()
+        pane.preview?.close()
     }
 
     // MARK: - Workspaces
@@ -683,7 +720,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         } else {
             model.workspaces.append(ws)
         }
-        if select || model.selected == nil { self.select(ws) } else { pane.surface.setOcclusion(visible: false) }
+        if select || model.selected == nil { self.select(ws) } else { pane.surface?.setOcclusion(visible: false) }
         scheduleSave()
         return ws
     }
@@ -692,8 +729,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if let pane, ws.panes.contains(where: { $0 === pane }) { ws.focusedPane = pane }
         if let cur = model.selected, cur !== ws {
             for p in cur.panes {
-                p.surface.focusDidChange(false)
-                p.surface.setOcclusion(visible: false)
+                p.surface?.focusDidChange(false)
+                p.surface?.setOcclusion(visible: false)
             }
         }
         if ws.id != model.selectedID {
@@ -797,7 +834,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             rebuildContent()
             focusCurrent()
         } else {
-            newPane.surface.setOcclusion(visible: false)
+            newPane.surface?.setOcclusion(visible: false)
         }
         scheduleSave()
     }
@@ -952,12 +989,19 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             let visible = isShown && (zoomed == nil || p === zoomed)
             p.view.showsHeader = ws.isSplit && zoomed == nil
             if let leaf, leaf.hasStrip, isShown { p.view.tabStrip = leaf.strip } else { p.view.tabStrip = nil }
-            p.surface.setOcclusion(visible: windowShown && visible)
+            p.surface?.setOcclusion(visible: windowShown && visible)
             if visible { scheduleOverlayRefresh(p); showPendingRewindNote(p) }
         }
         root.updateHeader()
         root.needsLayout = true
         root.layoutSubtreeIfNeeded()
+    }
+
+    func isFirstResponder(in pane: Pane) -> Bool {
+        let fr = window.firstResponder
+        if let s = pane.surface { return fr === s }
+        if let preview = pane.preview { return (fr as? NSView)?.isDescendant(of: preview.webView) == true }
+        return false
     }
 
     /// Give keyboard focus to the selected workspace's focused pane.
@@ -967,10 +1011,15 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         // resignFirstResponder; clear stale focus so only one surface claims
         // key equivalents (performKeyEquivalent walks every visible surface).
         for ws in model.workspaces {
-            for p in ws.panes where p !== pane && p.surface.focused { p.surface.focusDidChange(false) }
+            for p in ws.panes where p !== pane && p.surface?.focused == true { p.surface?.focusDidChange(false) }
         }
-        if window.firstResponder !== pane.surface {
-            window.makeFirstResponder(pane.surface)
+        if !isFirstResponder(in: pane) {
+            if let s = pane.surface {
+                window.makeFirstResponder(s)
+            } else if let preview = pane.preview {
+                // 預覽 tab：焦點交給 WKWebView（beat: preview-tab.feature）。
+                window.makeFirstResponder(preview.webView)
+            }
         }
         refreshPaneChrome()
     }
@@ -1019,7 +1068,12 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         let fr = window.firstResponder
         if fr is NSText { return }
         if let s = fr as? SurfaceView, ws.visiblePanes.contains(where: { $0.surface === s }) { return }
-        window.makeFirstResponder(pane.surface)
+        if let v = fr as? NSView, ws.visiblePanes.contains(where: { $0.preview.map { v.isDescendant(of: $0) } == true }) { return }
+        if let s = pane.surface {
+            window.makeFirstResponder(s)
+        } else if let preview = pane.preview {
+            window.makeFirstResponder(preview.webView)
+        }
     }
 
     /// Clicking anywhere on a pane (terminal, header) focuses it.
@@ -1035,7 +1089,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         sidebarEscapeArmed = false
         // A press on the terminal itself (not on an overlay control) may start a text selection.
         if hit is SurfaceView { pressedPane = pane }
-        if model.selected?.focusedPane !== pane || window.firstResponder !== pane.surface {
+        if model.selected?.focusedPane !== pane || !isFirstResponder(in: pane) {
             focus(pane)
         }
     }
@@ -1274,6 +1328,19 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             guard pendingUndo != nil else { return false }
             onMain { _ = self.undoSend() }
             return true
+        case GHOSTTY_ACTION_OPEN_URL:
+            // ⌘-click 的連結（beat: open-menu.feature）。這裡是在 renderer 的鎖還拿著時被呼叫：先複製字串，
+            // 下一輪 run loop 再處理。用 RunLoop.perform 而不用 DispatchQueue.main.async：選單會跑巢狀的
+            // run loop，在 GCD 的 main block 裡跑的話，選單開著時 libghostty 的繪製會停住。
+            let v = action.action.open_url
+            guard let ptr = v.url,
+                  let str = String(data: Data(bytes: ptr, count: Int(v.len)), encoding: .utf8) else { return nil }
+            let kind = v.kind
+            RunLoop.main.perform(inModes: [.common]) { [weak self, weak pane, weak view] in
+                MainActor.assumeIsolated { self?.openTerminalLink(str, kind: kind, pane: pane, view: view) }
+            }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
+            return true
         default:
             return nil
         }
@@ -1323,7 +1390,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     // MARK: - CLI
 
-    public enum SendResult: Equatable { case sent, noSuchPane, crossPaneDenied, externalDenied, paneBusy }
+    public enum SendResult: Equatable { case sent, noSuchPane, notTerminal, crossPaneDenied, externalDenied, paneBusy }
 
     /// `lmux send`: type text into a pane. A process inside pane X (its token) may only type into X
     /// (unless `allowCrossPaneSend`); a caller without a valid token only when `allowExternalSend`
@@ -1332,9 +1399,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         guard let p = panesByID[id] else { return .noSuchPane }
         if pane(token: token) == nil, !allowExternalSend { return .externalDenied }
         if let caller = callerPane(token: token, peerPID: peerPID), caller !== p, !allowCrossPaneSend { return .crossPaneDenied }
+        // 預覽 tab 沒有終端機，不能打字進去（beat: preview-tab.feature）。
+        guard let surface = p.surface else { return .notTerminal }
         // lmux is driving Claude Code's rewind menu there: typed text would land in it.
-        if p.surface.inputHeld { return .paneBusy }
-        p.surface.sendText(text)
+        if surface.inputHeld { return .paneBusy }
+        surface.sendText(text)
         // Input that presses Return is the one that can start a turn (`lmux wait` waits for what comes after).
         if text.hasSuffix("\n") || text.hasSuffix("\r") {
             p.lastSentAt = Date()

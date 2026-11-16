@@ -121,13 +121,21 @@ extension LmuxController {
             p.agent.state == .done && !p.failed
                 && Self.resumeCommand(p.claudeSessionID, saved: p.resumeCommand, agent: p.agentKind) != nil
         }
-        func node(_ n: SplitNode) -> LayoutFile.NodeState {
+        // 預覽 tab 不存（beat: preview-tab.feature）：格子只剩預覽 tab 就整格不存；分割只剩一邊就留下那一邊。
+        func node(_ n: SplitNode) -> LayoutFile.NodeState? {
             switch n.content {
             case .pane(let shown):
-                guard n.hasTabs else { return .init(pane: state(shown)) }
-                return .init(pane: state(shown), tabs: n.tabs.map(state), selectedTab: n.tabs.firstIndex { $0 === shown } ?? 0)
+                let tabs = n.tabs.filter { $0.surface != nil }
+                guard !tabs.isEmpty else { return nil }
+                guard tabs.count > 1 else { return .init(pane: state(tabs[0])) }
+                let kept = tabs.contains { $0 === shown } ? shown : tabs[0]
+                return .init(pane: state(kept), tabs: tabs.map(state), selectedTab: tabs.firstIndex { $0 === kept } ?? 0)
             case .split(let axis, let a, let b):
-                return .init(axis: axis, ratio: Double(n.ratio), children: [node(a), node(b)])
+                let na = node(a)
+                let nb = node(b)
+                guard let na else { return nb }
+                guard let nb else { return na }
+                return .init(axis: axis, ratio: Double(n.ratio), children: [na, nb])
             }
         }
         func state(_ p: Pane) -> LayoutFile.PaneState {
@@ -145,11 +153,16 @@ extension LmuxController {
                   pinned: p.pinned ? true : nil)
         }
         var f = LayoutFile()
-        f.workspaces = model.workspaces.map {
-            .init(id: $0.id, customTitle: $0.customTitle, accent: $0.accent,
-                  focusedPane: $0.focusedPane?.id, zoomedPane: $0.zoomedPane?.id, root: node($0.root))
+        f.workspaces = model.workspaces.compactMap { ws -> LayoutFile.WorkspaceState? in
+            guard let root = node(ws.root) else { return nil }  // 只有預覽 tab 的 workspace 不存
+            let focused: String? = ws.focusedPane.flatMap { fp in
+                fp.surface != nil ? fp.id : ws.root.find(fp)?.tabs.first { $0.surface != nil }?.id
+            }
+            let zoomed = ws.zoomedPane?.surface != nil ? ws.zoomedPane?.id : nil
+            return .init(id: ws.id, customTitle: ws.customTitle, accent: ws.accent,
+                         focusedPane: focused, zoomedPane: zoomed, root: root)
         }
-        f.selected = model.selectedID
+        f.selected = f.workspaces.contains { $0.id == model.selectedID } ? model.selectedID : f.workspaces.first?.id
         f.sidebarVisible = model.sidebarVisible
         f.sidebarWidth = Double(model.sidebarWidth)
         return f
@@ -311,7 +324,7 @@ extension LmuxController {
             restored.attentionSince = p.attentionSince.map(Date.init(timeIntervalSince1970:))
             restored.restoredDoneSession = session
         }
-        restored.surface.setOcclusion(visible: false)
+        restored.surface?.setOcclusion(visible: false)
         return restored
     }
 }

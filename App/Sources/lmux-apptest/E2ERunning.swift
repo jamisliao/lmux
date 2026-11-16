@@ -23,7 +23,7 @@ func runE2ERunning() async -> Int32 {
     for w in c.model.workspaces where w !== ws { c.closeWorkspace(w) }
     c.select(ws)
     _ = await waitFor(10) { rows(p).contains { $0.contains("%") } }
-    p.surface.sendText("\(claude) --model claude-e2e-mock --permission-mode acceptEdits\n")
+    p.surface!.sendText("\(claude) --model claude-e2e-mock --permission-mode acceptEdits\n")
     r.check("claude started", await waitFor(40) { p.claudeSessionID != nil && inputText(p) != nil })
     guard p.claudeSessionID != nil else { return finish(r, c) }
     await submit(c, p, "remember PINEAPPLE")
@@ -69,7 +69,7 @@ func runE2ERunning() async -> Int32 {
     // 3) A message queued behind the running turn: refused before any key, and the note says why.
     await sleepMs(900)
     await submit(c, p, "SLOW queue behind me")
-    p.surface.sendText("queued one")
+    p.surface!.sendText("queued one")
     await sleepMs(900)
     await type("\r", window: c.window)
     _ = await waitFor(5) { LmuxController.queuedPrompts(rows(p)) }
@@ -89,7 +89,7 @@ func runE2ERunning() async -> Int32 {
             !sent.isEmpty && sent.contains { $0.contains("PINEAPPLE") } && !sent.contains { $0.contains("ASKTOOL") || $0.contains("STREAM") },
             sent.joined(separator: " | "))
 
-    for _ in 0..<3 { p.surface.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
+    for _ in 0..<3 { p.surface!.sendKey(keyCode: 0x08, codepoint: 0x63, control: true); await sleepMs(400) }
     _ = await waitFor(5) { p.claudeSessionID == nil }
     return finish(r, c)
 }

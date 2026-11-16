@@ -64,7 +64,7 @@ ln -s /Applications/lmux.app/Contents/Resources/bin/lmux ~/.local/bin/lmux
 
 ## Updating
 
-lmux never checks for updates itself (it makes no network calls at all). Homebrew does:
+lmux never checks for updates itself (it makes no network calls on its own). Homebrew does:
 
 ```sh
 brew upgrade --cask lmux
@@ -135,7 +135,7 @@ URL: https://lmux.dev/docs/workspaces/
 
 # Workspaces & panes
 
-lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in other terminals. Panes are the parts of a split, and each pane holds one or more terminals as tabs.
+lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in other terminals. Panes are the parts of a split, and each pane holds one or more tabs (each a terminal, or an opt-in local `.md`/`.html` preview).
 
 ## The sidebar
 
@@ -168,7 +168,7 @@ Ghostty itself inherits by default; lmux doesn't unless you say so. See [Configu
 
 ## Tabs
 
-Every pane has a tab bar, and each tab is its own terminal. It works like cmux's.
+Every pane has a tab bar; each tab is its own terminal (or an opt-in local `.md`/`.html` preview). It works like cmux's.
 
 - `⌘T` opens a tab in the focused pane, right after the one you're on. So does the terminal button at the right end of the tab bar, or double-clicking an empty spot on it. The two buttons next to it split the pane right and down.
 - `⇧⌘[` / `⇧⌘]` (or `⌃⇧⇥` / `⌃⇥`) go to the previous and next tab. `⌃1`–`⌃8` pick a tab by its place, `⌃9` the last one. `⌥⇧⌘[` / `⌥⇧⌘]` move the tab left or right.
@@ -179,7 +179,7 @@ Every pane has a tab bar, and each tab is its own terminal. It works like cmux's
 - A pinned tab moves to the front of the bar, shows a pin instead of `×`, and stays open until you unpin it. Close Other Tabs leaves it alone.
 - A tab that needs you, or has an alert you haven't looked at, gets a blue dot where its `×` goes. The workspace's row in the sidebar shows the state of all its tabs, and `⇧⌘J` or a notification brings the right tab to the front.
 - Tabs you can't see don't render, like a workspace you're not on. They keep running, and after a relaunch they come back in order, pinned ones still pinned, with the one you were on in front.
-- `lmux new-tab` opens a tab from a script, and `lmux list` shows each tab with its place. See [CLI](https://lmux.dev/docs/cli/).
+- `lmux new-tab` opens a terminal tab from a script, and `lmux list` shows each terminal tab with its place (preview tabs are skipped). See [CLI](https://lmux.dev/docs/cli/).
 
 To show the tab bar only once a pane has two tabs, turn off **Settings → Appearance → Tab bar on panes with one tab**. Split panes then get a plain title bar, and double-clicking it renames the pane.
 
@@ -634,7 +634,7 @@ lmux, a macOS terminal for Claude Code and Codex, ships a small command line too
 
 ## `lmux list`
 
-Lists workspaces and their panes: ids, titles, folders, each pane's agent state (`idle`, `running`, `needs input`, `done`, `failed`) and agent (`claude`, `codex`, or [another agent's name](https://lmux.dev/docs/any-agent/)). `--json` also has each pane's `session` and `workspaceTitle`. The selected workspace is marked with `*`. Each tab is listed as its own pane, with its position (`tab 2/3`) and `*` on the visible one. In JSON: `tab`, `tabs` and `tabShown`.
+Lists workspaces and their terminal panes: ids, titles, folders, each pane's agent state (`idle`, `running`, `needs input`, `done`, `failed`) and agent (`claude`, `codex`, or [another agent's name](https://lmux.dev/docs/any-agent/)). `--json` also has each pane's `session` and `workspaceTitle`. The selected workspace is marked with `*`. Each terminal tab is listed as its own pane, with its position (`tab 2/3`) and `*` on the visible one (preview tabs are omitted). In JSON: `tab`, `tabs` and `tabShown`.
 
 ```sh
 lmux list
@@ -643,7 +643,7 @@ lmux list --json   # the same, as JSON
 
 ## `lmux send`
 
-Types text into a pane. `\n` presses Return (`\t` and `\\` work too).
+Types text into a terminal pane (targeting a preview tab fails with `not a terminal`). `\n` presses Return (`\t` and `\\` work too).
 
 ```sh
 lmux send "npm test\n"            # into this pane
@@ -756,7 +756,7 @@ cmux does a lot that lmux leaves out on purpose. If you need any of this, use cm
 - **The command palette and sidebar extras.** cmux has a command palette, and its sidebar shows ports, pull requests, logs and progress. It also has a right sidebar for files, pane flash and a custom sidebar tint.
 - **Knobs.** cmux has about two hundred settings. lmux has about ten.
 
-lmux isn't planning to add any of these. A browser engine or a remote daemon alone would make it a much bigger app.
+lmux isn't planning to add any of these (it only embeds macOS `WKWebView` for opt-in local `.md` / `.html` preview tabs). A general in-app browser or a remote daemon alone would make it a much bigger app.
 
 ## Moving over
 
@@ -873,7 +873,7 @@ The full method, and how to run it yourself (locally or on a GitHub-hosted Mac),
 
 ## Why it stays light
 
-- Native Swift on libghostty: no browser engine, no Electron.
+- Native Swift on libghostty: no Electron, with macOS `WKWebView` loaded only for opt-in `.md` / `.html` preview tabs.
 - Windows that are hidden, minimized or covered stop drawing. Nothing animates unless it means something, and what does animate runs on Core Animation, off the main thread.
 - An unfocused pane that hasn't drawn for 3 seconds releases its GPU resources, and rebuilds them in about 3 ms when it's needed again.
 - Nothing polls: agent state comes from hooks and from the agents' own reports.
@@ -889,7 +889,7 @@ URL: https://lmux.dev/docs/privacy/
 
 # Privacy & files on disk
 
-lmux, a macOS terminal for Claude Code and Codex, makes no network calls at all: no telemetry, no crash reports, not even an update check (Homebrew does that). Everything it knows stays in a few files on your Mac, listed here with how to remove each one.
+lmux, a macOS terminal for Claude Code and Codex, makes no network calls itself: no telemetry, no crash reports, not even an update check (Homebrew does that). Only when you open an opt-in `.md` or `.html` preview tab does macOS `WKWebView` fetch remote scripts or images referenced by that file. Everything it knows stays in a few files on your Mac, listed here with how to remove each one.
 
 ## What lmux writes
 
@@ -1043,11 +1043,11 @@ Any CLI runs in it. Resume, History and the hover actions are built for Claude C
 
 ## Does it phone home?
 
-No. lmux makes no network calls at all. No telemetry, no crash reports, not even an update check (Homebrew does that). Everything it writes to disk, and how to remove it, is in [Privacy & files on disk](https://lmux.dev/docs/privacy/).
+No. lmux itself makes no network calls—no telemetry, no crash reports, not even an update check (Homebrew does that). Only when you open a preview tab does macOS `WKWebView` load remote scripts or images referenced by that `.md` or `.html` file. Everything it writes to disk, and how to remove it, is in [Privacy & files on disk](https://lmux.dev/docs/privacy/).
 
 ## Will lmux get an in-app browser or computer use?
 
-No. Putting a browser engine in the terminal would defeat the whole point. Claude Code already drives browsers and your screen through MCP servers (Playwright, for one) and Claude in Chrome, and lmux is just the terminal Claude Code runs in. If you want to script lmux itself, the bundled [`lmux` CLI](https://lmux.dev/docs/cli/) can list panes, send input to them and wait for an agent to finish ([`lmux wait`](https://lmux.dev/docs/cli/#lmux-wait)), so Claude can start a Codex review in a new workspace and read the result. See [lmux for agents](https://github.com/sooftware/lmux/blob/main/docs/agents.md).
+No. Putting a full web browser in the terminal would defeat the whole point (lmux only uses macOS `WKWebView` for opt-in local `.md` / `.html` preview tabs). Claude Code already drives browsers and your screen through MCP servers (Playwright, for one) and Claude in Chrome, and lmux is just the terminal Claude Code runs in. If you want to script lmux itself, the bundled [`lmux` CLI](https://lmux.dev/docs/cli/) can list panes, send input to them and wait for an agent to finish ([`lmux wait`](https://lmux.dev/docs/cli/#lmux-wait)), so Claude can start a Codex review in a new workspace and read the result. See [lmux for agents](https://github.com/sooftware/lmux/blob/main/docs/agents.md).
 
 ## Why "lmux"?
 

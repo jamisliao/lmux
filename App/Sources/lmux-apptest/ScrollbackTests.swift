@@ -11,7 +11,7 @@ private let agentSession = "8e1f0c2a-0000-4000-8000-00000000cafe"
 
 @MainActor
 private func shellReady(_ p: Pane) async -> Bool {
-    await waitFor(10) { p.surface.readText().contains("%") && !p.surface.needsConfirmQuit }
+    await waitFor(10) { p.surface!.readText().contains("%") && !p.surface!.needsConfirmQuit }
 }
 
 @MainActor
@@ -30,16 +30,16 @@ func runScrollback() async -> Int32 {
     // The plain shell pane: 2,500 numbered lines, then a red line, then the prompt.
     let a = c.model.selected!.panes[0]
     r.check("a plain shell pane reaches its prompt (shell integration: nothing running)", await shellReady(a))
-    a.surface.sendText("seq 1 2500 | sed 's/^/line-/'; printf '\\033[31mRED-MARK\\033[0m\\n'\r")
-    r.check("…and prints 2,500 lines and a red one", await waitFor(10) { a.surface.readText().contains("RED-MARK\n") })
-    _ = await waitFor(3) { !a.surface.needsConfirmQuit }
+    a.surface!.sendText("seq 1 2500 | sed 's/^/line-/'; printf '\\033[31mRED-MARK\\033[0m\\n'\r")
+    r.check("…and prints 2,500 lines and a red one", await waitFor(10) { a.surface!.readText().contains("RED-MARK\n") })
+    _ = await waitFor(3) { !a.surface!.needsConfirmQuit }
 
     // An agent pane lmux will resume: saves nothing.
     let bws = c.newWorkspace()
     let b = bws.panes[0]
     _ = await shellReady(b)
-    b.surface.sendText("echo AGENT-OUTPUT\r")
-    _ = await waitFor(5) { b.surface.readText().contains("AGENT-OUTPUT\n") }
+    b.surface!.sendText("echo AGENT-OUTPUT\r")
+    _ = await waitFor(5) { b.surface!.readText().contains("AGENT-OUTPUT\n") }
     b.claudeSessionID = agentSession
     b.resumeCommand = "claude --resume \(agentSession)"
 
@@ -51,22 +51,22 @@ func runScrollback() async -> Int32 {
     let cws = c.newWorkspace()
     let cp = cws.panes[0]
     _ = await shellReady(cp)
-    cp.surface.sendText("'\(alt.path)'\r")
-    _ = await waitFor(5) { cp.surface.readText().contains("ALT-SCREEN-TEXT") }
+    cp.surface!.sendText("'\(alt.path)'\r")
+    _ = await waitFor(5) { cp.surface!.readText().contains("ALT-SCREEN-TEXT") }
     // A shell left on the alternate screen (a program died without leaving it): saves nothing either.
     let dws = c.newWorkspace()
     let dp = dws.panes[0]
     _ = await shellReady(dp)
-    dp.surface.sendText("printf '\\033[?1049h'; echo ALT-SHELL-TEXT\r")
-    _ = await waitFor(5) { dp.surface.readText().contains("ALT-SHELL-TEXT\n") }
+    dp.surface!.sendText("printf '\\033[?1049h'; echo ALT-SHELL-TEXT\r")
+    _ = await waitFor(5) { dp.surface!.readText().contains("ALT-SHELL-TEXT\n") }
     await sleepMs(300)
     // Two more plain panes the restore run damages on purpose (corrupt / escapes).
     let ews = c.newWorkspace(), fws = c.newWorkspace()
     let e = ews.panes[0], f = fws.panes[0]
     for (p, word) in [(e, "E-OUTPUT"), (f, "F-OUTPUT")] {
         _ = await shellReady(p)
-        p.surface.sendText("echo \(word)\r")
-        _ = await waitFor(5) { p.surface.readText().contains(word + "\n") }
+        p.surface!.sendText("echo \(word)\r")
+        _ = await waitFor(5) { p.surface!.readText().contains(word + "\n") }
     }
     // Load for the quit-time measurement: 20 more plain panes with 2,000 lines each (the first one
     // 11,000: only its last 2,000 rows are read).
@@ -77,12 +77,12 @@ func runScrollback() async -> Int32 {
     }
     for (i, p) in load.enumerated() {
         _ = await shellReady(p)
-        p.surface.sendText(i == 0 ? "seq 7001 9000 | sed 's/^/load-line-/'; seq 1 7000; seq 1 2000 | sed 's/^/load-line-/'\r"
+        p.surface!.sendText(i == 0 ? "seq 7001 9000 | sed 's/^/load-line-/'; seq 1 7000; seq 1 2000 | sed 's/^/load-line-/'\r"
                                   : "seq 1 2000 | sed 's/^/load-line-/'; printf '\\033[32mGREEN\\033[0m\\n'\r")
     }
-    _ = await waitFor(20) { load.allSatisfy { $0.surface.readText(viewportOnly: false).contains("load-line-2000\n") && !$0.surface.needsConfirmQuit } }
-    _ = await waitFor(5) { load.dropFirst().allSatisfy { $0.surface.readText().contains("GREEN\n") } }
-    _ = await waitFor(5) { [a, b, e, f].allSatisfy { !$0.surface.needsConfirmQuit } }
+    _ = await waitFor(20) { load.allSatisfy { $0.surface!.readText(viewportOnly: false).contains("load-line-2000\n") && !$0.surface!.needsConfirmQuit } }
+    _ = await waitFor(5) { load.dropFirst().allSatisfy { $0.surface!.readText().contains("GREEN\n") } }
+    _ = await waitFor(5) { [a, b, e, f].allSatisfy { !$0.surface!.needsConfirmQuit } }
     await sleepMs(300)
 
     // Settings > General: both toggles.
@@ -173,7 +173,7 @@ func runScrollbackRestore() async -> Int32 {
         return finish(r, c)
     }
     let divider = "— restored from your last session —"
-    func all(_ p: Pane) -> String { p.surface.readText(viewportOnly: false) }
+    func all(_ p: Pane) -> String { p.surface!.readText(viewportOnly: false) }
     let shown = await waitFor(10) {
         let s = all(a)
         guard let d = s.range(of: divider) else { return false }
@@ -184,7 +184,7 @@ func runScrollbackRestore() async -> Int32 {
     r.check("the old output shows above the divider, then a new prompt", shown && red != nil && div != nil && last != nil
             && last!.lowerBound < red!.lowerBound && red!.upperBound <= div!.lowerBound, String(s.suffix(300)).debugDescription)
     r.check("…only its last 2,000 lines", !s.contains("line-100\n") && s.contains("line-1000\n"))
-    a.surface.sendText("echo AFTER-$((40+2))\r")
+    a.surface!.sendText("echo AFTER-$((40+2))\r")
     r.check("…and the new shell works as usual below it", await waitFor(5) { all(a).contains("AFTER-42\n") }, String(all(a).suffix(200)).debugDescription)
     r.check("…the old output isn't in the shell's history (printed, never typed)",
             !(((try? String(contentsOfFile: env["HISTFILE"] ?? "/nonexistent", encoding: .utf8)) ?? "").contains("line-2499")))
@@ -194,7 +194,7 @@ func runScrollbackRestore() async -> Int32 {
     r.check("a file that isn't UTF-8 is ignored (no crash, nothing printed)", !all(e).contains(divider) && !all(e).contains("E-OUTPUT"))
     let fs = all(f)
     r.check("escapes in a saved file are dropped: text only (no title, no clipboard, no clear)",
-            fs.contains("SAFE-TEXTRED") && !fs.contains("PWNED") && f.surface.title != "PWNED-TITLE"
+            fs.contains("SAFE-TEXTRED") && !fs.contains("PWNED") && f.surface!.title != "PWNED-TITLE"
                 && !(GhosttyRuntime.standardPasteboard.string(forType: .string) ?? "").contains("pwned"),
             String(fs.prefix(200)).debugDescription)
     let load = (exp["load"] ?? "").split(separator: ",").compactMap { c.pane(id: String($0)) }

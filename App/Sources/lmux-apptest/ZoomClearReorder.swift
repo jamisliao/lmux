@@ -84,7 +84,7 @@ func stageWorkspaces(_ c: LmuxController, _ titles: [String]) async -> [Workspac
     c.model.workspaces = made
     c.select(made[0])
     c.model.selection = []
-    _ = await waitFor(10) { made.flatMap(\.panes).allSatisfy { $0.surface.foregroundPID > 0 } }
+    _ = await waitFor(10) { made.flatMap(\.panes).allSatisfy { $0.surface!.foregroundPID > 0 } }
     c.root.sidebarHost.layoutSubtreeIfNeeded()
     await sleepMs(200)
     return made
@@ -102,19 +102,19 @@ func runZoomClearReorder() async -> Int32 {
     let p1 = ws.panes[0]
     _ = await sinks.waitReady(p1.id)
     guard let p2 = c.split(p1, .right) else { r.check("split", false); return finish(r, c) }
-    _ = await waitFor(5) { p2.surface.foregroundPID > 0 }
+    _ = await waitFor(5) { p2.surface!.foregroundPID > 0 }
     r.check("split right: two panes, the new one focused", ws.panes.count == 2 && ws.focusedPane === p2)
     c.validateMenuItem(c.splitZoomMenuItem!)
     r.check("menu starts \"Zoom Split\"", c.splitZoomMenuItem?.title == "Zoom Split", c.splitZoomMenuItem?.title ?? "nil")
 
     c.toggleSplitZoom()
     r.check("⌘-method zooms the focused pane", ws.zoomedPane === p2 && ws.isZoomed)
-    r.check("…the other pane is out of the window and stops rendering", p1.surface.window == nil && !p1.surface.occlusionVisible)
-    r.check("…the zoomed pane renders", p2.surface.window != nil && p2.surface.occlusionVisible)
+    r.check("…the other pane is out of the window and stops rendering", p1.surface!.window == nil && !p1.surface!.occlusionVisible)
+    r.check("…the zoomed pane renders", p2.surface!.window != nil && p2.surface!.occlusionVisible)
     c.validateMenuItem(c.splitZoomMenuItem!)
     r.check("menu flips to \"Unzoom Split\"", c.splitZoomMenuItem?.title == "Unzoom Split", c.splitZoomMenuItem?.title ?? "nil")
     c.menuToggleSplitZoom(nil)
-    r.check("the menu action unzooms back", !ws.isZoomed && p1.surface.window != nil && p2.surface.window != nil)
+    r.check("the menu action unzooms back", !ws.isZoomed && p1.surface!.window != nil && p2.surface!.window != nil)
 
     await cmdShiftReturn(window: w)
     r.check("⇧⌘↩ (the real key path, Ghostty's toggle_split_zoom) zooms", ws.isZoomed && ws.zoomedPane === p2)
@@ -127,12 +127,12 @@ func runZoomClearReorder() async -> Int32 {
     r.check("closing the zoomed pane unzooms first, then closes it normally", !ws.isZoomed && ws.panes.count == 1)
 
     guard let p3 = c.split(ws.panes[0], .down) else { r.check("re-split", false); return finish(r, c) }
-    _ = await waitFor(5) { p3.surface.foregroundPID > 0 }
+    _ = await waitFor(5) { p3.surface!.foregroundPID > 0 }
     c.toggleSplitZoom()
     r.check("zoomed again (2 panes)", ws.isZoomed)
     _ = c.split(ws.focusedPane!, .right)
     r.check("splitting while zoomed unzooms first, then splits as normal (3 panes, all visible)",
-            !ws.isZoomed && ws.panes.count == 3 && ws.panes.allSatisfy { $0.surface.occlusionVisible })
+            !ws.isZoomed && ws.panes.count == 3 && ws.panes.allSatisfy { $0.surface!.occlusionVisible })
 
     r.check("without a split, the shortcut is a no-op", {
         let solo = c.newWorkspace(select: true)
@@ -144,12 +144,12 @@ func runZoomClearReorder() async -> Int32 {
     r.section = "zoom + focus"
     let zw = c.newWorkspace(select: true)
     let za = zw.panes[0]
-    _ = await waitFor(5) { za.surface.foregroundPID > 0 }
+    _ = await waitFor(5) { za.surface!.foregroundPID > 0 }
     guard let zb = c.split(za, .right) else { r.check("split", false); return finish(r, c) }
-    _ = await waitFor(5) { zb.surface.foregroundPID > 0 }
-    func zoomOnA() -> Bool { c.focus(za); c.toggleSplitZoom(); return zw.zoomedPane === za && zb.surface.window == nil }
+    _ = await waitFor(5) { zb.surface!.foregroundPID > 0 }
+    func zoomOnA() -> Bool { c.focus(za); c.toggleSplitZoom(); return zw.zoomedPane === za && zb.surface!.window == nil }
     func unzoomedOnB() -> Bool {
-        !zw.isZoomed && zw.focusedPane === zb && zb.surface.window != nil && zb.surface.occlusionVisible
+        !zw.isZoomed && zw.focusedPane === zb && zb.surface!.window != nil && zb.surface!.occlusionVisible
             && firstResponderPane(c) === zb
     }
     r.check("zoomed on A", zoomOnA())
@@ -186,13 +186,13 @@ func runZoomClearReorder() async -> Int32 {
     r.check("zoomed on A again", zoomOnA())
     c.windowShownOverride = false
     c.windowDidChangeOcclusionState(Notification(name: NSWindow.didChangeOcclusionStateNotification, object: w))
-    r.check("window hidden: nothing renders", !za.surface.occlusionVisible && !zb.surface.occlusionVisible)
+    r.check("window hidden: nothing renders", !za.surface!.occlusionVisible && !zb.surface!.occlusionVisible)
     c.windowShownOverride = nil
     c.windowDidChangeOcclusionState(Notification(name: NSWindow.didChangeOcclusionStateNotification, object: w))
     r.check("shown again while zoomed: A renders, the hidden B stays occluded",
-            za.surface.occlusionVisible && !zb.surface.occlusionVisible)
+            za.surface!.occlusionVisible && !zb.surface!.occlusionVisible)
     c.toggleSplitZoom()
-    r.check("unzoomed: both render", za.surface.occlusionVisible && zb.surface.occlusionVisible)
+    r.check("unzoomed: both render", za.surface!.occlusionVisible && zb.surface!.occlusionVisible)
 
     // ------------------------------------------------------------- clear status
     r.section = "clear status"
@@ -361,7 +361,7 @@ func runZoomClearReorder() async -> Int32 {
         r.check("split for the zoom restore", false)
         return finish(r, c)
     }
-    _ = await waitFor(5) { zRight.surface.foregroundPID > 0 && zbgRight.surface.foregroundPID > 0 }
+    _ = await waitFor(5) { zRight.surface!.foregroundPID > 0 && zbgRight.surface!.foregroundPID > 0 }
     c.focus(zLeft)
     c.toggleSplitZoom()
     c.toggleSplitZoom(zbg)
@@ -386,13 +386,13 @@ func runZoomClearReorder() async -> Int32 {
                 && rsel?.focusedPane === rLeft && firstResponderPane(c2) === rLeft,
             "zoomed=\(rsel?.zoomedPane?.id ?? "nil") focused=\(rsel?.focusedPane?.id ?? "nil")")
     r.check("…only the zoomed pane renders, the other stays out of the window",
-            rLeft?.surface.window != nil && rLeft?.surface.occlusionVisible == true
-                && rRight?.surface.window == nil && rRight?.surface.occlusionVisible == false)
+            rLeft?.surface?.window != nil && rLeft?.surface?.occlusionVisible == true
+                && rRight?.surface?.window == nil && rRight?.surface?.occlusionVisible == false)
     r.check("…the hidden workspace keeps its zoom (on its second pane)",
             rbg?.zoomedPane != nil && rbg?.zoomedPane?.id == zbgRight.id && rbg?.focusedPane === rbg?.zoomedPane)
     c2.select(rbg!)
-    r.check("…and shows it zoomed when selected", rbg?.zoomedPane?.surface.window != nil
-                && rbg?.panes.filter { $0.surface.window != nil }.count == 1)
+    r.check("…and shows it zoomed when selected", rbg?.zoomedPane?.surface?.window != nil
+                && rbg?.panes.filter { $0.surface!.window != nil }.count == 1)
     c2.saveNow()
 
     // A zoom on a pane that isn't in the layout any more (edited, or an older lmux's) is ignored.

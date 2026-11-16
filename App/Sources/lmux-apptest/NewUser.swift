@@ -33,7 +33,7 @@ func press(_ c: Character, _ mods: NSEvent.ModifierFlags, window: NSWindow) asyn
 
 @MainActor
 private func shellReady(_ p: Pane) async -> Bool {
-    await waitFor(8) { p.surface.readText().contains("%") }
+    await waitFor(8) { p.surface!.readText().contains("%") }
 }
 
 @MainActor
@@ -165,9 +165,9 @@ func runNewUser() async -> Int32 {
     let wsK2 = c.newWorkspace(cwd: base.path)
     let kp = wsK2.panes[0]
     _ = await shellReady(kp)
-    kp.surface.sendText("echo \"PWD=$PWD\"\r")
-    r.check("a Korean path with spaces opens as the shell's directory", await waitFor(3) { kp.surface.readText().contains("PWD=" + base.path) },
-            String(kp.surface.readText().suffix(200)))
+    kp.surface!.sendText("echo \"PWD=$PWD\"\r")
+    r.check("a Korean path with spaces opens as the shell's directory", await waitFor(3) { kp.surface!.readText().contains("PWD=" + base.path) },
+            String(kp.surface!.readText().suffix(200)))
     let long = String(repeating: "아주 긴 워크스페이스 이름 very long title 🚀 ", count: 12)
     c.renameWorkspace(wsK2, to: long)
     let sidebarW = c.root.sidebarHost.frame.width
@@ -208,7 +208,7 @@ func runNewUser() async -> Int32 {
     let hw = c.newWorkspace()
     let hp = hw.panes[0]
     _ = await shellReady(hp)
-    hp.surface.sendText("'\(fake.path)'\r")
+    hp.surface!.sendText("'\(fake.path)'\r")
     r.check("a claude with no hook event for a while gets one hint card", await waitFor(8) { c.cardShown(hp) })
     let text = (hp.view.overlay.card?.message.stringValue ?? "") + " " + (hp.view.overlay.card?.detail.stringValue ?? "")
     r.check("…saying lmux isn't receiving hooks, and to install them in CLAUDE_CONFIG_DIR",
@@ -217,11 +217,11 @@ func runNewUser() async -> Int32 {
     // Calm: it never takes the keyboard. ⏎ goes on to claude (the fake reads a line and exits).
     r.check("…with Dismiss and no key hints (⏎ / esc stay Claude's)",
             hp.view.overlay.card?.cancel.title == "Dismiss" && hp.view.overlay.card?.confirm.shortcut == nil
-                && hp.surface.keyInterceptor == nil)
+                && hp.surface!.keyInterceptor == nil)
     c.window.makeFirstResponder(hp.surface)
     await type("\r", window: c.window)
     func claudeRuns() -> Bool {
-        let fg = hp.surface.foregroundPID
+        let fg = hp.surface!.foregroundPID
         return fg > 0 && ClaudeProcess.isClaude(ClaudeProcess.representative(ofGroup: fg) ?? fg)
     }
     r.check("…⏎ goes to the terminal (claude read it and exited), the card stays",
@@ -236,7 +236,7 @@ func runNewUser() async -> Int32 {
     _ = await shellReady(okp)
     _ = sendHook(pane: okp.id, hook("SessionStart", session: "hint-ok"))
     _ = await waitFor(3) { okp.hooksHeard }
-    okp.surface.sendText("'\(fake.path)'\r")
+    okp.surface!.sendText("'\(fake.path)'\r")
     await sleepMs(3500)
     r.check("a pane that sent a hook event never gets the hint (and arms no check)", !c.cardShown(okp) && okp.hooksHintCheck == nil)
     // Codex is not Claude Code: a codex sending no hooks gets no Claude hooks hint (it has its own notice).
@@ -246,7 +246,7 @@ func runNewUser() async -> Int32 {
     let cw = c.newWorkspace()
     let cp = cw.panes[0]
     _ = await shellReady(cp)
-    cp.surface.sendText("'\(codexFake.path)'\r")
+    cp.surface!.sendText("'\(codexFake.path)'\r")
     await sleepMs(3500)
     r.check("a codex pane never gets the Claude hooks hint", !cp.hooksHinted && cp.hooksHintCheck == nil
             && !(cp.view.overlay.card?.message.stringValue ?? "").contains("Claude Code hooks"))

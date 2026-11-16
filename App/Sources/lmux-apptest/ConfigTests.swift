@@ -161,9 +161,9 @@ func runSettings() async -> Int32 {
     r.check("the new theme is live: libghostty's background is Dracula's", c.runtime.background.map(hexOf) == "#282a36"
             && configBackground(c.runtime.config) == "#282a36", c.runtime.background.map(hexOf) ?? "nil")
     let p1 = c.model.selected!.panes[0]
-    _ = await waitFor(2) { p1.surface.terminalBackground.map(hexOf) == "#282a36" }
-    r.check("…the open pane follows (CONFIG_CHANGE), no restart", p1.surface.terminalBackground.map(hexOf) == "#282a36",
-            p1.surface.terminalBackground.map(hexOf) ?? "nil")
+    _ = await waitFor(2) { p1.surface!.terminalBackground.map(hexOf) == "#282a36" }
+    r.check("…the open pane follows (CONFIG_CHANGE), no restart", p1.surface!.terminalBackground.map(hexOf) == "#282a36",
+            p1.surface!.terminalBackground.map(hexOf) ?? "nil")
     m.chooseTheme("Nord Light"); m.galleryDark = true; m.chooseTheme("Nord")
 
     r.section = "font"
@@ -396,7 +396,7 @@ func checkCmuxOneClick(_ r: Report, _ c: LmuxController, _ src: CmuxSources, _ c
             vm.canUndo && (vm.plan.notImportedLine ?? "").contains("more") && menuTitles().contains("Undo cmux Import"))
     let imported = c.model.workspaces.filter { $0.id.hasPrefix("cmux-") }
     if let mine = imported.last { c.renameWorkspace(mine, to: "mine now") }
-    imported.first?.panes.first?.surface.pasteText("make test")  // used: typed in, nothing else changed
+    imported.first?.panes.first?.surface?.pasteText("make test")  // used: typed in, nothing else changed
     let usedIDs = [imported.first?.id, imported.last?.id]
     vm.onUndo?()
     r.check("Undo: lmux's config back to its exact bytes, settings and sidebar back", sha(cfgURL) == cfg0 && c.settings.appearance == appearance0
@@ -407,7 +407,7 @@ func checkCmuxOneClick(_ r: Report, _ c: LmuxController, _ src: CmuxSources, _ c
             && (vm.result ?? "").contains("Kept 2 workspaces you used.") && c.model.selectedID == sel0, vm.result ?? "-")
     r.check("…Undo is gone (sheet and menu)", !vm.canUndo && !menuTitles().contains("Undo cmux Import") && c.undoCmuxImport() == "Nothing to undo.")
     c.model.workspaces.filter { $0.id.hasPrefix("cmux-") }.forEach { c.closeWorkspace($0) }
-    c.model.workspaces.first?.panes.first?.surface.pasteText("ls")
+    c.model.workspaces.first?.panes.first?.surface?.pasteText("ls")
     c.importFromCmux(CmuxImport.plan(src), sections: [.workspaces])
     r.check("a first shell the user typed in stays, the imports go below it", c.model.workspaces.count == 4 && c.model.workspaces.first?.id == fresh?.id)
     c.undoCmuxImport()

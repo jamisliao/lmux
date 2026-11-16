@@ -53,7 +53,7 @@
 ## 特色
 
 - **輕。**<br>
-  整個 app 25 MB，不管開一個工作區還是二十個，閒置 CPU 都接近 0%。用原生 Swift 寫，底層是 libghostty，沒有 Electron、沒有瀏覽器引擎，設定也只有十個左右。
+  整個 app 25 MB，不管開一個工作區還是二十個，閒置 CPU 都接近 0%。用原生 Swift 寫，底層是 libghostty（僅於主動開啟 `.md` / `.html` 預覽分頁時使用 macOS `WKWebView`；開啟選單跳出時會先啟動一個備用的 WebKit 程序，不載入頁面也不連網），沒有 Electron，設定也只有十個左右。
 
 - **關掉、更新、重開機，全部都會回來。**<br>
   工作區、分割畫面、資料夾都會原樣還原，每個 Claude Code 或 Codex session 也會從上次停下的地方繼續。上禮拜關掉的？在 History（`⇧⌘H`）找到就能叫回來。
@@ -191,7 +191,7 @@ Agent 外框提示、History、收回對話和韓文輸入的 GIF 短片，都�
 > 什麼 CLI 都能在裡面跑。恢復 session、History 和滑鼠移上去才會出現的那些按鈕，是針對我每天泡在裡面的 Claude Code 和 Codex 做的；其他 agent 只要像 Codex 一樣，用一個 escape sequence（OSC 7501）回報狀態，就能有狀態顯示和通知：由 `my-agent` 自己輸出 `printf '\e]7501;state=blocked:app=my-agent\e\\'` 就行（[作法](docs/agents.md#any-agent-osc-7501)）。Linux 和 Windows 不會支援。lmux 是建在 libghostty 上的原生 AppKit app，要移植的話等於是另一個 app。
 
 **會偷偷連網嗎？**
-> 不會。lmux 完全不連網路：沒有遙測、沒有當機回報，連檢查更新都沒有（那是 Homebrew 的事）。它在磁碟上寫了哪些東西、要怎麼刪乾淨，都寫在[功能頁的其中一段](docs/features.md#what-does-lmux-write-to-disk-and-how-do-i-remove-it)。
+> 不會。lmux 本身完全不連網路：沒有遙測、沒有當機回報，連檢查更新都沒有（那是 Homebrew 的事）。僅當你開啟預覽分頁時，macOS `WKWebView` 會載入該 HTML 或 Markdown 檔案所參照的遠端腳本或圖片。它在磁碟上寫了哪些東西、要怎麼刪乾淨，都寫在[功能頁的其中一段](docs/features.md#what-does-lmux-write-to-disk-and-how-do-i-remove-it)。
 
 更多問題請見 [FAQ](https://lmux.dev/docs/faq/)。
 

@@ -211,7 +211,7 @@ final class ContrastBench {
     /// The selected pane's pixels once it shows `theme`'s background and two reads agree.
     func pixels(_ ws: Workspace, theme: String) async -> (PanePixels, Grid)? {
         if c.model.selected !== ws { c.select(ws) }
-        let s = ws.panes[0].surface
+        let s = ws.panes[0].surface!
         let want = themeBackground(theme)
         var last: PanePixels?
         var seen = "none"

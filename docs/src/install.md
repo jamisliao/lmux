@@ -26,7 +26,7 @@ ln -s /Applications/lmux.app/Contents/Resources/bin/lmux ~/.local/bin/lmux
 
 ## Updating
 
-lmux never checks for updates itself (it makes no network calls at all). Homebrew does:
+lmux never checks for updates itself (it makes no network calls on its own). Homebrew does:
 
 ```sh
 brew upgrade --cask lmux

@@ -328,7 +328,7 @@ extension LmuxController {
                 // 壓縮中按 Esc：Claude 取消壓縮，不會寫中斷標記，標題也不一定變回 ✳（beat: compaction-running-state.feature）。
                 // 看狀態機的旗標，不看第 2 行的文字：回合中的自動壓縮結束後，旗標是 false。
                 let compacting = pane.agent.isCompacting
-                if last?.interrupted == true || (n == 1 && (compacting || pane.surface.title.hasPrefix("✳"))) {
+                if last?.interrupted == true || (n == 1 && (compacting || pane.surface?.title.hasPrefix("✳") == true)) {
                     self.interruptChecks[pane.id] = nil
                     pane.agent.userInterrupted()
                     self.log("interrupted with no hook: pane=\(pane.id) idle")
@@ -394,7 +394,7 @@ extension LmuxController {
         if e.claudePID != nil { pane.claudeEnvironment = e.claudeEnvironment.filter { HookClient.replayable($0.key) } }
         pane.resumeEnvironment = pane.claudeEnvironment
         if pane.agentKind == .codex { return captureCodexResumeCommand(pane, e, sessionID: sid) }
-        let p = e.claudePID ?? ClaudeProcess.representative(ofGroup: pane.surface.foregroundPID)
+        let p = e.claudePID ?? ClaudeProcess.representative(ofGroup: pane.foregroundPID)
         guard let cl = p.flatMap(ClaudeProcess.commandLine), cl.argv.contains(where: {
             ($0 as NSString).lastPathComponent == "claude" || $0.hasSuffix("/cli.js") || $0.hasSuffix("/cli.mjs")
         }) else {
@@ -426,7 +426,7 @@ extension LmuxController {
         // Only the pane's foreground claude may bind or switch it. A claude outside that group
         // (nohup / double fork from Claude's Bash tool reparents to launchd, so no ancestor
         // shows it) only ever reaches the session the pane already shows.
-        if let pgid = e.claudePGID, case let fg = pane.surface.foregroundPID, fg > 0, pgid != fg,
+        if let pgid = e.claudePGID, case let fg = pane.foregroundPID, fg > 0, pgid != fg,
            sid != pane.claudeSessionID || sid.isEmpty {
             return false
         }
@@ -540,7 +540,7 @@ extension LmuxController {
         // (The same job's: a reporter restarted under the same name binds its new job.)
         let newAsk = s.state == .blocked && pane.programAnswered
         if s.state == pane.programReport, s.app == pane.programApp, s.kind == pane.programKind, !newAsk,
-           pane.programGroup == pane.surface.foregroundPID { return }
+           pane.programGroup == pane.foregroundPID { return }
         guard fromReporter(pane, app: s.app, s.state) else { return }
         log("program report: pane=\(pane.id.prefix(8)) \(s.app) \(s.state)\(s.kind.map { ":" + $0 } ?? "")")
         noteAgentActivity(pane)
@@ -587,7 +587,7 @@ extension LmuxController {
     /// the shell has the terminal back (not the next job: `my-agent; cat notes` can't speak for
     /// it) and the words end a turn (a program that quit isn't working or waiting for anyone).
     private func fromReporter(_ pane: Pane, app: String, _ state: SurfaceView.ProgramStatus.State) -> Bool {
-        let fg = pane.surface.foregroundPID
+        let fg = pane.foregroundPID
         let argv = foregroundArgv(pane, fg)
         if let argv, ProgramReporter.namesItself(app, argv: argv) {
             if pane.programGroup != fg { watchReporterExit(pane, fg) }
@@ -683,7 +683,7 @@ extension LmuxController {
     }
 
     func foregroundIs(_ pane: Pane, app: String) -> Bool {
-        ClaudeProcess.representative(ofGroup: pane.surface.foregroundPID).flatMap(ClaudeProcess.commandLine)
+        ClaudeProcess.representative(ofGroup: pane.foregroundPID).flatMap(ClaudeProcess.commandLine)
             .map { ProgramReporter.namesItself(app, argv: $0.argv) } == true
     }
 
@@ -698,7 +698,7 @@ extension LmuxController {
     }
 
     func foregroundIsCodex(_ pane: Pane) -> Bool {
-        ClaudeProcess.representative(ofGroup: pane.surface.foregroundPID).flatMap(ClaudeProcess.commandLine)?
+        ClaudeProcess.representative(ofGroup: pane.foregroundPID).flatMap(ClaudeProcess.commandLine)?
             .argv.contains(where: Self.isCodexArgument) == true
     }
 
@@ -802,7 +802,7 @@ extension LmuxController {
     func deliverSharedCodex(_ event: HookEvent, to pane: Pane, at: Date) {
         if [.sessionStart, .userPromptSubmit].contains(event.kind) { pane.codexTurnClaimed = at }
         var e = event
-        let fg = pane.surface.foregroundPID
+        let fg = pane.foregroundPID
         if fg > 0 {
             e.claudePGID = fg
             e.claudePID = ClaudeProcess.representative(ofGroup: fg) ?? e.claudePID
@@ -816,7 +816,7 @@ extension LmuxController {
     /// above it (whose argv `codex resume` replays, whose exit ends the session), never for a
     /// nested agent: those run under the app-server, so their first ancestor group isn't the pane's.
     func codexRunnerAsCodex(_ pane: Pane, _ e: HookEvent) -> HookEvent {
-        let fg = pane.surface.foregroundPID
+        let fg = pane.foregroundPID
         guard e.agent == .codex, fg > 0, let pgid = e.claudePGID, pgid != fg, e.claudeAncestorGroups.first == fg else { return e }
         var e = e
         e.claudePGID = fg
@@ -829,7 +829,7 @@ extension LmuxController {
     /// nil: can't tell (an older lmux-hook, no pty yet, or a claude from elsewhere).
     func isNestedClaude(_ pane: Pane, _ e: HookEvent) -> Bool? {
         guard let pgid = e.claudePGID else { return nil }
-        let fg = pane.surface.foregroundPID
+        let fg = pane.foregroundPID
         guard fg > 0 else { return nil }
         if pgid == fg { return false }
         return e.claudeAncestorGroups.contains(fg) ? true : nil

@@ -1,0 +1,9 @@
+name: md-html-preview
+created: 2026-11-13
+phase: archive
+verification: { status: passed, critical: 0, date: 2026-11-16 }
+pipeline:
+  proposal: { status: done }
+  gherkin: { status: done }
+  design: { status: done }
+  tasks: { status: done }

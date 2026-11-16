@@ -300,7 +300,7 @@ func hoverPrompt(_ c: LmuxController, _ p: Pane, turn: Int) async {
     _ = await c.loadTurns(p)
     let m = c.screenMap(p, maxAge: 0)
     if let h = m.map?.promptHeads().first(where: { $0.turn == turn }) {
-        c.paneMouseMoved(p, NSPoint(x: 260, y: p.surface.bounds.height - (m.rows[h.row].top + m.rowHeight / 2)))
+        c.paneMouseMoved(p, NSPoint(x: 260, y: p.surface!.bounds.height - (m.rows[h.row].top + m.rowHeight / 2)))
     }
     await sleepMs(150)
 }
@@ -311,7 +311,7 @@ func hoverPrompt(_ c: LmuxController, _ p: Pane, turn: Int) async {
 @MainActor
 func imeType(_ p: Pane, _ text: String, rec: Recorder, enterWhileComposing: Bool) async {
     let none = NSRange(location: NSNotFound, length: 0)
-    let s = p.surface
+    let s = p.surface!
     let L = Array("ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ")
     var pending: String?
     func commit(_ suffix: String = "") {
@@ -342,7 +342,7 @@ func imeType(_ p: Pane, _ text: String, rec: Recorder, enterWhileComposing: Bool
             rec.shot(0.07)
         }
     }
-    if enterWhileComposing, let w = p.surface.window {
+    if enterWhileComposing, let w = p.surface!.window {
         // Enter with the last syllable still marked: the real IME commits it (setMarkedText(p)
         // insertText(p)) inside that Return's keyDown, then the Return itself goes through.
         commit()
@@ -355,7 +355,7 @@ func imeType(_ p: Pane, _ text: String, rec: Recorder, enterWhileComposing: Bool
 func keyType(_ p: Pane, _ text: String, rec: Recorder, perFrame: Int = 2) async {
     var n = 0
     for ch in text {
-        p.surface.insertText(String(ch), replacementRange: NSRange(location: NSNotFound, length: 0))
+        p.surface!.insertText(String(ch), replacementRange: NSRange(location: NSNotFound, length: 0))
         n += 1
         if n % perFrame == 0 { await sleepMs(30); rec.shot(0.08) }
     }

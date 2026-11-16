@@ -809,8 +809,8 @@ func runHero(_ out: URL, light: Bool) async -> Int32 {
         c.model.hoveredRowID = nil
         var beam = false
         for p in panes {
-            let sp = p.surface.convert(w, from: nil)
-            if p.surface.bounds.contains(sp) {
+            let sp = p.surface!.convert(w, from: nil)
+            if p.surface!.bounds.contains(sp) {
                 c.paneMouseMoved(p, sp)
                 let ov = p.view.overlay
                 let op = ov.convert(w, from: nil)
@@ -887,7 +887,7 @@ func runHero(_ out: URL, light: Bool) async -> Int32 {
         return NSPoint(x: f.midX, y: f.midY)
     }
     func paneFocus(_ p: Pane, dy: CGFloat = 0) -> NSPoint {
-        let f = p.surface.convert(p.surface.bounds, to: nil)
+        let f = p.surface!.convert(p.surface!.bounds, to: nil)
         return NSPoint(x: f.midX, y: f.midY + dy)
     }
     func shiftCmdReturn() {
@@ -1024,12 +1024,12 @@ func runHero(_ out: URL, light: Bool) async -> Int32 {
     _ = await c.loadTurns(sP)
     let map = c.screenMap(sP, maxAge: 0)
     if let h = map.map?.promptHeads().first(where: { $0.turn == 2 }) {
-        let y = sP.surface.bounds.height - (map.rows[h.row].top + map.rowHeight / 2)
-        let head = sP.surface.convert(NSPoint(x: 230, y: y), to: nil)
+        let y = sP.surface!.bounds.height - (map.rows[h.row].top + map.rowHeight / 2)
+        let head = sP.surface!.convert(NSPoint(x: 230, y: y), to: nil)
         if clip {
             // The clip starts here, held on the site pane: the prompt row, ✎ × and its tooltip,
             // the Remove card to come, Claude's answer, the input below.
-            let pane = sP.surface.convert(sP.surface.bounds, to: nil)
+            let pane = sP.surface!.convert(sP.surface!.bounds, to: nil)
             let ch = pane.width * Hero.clipWindow.height / Hero.clipWindow.width
             film.clipRect = CGRect(x: pane.minX, y: head.y - 65 - ch / 2, width: pane.width, height: ch)
             film.clipCaption = HeroCaptions.forget

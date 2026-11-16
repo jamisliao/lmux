@@ -94,7 +94,7 @@ func runMain() async -> Int32 {
     r.check("new workspace pane is ready", await sinks.waitReady(p2.id))
     r.check("focus moved to the new pane", firstResponderPane(c) === p2)
     r.check("accent colors differ", ws1.accent != ws2.accent, "\(ws1.accent) vs \(ws2.accent)")
-    r.check("hidden workspace's pane is out of the window", p1.surface.window == nil)
+    r.check("hidden workspace's pane is out of the window", p1.surface!.window == nil)
     await type("xyz", window: w)
     r.check("keys go to the new pane only",
             await sinks.wait(p2.id, contains: "xyz") && !sinks.text(p1.id).contains("xyz"))
@@ -134,7 +134,7 @@ func runMain() async -> Int32 {
 
     // ----------------------------------------------------------- focus (R6)
     r.section = "focus"
-    await click(p2.surface, at: NSPoint(x: p2.surface.bounds.midX, y: p2.surface.bounds.midY))
+    await click(p2.surface!, at: NSPoint(x: p2.surface!.bounds.midX, y: p2.surface!.bounds.midY))
     r.check("click on a pane focuses it", firstResponderPane(c) === p2 && ws2.focusedPane === p2,
             "fr=\(firstResponderPane(c)?.id.prefix(4) ?? "nil") focused=\(ws2.focusedPane?.id.prefix(4) ?? "nil") p2=\(p2.id.prefix(4)) p3=\(p3.id.prefix(4)) p4=\(p4.id.prefix(4))")
     await type("k", window: w)
@@ -161,7 +161,7 @@ func runMain() async -> Int32 {
     r.check("click on sidebar row selects that workspace", c.model.selected === ws1)
     r.check("…and the keyboard is in its visible pane, not the sidebar", firstResponderPane(c) === p1,
             "\(String(describing: c.window.firstResponder))")
-    r.check("…hidden panes are out of the window", ws2.panes.allSatisfy { $0.surface.window == nil })
+    r.check("…hidden panes are out of the window", ws2.panes.allSatisfy { $0.surface!.window == nil })
     await type("m", window: w)
     r.check("…typing reaches workspace 1", await sinks.wait(p1.id, contains: "qm"), sinks.text(p1.id))
     await click(c.root.sidebarHost, at: NSPoint(x: 100, y: c.root.sidebarHost.isFlipped ? 400 : c.root.sidebarHost.bounds.height - 400))
@@ -220,24 +220,24 @@ func runMain() async -> Int32 {
     // Window occlusion (minimized, closed with the red button, covered): no pane renders.
     r.section = "occlusion"
     let shownPanes = c.model.selected?.panes ?? []
-    r.check("visible window: the selected workspace's panes render", !shownPanes.isEmpty && shownPanes.allSatisfy { $0.surface.occlusionVisible })
+    r.check("visible window: the selected workspace's panes render", !shownPanes.isEmpty && shownPanes.allSatisfy { $0.surface!.occlusionVisible })
     c.windowShownOverride = false
     c.windowDidChangeOcclusionState(Notification(name: NSWindow.didChangeOcclusionStateNotification, object: w))
-    r.check("window occluded / minimized / closed: no pane renders", c.model.workspaces.flatMap(\.panes).allSatisfy { !$0.surface.occlusionVisible })
+    r.check("window occluded / minimized / closed: no pane renders", c.model.workspaces.flatMap(\.panes).allSatisfy { !$0.surface!.occlusionVisible })
     c.selectRelative(1); c.selectRelative(-1)
     r.check("…and switching workspaces meanwhile keeps them hidden",
-            c.model.workspaces.flatMap(\.panes).allSatisfy { !$0.surface.occlusionVisible })
+            c.model.workspaces.flatMap(\.panes).allSatisfy { !$0.surface!.occlusionVisible })
     c.windowShownOverride = nil
     c.windowDidChangeOcclusionState(Notification(name: NSWindow.didChangeOcclusionStateNotification, object: w))
     r.check("shown again: the selected workspace renders, the others stay hidden",
-            c.model.workspaces.allSatisfy { ws in ws.panes.allSatisfy { $0.surface.occlusionVisible == (ws === c.model.selected) } })
+            c.model.workspaces.allSatisfy { ws in ws.panes.allSatisfy { $0.surface!.occlusionVisible == (ws === c.model.selected) } })
     // A hidden pane lets go of its last frame (the layer's IOSurface); shown again, it draws a new one.
     let framed = c.model.selected!.panes[0]
-    let drew = await waitFor(3) { framed.surface.layer?.contents != nil }
+    let drew = await waitFor(3) { framed.surface!.layer?.contents != nil }
     c.selectRelative(1)
-    let released = await waitFor(2) { framed.surface.layer?.contents == nil }
+    let released = await waitFor(2) { framed.surface!.layer?.contents == nil }
     c.selectRelative(-1)
-    let redrawn = await waitFor(3) { framed.surface.layer?.contents != nil }
+    let redrawn = await waitFor(3) { framed.surface!.layer?.contents != nil }
     r.check("a hidden pane releases its last frame and draws a new one when shown again", drew && released && redrawn,
             "drew \(drew) released \(released) redrawn \(redrawn)")
     // A visible pane that stops drawing (here: unfocused, no cursor blink) releases its GPU memory
@@ -247,9 +247,9 @@ func runMain() async -> Int32 {
     if let idle = ws.panes.first(where: { $0 !== ws.focusedPane }) {
         let early = panePixels(c, idle)
         await sleepMs(4500)
-        let a = panePixels(c, idle), contentsA = idle.surface.layer?.contents as AnyObject?
+        let a = panePixels(c, idle), contentsA = idle.surface!.layer?.contents as AnyObject?
         c.focus(idle)
-        let redrew = await waitFor(3) { (idle.surface.layer?.contents as AnyObject?) !== contentsA }
+        let redrew = await waitFor(3) { (idle.surface!.layer?.contents as AnyObject?) !== contentsA }
         await sleepMs(200)
         let after = panePixels(c, idle)
         let shown = a.map { px in Set(px).count > 1 } ?? false
@@ -304,7 +304,7 @@ func runMain() async -> Int32 {
     let wsN = c.newWorkspace(select: false)
     let pN = wsN.panes[0]
     _ = await sinks.waitReady(pN.id)
-    let fgN = pN.surface.foregroundPID
+    let fgN = pN.surface!.foregroundPID
     let top = HookClient.Origin(pid: 70001, pgid: fgN)        // the pane's foreground claude
     // A detached `claude -p` started by it (Claude's Bash tool): own group, the pane's claude among its ancestors.
     let nested = HookClient.Origin(pid: 70002, pgid: 70002, ancestorGroups: [70010, fgN, fgN])
@@ -379,8 +379,8 @@ func runMain() async -> Int32 {
         let wsHook = c.newWorkspace(select: false, program: fx0.path)
         let ph = wsHook.panes[0]
         r.check("lmux-hook run by the pane's foreground process binds it, reporting that process",
-                await waitFor(5) { ph.claudeSessionID == "real-hook" } && ph.claudePID == ph.surface.foregroundPID,
-                "\(ph.claudeSessionID ?? "nil") pid=\(ph.claudePID ?? 0) fg=\(ph.surface.foregroundPID)")
+                await waitFor(5) { ph.claudeSessionID == "real-hook" } && ph.claudePID == ph.surface!.foregroundPID,
+                "\(ph.claudeSessionID ?? "nil") pid=\(ph.claudePID ?? 0) fg=\(ph.surface!.foregroundPID)")
         hookEvent(c, ph, "SessionEnd", session: "real-hook")
         c.closeWorkspace(wsHook)
     } else {
@@ -620,12 +620,12 @@ func runMain() async -> Int32 {
     let wsD = c.newWorkspace()
     let pD = wsD.panes[0]
     _ = await sinks.waitReady(pD.id)
-    r.check("panes accept dropped files, text and images", Set(pD.surface.registeredDraggedTypes)
+    r.check("panes accept dropped files, text and images", Set(pD.surface!.registeredDraggedTypes)
             .isSuperset(of: [.fileURL, .string, .png, .tiff]))
     let dropPB = NSPasteboard(name: NSPasteboard.Name("dev.lmux.apptest.drop.\(getpid())"))
     dropPB.clearContents()
     dropPB.writeObjects([URL(fileURLWithPath: "/tmp/a b/it's (1).txt") as NSURL, URL(fileURLWithPath: "/tmp/plain.md") as NSURL])
-    r.check("dropping files is accepted", pD.surface.drop(dropPB))
+    r.check("dropping files is accepted", pD.surface!.drop(dropPB))
     let dropped = await sinks.wait(pD.id, contains: #"/tmp/a\ b/it\'s\ \(1\).txt /tmp/plain.md"#)
     r.check("…and inserts their shell-escaped paths, space separated (like Ghostty)", dropped, sinks.text(pD.id))
     let pb = GhosttyRuntime.standardPasteboard
@@ -659,12 +659,12 @@ func runMain() async -> Int32 {
     let wsT = c.newWorkspace()
     let pT = wsT.panes[0]
     _ = await sinks.waitReady(pT.id)
-    pT.surface.pasteText("! open -a Safari ~")  // the sink echoes it onto the screen
-    _ = await waitFor(2) { pT.surface.readText().contains("Safari ~") }
+    pT.surface!.pasteText("! open -a Safari ~")  // the sink echoes it onto the screen
+    _ = await waitFor(2) { pT.surface!.readText().contains("Safari ~") }
     pb.clearContents()
     pb.setData(img.tiffRepresentation, forType: .tiff)
-    _ = pT.surface.performBindingAction("select_all")
-    _ = pT.surface.performBindingAction("copy_to_clipboard")
+    _ = pT.surface!.performBindingAction("select_all")
+    _ = pT.surface!.performBindingAction("copy_to_clipboard")
     let types = pb.types ?? []
     r.check("copying text in a pane after an image leaves only text on the clipboard",
             !types.contains(.tiff) && !types.contains(.png) && pb.string(forType: .string)?.contains("Safari ~") == true, "\(types)")
@@ -693,7 +693,7 @@ func runMain() async -> Int32 {
     dropPB.clearContents()
     dropPB.setData(img.tiffRepresentation, forType: .tiff)
     let pngsBefore = String(decoding: sinks.bytes(pD.id), as: UTF8.self).components(separatedBy: ".png").count
-    let droppedImage = pD.surface.drop(dropPB)
+    let droppedImage = pD.surface!.drop(dropPB)
     let imageArrived = await waitFor(2) {
         String(decoding: sinks.bytes(pD.id), as: UTF8.self).components(separatedBy: ".png").count > pngsBefore
     }
@@ -707,7 +707,7 @@ func runMain() async -> Int32 {
     browserItem.setString("https://example.com/cat.png", forType: .string)
     dropPB.writeObjects([browserItem])
     let pngs0 = pngCount()
-    _ = pD.surface.drop(dropPB)
+    _ = pD.surface!.drop(dropPB)
     let browserArrived = await waitFor(2) { pngCount() > pngs0 }
     r.check("an image dragged from a browser drops as a private PNG file, not its URL",
             browserArrived && !sinks.text(pD.id).contains("example.com/cat.png"), sinks.text(pD.id).suffix(120).description)
@@ -716,16 +716,16 @@ func runMain() async -> Int32 {
     let linkItem = NSPasteboardItem()
     linkItem.setString("https://example.com/page", forType: .URL)
     dropPB.writeObjects([linkItem])
-    _ = pD.surface.drop(dropPB)
+    _ = pD.surface!.drop(dropPB)
     r.check("a dragged link drops as its URL", await sinks.wait(pD.id, contains: "https://example.com/page"))
     // A folder, and text dragged from another app.
     dropPB.clearContents()
     dropPB.writeObjects([URL(fileURLWithPath: "/tmp/My Folder", isDirectory: true) as NSURL])
-    _ = pD.surface.drop(dropPB)
+    _ = pD.surface!.drop(dropPB)
     r.check("a dropped folder inserts its escaped path", await sinks.wait(pD.id, contains: #"/tmp/My\ Folder"#))
     dropPB.clearContents()
     dropPB.setString("dragged words", forType: .string)
-    _ = pD.surface.drop(dropPB)
+    _ = pD.surface!.drop(dropPB)
     r.check("dragged text inserts the text", await sinks.wait(pD.id, contains: "dragged words"))
     // A file promise (the screenshot thumbnail, Photos): received into lmux's private dir, path pasted.
     final class PromiseSource: NSObject, NSFilePromiseProviderDelegate {
@@ -743,14 +743,11 @@ func runMain() async -> Int32 {
     let receivers = (dropPB.readObjects(forClasses: [NSFilePromiseReceiver.self]) as? [NSFilePromiseReceiver]) ?? []
     let promiseTypes = Set(NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) })
     r.check("panes accept file promises (the screenshot thumbnail) and recognize one on the pasteboard",
-            promiseTypes.isSubset(of: Set(pD.surface.registeredDraggedTypes)) && receivers.count == 1
+            promiseTypes.isSubset(of: Set(pD.surface!.registeredDraggedTypes)) && receivers.count == 1
             && PasteContents.dropString(from: dropPB) == nil)
     // The promised file itself is only written inside a real drag session (window server):
-    // the manual checklist covers dragging the screenshot thumbnail.
-    var promised: [URL]?
-    PasteContents.receive(receivers) { promised = $0 }
-    _ = await waitFor(2) { promised != nil }
-    print("INFO  [drop-paste] file promise outside a drag session: \(promised.map { "\($0.count) file(s)" } ?? "not delivered (expected)")")
+    // receiving promises outside an active drag session deadlocks HIServices in headless tests.
+    // The manual checklist covers dragging the screenshot thumbnail.
     // Dropping on a pane that isn't focused: it goes there, and that pane gets the keyboard.
     let pD2 = c.split(pD, .right)!
     _ = await sinks.waitReady(pD2.id)
@@ -759,14 +756,14 @@ func runMain() async -> Int32 {
     dropPB.setString("to the other pane", forType: .string)
     let info = FakeDrag(pasteboard: dropPB, window: w)
     r.check("a drag over a pane highlights it (drop target)",
-            pD2.surface.draggingEntered(info) == .copy && pD2.view.overlay.dropTarget)
-    _ = pD2.surface.performDragOperation(info)
+            pD2.surface!.draggingEntered(info) == .copy && pD2.view.overlay.dropTarget)
+    _ = pD2.surface!.performDragOperation(info)
     r.check("…dropping clears the highlight", !pD2.view.overlay.dropTarget)
     let toOther = await sinks.wait(pD2.id, contains: "to the other pane")
     r.check("a drop on an unfocused pane goes to THAT pane and focuses it",
             toOther && firstResponderPane(c) === pD2 && wsD.focusedPane === pD2 && !sinks.text(pD.id).contains("to the other pane"))
-    _ = pD.surface.draggingEntered(info)
-    pD.surface.draggingExited(info)
+    _ = pD.surface!.draggingEntered(info)
+    pD.surface!.draggingExited(info)
     r.check("a drag that leaves clears the highlight", !pD.view.overlay.dropTarget)
     // ⌃V is Claude Code's own image paste (it reads the clipboard itself): passed through untouched.
     let ts = ProcessInfo.processInfo.systemUptime
@@ -785,8 +782,8 @@ func runMain() async -> Int32 {
     let wsS = c.newWorkspace()
     let pS = wsS.panes[0]
     _ = await sinks.waitReady(pS.id)
-    pS.surface.sendText("findme one findme two findme\r")
-    _ = await waitFor(3) { pS.surface.readText().contains("findme two") }
+    pS.surface!.sendText("findme one findme two findme\r")
+    _ = await waitFor(3) { pS.surface!.readText().contains("findme two") }
     await cmd("f", window: w)
     let bar = pS.view.overlay.findBar
     r.check("⌘F opens the find bar (Ghostty's start_search)", bar != nil && !(bar?.isHidden ?? true))
@@ -923,7 +920,7 @@ func runMain() async -> Int32 {
     let secrets = ["ANTHROPIC_CUSTOM_HEADERS": "Authorization: Bearer sk-SECRET-HEADER",
                    "ANTHROPIC_BASE_URL": "https://user:SECRET-PASS@proxy.example", "ANTHROPIC_API_KEY": "sk-SECRET-KEY"]
     _ = sendHook(pane: other.id, hook("SessionStart", session: "8e1f0c2a-0000-4000-8000-0000000abc12", #""source":"startup""#),
-                 from: .init(pid: fake.processIdentifier, pgid: other.surface.foregroundPID,
+                 from: .init(pid: fake.processIdentifier, pgid: other.surface!.foregroundPID,
                              environment: secrets.merging(["CLAUDE_CONFIG_DIR": "/tmp/lmux test claude",
                                                            "CLAUDE_CONFIG_DIR_X": "no"]) { $1 }))
     await sleepMs(200)
@@ -1121,7 +1118,7 @@ func runRestore() async -> Int32 {
 /// The pane's pixels in a window snapshot (RGBA words, row by row).
 @MainActor func panePixels(_ c: LmuxController, _ p: Pane) -> [UInt32]? {
     guard let img = c.snapshotImage(scale: 2) else { return nil }
-    let r = p.surface.convert(p.surface.bounds, to: nil)
+    let r = p.surface!.convert(p.surface!.bounds, to: nil)
     let crop = CGRect(x: r.minX * 2, y: CGFloat(img.height) - r.maxY * 2, width: r.width * 2, height: r.height * 2).integral
     guard let cg = img.cropping(to: crop) else { return nil }
     var px = [UInt32](repeating: 0, count: cg.width * cg.height)
@@ -1138,7 +1135,7 @@ func runRestore() async -> Int32 {
 func waitForPrompts(_ c: LmuxController, timeout: Double = 15) async -> Bool {
     await waitFor(timeout) {
         (c.model.selected?.panes ?? []).allSatisfy { p in
-            let lines = p.surface.readText().split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            let lines = p.surface!.readText().split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
             return lines.contains { !$0.hasPrefix("Last login") }
         }
@@ -1228,7 +1225,7 @@ func runScreenshots(_ dir: URL) async -> Int32 {
         pl.hover.readAt = .distantPast
         let m = c.screenMap(pl, maxAge: 0)
         if let h = m.map?.promptHeads().first {
-            c.paneMouseMoved(pl, NSPoint(x: 300, y: pl.surface.bounds.height - (m.rows[h.row].top + m.rowHeight / 2)))
+            c.paneMouseMoved(pl, NSPoint(x: 300, y: pl.surface!.bounds.height - (m.rows[h.row].top + m.rowHeight / 2)))
         }
         await sleepMs(100)
         c.refreshInputLabel(pl)
@@ -1240,7 +1237,7 @@ func runScreenshots(_ dir: URL) async -> Int32 {
     func toast() async {
         let m = c.screenMap(pl, maxAge: 0)
         if let row = m.map?.roles.firstIndex(of: .reply(turn: 1)) {
-            c.paneMouseMoved(pl, NSPoint(x: 300, y: pl.surface.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
+            c.paneMouseMoved(pl, NSPoint(x: 300, y: pl.surface!.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
         }
         c.refreshInputLabel(pl)
         c.showUndoToast(pr, prompt: ScreenFixture.prompt3)

@@ -18,17 +18,17 @@ import LmuxHooks
 //             status still comes from each pane's OSC 7501.
 
 @MainActor
-private func screen(_ p: Pane) -> String { p.surface.readText(viewportOnly: true) }
+private func screen(_ p: Pane) -> String { p.surface!.readText(viewportOnly: true) }
 
 /// The command line of the pane's foreground program.
 @MainActor
 private func argv(_ p: Pane) -> String {
-    ClaudeProcess.representative(ofGroup: p.surface.foregroundPID).flatMap(ClaudeProcess.commandLine)?.argv.joined(separator: " ") ?? ""
+    ClaudeProcess.representative(ofGroup: p.surface!.foregroundPID).flatMap(ClaudeProcess.commandLine)?.argv.joined(separator: " ") ?? ""
 }
 
 /// Everything the pane printed (scrollback too).
 @MainActor
-private func everything(_ p: Pane) -> String { p.surface.readText(viewportOnly: false) }
+private func everything(_ p: Pane) -> String { p.surface!.readText(viewportOnly: false) }
 
 @MainActor
 private func lastLines(_ p: Pane, _ n: Int = 8) -> String {
@@ -39,9 +39,9 @@ private func lastLines(_ p: Pane, _ n: Int = 8) -> String {
 /// Type a prompt into Codex's composer and submit it (a burst of text is a paste for a moment).
 @MainActor
 private func submitCodex(_ p: Pane, _ text: String) async {
-    p.surface.sendText(text)
+    p.surface!.sendText(text)
     await sleepMs(600)
-    p.surface.sendText("\r")
+    p.surface!.sendText("\r")
 }
 
 /// Answer Codex's "trust these hooks" screen with "Trust all and continue" when it shows up
@@ -54,9 +54,9 @@ private func passTrustScreen(_ p: Pane, ready: () -> Bool, until done: () -> Boo
         if !trusted, ready() || Date().timeIntervalSince(start) > 8, screen(p).contains("Trust all and continue") {
             trusted = true
             await sleepMs(400)
-            p.surface.sendText("2")
+            p.surface!.sendText("2")
             await sleepMs(300)
-            p.surface.sendText("\r")
+            p.surface!.sendText("\r")
         }
         await sleepMs(200)
     }
@@ -73,9 +73,9 @@ private func ownSession(_ p: Pane, _ prompt: String) -> Bool {
 
 @MainActor
 private func quitCodex(_ c: LmuxController, _ p: Pane) async {
-    p.surface.sendKey(keyCode: 8, codepoint: 0x63, control: true)
+    p.surface!.sendKey(keyCode: 8, codepoint: 0x63, control: true)
     await sleepMs(400)
-    p.surface.sendKey(keyCode: 8, codepoint: 0x63, control: true)
+    p.surface!.sendKey(keyCode: 8, codepoint: 0x63, control: true)
     _ = await waitFor(10) { c.runningProcess(p) == nil }
 }
 
@@ -119,7 +119,7 @@ func runCodexReal() async -> Int32 {
     r.check("(setup) shell prompt", await waitFor(15) { screen(p).contains("%") }, lastLines(p))
     let n0 = c.notifier.postedCount
     let promptP = "RUNTOOL ESCALATE create the marker"
-    p.surface.sendText("codex -a on-request -s read-only '\(promptP)'\n")
+    p.surface!.sendText("codex -a on-request -s read-only '\(promptP)'\n")
     var hintSeen = false
     let trusted = await passTrustScreen(p, ready: {
         if p.view.overlay.toast?.text.string.contains("Trust all and continue") == true { hintSeen = true }
@@ -141,7 +141,7 @@ func runCodexReal() async -> Int32 {
     } else {
         r.check("no hook reaches lmux (the server started outside it has no pane): no session", p.claudeSessionID == nil)
     }
-    p.surface.sendText("y")
+    p.surface!.sendText("y")
     let doneText = hooks ? "Done · # Result" : "Done"
     r.check("approved: running, then done", await waitFor(20) { p.display == .done(hooks ? "# Result" : nil) }, "\(p.display) | \(lastLines(p))")
     r.check("…the command really ran", fm.fileExists(atPath: work + "/made-by-codex.txt"))
@@ -162,7 +162,7 @@ func runCodexReal() async -> Int32 {
     await submitCodex(p, "SLOWTURN keep talking")
     r.check("(setup) a new prompt runs", await waitFor(10) { p.agent.state == .running }, "\(p.agent.state)")
     await sleepMs(1500)
-    p.surface.sendKey(keyCode: 53, codepoint: 0x1b)
+    p.surface!.sendKey(keyCode: 53, codepoint: 0x1b)
     r.check("Esc mid-turn → idle", await waitFor(10) { p.agent.state == .idle }, "\(p.agent.state) | \(lastLines(p))")
     await sleepMs(1500)
     r.check("…no notification, no ring", c.notifier.postedCount == n1 && !p.needsInput, "\(c.notifier.posted.suffix(2).map(\.body))")
@@ -174,7 +174,7 @@ func runCodexReal() async -> Int32 {
     _ = await waitFor(15) { screen(q).contains("%") }
     let n2 = c.notifier.postedCount
     let promptQ = "RUNTOOL in the sandbox"
-    q.surface.sendText("codex -a on-request -s workspace-write '\(promptQ)'\n")
+    q.surface!.sendText("codex -a on-request -s workspace-write '\(promptQ)'\n")
     r.check("its own row: done, one notification; the first pane doesn't move",
             await waitFor(25) { q.agent.state == .done } && c.notifier.postedCount == n2 + 1
             && p.agent.state == .idle && p.claudeSessionID == (hooks ? sid : nil),
@@ -190,8 +190,8 @@ func runCodexReal() async -> Int32 {
     let a1 = w1.panes[0], a2 = w2.panes[0]
     _ = await waitFor(15) { screen(a1).contains("%") && screen(a2).contains("%") }
     let n3 = c.notifier.postedCount
-    a1.surface.sendText("codex 'say one'\n")
-    a2.surface.sendText("codex 'say two'\n")
+    a1.surface!.sendText("codex 'say one'\n")
+    a2.surface!.sendText("codex 'say two'\n")
     r.check("both rows done, one notification each", await waitFor(25) { a1.agent.state == .done && a2.agent.state == .done }
             && c.notifier.postedCount == n3 + 2, "\(a1.display) \(a2.display) posted \(c.notifier.postedCount - n3)")
     await sleepMs(Int(LmuxController.codexBindWindow * 1000) + 500)
@@ -220,7 +220,7 @@ func runCodexReal() async -> Int32 {
     let zws = c.newWorkspace(cwd: work, select: false)
     let z = zws.panes[0]
     _ = await waitFor(15) { screen(z).contains("%") }
-    z.surface.sendText("codex 'say late'\n")
+    z.surface!.sendText("codex 'say late'\n")
     let zDone = await waitFor(25) { z.agent.state == .done }
     let zBound = await waitFor(5) { z.claudeSessionID != nil } && ownSession(z, "say late")
     r.check("a new codex after that: its row works\(hooks ? ", its session bound to it" : "")", zDone && (!hooks || zBound),

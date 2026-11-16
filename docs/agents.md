@@ -14,8 +14,8 @@ lmux new-workspace [--cwd DIR] [--cmd CMD] [--background]
                                               # prints: workspace <id> pane <id>
 lmux new-tab [--pane ID] [--cmd CMD] [--background]
                                               # a tab in that pane (default: yours); prints the same
-lmux send [--pane ID] TEXT                    # types TEXT ("\n" presses Return)
-lmux list [--json]                            # every workspace and pane, with its agent and state
+lmux send [--pane ID] TEXT                    # types TEXT ("\n" presses Return; fails on preview tabs)
+lmux list [--json]                            # every workspace and terminal pane (preview tabs omitted)
 lmux wait ID [--until S] [--timeout SECS] [--json]
 lmux notify [--title T] TEXT                  # a notification from your pane
 ```
@@ -31,7 +31,7 @@ put it in the command that starts it (`--cmd "codex '…'"`), not in a later `se
 
 ### `lmux list --json`
 
-An array of workspaces (`id`, `title`, `selected`, `panes`). Each pane:
+An array of workspaces (`id`, `title`, `selected`, `panes`). Only terminal tabs appear in `panes` (preview tabs are omitted, so a workspace with only preview tabs has an empty `panes` array). Each pane:
 
 | key | |
 |---|---|

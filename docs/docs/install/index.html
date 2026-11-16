@@ -66,7 +66,7 @@
 <h2 id="build-from-source">Build from source<a class="h-anchor" href="#build-from-source" aria-label="Link to this section">#</a></h2>
 <p><code>scripts/bootstrap.sh</code> fetches the pinned Ghostty and Zig and builds the terminal framework, then <code>App/scripts/bundle.sh</code> builds <code>App/build/lmux.app</code>. The details, and the test harnesses, are in <a href="https://github.com/sooftware/lmux/blob/main/App/README.md">App/README.md</a> and <a href="https://github.com/sooftware/lmux/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
 <h2 id="updating">Updating<a class="h-anchor" href="#updating" aria-label="Link to this section">#</a></h2>
-<p>lmux never checks for updates itself (it makes no network calls at all). Homebrew does:</p>
+<p>lmux never checks for updates itself (it makes no network calls on its own). Homebrew does:</p>
 <pre tabindex="0"><code class="lang-sh">brew upgrade --cask lmux</code></pre>
 <p>With a download, replace lmux.app with the new one. Either way, quitting for the update loses nothing: lmux reopens the same workspaces, splits and folders, and every Claude Code or Codex session resumes where it was (see <a href="../workspaces/#after-a-relaunch">Workspaces &amp; panes</a>).</p>
 <h2 id="uninstalling-cleanly">Uninstalling cleanly<a class="h-anchor" href="#uninstalling-cleanly" aria-label="Link to this section">#</a></h2>

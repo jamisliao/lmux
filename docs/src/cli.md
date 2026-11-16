@@ -4,7 +4,7 @@ lmux, a macOS terminal for Claude Code and Codex, ships a small command line too
 
 ## `lmux list`
 
-Lists workspaces and their panes: ids, titles, folders, each pane's agent state (`idle`, `running`, `needs input`, `done`, `failed`) and agent (`claude`, `codex`, or [another agent's name](any-agent.md)). `--json` also has each pane's `session` and `workspaceTitle`. The selected workspace is marked with `*`. Each tab is listed as its own pane, with its position (`tab 2/3`) and `*` on the visible one. In JSON: `tab`, `tabs` and `tabShown`.
+Lists workspaces and their terminal panes: ids, titles, folders, each pane's agent state (`idle`, `running`, `needs input`, `done`, `failed`) and agent (`claude`, `codex`, or [another agent's name](any-agent.md)). `--json` also has each pane's `session` and `workspaceTitle`. The selected workspace is marked with `*`. Each terminal tab is listed as its own pane, with its position (`tab 2/3`) and `*` on the visible one (preview tabs are omitted). In JSON: `tab`, `tabs` and `tabShown`.
 
 ```sh
 lmux list
@@ -13,7 +13,7 @@ lmux list --json   # the same, as JSON
 
 ## `lmux send`
 
-Types text into a pane. `\n` presses Return (`\t` and `\\` work too).
+Types text into a terminal pane (targeting a preview tab fails with `not a terminal`). `\n` presses Return (`\t` and `\\` work too).
 
 ```sh
 lmux send "npm test\n"            # into this pane

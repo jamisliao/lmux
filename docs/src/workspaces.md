@@ -1,6 +1,6 @@
 # Workspaces & panes
 
-lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in other terminals. Panes are the parts of a split, and each pane holds one or more terminals as tabs.
+lmux, a macOS terminal for Claude Code and Codex, has one window, a sidebar of workspaces, and splits inside each one. A workspace is what a window is in other terminals. Panes are the parts of a split, and each pane holds one or more tabs (each a terminal, or an opt-in local `.md`/`.html` preview).
 
 ## The sidebar
 
@@ -33,7 +33,7 @@ Ghostty itself inherits by default; lmux doesn't unless you say so. See [Configu
 
 ## Tabs
 
-Every pane has a tab bar, and each tab is its own terminal. It works like cmux's.
+Every pane has a tab bar; each tab is its own terminal (or an opt-in local `.md`/`.html` preview). It works like cmux's.
 
 - `⌘T` opens a tab in the focused pane, right after the one you're on. So does the terminal button at the right end of the tab bar, or double-clicking an empty spot on it. The two buttons next to it split the pane right and down.
 - `⇧⌘[` / `⇧⌘]` (or `⌃⇧⇥` / `⌃⇥`) go to the previous and next tab. `⌃1`–`⌃8` pick a tab by its place, `⌃9` the last one. `⌥⇧⌘[` / `⌥⇧⌘]` move the tab left or right.
@@ -44,7 +44,7 @@ Every pane has a tab bar, and each tab is its own terminal. It works like cmux's
 - A pinned tab moves to the front of the bar, shows a pin instead of `×`, and stays open until you unpin it. Close Other Tabs leaves it alone.
 - A tab that needs you, or has an alert you haven't looked at, gets a blue dot where its `×` goes. The workspace's row in the sidebar shows the state of all its tabs, and `⇧⌘J` or a notification brings the right tab to the front.
 - Tabs you can't see don't render, like a workspace you're not on. They keep running, and after a relaunch they come back in order, pinned ones still pinned, with the one you were on in front.
-- `lmux new-tab` opens a tab from a script, and `lmux list` shows each tab with its place. See [CLI](cli.md).
+- `lmux new-tab` opens a terminal tab from a script, and `lmux list` shows each terminal tab with its place (preview tabs are skipped). See [CLI](cli.md).
 
 To show the tab bar only once a pane has two tabs, turn off **Settings → Appearance → Tab bar on panes with one tab**. Split panes then get a plain title bar, and double-clicking it renames the pane.
 

@@ -91,16 +91,16 @@ extension LmuxController {
         if ov.findBar == nil {
             let bar = FindBar(frame: .zero)
             bar.onChange = { [weak pane] text in
-                guard pane?.surface.inputHeld != true else { return }
-                _ = pane?.surface.performBindingAction("search:" + text)
+                guard pane?.surface?.inputHeld != true else { return }
+                _ = pane?.surface?.performBindingAction("search:" + text)
             }
             bar.onNavigate = { [weak pane] forward in
-                guard pane?.surface.inputHeld != true else { return }
-                _ = pane?.surface.performBindingAction("navigate_search:" + (forward ? "next" : "previous"))
+                guard pane?.surface?.inputHeld != true else { return }
+                _ = pane?.surface?.performBindingAction("navigate_search:" + (forward ? "next" : "previous"))
             }
             bar.onClose = { [weak self, weak pane] in
                 guard let self, let pane else { return }
-                _ = pane.surface.performBindingAction("end_search")
+                _ = pane.surface?.performBindingAction("end_search")
                 self.searchEnded(pane)
             }
             ov.addSubview(bar)
@@ -116,9 +116,14 @@ extension LmuxController {
     func searchEnded(_ pane: Pane) {
         let ov = pane.view.overlay
         guard let bar = ov.findBar else { return }
+        let frView = window.firstResponder as? NSView
+        let barFocused = frView === bar || frView?.isDescendant(of: bar) == true
+        let lostFocus = window.firstResponder == nil || window.firstResponder === window
         bar.removeFromSuperview()
         ov.findBar = nil
-        if pane.workspace === model.selected, pane.workspace?.focusedPane === pane { window.makeFirstResponder(pane.surface) }
+        if (barFocused || lostFocus), pane.workspace === model.selected, pane.workspace?.focusedPane === pane {
+            focusCurrent()
+        }
     }
 
     func searchCounts(_ pane: Pane, total: Int?, selected: Int?) {
@@ -129,8 +134,8 @@ extension LmuxController {
 
     @objc func menuFind(_ sender: Any?) {
         // A find scrolls the viewport lmux is reading to drive Claude's rewind.
-        guard let p = model.selected?.focusedPane, !p.surface.inputHeld else { return }
-        if !p.surface.performBindingAction("start_search") { searchStarted(p, needle: nil) }
+        guard let p = model.selected?.focusedPane, let s = p.surface, !s.inputHeld else { return }
+        if !s.performBindingAction("start_search") { searchStarted(p, needle: nil) }
     }
 
     @objc func menuFindNext(_ sender: Any?) {

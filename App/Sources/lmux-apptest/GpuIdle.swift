@@ -40,7 +40,7 @@ private func band(_ p: Pane) { emit(p, "\u{1b}[48;2;255;0;0m" + String(repeating
 /// The frame on screen: the layer's IOSurface (nil when the layer has none).
 @MainActor
 private func frame(_ p: Pane) -> IOSurfaceRef? {
-    guard let contents = p.surface.layer?.contents else { return nil }
+    guard let contents = p.surface!.layer?.contents else { return nil }
     return unsafeBitCast(contents as AnyObject, to: IOSurfaceRef.self)
 }
 
@@ -48,7 +48,7 @@ private func frame(_ p: Pane) -> IOSurfaceRef? {
 @MainActor
 private func frameFits(_ p: Pane) -> Bool {
     guard let s = frame(p) else { return false }
-    let px = p.surface.convertToBacking(p.surface.bounds).size
+    let px = p.surface!.convertToBacking(p.surface!.bounds).size
     return abs(CGFloat(IOSurfaceGetWidth(s)) - px.width) <= 2 && abs(CGFloat(IOSurfaceGetHeight(s)) - px.height) <= 2
 }
 
@@ -100,7 +100,7 @@ func runGpuIdle() async -> Int32 {
     let prog = tailProgram(state)
     // Nothing is focused (the window isn't key in headless runs, and the patch keeps the focused
     // surface's resources): every pane may release.
-    func unfocusAll() { for p in c.model.workspaces.flatMap(\.panes) { p.surface.focusDidChange(false) } }
+    func unfocusAll() { for p in c.model.workspaces.flatMap(\.panes) { p.surface!.focusDidChange(false) } }
 
     // ------------------------------------------------------------ setup: two workspaces of 4 panes
     r.section = "gpu idle: setup"
@@ -258,7 +258,7 @@ func runGpuIdle() async -> Int32 {
     await sleepMs(idleRelease)
     let framed = hidden.filter { frame($0.panes[0]) != nil }.count
     let held = mb(footprint())
-    for w in hidden { w.panes[0].surface.layer?.contents = nil }
+    for w in hidden { w.panes[0].surface!.layer?.contents = nil }
     await sleepMs(500)
     // A pane created hidden can keep the blank first frame that landed after it was hidden (the
     // default 800x600 pt size, never written): it costs nothing resident.

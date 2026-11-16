@@ -4,7 +4,7 @@ Everything lmux does, in one page. For the short version, see the [README](../RE
 
 ## Light
 
-- A 25 MB app on libghostty. Native Swift, no browser engine, no Electron, about ten settings.
+- A 25 MB app on libghostty. Native Swift (with macOS `WKWebView` loaded only for opt-in `.md` / `.html` preview tabs), no Electron, about ten settings.
 - Windows that are hidden, minimized or covered stop drawing. Nothing animates unless it means something, and what does animate runs on Core Animation, off the main thread.
 - CI fails any change that pushes idle CPU over budget, both with idle shells and with agents running. Busy cases have budgets too: agents working in hidden panes, hook events, spinner titles, restoring 120 workspaces and History's first index.
 - Numbers and methodology: [scripts/BENCH.md](../scripts/BENCH.md).
@@ -34,7 +34,7 @@ Changed your mind? **Undo Import** (in the sheet, and as **lmux → Undo cmux Im
 
 ## Tabs
 
-Every pane has a tab bar, and each tab is its own terminal. It looks and works like cmux's.
+Every pane has a tab bar; each tab can be a terminal or an opt-in `.md` / `.html` preview tab. It looks and works like cmux's.
 
 - `⌘T` opens a tab right after the one you're on. So does the terminal button at the right end of the bar, or a double-click on its empty part; the two buttons next to it split the pane right and down.
 - `⇧⌘[` / `⇧⌘]` (or `⌃⇧⇥` / `⌃⇥`) switch tabs, `⌃1`–`⌃8` pick one by its place, `⌃9` the last. `⌥⇧⌘[` / `⌥⇧⌘]` move the tab. Workspaces moved to `⌃⌘[` / `⌃⌘]`, as in cmux; `⌘1`–`⌘9` still pick one.
@@ -45,7 +45,7 @@ Every pane has a tab bar, and each tab is its own terminal. It looks and works l
 - A tab that needs you, or has an alert you haven't seen, gets a blue dot where its `×` goes; the workspace's row shows the state of all its tabs, and `⇧⌘J` or a notification brings the right tab to the front. In bypass or auto mode the shown tab's bar carries the **bypass** / **auto** badge.
 - Tabs you can't see don't render, like a hidden workspace's panes. They keep running, and after a relaunch they come back in order, pinned ones still pinned, with the one you were on in front.
 - The bar shows on every pane, one tab or more (cmux's default). To show it only once a pane has two tabs, turn off **Settings → Appearance → Tab bar on panes with one tab**; split panes then get a plain title bar.
-- `lmux new-tab` opens a tab from a script, and `lmux list` shows each tab with its place (`tab 2/3`). See [the CLI](https://lmux.dev/docs/cli/).
+- `lmux new-tab` opens a terminal tab from a script, and `lmux list` shows each terminal tab with its place (`tab 2/3`; preview tabs are omitted). See [the CLI](https://lmux.dev/docs/cli/).
 
 ## Agent status
 
@@ -131,7 +131,7 @@ Claude Code's own theme defaults to dark, so it paints its prompt row dark whate
 
 ### What does lmux write to disk, and how do I remove it?
 
-Its state dir `~/Library/Application Support/lmux` (layout, settings, the sessions index, the History archive, any `forgotten/` backups left by older versions (deleted after 7 days), `hooks-pristine/`, and between a quit and the next launch `scrollback/`, your shell panes' last output), `~/.config/lmux/config`, and the hooks it adds to `~/.claude/settings.json` (and `~/.codex/hooks.json` if you use Codex). To remove it all: lmux → Uninstall Claude Code Hooks… (and Uninstall Codex Hooks…), delete the app, then delete those two paths and its preferences (`defaults delete dev.lmux.app`: the hooks offer you answered and Secure Keyboard Entry). lmux itself makes no network calls.
+Its state dir `~/Library/Application Support/lmux` (layout, settings, the sessions index, the History archive, any `forgotten/` backups left by older versions (deleted after 7 days), `hooks-pristine/`, and between a quit and the next launch `scrollback/`, your shell panes' last output), `~/.config/lmux/config`, and the hooks it adds to `~/.claude/settings.json` (and `~/.codex/hooks.json` if you use Codex). To remove it all: lmux → Uninstall Claude Code Hooks… (and Uninstall Codex Hooks…), delete the app, then delete those two paths and its preferences (`defaults delete dev.lmux.app`: the hooks offer you answered and Secure Keyboard Entry). lmux itself makes no network calls (only opt-in preview tabs use macOS `WKWebView` to load remote resources referenced by the opened `.md` or `.html` file).
 
 ### The sidebar never updates for a `claude`
 

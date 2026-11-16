@@ -23,18 +23,18 @@ func runParity() async -> Int32 {
     try? FileManager.default.createDirectory(at: fx, withIntermediateDirectories: true)
     let p0 = c.model.selected!.panes[0]
     _ = await sinks.waitReady(p0.id)
-    _ = await waitFor(3) { p0.surface.scrollbar != nil && p0.surface.cellSize.height > 0 }
-    r.check("libghostty reports the scrollbar state", p0.surface.scrollbar != nil, "\(String(describing: p0.surface.scrollbar))")
+    _ = await waitFor(3) { p0.surface!.scrollbar != nil && p0.surface!.cellSize.height > 0 }
+    r.check("libghostty reports the scrollbar state", p0.surface!.scrollbar != nil, "\(String(describing: p0.surface!.scrollbar))")
     func hit(_ sc: SurfaceScroller, _ pt: NSPoint) -> NSView? { sc.hitTest(sc.convert(pt, to: sc.superview)) }
-    let sc0 = p0.view.scroller
+    let sc0 = p0.view.scroller!
     r.check("no scrollback: the scroller takes no clicks (the last column stays the terminal's)",
             hit(sc0, NSPoint(x: sc0.bounds.maxX - 4, y: sc0.bounds.midY)) == nil && hit(sc0, NSPoint(x: sc0.bounds.midX, y: sc0.bounds.midY)) == nil)
     // A program that prints 300 lines: 300 rows of output, most of them scrolled off.
     let lines = (1...300).map { "scrollback line \($0)" }.joined(separator: "\n") + "\n"
     let wsS = c.newWorkspace(program: ScreenFixture.script(lines, input: nil, dir: fx, name: "scrollback"))
     let p = wsS.panes[0]
-    let s = p.surface
-    let sc = p.view.scroller
+    let s = p.surface!
+    let sc = p.view.scroller!
     p.view.layoutSubtreeIfNeeded()
     let center = NSPoint(x: sc.bounds.midX, y: sc.bounds.midY)
     let edge = NSPoint(x: sc.bounds.maxX - 4, y: sc.bounds.midY)
@@ -95,8 +95,8 @@ func runParity() async -> Int32 {
     let url = "https://example.com/lmux?q=1"
     let wsL = c.newWorkspace(program: ScreenFixture.script("see \(url) for details\n", input: nil, dir: fx, name: "link"))
     let q = wsL.panes[0]
-    _ = await waitFor(5) { q.surface.readText().contains(url) && q.surface.cellSize.width > 0 }
-    let qs = q.surface
+    _ = await waitFor(5) { q.surface!.readText().contains(url) && q.surface!.cellSize.width > 0 }
+    let qs = q.surface!
     q.view.layoutSubtreeIfNeeded()
     // The URL's cells on row 0: x past "see ", y the row's middle (surface coordinates, unflipped).
     let cell = qs.cellSize

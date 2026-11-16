@@ -79,7 +79,7 @@ func runSidebar() async -> Int32 {
         _ = await waitFor(10) {
             made.flatMap(\.panes).allSatisfy { p in
                 let busyRow = busy.contains(p.workspace?.customTitle ?? "")
-                return p.surface.foregroundPID > 0 && (busyRow ? c.runningProcess(p) == "sleep" : c.runningProcess(p) == nil)
+                return p.surface!.foregroundPID > 0 && (busyRow ? c.runningProcess(p) == "sleep" : c.runningProcess(p) == nil)
             }
         }
         host.layoutSubtreeIfNeeded()
@@ -304,7 +304,7 @@ func runSidebar() async -> Int32 {
     r.check("⇧⌘W with an idle multi-selection closes them without asking", titles() == "B" && c.model.selected === ws[1], titles())
     // Plain ⌘W without a multi-selection is still Close Pane.
     if let p = c.split(ws[1].panes[0], .right) {
-        _ = await waitFor(5) { p.surface.foregroundPID > 0 && c.runningProcess(p) == nil }
+        _ = await waitFor(5) { p.surface!.foregroundPID > 0 && c.runningProcess(p) == nil }
         await cmd("w", window: w)
         _ = await waitFor(2) { ws[1].panes.count == 1 }
         r.check("⌘W without a multi-selection still closes just the pane", ws[1].panes.count == 1 && c.model.workspaces.count == 1)
@@ -335,7 +335,7 @@ func runFeedbackShots(_ dir: URL) async -> Int32 {
         _ = await c.loadTurns(s.left)
         let m = c.screenMap(s.left, maxAge: 0)
         if let row = m.rows.firstIndex(where: { $0.text.contains("createPartialRefund") }) {
-            c.paneMouseMoved(s.left, NSPoint(x: 260, y: s.left.surface.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
+            c.paneMouseMoved(s.left, NSPoint(x: 260, y: s.left.surface!.bounds.height - (m.rows[row].top + m.rowHeight / 2)))
         }
         await sleepMs(400)
         c.root.updateHeader()

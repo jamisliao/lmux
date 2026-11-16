@@ -11,12 +11,30 @@ sidebar 上的一列，含一個或多個 **tab**。
 _Avoid_: 專案、sidebar 列
 
 **tab**:
-workspace 裡的一個終端機；lmux 程式碼裡每個 tab 都是一個 `Pane`。
+workspace 裡的一格內容，是 **終端機 tab** 或 **預覽 tab**；lmux 程式碼裡每個 tab 都是一個 `Pane`。
 _Avoid_: pane（在規格中）、分頁、視窗
+
+**終端機 tab**:
+跑 shell 的 **tab**。agent 狀態、通知、Claude 產生的任務名稱都只屬於終端機 tab。
+_Avoid_: terminal pane、shell tab
 
 **focused tab**:
 目前選取的 **workspace** 裡持有鍵盤焦點的 **tab**。
 _Avoid_: 目前的 tab、active tab、選取的 tab
+
+### 預覽
+
+**可預覽檔案**:
+副檔名是 `.md`、`.markdown`、`.html` 或 `.htm` 的本機檔案。
+_Avoid_: 文件、doc、網頁
+
+**預覽 tab**:
+顯示一個 **可預覽檔案** 渲染結果的 **tab**。沒有終端機，也沒有 agent 狀態。
+_Avoid_: preview tab、文件 tab、viewer、Quick Look
+
+**開啟選單**:
+在終端機 ⌘-click **可預覽檔案** 的路徑時，在滑鼠位置跳出的選單，讓使用者選擇開在哪裡。
+_Avoid_: 右鍵選單、context menu、開啟方式
 
 ### Agent 狀態
 
@@ -73,9 +91,10 @@ _Avoid_: session 名稱、標題、tab 名稱
 ## Relationships
 
 - 一個 **workspace** 有一個或多個 **tab**；同一時間最多一個 **focused tab**。
-- 一則通知來自零個或一個 **tab**（從 tab 外面用 `lmux notify` 送的通知沒有 tab）。
-- 一個 **tab** 有零個或一個 **任務名稱**（不是 Claude、或 Claude 還沒取標題時沒有）。
+- 一則通知來自零個或一個 **終端機 tab**（從 tab 外面用 `lmux notify` 送的通知沒有 tab）。**預覽 tab** 不送通知。
+- 一個 **終端機 tab** 有零個或一個 **任務名稱**（不是 Claude、或 Claude 還沒取標題時沒有）。**預覽 tab** 沒有 Claude agent 的任務名稱，但使用者仍可透過雙擊標題或右鍵選單在 lmux 手動重新命名其 tab 標題。
 - 一則通知在 **通知 bar** 裡對應一張 **通知卡片**。
+- 一個 **預覽 tab** 同一時間顯示一個 **可預覽檔案**；在預覽裡點連結換頁後，仍是同一個預覽 tab。
 
 ## Example dialogue
 
@@ -86,6 +105,8 @@ _Avoid_: session 名稱、標題、tab 名稱
 
 ## Flagged ambiguities
 
-- 「tab」：使用者說的 tab 等於 lmux 程式碼的 `Pane`（`App/Sources/LmuxUI/Tabs.swift:7-9`：每個 tab 都是一個 Pane）。規格一律用 **tab**。
+- 「tab」：使用者說的 tab 等於 lmux 程式碼的 `Pane`（`App/Sources/LmuxUI/Tabs.swift:7-9`：每個 tab 都是一個 Pane）。規格一律用 **tab**。加入預覽後，`Pane` 不一定有終端機；只講其中一種時用 **終端機 tab** 或 **預覽 tab**。
+- 「預覽」：可能指 macOS 的 Quick Look、Settings 裡的主題預覽，或 lmux 裡的 **預覽 tab**。規格中「預覽」只指 **預覽 tab**。
+- 「點一下路徑」：使用者原話是「用滑鼠點一下」。lmux 沿用 Ghostty 的規則：按住 ⌘ 再點才開連結（`vendor/ghostty/src/config/Config.zig:4089`、`vendor/ghostty/src/Surface.zig:4490`）。不按 ⌘ 的點擊會選取文字，所以規格用 ⌘-click。
 - 「標題」：可能指 workspace 名稱、終端機標題（OSC 0/2）或 session 標題。規格中 session 標題一律叫 **任務名稱**；workspace 的叫「workspace 名稱」。
-- 「tab 沒顯示進行中」：進行中的轉圈圖示畫在 sidebar 的 workspace 列（`App/Sources/LmuxUI/Sidebar.swift:400`）；tab 列只畫待回應／未讀徽章（`App/Sources/LmuxUI/Tabs.swift:527-528`）。規格中「顯示進行中」指 workspace 列的轉圈圖示，狀態本身屬於 **tab**。
+- 「tab 沒顯示進行中」：進行中的轉圈圖示畫在 sidebar 的 workspace 列（`App/Sources/LmuxUI/Sidebar.swift:400`）；tab 列只畫待回應／未讀徽章（`App/Sources/LmuxUI/Tabs.swift:542`）。規格中「顯示進行中」指 workspace 列的轉圈圖示，狀態本身屬於 **tab**。

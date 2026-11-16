@@ -5,9 +5,10 @@ import LmuxTokens
 private typealias T = LmuxTokens
 
 // Tabs inside a pane (cmux's surfaces), with cmux's tab bar: a split leaf holds an ordered list of
-// terminals, one shown. Every tab is an ordinary `Pane` (its own id, agent state, History,
-// scrollback); only the shown one is in the window, the rest stay occluded like a hidden
-// workspace's panes. Every leaf has a strip (cmux's default; the setting off: only with two tabs).
+// panes (terminal or preview tabs), one shown. Every tab is an ordinary `Pane` (its own id, optional
+// agent/history/scrollback for terminals or WebKit view for previews); only the shown one is in the
+// window, the rest stay occluded like a hidden workspace's panes. Every leaf has a strip (cmux's
+// default; the setting off: only with two tabs).
 //
 //   ⌘T (Ghostty `new_tab`)   new tab after the shown one     ⇧⌘] / ⇧⌘[, ⌃⇥ / ⌃⇧⇥  next / previous tab
 //   ⌃1…⌃8 / ⌃9               that tab / the last              ⌥⇧⌘] / ⌥⇧⌘[          move the tab right / left
@@ -32,13 +33,25 @@ extension LmuxController {
         return tab
     }
 
+    /// 開啟選單的「在新 tab 預覽」（beat: open-menu.feature）：`file` 的預覽 tab，插在 `pane` 的右邊
+    /// （與 ⌘T 同位置），並成為 focused tab。
+    @discardableResult
+    public func newPreviewTab(_ file: URL, after pane: Pane) -> Pane? {
+        guard let ws = pane.workspace, model.workspaces.contains(where: { $0 === ws }),
+              let leaf = ws.root.find(pane) else { return nil }
+        let tab = makePreviewPane(file: file)
+        let at = (leaf.tabs.firstIndex { $0 === pane } ?? leaf.tabs.count - 1) + 1
+        insert(tab, into: leaf, at: at, ws, select: true)
+        return tab
+    }
+
     /// Put `tab` (new, or moved from another pane) into `leaf` at `index` (kept on its side of the
     /// pinned tabs), shown and focused unless `select` is false.
     func insert(_ tab: Pane, into leaf: SplitNode, at index: Int, _ ws: Workspace, select: Bool) {
         let pc = leaf.pinnedCount
         let at = tab.pinned ? min(index, pc) : max(index, pc)
         leaf.tabs.insert(tab, at: min(max(at, 0), leaf.tabs.count))
-        tab.surface.setOcclusion(visible: false)
+        tab.surface?.setOcclusion(visible: false)
         ws.structureChanged()
         if select {
             // Zoomed on another pane: the zoom ends, so the focused tab is on screen.
@@ -88,8 +101,8 @@ extension LmuxController {
         leaf.content = .pane(tab)
         if ws.focusedPane === old { ws.focusedPane = tab }
         if ws.zoomedPane === old { ws.zoomedPane = tab }
-        old.surface.focusDidChange(false)
-        old.surface.setOcclusion(visible: false)
+        old.surface?.focusDidChange(false)
+        old.surface?.setOcclusion(visible: false)
         ws.structureChanged()
         return true
     }
@@ -196,8 +209,8 @@ extension LmuxController {
         guard let ws = tab.workspace, let leaf = ws.root.find(tab), let i = leaf.tabs.firstIndex(where: { $0 === tab }) else { return }
         // The zoom ends only if it was on this tab's pane (it goes, or shows another tab).
         if let z = ws.zoomedPane, ws.root.find(z) === leaf { ws.zoomedPane = nil }
-        tab.surface.focusDidChange(false)
-        tab.surface.setOcclusion(visible: false)
+        tab.surface?.focusDidChange(false)
+        tab.surface?.setOcclusion(visible: false)
         tab.view.tabStrip = nil
         tab.view.removeFromSuperview()
         tab.workspace = nil
@@ -383,7 +396,7 @@ extension LmuxController {
         // Its own pane: only an edge does something, and only when another tab stays behind.
         let own = leaf.tabs.contains { $0 === tab }
         guard let target = own ? leaf.tabs.first(where: { $0 !== tab }) : pane else { return nil }
-        let area = pane.surface.frame
+        let area = pane.surface?.frame ?? pane.preview?.frame ?? pv.bounds
         let p = pv.convert(windowPoint, from: nil)
         let fx = (p.x - area.minX) / max(1, area.width), fy = (p.y - area.minY) / max(1, area.height)
         let edge: CGFloat = 0.25
@@ -472,6 +485,7 @@ public final class TabStripView: NSView {
         let id: String
         let title: String
         let agent: Bool
+        let preview: Bool
         /// The badge: it needs you, or an alert nobody has seen.
         let badge: Bool
         let pinned: Bool
@@ -524,16 +538,16 @@ public final class TabStripView: NSView {
             let title = !header.isEmpty ? header : p.headerTitle.isEmpty ? "Terminal" : p.headerTitle
             let w = ceil((title as NSString).size(withAttributes: [.font: Self.font]).width)
             let full = Self.padX + Self.iconSize + Self.spacing + w + Self.spacing + Self.slot + Self.padX
-            return Item(id: p.id, title: title, agent: p.runsClaude,
+            return Item(id: p.id, title: title, agent: p.runsClaude, preview: p.preview != nil,
                         badge: (p.needsInput || p.unread > 0) && !(p === shown && p.isFocused), pinned: p.pinned,
                         width: min(Self.maxTabWidth, max(Self.minTabWidth, full)))
         }
         let sel = tabs.firstIndex { $0 === shown } ?? 0
-        let bg = shown?.surface.terminalBackground ?? T.Colors.windowBackground.nsColor
+        let bg = shown?.surface?.terminalBackground ?? T.Colors.windowBackground.nsColor
         let f = shown?.isFocused ?? false
         let z = shown.map { $0.workspace?.zoomedPane === $0 } ?? false
         let mb = shown?.modeBadge
-        adoptAppearance(on: shown?.surface.terminalBackground)
+        adoptAppearance(on: shown?.surface?.terminalBackground)
         if new != items || sel != selected || bg != background || f != focused || z != zoomed || mb != modeBadge {
             let moved = sel != selected || new != items || mb != modeBadge
             modeBadge = mb
@@ -655,7 +669,7 @@ public final class TabStripView: NSView {
             separator.setFill()
             NSRect(x: r.maxX - 1, y: 0, width: 1, height: r.height - (i + 1 == selected ? 1 : 0)).fill()
             let color = sel ? active : inactive
-            symbol(item.agent ? "sparkle" : "terminal", 10, color,
+            symbol(item.agent ? "sparkle" : (item.preview ? "doc.text" : "terminal"), 10, color,
                    in: NSRect(x: r.minX + Self.padX, y: (r.height - Self.iconSize) / 2, width: Self.iconSize, height: Self.iconSize),
                    weight: .medium)
             let tx = r.minX + Self.padX + Self.iconSize + Self.spacing

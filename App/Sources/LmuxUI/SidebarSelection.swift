@@ -157,6 +157,14 @@ extension LmuxController {
 }
 
 extension LmuxController: NSMenuItemValidation {
+    /// 只對終端機有意義的選單項目：預覽 tab 是 focused tab 時停用（beat: preview-tab.feature）。
+    /// `menuGhosttyBinding` 是字級、Clear Screen 這類交給 Ghostty 的項目。
+    static let terminalOnlyActions: [Selector] = [
+        #selector(LmuxController.menuFind(_:)), #selector(LmuxController.menuFindNext(_:)),
+        #selector(LmuxController.menuFindPrevious(_:)), #selector(LmuxController.menuUndoSend(_:)),
+        #selector(LmuxController.menuCopyOriginal(_:)), #selector(LmuxController.menuGhosttyBinding(_:)),
+    ]
+
     /// Close titles follow the selection ("Close 3 Workspaces"); Zoom Split's title tracks
     /// whether the selected workspace is currently zoomed.
     public func validateMenuItem(_ item: NSMenuItem) -> Bool {
@@ -166,6 +174,9 @@ extension LmuxController: NSMenuItemValidation {
             item.title = n > 1 ? closeTitle(count: n) : focusedLeafHasTabs ? "Close Tab" : "Close Pane"
         }
         if item.action == #selector(menuToggleSplitZoom(_:)) { item.title = model.selected?.isZoomed == true ? "Unzoom Split" : "Zoom Split" }
+        if model.selected?.focusedPane?.preview != nil, let action = item.action, Self.terminalOnlyActions.contains(action) {
+            return false
+        }
         return true
     }
 }

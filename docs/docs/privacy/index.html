@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Privacy &amp; files on disk · lmux docs</title>
-  <meta name="description" content="lmux, a macOS terminal for Claude Code and Codex, makes no network calls at all: no telemetry, no crash reports, not even an update check (Homebrew does…">
+  <meta name="description" content="lmux, a macOS terminal for Claude Code and Codex, makes no network calls itself: no telemetry, no crash reports, not even an update check (Homebrew does…">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#F5F7FA" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#20242C" media="(prefers-color-scheme: dark)">
@@ -12,7 +12,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="lmux">
   <meta property="og:title" content="Privacy &amp; files on disk · lmux docs">
-  <meta property="og:description" content="lmux, a macOS terminal for Claude Code and Codex, makes no network calls at all: no telemetry, no crash reports, not even an update check (Homebrew does…">
+  <meta property="og:description" content="lmux, a macOS terminal for Claude Code and Codex, makes no network calls itself: no telemetry, no crash reports, not even an update check (Homebrew does…">
   <meta property="og:url" content="https://lmux.dev/docs/privacy/">
   <meta property="og:image" content="https://lmux.dev/site/img/og.png">
   <meta property="og:image:width" content="1200">
@@ -20,7 +20,7 @@
   <meta property="og:image:alt" content="lmux: light mux. A light, native macOS terminal for living in Claude Code and Codex all day.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Privacy &amp; files on disk · lmux docs">
-  <meta name="twitter:description" content="lmux, a macOS terminal for Claude Code and Codex, makes no network calls at all: no telemetry, no crash reports, not even an update check (Homebrew does…">
+  <meta name="twitter:description" content="lmux, a macOS terminal for Claude Code and Codex, makes no network calls itself: no telemetry, no crash reports, not even an update check (Homebrew does…">
   <meta name="twitter:image" content="https://lmux.dev/site/img/og.png">
   <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "lmux", "item": "https://lmux.dev/"}, {"@type": "ListItem", "position": 2, "name": "Docs", "item": "https://lmux.dev/docs/"}, {"@type": "ListItem", "position": 3, "name": "Privacy & files on disk", "item": "https://lmux.dev/docs/privacy/"}]}</script>
   <link rel="icon" href="../../site/img/icon.svg" type="image/svg+xml">
@@ -55,7 +55,7 @@
     <main class="docs-main" id="content" tabindex="-1">
       <article class="prose">
 <h1>Privacy &amp; files on disk</h1>
-<p>lmux, a macOS terminal for Claude Code and Codex, makes no network calls at all: no telemetry, no crash reports, not even an update check (Homebrew does that). Everything it knows stays in a few files on your Mac, listed here with how to remove each one.</p>
+<p>lmux, a macOS terminal for Claude Code and Codex, makes no network calls itself: no telemetry, no crash reports, not even an update check (Homebrew does that). Only when you open an opt-in <code>.md</code> or <code>.html</code> preview tab does macOS <code>WKWebView</code> fetch remote scripts or images referenced by that file. Everything it knows stays in a few files on your Mac, listed here with how to remove each one.</p>
 <h2 id="what-lmux-writes">What lmux writes<a class="h-anchor" href="#what-lmux-writes" aria-label="Link to this section">#</a></h2>
 <h3 id="its-state-folder">Its state folder<a class="h-anchor" href="#its-state-folder" aria-label="Link to this section">#</a></h3>
 <p><code>~/Library/Application Support/lmux/</code>, readable only by you (the folder is 0700, the files 0600):</p>

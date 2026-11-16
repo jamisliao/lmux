@@ -2,7 +2,7 @@
 
 One window: a SwiftUI sidebar of workspaces, each workspace a split tree of libghostty
 surfaces (AppKit). SwiftUI is only in the sidebar and titlebar buttons, never in the
-terminal path; no WebKit.
+terminal path; `WKWebView` is used only for `.md` / `.html` preview tabs (`PreviewView`, non-persistent data store); a spare WebKit process starts when the open menu pops up (no page, no network) so the tab opens fast.
 
 **Build from source**: `App/Frameworks/GhosttyKit.xcframework` links into `vendor/ghostty`, which a fresh
 checkout doesn't have. `scripts/bootstrap.sh` clones Ghostty at the commit in `GHOSTTY_COMMIT`, fetches Zig
@@ -14,13 +14,14 @@ checkout doesn't have. `scripts/bootstrap.sh` clones Ghostty at the commit in `G
 scripts/bootstrap.sh             # once: vendor/ghostty at GHOSTTY_COMMIT, Zig, GhosttyKit.xcframework
 App/scripts/bundle.sh            # release build -> App/build/lmux.app (+ bin/lmux, bin/lmux-hook, icon)
 open App/build/lmux.app          # run it
-App/scripts/apptest.sh           # app harness, headless: workspaces, splits, focus, hooks, CLI, persistence,
+App/scripts/apptest.sh           # app harness, headless: workspaces, splits, focus, hooks, CLI, persistence, previews,
                                  #   + a fresh process with a 50MB transcript (memory budget) and key->pty latency
                                  #   + --compat: real programs off the happy path (wide text, 2M lines, binary garbage,
                                  #   title/bell/OSC storms, kitty keys, mouse, 10MB paste, resize storms, vim/less/top,
                                  #   malformed hooks, corrupted layout.json / settings.plist)
-App/scripts/apptest.sh --quick   # main pass only (~1 min); scripts/install-git-hooks.sh (opt-in) runs it
+App/scripts/apptest.sh --quick   # main pass only (incl. preview checks); scripts/install-git-hooks.sh (opt-in) runs it
                                  #   + Core swift test before every git push
+App/scripts/apptest.sh --preview # Markdown/HTML preview suite alone (preview-check, WKWebView checks, preview UI)
 App/scripts/apptest.sh --screenshots DIR   # + DIR/p1-*.png, DIR/p2-*.png, dark and light (offscreen render)
 App/scripts/apptest.sh --real-window [DIR] # CI ONLY (refuses unless GITHUB_ACTIONS=true): VISIBLE window driven by real
                                  #   CGEvents: window drag, traffic lights, titlebar buttons, divider/sidebar/window
@@ -51,7 +52,7 @@ App/scripts/readme.sh hero       # site hero video (2000 px, H.264 CRF 21 / VP9 
 |---|---|
 | `LmuxTerminal` | libghostty runtime + `SurfaceView` (adapted from Ghostty, MIT) |
 | `LmuxTokens` | design tokens (`design/Tokens.swift` is a symlink to it) |
-| `LmuxUI` | window, sidebar, workspaces/splits, focus, agent awareness, persistence, CLI socket, hooks onboarding |
+| `LmuxUI` | window, sidebar, workspaces/splits, optional-`surface` panes (`Pane.Content`: terminal or Markdown/HTML `PreviewView`), `⌘`-click open menu, agent awareness, persistence, CLI socket, hooks onboarding |
 | `lmux` | the app (`main.swift` only) |
 | `lmux-cli` | the `lmux` command, bundled as `Contents/Resources/bin/lmux` (on PATH inside panes) |
 | `lmux-apptest`, `lmux-imetest` | headless harnesses |
@@ -211,8 +212,8 @@ App/scripts/readme.sh hero       # site hero video (2000 px, H.264 CRF 21 / VP9 
 - **Drag & drop, image paste (R18)**: dropped files are inserted as shell-escaped paths (like Ghostty), as a paste;
   an image on the clipboard or dropped (a screenshot) is saved as a temp PNG (0600, pruned after a day) and its path
   pasted, which Claude Code attaches as an image.
-- **CLI**: `lmux new-workspace [--cwd DIR] [--cmd CMD]`, `lmux send [--pane ID] TEXT` (`\n` = Return),
-  `lmux notify [--title T] TEXT`, `lmux list [--json]` (workspaces, pane ids, titles, cwd, state). Outside lmux the
+- **CLI**: `lmux new-workspace [--cwd DIR] [--cmd CMD]`, `lmux send [--pane ID] TEXT` (`\n` = Return; returns `not a terminal` when targeting a preview tab),
+  `lmux notify [--title T] TEXT`, `lmux list [--json]` (workspaces, terminal pane ids, titles, cwd, state; omits preview tabs, so preview-only workspaces have empty `panes` and listed panes may be fewer than `tabs`). Outside lmux the
   CLI talks to `$LMUX_CONTROL_SOCKET`, else the instance of `$LMUX_STATE_DIR`, else the default one. Each pane gets a secret `LMUX_PANE_NONCE` (also still as `LMUX_PANE_TOKEN`, the old name, for one release); from inside a pane, `send` may only
   target that pane (`defaults write dev.lmux.app allowCrossPaneSend -bool true` lifts it, read at each send, no
   relaunch); from outside lmux (no valid token), `send` and `new-workspace --cmd` are refused unless

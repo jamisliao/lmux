@@ -325,7 +325,7 @@ extension LmuxController {
         case "list":
             return ["ok": true, "workspaces": model.workspaces.map { ws in
                 ["id": ws.id, "title": ws.title, "selected": ws.id == model.selectedID,
-                 "panes": ws.panes.map { p in
+                 "panes": ws.panes.filter { $0.surface != nil }.map { p in
                      var e: [String: Any] = ["id": p.id, "title": p.headerTitle, "cwd": p.cwd ?? "", "state": p.display.stateName,
                                              "focused": ws.focusedPane === p, "claude": p.runsClaude,
                                              "agent": p.agentName ?? "", "session": p.claudeSessionID ?? "",
@@ -357,6 +357,8 @@ extension LmuxController {
                 return ["ok": false, "error": Self.externalSendOff]
             case .paneBusy:
                 return ["ok": false, "error": "that pane is busy rewinding Claude Code; try again in a moment"]
+            case .notTerminal:
+                return ["ok": false, "error": "not a terminal: \(pane)"]
             }
         case "notify":
             guard let text = req["text"] as? String else { return ["ok": false, "error": "notify needs text"] }

@@ -1,7 +1,6 @@
 # How lmux works
 
-Plain Swift on top of libghostty. Nothing in it is a web page, and nothing runs between you
-and `claude`.
+Plain Swift on top of libghostty. Terminal panes stay pure AppKit (no web page wraps the shell, and nothing runs between you and `claude`), while opt-in `.md` and `.html` preview tabs render in an isolated `WKWebView`.
 
 ## Modules
 
@@ -21,7 +20,7 @@ The app (`App/`) is two more layers:
 - **LmuxTerminal**: libghostty glue. One `SurfaceView` per pane (rendering, keyboard and the
   Korean IME fixes), config loading (lmux defaults → your Ghostty config →
   `~/.config/lmux/config`) and live config reload.
-- **LmuxUI**: the window, the sidebar, splits, the hover actions over a turn, cards and
+- **LmuxUI**: the window, the sidebar, splits, optional-`surface` panes (`Pane.Content` supporting terminals and `.md`/`.html` `PreviewView` tabs with a `⌘`-click open menu), the hover actions over a turn, cards and
   toasts, History, the bell's notification list, Settings and the cmux import. The sidebar,
   the bell list and Settings are SwiftUI; the terminal path never touches it.
 

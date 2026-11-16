@@ -63,7 +63,7 @@ extension LmuxController {
     /// Capture how the pane's codex was started (its argv, read once at SessionStart), so restore
     /// resumes it with the same model, sandbox, approvals, profile and `-c` overrides.
     func captureCodexResumeCommand(_ pane: Pane, _ e: HookEvent, sessionID sid: String) {
-        let p = e.claudePID ?? ClaudeProcess.representative(ofGroup: pane.surface.foregroundPID)
+        let p = e.claudePID ?? ClaudeProcess.representative(ofGroup: pane.foregroundPID)
         let tail = " " + ClaudeCommand.shellQuote(sid)
         guard let cl = p.flatMap(ClaudeProcess.commandLine), cl.argv.contains(where: Self.isCodexArgument) else {
             // Not readable: keep what we had for this session, else plain resume (seen starting only).

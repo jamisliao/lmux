@@ -67,7 +67,7 @@ func runEscIdle() async -> Int32 {
         let ws = c.newWorkspace(program: launcher.path)
         made.append(ws)
         let p = ws.panes[0]
-        _ = await waitFor(5) { p.surface.readText().contains("streaming") }
+        _ = await waitFor(5) { p.surface!.readText().contains("streaming") }
         hookEvent(c, p, "SessionStart", session: sid, transcript: path, ["source": "startup"])
         hookEvent(c, p, "UserPromptSubmit", session: sid, ["prompt": "explain the build"])
         c.focus(p)
@@ -125,13 +125,13 @@ func runEscIdle() async -> Int32 {
     let (pT, _) = await claudePane("thinking")
     // The title OSC goes out before the first "streaming" line but reaches the surface's title
     // on a later main-queue turn: wait on the title itself, not on the output.
-    let titled = await waitFor(3) { pT.surface.title.hasPrefix("◐") }
-    r.check("(setup) Claude's working title", titled, pT.surface.title)
+    let titled = await waitFor(3) { pT.surface!.title.hasPrefix("◐") }
+    r.check("(setup) Claude's working title", titled, pT.surface!.title)
     let tT = Date()
     await type("\u{1b}", window: w)
     let idleT = await waitFor(2) { pT.agent.state == .idle }
     r.check(String(format: "Esc while thinking (no marker, title ✳): row idle at the second look (%.2f s)", Date().timeIntervalSince(tT)),
-            idleT && c.notifier.postedCount == posted0, "\(pT.agent.state) title \(pT.surface.title)")
+            idleT && c.notifier.postedCount == posted0, "\(pT.agent.state) title \(pT.surface!.title)")
 
     // 3. Esc that stopped nothing (closed a menu): no marker, still running.
     let (p3, _) = await claudePane("menu")
