@@ -331,6 +331,20 @@ enum PreviewCheck {
         expect(largeHTML.contains("<h1 id=\"h39999\">H39999</h1>") && large < max(small, 0.05) * 6,
                "標題數 4 倍，時間不能超過 6 倍（實測：修好後約 4 倍，修好前約 8.5 倍）：\(small) 秒 → \(large) 秒")
 
+        // @feature: plain-text-preview.feature
+        // @scenario: 純文字檔以等寬字型原樣顯示
+        // @scenario: 很長的一行自動換行
+        let plain = MarkdownHTML.textPage("echo '<b>done</b>' & </code></pre><img src=x onerror=alert(1)>\n# 不是標題\n",
+                                          title: "deploy<1>.sh")
+        expect(plain.contains("<pre class=\"plain\"><code>echo &#39;&lt;b&gt;done&lt;/b&gt;&#39; &amp; &lt;/code&gt;&lt;/pre&gt;&lt;img src=x onerror=alert(1)&gt;\n# 不是標題\n</code></pre>"),
+               "純文字原樣跳脫，跳不出 <pre>：\(plain)")
+        expect(!plain.contains("<b>") && !plain.contains("<h1") && !plain.contains("<img"), "純文字不轉成 HTML 標籤：\(plain)")
+        expect(plain.contains("<title>deploy&lt;1&gt;.sh</title>"), "純文字頁的標題是跳脫後的檔名")
+        expect(plain.contains("Content-Security-Policy") && plain.contains("default-src 'none'") && !plain.contains("img-src"),
+               "純文字頁的 CSP 不允許任何載入（連圖片都不行）")
+        expect(plain.contains("pre.plain{white-space:pre-wrap;overflow-wrap:anywhere"), "純文字頁自動換行")
+        expect(MarkdownHTML.page("# T", title: "t").contains("img-src lmux-preview:"), "Markdown 頁面的 CSP 不變")
+
         print("preview check: ok")
     }
 }
