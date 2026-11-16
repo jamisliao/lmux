@@ -1,6 +1,6 @@
 name: plain-text-preview
 created: 2026-11-16
-phase: tasks
+phase: implement
 pipeline:
   proposal: { status: done }
   gherkin: { status: done, modified: ["beat/features/preview/open-menu.feature"] }
