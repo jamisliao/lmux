@@ -23,7 +23,7 @@ enum PreviewCheck {
         let badCwd = docs.appendingPathComponent("bad\u{202E}dir/sub", isDirectory: true)
         try? FileManager.default.createDirectory(at: badCwd, withIntermediateDirectories: true)
         try? Data("x".utf8).write(to: badCwd.appendingPathComponent("nested.md"))
-        for name in ["design.md", "page.html", "notes.txt", "UPPER.MD", "a\u{202E}b.md", "u\u{2028}v.md", "u\u{2029}w.md", "u\u{3164}z.md"] {
+        for name in ["design.md", "page.html", "notes.txt", "AppIcon.icns", "UPPER.MD", "a\u{202E}b.md", "u\u{2028}v.md", "u\u{2029}w.md", "u\u{3164}z.md"] {
             FileManager.default.createFile(atPath: docs.appendingPathComponent(name).path, contents: Data("x".utf8))
         }
         try? FileManager.default.createSymbolicLink(at: docs.appendingPathComponent("zero.md"),
@@ -55,7 +55,8 @@ enum PreviewCheck {
         expect(PreviewTarget.resolve(URL(fileURLWithPath: design).absoluteString, cwd: nil)?.path == design, "file:// 連結")
 
         // @scenario: 不是存在的可預覽檔案時，照原本流程
-        expect(PreviewTarget.resolve("docs/notes.txt", cwd: rootPath) == nil, "不是可預覽檔案")
+        expect(PreviewTarget.resolve("docs/AppIcon.icns", cwd: rootPath) == nil, "不是可預覽檔案（.icns）")
+        expect(PreviewTarget.resolve("docs/notes.txt", cwd: rootPath) != nil, "純文字檔（.txt）是可預覽檔案")
         expect(PreviewTarget.resolve("docs/missing.md", cwd: rootPath) == nil, "檔案不存在")
         expect(PreviewTarget.resolve("https://example.com/readme.md", cwd: rootPath) == nil, "網址")
         expect(PreviewTarget.resolve("docs/folder.md", cwd: rootPath) == nil, "資料夾不算檔案")
@@ -129,6 +130,27 @@ enum PreviewCheck {
             expect(PreviewTarget.isMarkdown(u) == (PreviewTarget.kind(u) == .markdown)
                    && PreviewTarget.isHTML(u) == (PreviewTarget.kind(u) == .html), "kind 與 isMarkdown／isHTML 一致：\(u.lastPathComponent)")
         }
+        for name in textNames {
+            let path = text.appendingPathComponent(name).standardizedFileURL.path
+            expect(PreviewTarget.resolve("docs/text/\(name)", cwd: rootPath)?.path == path,
+                   "純文字檔 \(name) 是可預覽檔案（UTType：\(uti(name))）")
+        }
+        for name in notTextNames {
+            expect(PreviewTarget.resolve("docs/text/\(name)", cwd: rootPath) == nil, "\(name) 照原本流程（UTType：\(uti(name))）")
+        }
+        // @scenario: 路徑帶行號時，從檔案開頭顯示
+        expect(PreviewTarget.resolve("docs/text/app.yaml:42", cwd: rootPath)?.path
+               == text.appendingPathComponent("app.yaml").standardizedFileURL.path, "純文字檔帶行號：去掉行號")
+        // symlink 的目標必須是同一種
+        try? FileManager.default.createSymbolicLink(at: text.appendingPathComponent("alias-md.txt"),
+                                                    withDestinationURL: URL(fileURLWithPath: design))
+        expect(PreviewTarget.resolve("docs/text/alias-md.txt", cwd: rootPath) == nil, "指向 .md 的 .txt symlink 不預覽（種類不同）")
+        try? FileManager.default.createSymbolicLink(at: text.appendingPathComponent("alias-sh.txt"),
+                                                    withDestinationURL: text.appendingPathComponent("deploy.sh"))
+        expect(PreviewTarget.resolve("docs/text/alias-sh.txt", cwd: rootPath) != nil, "指向純文字檔的 .txt symlink 可預覽")
+        try? FileManager.default.createSymbolicLink(at: docs.appendingPathComponent("alias-html.md"),
+                                                    withDestinationURL: docs.appendingPathComponent("page.html"))
+        expect(PreviewTarget.resolve("docs/alias-html.md", cwd: rootPath) == nil, "指向 .html 的 .md symlink 不預覽（種類不同，改走原本流程）")
         expect(PreviewTarget.isText(text.appendingPathComponent("app.yaml")) && !PreviewTarget.isText(URL(fileURLWithPath: design)),
                "isText：純文字檔是、Markdown 不是")
         expect(PreviewTarget.usesPreviewScheme(URL(fileURLWithPath: design))

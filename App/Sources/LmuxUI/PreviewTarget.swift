@@ -3,9 +3,6 @@ import UniformTypeIdentifiers
 
 /// 終端機裡 ⌘-click 的連結指向的檔案，是預覽 tab 能顯示的檔案時才有值（beat: open-menu.feature）。
 enum PreviewTarget {
-    /// 可預覽檔案的副檔名（小寫）。
-    static let extensions: Set<String> = ["md", "markdown", "html", "htm"]
-
     /// 可預覽檔案的三種顯示方式（beat: plain-text-preview.feature）。
     enum Kind: Equatable { case markdown, html, text }
 
@@ -122,12 +119,12 @@ enum PreviewTarget {
         guard !hasUnsafeScalar(path) else { return nil }
         let url = URL(fileURLWithPath: path).standardizedFileURL
         guard !hasUnsafeScalar(url.path) else { return nil }
-        guard extensions.contains(url.pathExtension.lowercased()) else { return nil }
+        guard let fileKind = kind(url) else { return nil }
         // 只預覽一般檔案，且 symlink 目標的真實副檔名與路徑字元也必須符合規定。
         guard fileManager.fileExists(atPath: url.path) else { return nil }
         let canonical = url.resolvingSymlinksInPath()
         guard !hasUnsafeScalar(canonical.path),
-              extensions.contains(canonical.pathExtension.lowercased()),
+              kind(canonical) == fileKind,
               let values = try? canonical.resourceValues(forKeys: [.isRegularFileKey]),
               values.isRegularFile == true else { return nil }
         return resolvingSymlinksAnywhere(url, resolved: canonical)

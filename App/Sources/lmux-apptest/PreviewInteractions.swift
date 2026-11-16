@@ -88,8 +88,10 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
 
         // 照原本流程
         asked.removeAll()
-        r.check("不是可預覽檔案：照原本流程開啟",
-                sameAsBefore(docs.appendingPathComponent("notes.txt").path) && external.urls.count == 1,
+        let svg = docs.appendingPathComponent("icon.svg")
+        try? "<svg xmlns=\"http://www.w3.org/2000/svg\"/>".write(to: svg, atomically: true, encoding: .utf8)
+        r.check("不是可預覽檔案（SVG）：照原本流程開啟",
+                sameAsBefore(svg.path) && external.urls.count == 1,
                 "\(external.urls)")
         r.check("檔案不存在：照原本流程", sameAsBefore("docs/missing.md"))
         r.check("網址：照原本流程開啟",
