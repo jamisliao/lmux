@@ -1,8 +1,8 @@
 import AppKit
 import WebKit
 
-/// 預覽 tab 的內容（beat: preview-tab.feature）：一個 WKWebView，顯示 Markdown 檔（經
-/// `PreviewSchemeHandler` 轉成 HTML）或 HTML 檔（原樣）。檔案改變時重新載入。
+/// 預覽 tab 的內容（beat: preview-tab.feature、plain-text-preview.feature）：一個 WKWebView，顯示 Markdown 檔
+/// 或純文字檔（經 `PreviewSchemeHandler` 轉成 HTML）、或 HTML 檔（原樣）。檔案改變時重新載入。
 /// cookie 與 storage 只活在這個 view 裡（`nonPersistent`），關掉 tab 就清掉。
 @MainActor
 public final class PreviewView: NSView, WKNavigationDelegate {
@@ -92,7 +92,7 @@ public final class PreviewView: NSView, WKNavigationDelegate {
         if let m = clickMonitor { NSEvent.removeMonitor(m) }
     }
 
-    /// 載入 `file`：Markdown 走 scheme；HTML 驗證為合法一般檔案後從磁碟載入，只開放它所在的資料夾。
+    /// 載入 `file`：Markdown 與純文字檔走 scheme；HTML 驗證為合法一般檔案後從磁碟載入，只開放它所在的資料夾。
     public func show(_ file: URL) {
         show(file, fromWatcher: false, preserveRoot: false)
     }
@@ -121,8 +121,8 @@ public final class PreviewView: NSView, WKNavigationDelegate {
             }
             return
         }
-        if PreviewTarget.isMarkdown(file) {
-            guard !PreviewTarget.hasUnsafeScalar(real.path), PreviewTarget.isMarkdown(real) else {
+        if PreviewTarget.usesPreviewScheme(file) {
+            guard !PreviewTarget.hasUnsafeScalar(real.path), PreviewTarget.kind(real) == PreviewTarget.kind(file) else {
                 showFallbackHTML(MarkdownHTML.missingPage(path: file.path), for: file)
                 return
             }
@@ -235,7 +235,7 @@ public final class PreviewView: NSView, WKNavigationDelegate {
         showFallbackHTML(
             exists ? MarkdownHTML.unreadablePage(path: file.path) : MarkdownHTML.missingPage(path: file.path),
             for: file,
-            keepPinnedHTMLRoot: !PreviewTarget.isMarkdown(file)
+            keepPinnedHTMLRoot: !PreviewTarget.usesPreviewScheme(file)
         )
     }
 

@@ -122,6 +122,7 @@ enum PreviewWebKitCheck {
             await regressionChecks(root)
             await boundaryChecks(root)
             await textSchemeChecks(root)
+            await textViewChecks(root)
             try? FileManager.default.removeItem(at: root)
             print(failures == 0 ? "WEBKIT CHECK: ok" : "WEBKIT CHECK: FAILED (\(failures))")
             exit(failures == 0 ? 0 : 1)
