@@ -225,6 +225,78 @@ enum PreviewCheck {
                && collideHTML.contains("<h1 id=\"foo-2\">Foo</h1>"),
                "heading ID collision avoided: \(collideHTML)")
 
+        // 連結裡的圖片（README badge）：Foundation 會丟掉連結裡的圖片網址，要自己換回來
+        let badge = html("[![build](https://img.shields.io/x.svg)](https://ci.example/y)")
+        expect(badge.contains("<a href=\"https://ci.example/y\"><img src=\"https://img.shields.io/x.svg\" alt=\"build\"></a>"),
+               "badge 顯示成可點的圖片：\(badge)")
+        let twoBadges = html("[![a](https://x/a.svg)](https://l/1) [![b](https://x/b.svg)](https://l/2)\n")
+        expect(twoBadges.contains("src=\"https://x/a.svg\"") && twoBadges.contains("src=\"https://x/b.svg\"")
+               && twoBadges.contains("href=\"https://l/1\"") && twoBadges.contains("href=\"https://l/2\""), "同一行兩個 badge：\(twoBadges)")
+        let sameLink = html("[![a](https://x/a.svg)](https://l/1)[![b](https://x/b.svg)](https://l/1)\n")
+        expect(sameLink.contains("a.svg") && sameLink.contains("b.svg") && !sameLink.contains("LMUXIMG"), "同連結相鄰兩個 badge：\(sameLink)")
+        let fenced = html("```\n[![a](https://x/a.svg)](https://l/1)\n```\n")
+        expect(fenced.contains("[![a](https://x/a.svg)](https://l/1)") && !fenced.contains("<img"),
+               "程式碼區塊裡的 badge 語法原樣顯示：\(fenced)")
+        // 程式碼裡的 badge 語法要原樣顯示（不是圖片）：縮排程式碼、引用內的 fence、``` 裡面出現 ~~~ 行、行內程式碼
+        let rawBadge = "[![b](https://x/y.png)](https://z)"
+        for (label, md) in [("縮排程式碼", "para\n\n    \(rawBadge)\n"),
+                            ("引用內的 fence", "> ```\n> \(rawBadge)\n> ```\n"),
+                            ("``` 裡有 ~~~ 行", "```\n~~~\n\(rawBadge)\n```\n"),
+                            ("行內程式碼", "看 `\(rawBadge)` 這個寫法\n")] {
+            let out = html(md)
+            expect(out.contains(rawBadge) && !out.contains("<img") && !out.contains("LMUXIMG"), "\(label)：badge 語法原樣顯示：\(out)")
+        }
+        let mixed = html("\(rawBadge)\n\n```\n\(rawBadge)\n```\n\n\(rawBadge)\n")
+        expect(mixed.components(separatedBy: "<img").count - 1 == 2 && mixed.contains(rawBadge), "同一份裡：段落的換成圖片、程式碼的原樣：\(mixed)")
+        // badge 在外層圖片的 alt="…" 裡：不能把完整 <img> 塞進屬性（會破壞屬性、可注入 style= 之類）
+        let nested = html("![ [![a](https://x/b.png)](https://c) ](https://x/d.png)")
+        expect(nested.components(separatedBy: "<img").count - 1 == 1 && !nested.contains("alt=\" <img"), "alt 裡的 badge 只放文字：\(nested)")
+        let nestedEvil = html("![x [![a](https://x/p/style=position:fixed;inset:0)](https://c) y](https://x/d.png)")
+        expect(!nestedEvil.contains("style=") && nestedEvil.components(separatedBy: "<img").count - 1 == 1, "alt 裡的 badge 不能注入屬性：\(nestedEvil)")
+        // badge 在標題裡：id 不含佔位字
+        let headBadge = html("# [![x](https://x/a.svg)](https://b) Title\n\n[go](#title)\n")
+        expect(headBadge.contains("<h1 id=\"title\">") && !headBadge.lowercased().contains("lmuximg"), "標題裡的 badge 不影響 id：\(headBadge)")
+        // 很多 badge 時不會變成二次方：200 個 badge 的轉換時間 / 沒有 badge 的同樣大小文件，要在個位數倍內
+        let filler = (0..<4000).map { "段落 \($0)：一些文字 **粗體** 與 `code`。\n" }.joined(separator: "\n")
+        let badges = (0..<200).map { "[![b\($0)](https://x/\($0).svg)](https://l/\($0))" }.joined(separator: " ")
+        func secs(_ md: String) -> Double { let t0 = Date(); _ = html(md); return Date().timeIntervalSince(t0) }
+        let plainSecs = secs(filler)
+        let badgeSecs = secs(filler + "\n\n" + badges + "\n")
+        expect(badgeSecs < max(plainSecs, 0.05) * 4, "200 個 badge 的轉換時間不能超過同樣大小純文字的 4 倍：\(plainSecs) 秒 → \(badgeSecs) 秒")
+        let badgeEvil = html("[![x](javascript:alert(1))](https://l/1)")
+        expect(!badgeEvil.contains("javascript:") && !badgeEvil.contains("<img"), "badge 的圖片網址不安全時只留 alt：\(badgeEvil)")
+        expect(html("![alt](a.png)").contains("<img src=\"a.png\" alt=\"alt\">"), "一般圖片不受影響")
+
+        // 編號清單從 5 開始要保留起始號碼；從 1 開始不加屬性
+        expect(html("5. five\n6. six\n").contains("<ol start=\"5\">"), "編號清單起始號碼：\(html("5. five\n6. six\n"))")
+        expect(html("1. one\n2. two\n").contains("<ol>") && !html("1. one\n2. two\n").contains("start="), "從 1 開始不加 start")
+
+        // escape 逐 Unicode scalar：引號後面接組合符號（U+0301）也要跳脫，屬性不能被提早關閉
+        // 字串搜尋要逐位元組比：`;` 後面接組合符號時 String.contains 會把它們當一個 Character，找不到 "&quot;"。
+        func has(_ s: String, _ sub: String) -> Bool {
+            let a = Array(s.utf8), b = Array(sub.utf8)
+            return b.count <= a.count && (0...(a.count - b.count)).contains { Array(a[$0..<$0 + b.count]) == b }
+        }
+        expect(has(MarkdownHTML.escape("a\"\u{301} onclick=x"), "a&quot;\u{301} onclick=x"), "引號後接組合符號仍跳脫")
+        expect(has(MarkdownHTML.escape("<\u{301}img"), "&lt;\u{301}img"), "<＋組合符號仍跳脫")
+        let evilAlt = html("![x\"\u{301} srcset=https://evil.example/a.png x](https://example.com/a.png)")
+        expect(!has(evilAlt, "\"\u{301}") && has(evilAlt, "alt=\"x&quot;\u{301} srcset"), "alt 不能被組合符號逃出屬性：\(evilAlt)")
+        let evilLang = html("```a\"\u{301} onclick=x\ncode\n```\n")
+        expect(!has(evilLang, "\"\u{301}") && has(evilLang, "language-a&quot;"), "程式碼語言屬性不能被逃出：\(evilLang)")
+
+        // 標題很多時轉換時間不會爆炸（以前每個標題都複製整份 HTML，二次方成長）
+        // 比「4 倍標題要花幾倍時間」而不是比秒數：線性約 4 倍，二次方更高；不受機器快慢影響。
+        func headingSeconds(_ n: Int) -> (Double, String) {
+            let md = (0..<n).map { "# H\($0)\n" }.joined()
+            let t0 = Date()
+            let out = html(md)
+            return (Date().timeIntervalSince(t0), out)
+        }
+        let (small, _) = headingSeconds(10_000)
+        let (large, largeHTML) = headingSeconds(40_000)
+        expect(largeHTML.contains("<h1 id=\"h39999\">H39999</h1>") && large < max(small, 0.05) * 6,
+               "標題數 4 倍，時間不能超過 6 倍（實測：修好後約 4 倍，修好前約 8.5 倍）：\(small) 秒 → \(large) 秒")
+
         print("preview check: ok")
     }
 }

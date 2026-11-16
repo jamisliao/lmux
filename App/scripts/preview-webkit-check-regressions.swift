@@ -273,5 +273,51 @@ extension PreviewWebKitCheck {
         check("安全回歸：初始外指非 HTML symlink 不將 root 錯釘到外部資料夾",
               stillMissing && probeScripts == 0 && v.webView.url?.lastPathComponent != "probe.html",
               "missing=\(stillMissing) scripts=\(probeScripts) url=\(v.webView.url?.lastPathComponent ?? "nil")")
+
+        // S4: 同一個 WKWebView 切換到不同 HTML root 後，不得保留先前目錄的 file:// 讀取權
+        let crossA = root.appendingPathComponent("cross-a", isDirectory: true)
+        let crossB = root.appendingPathComponent("cross-b", isDirectory: true)
+        try? FileManager.default.createDirectory(at: crossA, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: crossB, withIntermediateDirectories: true)
+        let secretPng = crossA.appendingPathComponent("secret.png")
+        try? FileManager.default.copyItem(at: site.appendingPathComponent("logo.png"), to: secretPng)
+        let unloadedPng = crossA.appendingPathComponent("unloaded-secret.png")
+        try? FileManager.default.copyItem(at: site.appendingPathComponent("logo.png"), to: unloadedPng)
+        let secretJS = crossA.appendingPathComponent("secret.js")
+        try? "window.leakedFromA = true;".write(to: secretJS, atomically: true, encoding: .utf8)
+        let xHTML = crossA.appendingPathComponent("x.html")
+        try? "<html><body><h1>CrossX</h1><img src=\"secret.png\"></body></html>"
+            .write(to: xHTML, atomically: true, encoding: .utf8)
+        let yHTML = crossB.appendingPathComponent("y.html")
+        try? """
+        <html><body><h1>CrossY</h1>
+        <img id="leakImg" src="\(secretPng.absoluteString)">
+        <img id="unloadedImg" src="\(unloadedPng.absoluteString)">
+        <script src="\(secretJS.absoluteString)"></script>
+        </body></html>
+        """.write(to: yHTML, atomically: true, encoding: .utf8)
+        let crossMD = root.appendingPathComponent("docs/cross.md")
+        try? "# CrossStart\n\n[goA](../cross-a/x.html) [goB](../cross-b/y.html)\n"
+            .write(to: crossMD, atomically: true, encoding: .utf8)
+        v.show(crossMD)
+        _ = await waitH1(v.webView, "CrossStart")
+        _ = await js(v.webView, "document.querySelector('a[href=\"../cross-a/x.html\"]').click(); true")
+        let xLoaded = await waitH1(v.webView, "CrossX")
+        // 先確認 x.html 真的載入了 secret.png（快取才算被「放進去」）；否則後面「讀不到」是空洞的
+        let xImgOK = await waitJS(v.webView, "(() => { const i = document.images[0]; return !!i && i.complete && i.naturalWidth > 0 })()") { ($0 as? Bool) == true }
+        check("S4 前置：x.html 載入且 secret.png 真的顯示出來（快取已建立）", xLoaded && xImgOK, "loaded=\(xLoaded) img=\(xImgOK)")
+        v.webView.goBack()
+        _ = await waitH1(v.webView, "CrossStart")
+        _ = await js(v.webView, "document.querySelector('a[href=\"../cross-b/y.html\"]').click(); true")
+        _ = await waitH1(v.webView, "CrossY")
+        // 圖片還在載入時 naturalWidth 也是 0：等兩張圖都「載入結束」才判斷
+        let settled = await waitJS(v.webView, "document.getElementById('leakImg').complete && document.getElementById('unloadedImg').complete") { ($0 as? Bool) == true }
+        try? await Task.sleep(for: .milliseconds(300))
+        let imgW = await js(v.webView, "document.getElementById('leakImg').naturalWidth") as? Int ?? -1
+        let unloadedW = await js(v.webView, "document.getElementById('unloadedImg').naturalWidth") as? Int ?? -1
+        let leaked = await js(v.webView, "window.leakedFromA === true") as? Bool ?? false
+        check("S4 安全查證：切換 HTML root 後讀不到前一個目錄的圖片與 script",
+              settled && imgW == 0 && unloadedW == 0 && !leaked,
+              "settled=\(settled) cachedImgW=\(imgW) unloadedImgW=\(unloadedW) leakedJS=\(leaked)")
     }
 }

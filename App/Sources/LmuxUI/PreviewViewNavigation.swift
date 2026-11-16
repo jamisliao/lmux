@@ -42,6 +42,7 @@ extension PreviewView {
             handleFileMainFrameNavigation(
                 url,
                 isProgrammaticShow: isProgrammaticShow,
+                isNewWindow: action.targetFrame == nil,
                 sourceScheme: sourceScheme,
                 navigationType: action.navigationType,
                 preferences: preferences,
@@ -74,7 +75,13 @@ extension PreviewView {
                 decisionHandler(.cancel, preferences)
                 return
             }
+            if action.targetFrame == nil {
+                decisionHandler(.cancel, preferences)
+                show(file)
+                return
+            }
             preferences.allowsContentJavaScript = false
+            activeNavigationURL = url
             decisionHandler(.allow, preferences)
             return
         }
@@ -82,6 +89,7 @@ extension PreviewView {
     }
 
     public func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        activeNavigationURL = nil
         guard let url = webView.url else { return }
         if url.scheme?.lowercased() == PreviewSchemeHandler.scheme {
             // 透過瀏覽歷史返回 Markdown 時，清掉之前 HTML 留下的資料夾授權狀態。
@@ -102,6 +110,14 @@ extension PreviewView {
         let file = PreviewSchemeHandler.file(for: url) ?? (url.isFileURL ? url : nil)
         guard let file, !PreviewTarget.hasUnsafeScalar(file.path) else { return }
         updateTrackedFile(file)
+    }
+
+    public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        handleNavigationFailure(error, committed: false)
+    }
+
+    public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        handleNavigationFailure(error, committed: true)
     }
 
     public func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
@@ -176,6 +192,7 @@ extension PreviewView {
     func handleFileMainFrameNavigation(
         _ url: URL,
         isProgrammaticShow: Bool,
+        isNewWindow: Bool,
         sourceScheme: String?,
         navigationType: WKNavigationType,
         preferences: WKWebpagePreferences,
@@ -183,6 +200,7 @@ extension PreviewView {
     ) {
         if isProgrammaticShow, isAllowedFileHTML(url) {
             preferences.allowsContentJavaScript = true
+            activeNavigationURL = url
             decisionHandler(.allow, preferences)
             return
         }
@@ -235,11 +253,23 @@ extension PreviewView {
                     decisionHandler(.cancel, preferences)
                     return
                 }
-            } else if visitedHTMLRoots[canonical] == nil {
+            } else if let visitedRoot = visitedHTMLRoots[canonical] {
+                clearCacheIfSwitchingHTMLRoot(to: visitedRoot) { [weak self] in
+                    guard let self, !self.isClosed else {
+                        decisionHandler(.cancel, preferences)
+                        return
+                    }
+                    preferences.allowsContentJavaScript = true
+                    self.activeNavigationURL = url
+                    decisionHandler(.allow, preferences)
+                }
+                return
+            } else {
                 decisionHandler(.cancel, preferences)
                 return
             }
             preferences.allowsContentJavaScript = true
+            activeNavigationURL = url
             decisionHandler(.allow, preferences)
             return
         }
@@ -247,7 +277,14 @@ extension PreviewView {
             decisionHandler(.cancel, preferences)
             return
         }
+        // `target="_blank"`（targetFrame == nil）在沒有 WKUIDelegate 時 `.allow` 會被忽略；改由原預覽開出。
+        if isNewWindow {
+            decisionHandler(.cancel, preferences)
+            show(url, preserveRoot: true)
+            return
+        }
         preferences.allowsContentJavaScript = true
+        activeNavigationURL = url
         decisionHandler(.allow, preferences)
     }
 }

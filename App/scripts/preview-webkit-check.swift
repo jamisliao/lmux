@@ -120,6 +120,7 @@ enum PreviewWebKitCheck {
             await viewChecks(root)
             await securityChecks(root)
             await regressionChecks(root)
+            await boundaryChecks(root)
             try? FileManager.default.removeItem(at: root)
             print(failures == 0 ? "WEBKIT CHECK: ok" : "WEBKIT CHECK: FAILED (\(failures))")
             exit(failures == 0 ? 0 : 1)
@@ -212,7 +213,6 @@ enum PreviewWebKitCheck {
     // @feature: preview-tab.feature
     // @scenario: 檔案內容改變後，預覽自動更新
     // @scenario: 以「寫暫存檔再改名」方式存檔，預覽也會更新
-    // @scenario: 預覽中的檔案被刪除
     @MainActor static func watcherChecks(_ root: URL) async {
         let file = root.appendingPathComponent("docs/watched.md")
         try? "# 0\n".write(to: file, atomically: false, encoding: .utf8)
@@ -243,6 +243,24 @@ enum PreviewWebKitCheck {
         try? "x".write(to: root.appendingPathComponent("docs/other.md"), atomically: true, encoding: .utf8)
         try? await Task.sleep(for: .milliseconds(800))
         check("同資料夾的其他檔案改變時不通知", calls == before, "calls=\(calls) before=\(before)")
+
+        // S2: 大小寫不敏感磁碟上，以不同大小寫路徑監看仍能收到變更通知
+        let docsDir = root.appendingPathComponent("docs")
+        let caseSensitive = (try? docsDir.resourceValues(forKeys: [.volumeSupportsCaseSensitiveNamesKey]).volumeSupportsCaseSensitiveNames) ?? true
+        if !caseSensitive {
+            let realCaseFile = docsDir.appendingPathComponent("CaseWatch.md")
+            let wrongCaseFile = docsDir.appendingPathComponent("casewatch.md")
+            try? "# Case0\n".write(to: realCaseFile, atomically: true, encoding: .utf8)
+            var caseCalls = 0
+            let caseWatcher = PreviewWatcher(file: wrongCaseFile) { caseCalls += 1 }
+            defer { caseWatcher.stop() }
+            try? await Task.sleep(for: .milliseconds(300))
+            let beforeCase = caseCalls
+            try? "# Case1\n".write(to: realCaseFile, atomically: true, encoding: .utf8)
+            check("S2: 路徑大小寫與磁碟不同時 watcher 仍能通知", await wait { caseCalls > beforeCase }, "calls=\(caseCalls) before=\(beforeCase)")
+        } else {
+            print("SKIP  S2: 這個磁碟區分大小寫，「路徑大小寫與磁碟不同」的 watcher 檢查不適用")
+        }
     }
 
     /// 本機 loopback 測試伺服器：回傳一個會設 `window.remoteRan = true` 的 script。

@@ -154,7 +154,7 @@ func runPreview() async -> Int32 {
         await cmd("v", window: c.window!)
         let pasteTabToSurface = pasteTargetTab is SurfaceView
         _ = fr?.tryToPerform(#selector(SurfaceView.paste(_:)), with: nil)
-        await sleepMs(150)
+        await sleepMs(500)  // 「沒有位元組進終端機」只能等一段時間再看；150 ms 太短，晚到的寫入會漏掉
         let sinkAfter = sinks.bytes(a.id).count
         r.check("預覽 tab 是 focused tab 時，打字與 Paste 不會進到終端機",
                 !reachesTerminalTab && !pasteTabToSurface && sinkAfter == sinkBefore,
@@ -163,7 +163,7 @@ func runPreview() async -> Int32 {
         let sel = try? await p.preview!.webView.evaluateJavaScript("window.getSelection().toString()") as? String
         let pb = NSPasteboard.general
         pb.clearContents()
-        let copiedByMenu = c.window!.firstResponder?.tryToPerform(#selector(NSText.copy(_:)), with: nil) == true
+        let copiedByMenu = c.window!.firstResponder?.tryToPerform(#selector(NSText.copy(_:)), with: nil) == true  // headless 無 keyWindow，mainMenu 找不到 target==nil 的 firstResponder
         let copied = await waitFor(2) { pb.string(forType: .string) == "Design" }
         r.check("預覽 tab 是 focused tab 時，copy: 複製的是預覽裡的文字",
                 copiedByMenu && copied, "sel=\(String(describing: sel)) pb=\(pb.string(forType: .string) ?? "nil")")
@@ -178,7 +178,7 @@ func runPreview() async -> Int32 {
         let sinkSplitBefore = sinks.bytes(a.id).count
         await cmd("v", window: c.window!)
         _ = frSplit?.tryToPerform(#selector(SurfaceView.paste(_:)), with: nil)
-        await sleepMs(150)
+        await sleepMs(500)
         let sinkSplitAfter = sinks.bytes(a.id).count
         r.check("分割配置且預覽為焦點時，Paste 不會貼進並排的終端機",
                 !reachesTerminalSplit && !(pasteTargetSplit is SurfaceView) && sinkSplitAfter == sinkSplitBefore,
@@ -235,7 +235,7 @@ func runPreview() async -> Int32 {
     // @feature: preview-tab.feature
     // @scenario: HTML 從網路載入的 script 正常執行
     // @scenario: HTML 讀得到同資料夾的 CSS 與圖片
-    // @scenario: 重新開啟預覽時，不保留上一次的 cookie 與 storage
+    // @scenario: 重新開啟預覽時，不保留上一次的 cookie 與瀏覽器儲存區
     // @scenario: 檔案內容改變後，預覽自動更新
     // @scenario: 以「寫暫存檔再改名」方式存檔，預覽也會更新
     do {

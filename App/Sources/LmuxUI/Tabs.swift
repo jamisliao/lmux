@@ -5,9 +5,10 @@ import LmuxTokens
 private typealias T = LmuxTokens
 
 // Tabs inside a pane (cmux's surfaces), with cmux's tab bar: a split leaf holds an ordered list of
-// terminals, one shown. Every tab is an ordinary `Pane` (its own id, agent state, History,
-// scrollback); only the shown one is in the window, the rest stay occluded like a hidden
-// workspace's panes. Every leaf has a strip (cmux's default; the setting off: only with two tabs).
+// panes (terminal or preview tabs), one shown. Every tab is an ordinary `Pane` (its own id, optional
+// agent/history/scrollback for terminals or WebKit view for previews); only the shown one is in the
+// window, the rest stay occluded like a hidden workspace's panes. Every leaf has a strip (cmux's
+// default; the setting off: only with two tabs).
 //
 //   ⌘T (Ghostty `new_tab`)   new tab after the shown one     ⇧⌘] / ⇧⌘[, ⌃⇥ / ⌃⇧⇥  next / previous tab
 //   ⌃1…⌃8 / ⌃9               that tab / the last              ⌥⇧⌘] / ⌥⇧⌘[          move the tab right / left

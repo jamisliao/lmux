@@ -9,10 +9,11 @@ extension PreviewWebKitCheck {
     // @scenario: Markdown 裡的 HTML 標籤顯示成文字，不執行
     // @scenario: HTML 讀得到同資料夾的 CSS 與圖片
     // @scenario: HTML 從網路載入的 script 正常執行
-    // @scenario: 重新開啟預覽時，不保留上一次的 cookie 與 storage
+    // @scenario: 重新開啟預覽時，不保留上一次的 cookie 與瀏覽器儲存區
     // @scenario: 點相對路徑的 .md 連結，在同一個預覽 tab 換頁
     // @scenario: 在預覽裡用觸控板兩指往右滑，回到上一頁
     // @scenario: 點網址連結，照終端機裡點連結的規則處理
+    // @scenario: 沒有使用者點擊時，頁面自動跳轉網址不會開啟任何東西
     // @scenario: 檔案內容改變後，預覽自動更新
     // @scenario: 以「寫暫存檔再改名」方式存檔，預覽也會更新
     // @scenario: 預覽中的檔案被刪除
@@ -94,10 +95,13 @@ extension PreviewWebKitCheck {
         // Markdown 連到 .html（切去 loadFileURL 並執行 JS）、連到非預覽檔（.txt 被取消）、缺失 .html（追蹤 fileURL 與監看）、HTML 攔截 data:/about:srcdoc/customscheme:
         let docsDir = root.appendingPathComponent("docs")
         let subHTML = docsDir.appendingPathComponent("sub.html")
+        let blankTargetHTML = docsDir.appendingPathComponent("blank-target.html")
         let noteTXT = docsDir.appendingPathComponent("note.txt")
         let missingHTML = docsDir.appendingPathComponent("missing.html")
         let navMD = docsDir.appendingPathComponent("nav.md")
-        try? "<html><body><h1>SubHTML</h1><a id=\"custom\" href=\"customscheme://foo\">c</a><script>window.subRan = true;</script></body></html>"
+        try? "<html><body><h1>BlankTarget</h1></body></html>"
+            .write(to: blankTargetHTML, atomically: true, encoding: .utf8)
+        try? "<html><body><h1>SubHTML</h1><a id=\"custom\" href=\"customscheme://foo\">c</a><a id=\"blank\" target=\"_blank\" href=\"blank-target.html\">b</a><script>window.subRan = true;</script></body></html>"
             .write(to: subHTML, atomically: true, encoding: .utf8)
         try? "note".write(to: noteTXT, atomically: true, encoding: .utf8)
         try? "# Nav\n\n[sub](sub.html) [txt](note.txt) [gone](missing.html)\n".write(to: navMD, atomically: true, encoding: .utf8)
@@ -121,6 +125,10 @@ extension PreviewWebKitCheck {
         check("HTML 主框架不能導覽到 data:、about:srcdoc 或 custom scheme",
               v.webView.url?.lastPathComponent == "sub.html" && external.count == extBefore,
               "\(v.webView.url?.absoluteString ?? "nil")")
+        _ = await js(v.webView, "document.getElementById('blank').click()")
+        check("S1: target=\"_blank\" 的同資料夾 HTML 連結能在原預覽換頁",
+              await waitH1(v.webView, "BlankTarget"),
+              "\(v.webView.url?.absoluteString ?? "nil")")
 
         v.show(navMD)
         _ = await waitH1(v.webView, "Nav")
@@ -136,6 +144,19 @@ extension PreviewWebKitCheck {
         check("切換到缺失 HTML 後，舊的 nav.md 變更不會覆寫錯頁", stillMissing)
         try? "<html><body><h1>Recovered HTML</h1></body></html>".write(to: missingHTML, atomically: true, encoding: .utf8)
         check("缺失 HTML 建立後自動重載顯示內容", await waitH1(v.webView, "Recovered HTML"))
+
+        // W2: inspectRegularFile 通過但檔案沒有讀取權限（chmod 000）時，didFailProvisionalNavigation 需顯示錯誤頁、清掉 pendingShowURL 並建立 watcher
+        let unreadableHTML = root.appendingPathComponent("site/unreadable.html")
+        try? "<html><body><h1>ReadableAgain</h1></body></html>".write(to: unreadableHTML, atomically: true, encoding: .utf8)
+        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: unreadableHTML.path)
+        defer { _ = try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: unreadableHTML.path) }
+        v.show(unreadableHTML)
+        let unreadableFallback = await waitBody(v.webView, contains: "無法讀取檔案", also: unreadableHTML.path, excluding: "檔案已不存在")
+        check("無讀取權限的 HTML 顯示「無法讀取檔案」（不是「已不存在」）、更新追蹤並清除 pendingShowURL",
+              unreadableFallback && v.fileURL.standardizedFileURL == unreadableHTML.standardizedFileURL && v.pendingShowURL == nil,
+              "fallback=\(unreadableFallback) fileURL=\(v.fileURL.lastPathComponent) pending=\(String(describing: v.pendingShowURL))")
+        _ = try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: unreadableHTML.path)
+        check("權限恢復後 watcher 自動重載顯示 HTML 內容", await waitH1(v.webView, "ReadableAgain"))
 
         await storageAndReloadChecks(root, v: v, index: index)
     }
@@ -234,12 +255,42 @@ extension PreviewWebKitCheck {
         try? "<html><body><h1>HTML3</h1></body></html>".write(to: liveHTML, atomically: true, encoding: .utf8)
         check("HTML 重建後恢復顯示內容", await waitH1(v.webView, "HTML3"))
 
-        // 關閉：不再監看檔案
+        // 已知範圍（安全）：同資料夾子樹內的 <script src> 會載入並執行，頁面 script 讀得到它設的全域變數
+        // （fetch 被擋，但 script 標籤不受影響；HTML 放在 $HOME 時子樹就是整個家目錄）。這裡記錄真實行為。
+        // 這是「記錄現況」的檢查：若之後縮窄 readRoot，這項要反過來（改成斷言讀不到），並同步改 proposal.md／design.md。
+        let libJS = root.appendingPathComponent("site/probe-lib.js")
+        let probeHTML = root.appendingPathComponent("site/probe.html")
+        try? "window.libSecret = 'LIB_SECRET_VALUE'".write(to: libJS, atomically: true, encoding: .utf8)
+        try? "<html><body><h1>PROBE</h1><script src=\"probe-lib.js\"></script><script>window.seen = window.libSecret</script></body></html>"
+            .write(to: probeHTML, atomically: true, encoding: .utf8)
+        let p = PreviewView(fileURL: probeHTML)
+        let pWin = host(p)
+        defer { pWin.close() }
+        check("探測頁面 probe.html 顯示出來", await waitH1(p.webView, "PROBE"))
+        let seen = await js(p.webView, "window.seen")
+        check("已知範圍：同資料夾的 <script src> 會執行，頁面 script 讀得到其全域變數（proposal 已如實記載）",
+              (seen as? String) == "LIB_SECRET_VALUE", "\(String(describing: seen))")
+        // Markdown 檔存在但沒有讀取權限：顯示「無法讀取檔案」，權限恢復後 watcher 自動重載
+        let lockedMD = root.appendingPathComponent("docs/locked.md")
+        try? "# LOCKED\n".write(to: lockedMD, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: lockedMD.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: lockedMD.path) }
+        p.show(lockedMD)
+        check("Markdown 檔存在但沒有讀取權限時顯示「無法讀取檔案」與完整路徑，不說「已不存在」",
+              await waitBody(p.webView, contains: "無法讀取檔案", also: lockedMD.path, excluding: "檔案已不存在"))
+        try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: lockedMD.path)
+        check("Markdown 權限恢復後 watcher 自動重載顯示內容", await waitH1(p.webView, "LOCKED"))
+        p.close()
+
+        // 關閉：不再監看檔案。要改「v 正在顯示的那個檔案」（live.html），才測得到；
+        // 先確認關閉前同樣的改動會重新載入（對照），否則「沒重新載入」可能只是因為本來就不會載入。
+        try? "<html><body><h1>HTML4</h1></body></html>".write(to: liveHTML, atomically: true, encoding: .utf8)
+        check("對照：關閉前改寫 live.html 會重新載入", await waitH1(v.webView, "HTML4"))
         v.close()
         check("close() 之後是關閉狀態", v.isClosed)
-        try? "# 版本四\n".write(to: w, atomically: true, encoding: .utf8)
+        try? "<html><body><h1>HTML5</h1></body></html>".write(to: liveHTML, atomically: true, encoding: .utf8)
         try? await Task.sleep(for: .milliseconds(1200))
         let after = await js(v.webView, "document.querySelector('h1') && document.querySelector('h1').textContent") as? String
-        check("close() 之後檔案改變不再重新載入", after != "版本四", after ?? "nil")
+        check("close() 之後檔案改變不再重新載入（仍是 HTML4）", after == "HTML4", after ?? "nil")
     }
 }

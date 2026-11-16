@@ -56,14 +56,21 @@ enum PreviewTarget {
         return canonicalPath(standardized.path) != canonicalPath(resolved.path) ? resolved : standardized
     }
 
+    private static let localHostNames: (full: String, bare: String) = {
+        let local = ProcessInfo.processInfo.hostName.lowercased()
+        return (local, stripLocalSuffix(local))
+    }()
+
+    private static func stripLocalSuffix(_ s: String) -> String {
+        s.hasSuffix(".local") ? String(s.dropLast(6)) : s
+    }
+
     /// `file://` 網址的 host 是否指向本機（空值、`localhost`、或本機 hostname，容許 `.local` 差異）。
     static func isLocalFileHost(_ host: String?) -> Bool {
         guard let h = host?.lowercased(), !h.isEmpty, h != "localhost" else { return true }
-        let local = ProcessInfo.processInfo.hostName.lowercased()
-        if h == local { return true }
-        func stripLocal(_ s: String) -> String { s.hasSuffix(".local") ? String(s.dropLast(6)) : s }
-        let bareLocal = stripLocal(local)
-        return !bareLocal.isEmpty && stripLocal(h) == bareLocal
+        let local = localHostNames
+        if h == local.full { return true }
+        return !local.bare.isEmpty && stripLocalSuffix(h) == local.bare
     }
 
     private static let nonFileSchemes = ["mailto:", "tel:", "sms:", "facetime:", "data:", "javascript:"]

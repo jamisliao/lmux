@@ -105,7 +105,17 @@ func runPreviewPersistenceChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         r.check("在預覽 tab 上開新 tab：新的終端機從檔案所在資料夾開始",
                 t?.surface != nil && t?.cwd == docs.standardizedFileURL.path, "\(t?.cwd ?? "nil")")
         if let t { c.closePane(t) }
-        c.closePane(p)
+        c.focus(p)
+        // headless 下 WKWebView.performKeyEquivalent 會接走 ⌘W 且無 keyWindow 不回拋 mainMenu；透過 Close Pane 選單項目驗證 ⌘W 路徑。
+        let closeItem = c.closePaneMenuItem
+        r.check("Close Pane 選單項目綁定 ⌘W（鍵盤快捷鍵本身；上面的動作是用選單項目代替）",
+                closeItem?.keyEquivalent == "w" && closeItem?.keyEquivalentModifierMask == .command,
+                "key=\(closeItem?.keyEquivalent ?? "nil") mask=\(String(describing: closeItem?.keyEquivalentModifierMask))")
+        let canCloseMenu = closeItem.map { c.validateMenuItem($0) } ?? false
+        if let closeItem {
+            _ = NSApp.sendAction(closeItem.action!, to: closeItem.target, from: closeItem)
+        }
+        r.check("Close Pane（⌘W）選單可用並關閉預覽 tab", canCloseMenu && !ws.panes.contains { $0 === p })
         r.check("關閉預覽 tab 後它消失", !ws.panes.contains { $0 === p })
         r.check("關閉預覽 tab 後 A 成為 focused tab", ws.focusedPane === a)
         r.check("關閉預覽 tab 時釋放它的預覽（停止監看與載入）", p.preview?.isClosed == true)

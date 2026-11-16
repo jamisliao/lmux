@@ -6,7 +6,7 @@ extension PreviewWebKitCheck {
 
     // @feature: preview-tab.feature
     // @scenario: Markdown 裡的 HTML 標籤顯示成文字，不執行
-    // @scenario: 點網址連結，照終端機裡點連結的規則處理
+    // @scenario: 沒有使用者點擊時，頁面自動跳轉網址不會開啟任何東西
     @MainActor static func securityChecks(_ root: URL) async {
         let site = root.appendingPathComponent("site"), docs = root.appendingPathComponent("docs")
         let other = root.appendingPathComponent("other")

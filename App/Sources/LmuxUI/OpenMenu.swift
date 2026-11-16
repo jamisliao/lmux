@@ -55,6 +55,7 @@ extension LmuxController {
                                                window: view?.window ?? (window as NSWindow?))
                 return
             }
+            PreviewView.prewarm()  // 使用者看選單、挑項目的時間，拿來先啟動 WebKit 程序
             choice = popUpOpenMenu(file, in: view)
         }
         guard isLivePane(pane) else { return }

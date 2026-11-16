@@ -50,12 +50,12 @@ final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
         return size <= limit ? .ok(real) : .tooLarge
     }
 
-    enum FileReadResult { case ok(Data), missing, tooLarge }
+    enum FileReadResult { case ok(Data), missing, unreadable, tooLarge }
 
     /// 一般檔案、而且不超過 `limit` 才讀；區分不存在（含資料夾、裝置檔、symlink）與超過大小限制。
     static func readRegularFileResult(_ file: URL, maxBytes limit: Int = maxBytes) -> FileReadResult {
         switch inspectRegularFile(file, maxBytes: limit) {
-        case .ok(let real): return (try? Data(contentsOf: real)).map { .ok($0) } ?? .missing
+        case .ok(let real): return (try? Data(contentsOf: real)).map { .ok($0) } ?? .unreadable  // 是一般檔案但讀不了（權限）
         case .missing: return .missing
         case .tooLarge: return .tooLarge
         }
@@ -82,6 +82,8 @@ final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
                 return (Data(MarkdownHTML.tooLargePage(path: file.path, maxMB: maxMarkdownBytes / (1024 * 1024)).utf8), "text/html")
             case .missing:
                 return (Data(MarkdownHTML.missingPage(path: file.path).utf8), "text/html")
+            case .unreadable:
+                return (Data(MarkdownHTML.unreadablePage(path: file.path).utf8), "text/html")
             }
         }
         guard isServableImage(file), isServableImage(real),

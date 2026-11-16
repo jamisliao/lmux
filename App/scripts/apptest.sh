@@ -8,6 +8,7 @@
 #                                           temp ZDOTDIR / HISTFILE, see isolated-shell.sh)
 #   App/scripts/apptest.sh --quick          only the main pass (no restore / 50MB transcript / latency runs)
 #   App/scripts/apptest.sh --rewind         only ✎ × ⌘Z on the fake rewind menu (part of the main pass too)
+#   App/scripts/apptest.sh --preview        only the preview suite (preview-check, preview-webkit-check, --preview, --preview-restore)
 #   App/scripts/apptest.sh --screenshots D  also write D/p1-dark.png and D/p1-light.png
 #   App/scripts/apptest.sh --real-window [SHOTS_DIR]
 #                                           CI ONLY (refuses unless GITHUB_ACTIONS=true): a VISIBLE window
@@ -122,7 +123,7 @@ run_preview_suite() {
       "$swift_ui/PreviewScheme.swift" "$swift_ui/PreviewWatcher.swift" \
       "$swift_ui/PreviewView.swift" "$swift_ui/PreviewViewNavigation.swift" \
       "$APP_DIR"/scripts/preview-webkit-check*.swift; then
-    "$T/bin/preview-webkit-check" | filter || status=1
+    "$T/bin/preview-webkit-check" | filter || { echo "FAIL  [preview] preview-webkit-check.swift"; status=1; }
   else
     echo "FAIL  [preview] swiftc preview-webkit-check.swift failed"; status=1
   fi

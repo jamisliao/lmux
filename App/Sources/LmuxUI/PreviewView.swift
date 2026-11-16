@@ -18,11 +18,14 @@ public final class PreviewView: NSView, WKNavigationDelegate {
     private var lastUserClick: Date?
     private var pendingClickLocation: NSPoint?
     var pendingShowURL: URL?
+    var activeNavigationURL: URL?
     var fileAccessDirectory: URL?
     /// 初次載入 HTML（或錯誤後等待重建）時鎖定的目錄；watcher 重載不得藉 symlink 逃出此目錄。
     var pinnedHTMLRoot: URL?
     /// 此預覽頁曾合法載入並提交過的本機 HTML 規範路徑對應的根目錄，用來驗證與恢復跨 scheme 歷史返回。
     var visitedHTMLRoots: [String: URL] = [:]
+    private var lastHTMLRootPath: String?
+    private var showGeneration: Int = 0
     private var clickMonitor: Any?
     /// 已經關閉（`close()`）：不再監看、不再回呼。
     public private(set) var isClosed = false
@@ -31,10 +34,7 @@ public final class PreviewView: NSView, WKNavigationDelegate {
         self.fileURL = PreviewTarget.hasUnsafeScalar(fileURL.path)
             ? URL(fileURLWithPath: PreviewTarget.replacingUnsafeScalars(fileURL.path))
             : fileURL
-        let config = WKWebViewConfiguration()
-        config.websiteDataStore = .nonPersistent()
-        config.setURLSchemeHandler(PreviewSchemeHandler(), forURLScheme: PreviewSchemeHandler.scheme)
-        webView = WKWebView(frame: .zero, configuration: config)
+        webView = Self.takeSpareOrMakeWebView()
         webView.allowsBackForwardNavigationGestures = true
         super.init(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
         webView.frame = bounds
@@ -49,6 +49,44 @@ public final class PreviewView: NSView, WKNavigationDelegate {
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    // 預熱：WKWebView 第一次需要時才啟動 WebContent 程序（約 0.5–1 秒），之後載入內容只要約 10 ms
+    // （2026-11-16 實測，-O build）。開啟選單跳出時先建一個備用的，使用者選「在新 tab 預覽」就直接拿來用。
+    // 只跑一行 JS 逼程序啟動、不載入頁面，歷史裡不會多出 about:blank。沒人用的話 30 秒後丟掉。
+    private static var spare: WKWebView?
+    private static var spareExpiry: Task<Void, Never>?
+    static var hasSpare: Bool { spare != nil }
+
+    private static func makeWebView() -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.websiteDataStore = .nonPersistent()
+        config.setURLSchemeHandler(PreviewSchemeHandler(), forURLScheme: PreviewSchemeHandler.scheme)
+        return WKWebView(frame: .zero, configuration: config)
+    }
+
+    public static func prewarm() {
+        spareExpiry?.cancel()  // 再次跳出選單：期限重新算 30 秒
+        if spare == nil {
+            let web = makeWebView()
+            spare = web
+            web.evaluateJavaScript("0", completionHandler: nil)
+        }
+        spareExpiry = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(30))
+            guard !Task.isCancelled else { return }
+            spare = nil
+        }
+    }
+
+    private static func takeSpareOrMakeWebView() -> WKWebView {
+        spareExpiry?.cancel()
+        spareExpiry = nil
+        if let web = spare {
+            spare = nil
+            return web
+        }
+        return makeWebView()
+    }
 
     deinit {
         if let m = clickMonitor { NSEvent.removeMonitor(m) }
@@ -66,6 +104,8 @@ public final class PreviewView: NSView, WKNavigationDelegate {
     }
 
     func show(_ file: URL, fromWatcher: Bool = false, preserveRoot: Bool = false) {
+        showGeneration += 1
+        let generation = showGeneration
         let real = PreviewTarget.resolvingPath(file)
         if PreviewTarget.hasUnsafeScalar(file.path) {
             if !fromWatcher {
@@ -122,7 +162,10 @@ public final class PreviewView: NSView, WKNavigationDelegate {
             if !fromWatcher || pinnedHTMLRoot == nil { pinnedHTMLRoot = activeRoot }
             pendingShowURL = target
             let readRoot = Self.readAccessDirectory(for: target, accessDir: accessDir, root: activeRoot)
-            webView.loadFileURL(target, allowingReadAccessTo: readRoot)
+            clearCacheIfSwitchingHTMLRoot(to: activeRoot) { [weak self] in
+                guard let self, !self.isClosed, self.showGeneration == generation else { return }
+                self.webView.loadFileURL(target, allowingReadAccessTo: readRoot)
+            }
         case .tooLarge:
             if !fromWatcher || pinnedHTMLRoot == nil { pinnedHTMLRoot = fallbackDir }
             showFallbackHTML(
@@ -145,16 +188,55 @@ public final class PreviewView: NSView, WKNavigationDelegate {
         return dir
     }
 
+    /// 切換到不同 HTML 根目錄前先清除 WebKit 快取，避免新頁面透過記憶體快取讀到前一個目錄曾載入的資源。
+    func clearCacheIfSwitchingHTMLRoot(to root: URL, then completion: @escaping @MainActor () -> Void) {
+        let rootPath = PreviewTarget.canonicalPath(root.path)
+        let switched = lastHTMLRootPath != nil && lastHTMLRootPath != rootPath
+        lastHTMLRootPath = rootPath
+        guard switched else {
+            completion()
+            return
+        }
+        webView.configuration.websiteDataStore.removeData(
+            ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+            modifiedSince: .distantPast
+        ) {
+            Task { @MainActor in completion() }
+        }
+    }
+
     private var isShowingFallbackPage: Bool {
         webView.url?.absoluteString.lowercased() == "about:blank"
     }
 
-    private func showFallbackHTML(_ html: String, for file: URL, keepPinnedHTMLRoot: Bool = false) {
+    func showFallbackHTML(_ html: String, for file: URL, keepPinnedHTMLRoot: Bool = false) {
         fileAccessDirectory = nil
         if !keepPinnedHTMLRoot { pinnedHTMLRoot = nil }
         pendingShowURL = nil
+        activeNavigationURL = nil
         updateTrackedFile(file)
         webView.loadHTMLString(html, baseURL: nil)
+    }
+
+    func handleNavigationFailure(_ error: Error, committed: Bool) {
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled { return }
+        if nsError.domain == "WebKitErrorDomain" && nsError.code == 102 { return }
+        let targetURL = pendingShowURL
+            ?? activeNavigationURL
+            ?? (committed ? (nsError.userInfo[NSURLErrorFailingURLErrorKey] as? URL ?? webView.url) : nil)
+        pendingShowURL = nil
+        activeNavigationURL = nil
+        guard !isClosed, let targetURL,
+              let file = PreviewSchemeHandler.file(for: targetURL) ?? (targetURL.isFileURL ? targetURL : nil),
+              !PreviewTarget.hasUnsafeScalar(file.path) else { return }
+        // 檔案還在卻載入失敗（權限、內容不合法）不能說「已不存在」。
+        let exists = FileManager.default.fileExists(atPath: PreviewTarget.resolvingPath(file).path)
+        showFallbackHTML(
+            exists ? MarkdownHTML.unreadablePage(path: file.path) : MarkdownHTML.missingPage(path: file.path),
+            for: file,
+            keepPinnedHTMLRoot: !PreviewTarget.isMarkdown(file)
+        )
     }
 
     func updateTrackedFile(_ file: URL) {
