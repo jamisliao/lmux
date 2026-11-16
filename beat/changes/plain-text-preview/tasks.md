@@ -77,7 +77,7 @@ If the main assertion is `toHaveBeenCalledWith`, rewrite to assert on the functi
 **Interfaces:**
 - Produces: `dev.sh` 的子指令（見「共用指令」）。`$TMPDIR/plain-text-preview/baseline-preview.log`、`baseline-quick.log`：起點的 apptest 結果。
 
-- [ ] **Step 1: 確認 worktree 有 `vendor`（build 需要 libghostty）**
+- [x] **Step 1: 確認 worktree 有 `vendor`（build 需要 libghostty）**
 
 ```bash
 cd /Users/jamis.liao/opensource/lmux/.worktrees/feat/plain-text-preview
@@ -88,7 +88,7 @@ git status --short
 
 預期：印出 `vendor/ghostty/macos/GhosttyKit.xcframework/Info.plist`；`git status --short` 沒有 `vendor`（`.gitignore` 第 4 行忽略它）。
 
-- [ ] **Step 2: 建立 `beat/changes/plain-text-preview/dev.sh`，內容如下（整份照抄），再加執行權限**
+- [x] **Step 2: 建立 `beat/changes/plain-text-preview/dev.sh`，內容如下（整份照抄），再加執行權限**
 
 ```bash
 #!/bin/bash
@@ -169,7 +169,7 @@ esac
 chmod +x beat/changes/plain-text-preview/dev.sh
 ```
 
-- [ ] **Step 3: 確認起點能 build、兩個預覽檢查都通過，記下 webkit 花的時間**
+- [x] **Step 3: 確認起點能 build、兩個預覽檢查都通過，記下 webkit 花的時間**
 
 ```bash
 beat/changes/plain-text-preview/dev.sh build | tail -1
@@ -179,7 +179,7 @@ time beat/changes/plain-text-preview/dev.sh webkit | tail -1
 
 預期：`BUILD EXIT: 0`、`preview check: ok`、`WEBKIT CHECK: ok`。把 `time` 印出的 `real` 記下來，最後回報。
 
-- [ ] **Step 4: 記錄 apptest 基準（預覽那一組、主要那一輪）**
+- [x] **Step 4: 記錄 apptest 基準（預覽那一組、主要那一輪）**
 
 ```bash
 beat/changes/plain-text-preview/dev.sh apptest-preview | tail -1
@@ -191,7 +191,7 @@ grep -c '^PASS' "${TMPDIR:-/tmp}/plain-text-preview/baseline-preview.log" "${TMP
 
 預期：兩個 `APPTEST EXIT:` 行（不一定是 0）；兩個 baseline 檔的 PASS 數都大於 0。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add beat/changes/plain-text-preview/dev.sh
@@ -216,7 +216,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
   - `static func PreviewTarget.usesPreviewScheme(_ url: URL) -> Bool`（Markdown 或純文字檔）
 - 這個 task **不改** `resolve`，⌘-click 的行為不變（Task 6 才改）。
 
-- [ ] **Step 1: 修改測試 `App/scripts/preview-check.swift`（兩處）**
+- [x] **Step 1: 修改測試 `App/scripts/preview-check.swift`（兩處）**
 
 (a) 檔案開頭，原文：
 
@@ -280,12 +280,12 @@ import UniformTypeIdentifiers
                "Markdown 與純文字檔走 lmux-preview，HTML 不走")
 ```
 
-- [ ] **Step 2: 確認失敗**
+- [x] **Step 2: 確認失敗**
 
 Run: `beat/changes/plain-text-preview/dev.sh check`
 預期：編譯失敗，訊息含 `type 'PreviewTarget' has no member 'kind'`。
 
-- [ ] **Step 3: 修改 `App/Sources/LmuxUI/PreviewTarget.swift`（三處）**
+- [x] **Step 3: 修改 `App/Sources/LmuxUI/PreviewTarget.swift`（三處）**
 
 (a) 第 1 行，原文：
 
@@ -350,17 +350,17 @@ import UniformTypeIdentifiers
     static func usesPreviewScheme(_ url: URL) -> Bool { isMarkdown(url) || isText(url) }
 ```
 
-- [ ] **Step 4: 確認通過**
+- [x] **Step 4: 確認通過**
 
 Run: `beat/changes/plain-text-preview/dev.sh check`
 預期：最後一行 `preview check: ok`。失敗訊息會附上 UTType（例如 `UTType：public.xhtml`）：如果是某個副檔名在這台電腦的判斷不同，照停止規則回報，附上這一行。
 
-- [ ] **Step 5: 確認整個 App 能 build**
+- [x] **Step 5: 確認整個 App 能 build**
 
 Run: `beat/changes/plain-text-preview/dev.sh errors PreviewTarget.swift`
 預期：`ERRORS TOTAL: 0` 與 `BUILD EXIT: 0`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/PreviewTarget.swift App/scripts/preview-check.swift
@@ -381,7 +381,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Produces（Task 3 用）：`static func MarkdownHTML.textPage(_ text: String, title: String) -> String`，頁面結構 `<pre class="plain"><code>跳脫後的內容</code></pre>`；`static let MarkdownHTML.textCSP`（`default-src 'none'; style-src 'unsafe-inline'`，不允許任何載入）。
 - `shellPage` 多一個參數 `csp`，預設值是原本的 `csp`，既有呼叫端不用改。
 
-- [ ] **Step 1: 在 `App/scripts/preview-check.swift` 加測試**
+- [x] **Step 1: 在 `App/scripts/preview-check.swift` 加測試**
 
 原文：
 
@@ -409,12 +409,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         print("preview check: ok")
 ```
 
-- [ ] **Step 2: 確認失敗**
+- [x] **Step 2: 確認失敗**
 
 Run: `beat/changes/plain-text-preview/dev.sh check`
 預期：編譯失敗，訊息含 `type 'MarkdownHTML' has no member 'textPage'`。
 
-- [ ] **Step 3: 修改 `App/Sources/LmuxUI/MarkdownHTML.swift`（四處）**
+- [x] **Step 3: 修改 `App/Sources/LmuxUI/MarkdownHTML.swift`（四處）**
 
 (a) 原文：
 
@@ -478,12 +478,12 @@ Run: `beat/changes/plain-text-preview/dev.sh check`
     table{border-collapse:collapse;margin:0 0 1em}
 ```
 
-- [ ] **Step 4: 確認通過**
+- [x] **Step 4: 確認通過**
 
 Run: `beat/changes/plain-text-preview/dev.sh check`
 預期：最後一行 `preview check: ok`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/MarkdownHTML.swift App/scripts/preview-check.swift
@@ -505,7 +505,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Consumes: Task 1 的 `PreviewTarget.kind`、`isText`、`usesPreviewScheme`；Task 2 的 `MarkdownHTML.textPage`。
 - Produces: `static func PreviewSchemeHandler.response(for file: URL, mainDocument: Bool = false) -> (data: Data, mime: String)?`。純文字檔只在 `mainDocument == true` 時回應；`webView(_:start:)` 用 `task.request.mainDocumentURL == url` 判斷（plan 階段實測：中文與空格的檔名也成立）。`PreviewWebKitCheck.textSchemeChecks(_:)`。
 
-- [ ] **Step 1: 建立 `App/scripts/preview-webkit-check-text.swift`，內容如下（整份照抄）**
+- [x] **Step 1: 建立 `App/scripts/preview-webkit-check-text.swift`，內容如下（整份照抄）**
 
 ```swift
 import AppKit
@@ -549,7 +549,7 @@ extension PreviewWebKitCheck {
 }
 ```
 
-- [ ] **Step 2: 修改 `App/scripts/preview-webkit-check.swift`（兩處）**
+- [x] **Step 2: 修改 `App/scripts/preview-webkit-check.swift`（兩處）**
 
 (a) 呼叫新的檢查。原文：
 
@@ -577,12 +577,12 @@ extension PreviewWebKitCheck {
         DispatchQueue.main.asyncAfter(deadline: .now() + 240) { print("WEBKIT CHECK: FAILED (timeout)"); exit(2) }
 ```
 
-- [ ] **Step 3: 確認失敗**
+- [x] **Step 3: 確認失敗**
 
 Run: `beat/changes/plain-text-preview/dev.sh webkit`
 預期：編譯失敗，訊息含 `extra argument 'mainDocument' in call`。
 
-- [ ] **Step 4: 修改 `App/Sources/LmuxUI/PreviewScheme.swift`（六處）**
+- [x] **Step 4: 修改 `App/Sources/LmuxUI/PreviewScheme.swift`（六處）**
 
 (a) 類別註解，原文：
 
@@ -696,12 +696,12 @@ Run: `beat/changes/plain-text-preview/dev.sh webkit`
               let (data, mime) = Self.response(for: file, mainDocument: task.request.mainDocumentURL == url) else {
 ```
 
-- [ ] **Step 5: 確認通過，而且既有的檢查沒有變**
+- [x] **Step 5: 確認通過，而且既有的檢查沒有變**
 
 Run: `beat/changes/plain-text-preview/dev.sh webkit | grep -E '^FAIL|scheme 拒收非圖片|子資源|整頁|WEBKIT CHECK'`
 預期：沒有 `FAIL`；有 `PASS  scheme 拒收非圖片（.txt）`、`PASS  Markdown 頁面引用純文字檔（子資源）時 scheme 拒絕`、`PASS  純文字檔當整頁時 scheme 回應`；最後一行 `WEBKIT CHECK: ok`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/PreviewScheme.swift App/scripts/preview-webkit-check-text.swift App/scripts/preview-webkit-check.swift
@@ -724,7 +724,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Produces: `PreviewWebKitCheck.textViewChecks(_:)`。`PreviewView.show(_:)` 對純文字檔載入 `lmux-preview:///<路徑>`。
 - **不改：** `PreviewViewNavigation.swift` 的 `openHTMLFromPreview`（第 180-183 行）與 `handleFileMainFrameNavigation`（第 192 行起，含第 228-230 行的 `isMarkdown`）。改了會讓 HTML 連到 `.txt` 時換頁，違反規格「連到純文字檔的連結不換頁」；回歸檢查是 `preview-webkit-check-security.swift` 的「HTML 跳同資料夾 secret.txt 被擋」。
 
-- [ ] **Step 1: 在 `App/scripts/preview-webkit-check-text.swift` 加 `textViewChecks`**
+- [x] **Step 1: 在 `App/scripts/preview-webkit-check-text.swift` 加 `textViewChecks`**
 
 在檔案**最後一行 `}` 的上方**，插入下面整段：
 
@@ -865,7 +865,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
     }
 ```
 
-- [ ] **Step 2: 在 `App/scripts/preview-webkit-check.swift` 呼叫它**
+- [x] **Step 2: 在 `App/scripts/preview-webkit-check.swift` 呼叫它**
 
 原文：
 
@@ -880,12 +880,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
             await textViewChecks(root)
 ```
 
-- [ ] **Step 3: 確認失敗**
+- [x] **Step 3: 確認失敗**
 
 Run: `beat/changes/plain-text-preview/dev.sh webkit | grep -E '^FAIL|WEBKIT CHECK'`
 預期（plan 階段實測）：13 個 `FAIL`，第一個是 `FAIL  純文字檔顯示原文`；最後一行 `WEBKIT CHECK: FAILED (13)`。機器很忙時，最後一行可能是 `WEBKIT CHECK: FAILED (timeout)`，也算確認失敗。
 
-- [ ] **Step 4: 修改 `App/Sources/LmuxUI/PreviewView.swift`（四處）**
+- [x] **Step 4: 修改 `App/Sources/LmuxUI/PreviewView.swift`（四處）**
 
 (a) 原文：
 
@@ -939,7 +939,7 @@ Run: `beat/changes/plain-text-preview/dev.sh webkit | grep -E '^FAIL|WEBKIT CHEC
             keepPinnedHTMLRoot: !PreviewTarget.usesPreviewScheme(file)
 ```
 
-- [ ] **Step 5: 修改 `App/Sources/LmuxUI/PreviewViewNavigation.swift`（三處）**
+- [x] **Step 5: 修改 `App/Sources/LmuxUI/PreviewViewNavigation.swift`（三處）**
 
 (a) 原文：
 
@@ -999,17 +999,17 @@ Run: `beat/changes/plain-text-preview/dev.sh webkit | grep -E '^FAIL|WEBKIT CHEC
             }
 ```
 
-- [ ] **Step 6: 確認通過**
+- [x] **Step 6: 確認通過**
 
 Run: `time beat/changes/plain-text-preview/dev.sh webkit | grep -E '^FAIL|WEBKIT CHECK'`
 預期：沒有 `FAIL`；最後一行 `WEBKIT CHECK: ok`。記下 `real` 時間；超過 90 秒時在回報裡寫明。
 
-- [ ] **Step 7: 確認整個 App 能 build**
+- [x] **Step 7: 確認整個 App 能 build**
 
 Run: `beat/changes/plain-text-preview/dev.sh errors PreviewView.swift PreviewViewNavigation.swift PreviewScheme.swift`
 預期：`ERRORS TOTAL: 0` 與 `BUILD EXIT: 0`。
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/PreviewView.swift App/Sources/LmuxUI/PreviewViewNavigation.swift App/scripts/preview-webkit-check-text.swift App/scripts/preview-webkit-check.swift
@@ -1030,7 +1030,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Consumes: Task 1 的 `PreviewTarget.kind`、`usesPreviewScheme`。
 - Produces: `PreviewWebKitCheck.textWatchChecks(_:)`。純文字檔改變時 `webView.reload()`（保留捲動位置），種類改變或顯示錯誤頁時才重新 `show`。
 
-- [ ] **Step 1: 在 `App/scripts/preview-webkit-check-text.swift` 加 `textWatchChecks`**
+- [x] **Step 1: 在 `App/scripts/preview-webkit-check-text.swift` 加 `textWatchChecks`**
 
 在檔案**最後一行 `}` 的上方**，插入下面整段：
 
@@ -1081,7 +1081,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
     }
 ```
 
-- [ ] **Step 2: 在 `App/scripts/preview-webkit-check.swift` 呼叫它**
+- [x] **Step 2: 在 `App/scripts/preview-webkit-check.swift` 呼叫它**
 
 原文：
 
@@ -1096,12 +1096,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
             await textWatchChecks(root)
 ```
 
-- [ ] **Step 3: 確認失敗**
+- [x] **Step 3: 確認失敗**
 
 Run: `beat/changes/plain-text-preview/dev.sh webkit | grep -E '^FAIL|WEBKIT CHECK'`
 預期（plan 階段實測）：只有一個 `FAIL  自動更新後捲動位置不變，不跳回開頭  -- before=… after=0.0`；最後一行 `WEBKIT CHECK: FAILED (1)`。原因：還沒改的監看對非 Markdown 檔會重新 `show`，重新載入整頁，捲動位置回到 0。
 
-- [ ] **Step 4: 修改 `App/Sources/LmuxUI/PreviewView.swift`**
+- [x] **Step 4: 修改 `App/Sources/LmuxUI/PreviewView.swift`**
 
 原文：
 
@@ -1118,12 +1118,12 @@ Run: `beat/changes/plain-text-preview/dev.sh webkit | grep -E '^FAIL|WEBKIT CHEC
                     || self.isShowingFallbackPage {
 ```
 
-- [ ] **Step 5: 確認通過**
+- [x] **Step 5: 確認通過**
 
 Run: `beat/changes/plain-text-preview/dev.sh webkit | grep -E '^FAIL|WEBKIT CHECK'`
 預期：沒有 `FAIL`；最後一行 `WEBKIT CHECK: ok`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/PreviewView.swift App/scripts/preview-webkit-check-text.swift App/scripts/preview-webkit-check.swift
@@ -1145,7 +1145,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 - Consumes: Task 1 的 `PreviewTarget.kind`。
 - Produces: `PreviewTarget.resolve` 接受純文字檔；symlink 的目標必須是同一種 `Kind`（`.md` 指向 `.html` 也改成照原本流程，design.md 的邊緣情況有記）。`PreviewTarget.extensions` 刪除（只有 `resolve` 用過它）。
 
-- [ ] **Step 1: 修改測試 `App/scripts/preview-check.swift`（三處）**
+- [x] **Step 1: 修改測試 `App/scripts/preview-check.swift`（三處）**
 
 (a) 原文：
 
@@ -1205,12 +1205,12 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
         expect(PreviewTarget.isText(text.appendingPathComponent("app.yaml")) && !PreviewTarget.isText(URL(fileURLWithPath: design)),
 ```
 
-- [ ] **Step 2: 確認失敗**
+- [x] **Step 2: 確認失敗**
 
 Run: `beat/changes/plain-text-preview/dev.sh check`
 預期（plan 階段實測）：`Precondition failed: 失敗：純文字檔（.txt）是可預覽檔案`。
 
-- [ ] **Step 3: 修改 `App/Sources/LmuxUI/PreviewTarget.swift`（三處）**
+- [x] **Step 3: 修改 `App/Sources/LmuxUI/PreviewTarget.swift`（三處）**
 
 (a) 刪除 `extensions`（連同註解與後面的空行）。原文：
 
@@ -1249,12 +1249,12 @@ Run: `beat/changes/plain-text-preview/dev.sh check`
               kind(canonical) == fileKind,
 ```
 
-- [ ] **Step 4: 確認通過**
+- [x] **Step 4: 確認通過**
 
 Run: `beat/changes/plain-text-preview/dev.sh check`
 預期：最後一行 `preview check: ok`。
 
-- [ ] **Step 5: 修改 `App/Sources/lmux-apptest/PreviewInteractions.swift`**
+- [x] **Step 5: 修改 `App/Sources/lmux-apptest/PreviewInteractions.swift`**
 
 `notes.txt` 現在是純文字檔，會跳出選單，不能再當「不是可預覽檔案」的例子。
 
@@ -1276,7 +1276,7 @@ Run: `beat/changes/plain-text-preview/dev.sh check`
                 "\(external.urls)")
 ```
 
-- [ ] **Step 6: build，跑 apptest 的預覽那一組，跟基準比**
+- [x] **Step 6: build，跑 apptest 的預覽那一組，跟基準比**
 
 ```bash
 beat/changes/plain-text-preview/dev.sh errors PreviewTarget.swift PreviewInteractions.swift
@@ -1289,7 +1289,7 @@ beat/changes/plain-text-preview/dev.sh new-failures preview
 - 有 `PASS` 的「不是可預覽檔案（SVG）：照原本流程開啟」。
 - `NEW FAILURES: 0`。`MISSING CHECKS` 只列出改名前的「不是可預覽檔案：照原本流程開啟」這一項（`MISSING CHECKS: 1`）：只有這一項時算通過，在回報裡寫明。
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/PreviewTarget.swift App/scripts/preview-check.swift App/Sources/lmux-apptest/PreviewInteractions.swift
@@ -1312,7 +1312,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 > 注意：這個 task 的程式碼在 plan 階段**沒有編譯過**。Step 3 遇到編譯錯誤時，照錯誤訊息只修 `PreviewText.swift`，最多兩輪；兩輪後還有錯就停下來回報。不可以為了編譯通過而刪掉檢查。
 
-- [ ] **Step 1: 建立 `App/Sources/lmux-apptest/PreviewText.swift`，內容如下（整份照抄）**
+- [x] **Step 1: 建立 `App/Sources/lmux-apptest/PreviewText.swift`，內容如下（整份照抄）**
 
 ```swift
 import AppKit
@@ -1476,7 +1476,7 @@ func runPreviewTextChecks(_ r: Report, _ c: LmuxController, _ fx: PreviewFixture
 }
 ```
 
-- [ ] **Step 2: 在 `App/Sources/lmux-apptest/Preview.swift` 呼叫它**
+- [x] **Step 2: 在 `App/Sources/lmux-apptest/Preview.swift` 呼叫它**
 
 原文：
 
@@ -1491,12 +1491,12 @@ func runPreviewTextChecks(_ r: Report, _ c: LmuxController, _ fx: PreviewFixture
     await runPreviewTextChecks(r, c, fixtures, external: external)
 ```
 
-- [ ] **Step 3: build**
+- [x] **Step 3: build**
 
 Run: `beat/changes/plain-text-preview/dev.sh errors PreviewText.swift Preview.swift`
 預期：`ERRORS TOTAL: 0` 與 `BUILD EXIT: 0`。
 
-- [ ] **Step 4: 跑 apptest 的預覽那一組，跟基準比**
+- [x] **Step 4: 跑 apptest 的預覽那一組，跟基準比**
 
 ```bash
 beat/changes/plain-text-preview/dev.sh apptest-preview | grep -E 'preview-text|APPTEST EXIT'
@@ -1508,7 +1508,7 @@ beat/changes/plain-text-preview/dev.sh new-failures preview
 - `NEW FAILURES: 0`；`MISSING CHECKS` 同 Task 6，只有改名的那一項。
 - 某個「⌘-click …：跳出開啟選單」FAIL 時，看 detail 的 `UTType=`：如果是這台電腦把那個副檔名判斷成別的類型，照停止規則回報這一行，不要改清單。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/lmux-apptest/PreviewText.swift App/Sources/lmux-apptest/Preview.swift
@@ -1528,7 +1528,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 **Interfaces:** 無程式介面。
 
-- [ ] **Step 1: 在 `plain-text-preview.feature` 每個場景加 `@covered-by`**
+- [x] **Step 1: 在 `plain-text-preview.feature` 每個場景加 `@covered-by`**
 
 格式：加在 tag 行（例如 `  @e2e @happy-path`）與 `  場景:`／`  場景大綱:` 那一行之間，一個檔案一行。例：
 
@@ -1565,7 +1565,7 @@ grep -c '# @covered-by' beat/changes/plain-text-preview/features/plain-text-prev
 
 預期：`24`。
 
-- [ ] **Step 2: 更新 `App/README.md`（三處，英文）**
+- [x] **Step 2: 更新 `App/README.md`（三處，英文）**
 
 | 行 | 原文 | 換成 |
 |---|---|---|
@@ -1573,14 +1573,14 @@ grep -c '# @covered-by' beat/changes/plain-text-preview/features/plain-text-prev
 | 24 | Markdown/HTML preview suite alone | Markdown/HTML/plain-text preview suite alone |
 | 55 | terminal or Markdown/HTML `PreviewView` | terminal or Markdown/HTML/plain-text `PreviewView` |
 
-- [ ] **Step 3: 更新 `docs/features.md`（兩處，英文）**
+- [x] **Step 3: 更新 `docs/features.md`（兩處，英文）**
 
 | 行 | 原文 | 換成 |
 |---|---|---|
 | 7 | loaded only for opt-in `.md` / `.html` preview tabs | loaded only for opt-in `.md` / `.html` / plain-text preview tabs |
 | 37 | an opt-in `.md` / `.html` preview tab | an opt-in `.md` / `.html` / plain-text preview tab (plain text: any file macOS treats as text, such as `.sh`, `.yaml` or `.log`, shown as is) |
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add beat/changes/plain-text-preview/features/plain-text-preview.feature App/README.md docs/features.md
@@ -1595,7 +1595,7 @@ Co-Authored-By: Gemini 3.8 Flash <noreply@google.com>"
 
 **Files:** 不改檔案。
 
-- [ ] **Step 1: 跑全部的預覽檢查**
+- [x] **Step 1: 跑全部的預覽檢查**
 
 ```bash
 beat/changes/plain-text-preview/dev.sh check | tail -1
@@ -1604,7 +1604,7 @@ time beat/changes/plain-text-preview/dev.sh webkit | tail -1
 
 預期：`preview check: ok`、`WEBKIT CHECK: ok`。
 
-- [ ] **Step 2: 跑 apptest 主要那一輪，跟基準比**
+- [x] **Step 2: 跑 apptest 主要那一輪，跟基準比**
 
 ```bash
 beat/changes/plain-text-preview/dev.sh apptest-quick | tail -1
@@ -1613,7 +1613,7 @@ beat/changes/plain-text-preview/dev.sh new-failures quick
 
 預期：`NEW FAILURES: 0`；`MISSING CHECKS` 只有改名的那一項（見 Task 6 Step 6）。
 
-- [ ] **Step 3: 回報**
+- [x] **Step 3: 回報**
 
 回報內容：
 - 每個 task 的 commit SHA（`git log --oneline dd0dc71..HEAD`）。
