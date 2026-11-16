@@ -28,8 +28,9 @@
 ## Impact
 
 - **行為改變**：⌘-click 原始碼或設定檔的路徑（例如 `Tabs.swift:42`），以前直接用預設 app 開，現在先跳出開啟選單，要多選一次「用預設 app 開」。使用者 2026-11-16 選這個範圍時，已知道這個代價。
+- **symlink 規則變嚴**：symlink 指向的檔案必須是同一種（Markdown、HTML、純文字檔）。改版前 `.md` 指向 `.html` 會跳出選單、預覽顯示「檔案已不存在」；改版後照原本流程。
 - **修改既有規格**：`beat/features/preview/open-menu.feature`。它「存在但不是可預覽檔案」的例子原本是 `Tabs.swift`，這個 change 之後 `Tabs.swift` 會變成可預覽檔案。
 - **程式**：只改 fork 自己新增的預覽檔案。`PreviewTarget`、`PreviewScheme`、`PreviewView`、`PreviewViewNavigation`、`MarkdownHTML` 都不在 upstream（`git cat-file -e origin/main:<path>` 皆不存在），不增加與 upstream 合併的衝突面。預估改 5 個原始碼檔，加上既有的預覽檢查腳本。
 - **安全**：純文字頁面和 Markdown 一樣走 `lmux-preview` scheme，不執行 JavaScript，也帶 CSP；內容全部做 HTML 跳脫。lmux 不會執行被預覽的檔案。
 - **效能**：轉換在主執行緒，大小上限與 Markdown 相同（2 MB）。未實測接近上限的檔案要轉多久。
-- **未查證**：`.log` 持續寫入時，每次自動更新後捲動位置會不會跳回開頭。
+- **捲動位置**：`.log` 持續寫入時，每次自動更新後捲動位置不變，不會跳回開頭（2026-11-16 在真的 WKWebView 實測）。
