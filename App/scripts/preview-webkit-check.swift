@@ -3,7 +3,7 @@
 //   swiftc -parse-as-library -o /tmp/preview-webkit-check \
 //     App/Sources/LmuxUI/{PreviewTarget,MarkdownHTML,PreviewScheme,PreviewWatcher,PreviewView,PreviewViewNavigation}.swift \
 //     App/scripts/preview-webkit-check*.swift && /tmp/preview-webkit-check
-// （或直接執行 beat/changes/md-html-preview/dev.sh webkit）
+// （或直接執行 beat/changes/archive/2026-11-16-md-html-preview/dev.sh webkit）
 // 每一項印 PASS 或 FAIL；最後一行是 `WEBKIT CHECK: ok` 或 `WEBKIT CHECK: FAILED (n)`。
 
 import AppKit

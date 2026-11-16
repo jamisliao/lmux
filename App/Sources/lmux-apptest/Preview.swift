@@ -4,7 +4,7 @@ import LmuxTerminal
 @testable import LmuxUI
 import WebKit
 
-// `lmux-apptest --preview`：預覽 tab 與 ⌘-click 的開啟選單（beat/changes/md-html-preview）。
+// `lmux-apptest --preview`：預覽 tab 與 ⌘-click 的開啟選單（beat/changes/archive/2026-11-16-md-html-preview）。
 // 開啟選單由 `LmuxController.openMenuTestHook` 回答，不會真的跳出；開啟檔案與網址由
 // `GhosttyRuntime.openURL` 接住，不會真的打開任何東西。
 
