@@ -5,6 +5,7 @@
 //     && /tmp/preview-check
 
 import Foundation
+import UniformTypeIdentifiers
 
 @main
 enum PreviewCheck {
@@ -101,6 +102,39 @@ enum PreviewCheck {
         expect(!PreviewTarget.isMarkdown(docs.appendingPathComponent("page.html")), "isMarkdown .html")
         expect(PreviewTarget.isHTML(docs.appendingPathComponent("page.html")), "isHTML .html")
         expect(!PreviewTarget.isHTML(URL(fileURLWithPath: design)), "isHTML .md")
+
+        // @feature: plain-text-preview.feature
+        // @scenario: ⌘-click 純文字檔的路徑跳出開啟選單
+        // @scenario: macOS 不認為是純文字、或被排除的檔案，照原本流程
+        // 判斷依本機 macOS 的類型登記：失敗訊息附上 UTType，換一台電腦失敗時看得出原因。
+        func uti(_ name: String) -> String { UTType(filenameExtension: (name as NSString).pathExtension)?.identifier ?? "nil" }
+        let text = docs.appendingPathComponent("text")
+        try? FileManager.default.createDirectory(at: text, withIntermediateDirectories: true)
+        let textNames = ["todo.txt", "deploy.sh", "run.command", "app.yaml", "app.yml", "result.json", "run.log", "check.py", "LOUD.TXT"]
+        // .env 與 Makefile 沒有副檔名（pathExtension 是空字串），不查 UTType 就不是純文字檔。
+        let notTextNames = ["intro.rtf", "logo.svg", "app.ts", ".env", "Makefile", "photo.png", "notes.mdown"]
+        for name in textNames + notTextNames {
+            FileManager.default.createFile(atPath: text.appendingPathComponent(name).path, contents: Data("x".utf8))
+        }
+        for name in textNames {
+            expect(PreviewTarget.kind(text.appendingPathComponent(name)) == .text, "\(name) 的種類是純文字檔（UTType：\(uti(name))）")
+        }
+        for name in notTextNames {
+            expect(PreviewTarget.kind(text.appendingPathComponent(name)) == nil, "\(name) 不是可預覽檔案（UTType：\(uti(name))）")
+        }
+        expect(PreviewTarget.kind(URL(fileURLWithPath: design)) == .markdown, "kind：.md 是 Markdown")
+        expect(PreviewTarget.kind(docs.appendingPathComponent("page.html")) == .html, "kind：.html 是 HTML")
+        for u in (textNames + notTextNames).map({ text.appendingPathComponent($0) })
+            + [URL(fileURLWithPath: design), docs.appendingPathComponent("page.html"), docs.appendingPathComponent("UPPER.MD")] {
+            expect(PreviewTarget.isMarkdown(u) == (PreviewTarget.kind(u) == .markdown)
+                   && PreviewTarget.isHTML(u) == (PreviewTarget.kind(u) == .html), "kind 與 isMarkdown／isHTML 一致：\(u.lastPathComponent)")
+        }
+        expect(PreviewTarget.isText(text.appendingPathComponent("app.yaml")) && !PreviewTarget.isText(URL(fileURLWithPath: design)),
+               "isText：純文字檔是、Markdown 不是")
+        expect(PreviewTarget.usesPreviewScheme(URL(fileURLWithPath: design))
+               && PreviewTarget.usesPreviewScheme(text.appendingPathComponent("app.yaml"))
+               && !PreviewTarget.usesPreviewScheme(docs.appendingPathComponent("page.html")),
+               "Markdown 與純文字檔走 lmux-preview，HTML 不走")
 
         // @feature: preview-tab.feature
         // @scenario: Markdown 顯示成排版後的樣子
