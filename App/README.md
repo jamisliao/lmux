@@ -2,7 +2,7 @@
 
 One window: a SwiftUI sidebar of workspaces, each workspace a split tree of libghostty
 surfaces (AppKit). SwiftUI is only in the sidebar and titlebar buttons, never in the
-terminal path; `WKWebView` is used only when you open a `.md` / `.html` preview tab (`PreviewView`, non-persistent data store).
+terminal path; `WKWebView` is used only for `.md` / `.html` preview tabs (`PreviewView`, non-persistent data store); a spare WebKit process starts when the open menu pops up (no page, no network) so the tab opens fast.
 
 **Build from source**: `App/Frameworks/GhosttyKit.xcframework` links into `vendor/ghostty`, which a fresh
 checkout doesn't have. `scripts/bootstrap.sh` clones Ghostty at the commit in `GHOSTTY_COMMIT`, fetches Zig

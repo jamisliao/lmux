@@ -53,7 +53,7 @@ Terminal apps these days ship with a browser, SSH workspaces, even PR badges. Wi
 ## Highlights
 
 - **Light.**<br>
-  A 25 MB app that idles near 0% CPU, whether you have one workspace open or twenty. It's native Swift on libghostty (with macOS `WKWebView` loaded only for opt-in `.md` / `.html` preview tabs). No Electron, and about ten settings.
+  A 25 MB app that idles near 0% CPU, whether you have one workspace open or twenty. It's native Swift on libghostty (with macOS `WKWebView` used only for opt-in `.md` / `.html` preview tabs; a spare WebKit process starts when the open menu pops up, with no page loaded and no network). No Electron, and about ten settings.
 
 - **Quit, update, reboot. It all comes back.**<br>
   Same workspaces, splits and folders, and every Claude Code or Codex session resumes where it left off. Closed one last week? History (`⇧⌘H`) finds it and brings it back.

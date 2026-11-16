@@ -35,23 +35,23 @@
    - 不保存 cookie 與 storage，關掉預覽 tab 就清掉。
 5. **預覽內的連結**
    - 相對路徑的 `.md` 連結：在同一個預覽 tab 換頁，tab 標題跟著換。觸控板兩指往右滑返回上一頁。不設返回快速鍵：⌘[ 已經是 Previous Pane（`App/Sources/LmuxUI/Menu.swift:113`）。
-   - http(s) 連結：使用者點了才開，照終端機裡點連結的規則處理（`UntrustedURLAlert`）。頁面的 script 自己觸發的點擊、meta refresh 不會開任何網址，也不會把預覽換成網頁。
+   - http(s) 連結：使用者點了才開，照終端機裡點連結的規則處理（`UntrustedURLAlert`）。沒有使用者點擊時，頁面的 script 自己觸發的點擊、meta refresh 不會開任何網址，也不會把預覽換成網頁（點擊後 1 秒內視同一般瀏覽器的點擊授權窗口）。
 6. **自動更新**
    - 檔案內容改變時重新渲染。用「寫暫存檔再改名」方式存檔也要更新。
    - 預覽中的檔案被刪除時，顯示「檔案已不存在」。
 7. **讓 tab 能裝終端機以外的內容（重構）**
    - `Pane` 改成兩種內容：終端機、預覽。`Pane.surface` 改成 optional。
-   - 重構本身不改變任何既有行為。
+   - 重構本身不改變既有行為，只有兩個小例外：`closePane` 現在會收起該 pane 上的確認卡片；`searchEnded` 只在焦點位於搜尋欄或遺失時才歸還焦點（見 design.md A.2）。
 
 ## Impact
 
-- **實際改動量：超過「20 個檔案」的上限（整個 branch 相對 `main` 共約 98 個檔案，含 specs 與文件）。** 使用者 2026-11-13 在 explore 對話中同意這次超過，並同意不拆成兩個 change。
-  - 上游 `App/Sources/` 共改動 48 個檔案：`LmuxUI` 修改 22 個既有檔案（其中 `Model.swift` 等 16 個檔案處理可選 `.surface`，加上 `Overlays.swift` 等與預覽功能整合），以及 `lmux-apptest` 修改 26 個檔案（25 個既有測試檔的 `pane.surface!` 改動 + `main.swift`）；`lmux-imetest` 0 個檔案。
-  - 新增：`LmuxUI` 7 個預覽模組、`lmux-apptest` 3 個測試檔（`Preview.swift`、`PreviewInteractions.swift`、`PreviewPersistence.swift`）、`App/scripts/preview-*.swift` 5 個獨立檢查腳本，並修改 `App/scripts/apptest.sh`。
+- **實際改動量：超過「20 個檔案」的上限（整個 branch 相對 `main` 共約 100 個檔案，含 specs 與文件）。** 使用者 2026-11-13 在 explore 對話中同意這次超過，並同意不拆成兩個 change。
+  - 上游 `App/Sources/` 共改動 48 個檔案：`LmuxUI` 修改 22 個既有檔案（其中 `Model.swift` 等 16 個檔案處理可選 `.surface`，加上 `Overlays.swift` 等與預覽功能整合），以及 `lmux-apptest` 修改 26 個檔案（25 個既有測試檔的 `pane.surface!` 改動 + `main.swift` 接入 `--preview`；另外 `Tests.swift:748-750` 在保留所有 `r.check` 斷言前提下移除會讓 headless 測試卡住的 4 行純 `INFO` 檔案承諾探測，註解說明 HIServices deadlock 為推論）；`lmux-imetest` 0 個檔案。
+  - 新增：`LmuxUI` 7 個預覽模組、`lmux-apptest` 3 個測試檔（`Preview.swift`、`PreviewInteractions.swift`、`PreviewPersistence.swift`）、`App/scripts/preview-*.swift` 6 個獨立檢查腳本（`preview-check.swift` 與 5 個 `preview-webkit-check*.swift`），並修改 `App/scripts/apptest.sh`。
   - 修改摘要：`Controller.swift`（攔截 ⌘-click、焦點）、`Tabs.swift`、`Persistence.swift`、`ControlServer.swift`（CLI）、`SidebarSelection.swift`（選單停用）、`Overlays.swift`、`Menu.swift`、`MessageActions.swift`（確認卡片與前景程序檢查）、`Titles.swift`（預覽 tab 重新命名提示字樣），以及同步更新 `README.md`、`App/README.md`、`docs/` 說明頁面與 `docs/adr/0001-pane-surface-optional.md`。`GhosttyRuntime.swift` 不改。
 - **與上游 lmux 合併的成本變高。** 這個 fork 追蹤 `sooftware/lmux`。本次在 `App/Sources/` 改動 48 個上游檔案，之後每次合併上游都可能在這些檔案衝突。
 - **新的系統框架：WebKit。** Apple 內建，不是第三方依賴。
-- **安全**：HTML 預覽允許連網，頁面的 JS 可以把頁面自己的內容送到任意網址。頁面的 JS 讀不到本機的其他檔案（2026-11-13 實測，含 security review 找到並修掉的 iframe 繞道）。cookie 與 storage 不保存。Markdown 頁面允許載入網路圖片（打開檔案時圖片的主機會知道）。
+- **安全**：HTML 預覽允許連網，頁面的 JS 可以把頁面自己的內容送到任意網址。頁面的 JS 用 fetch／XHR 讀不到本機的其他檔案（2026-11-13 實測，含 security review 找到並修掉的 iframe 繞道）。但同資料夾子樹內的 `<script src>` 與樣式會載入並執行，頁面的 script 讀得到這些 script 設的全域變數，再能送到任意網址；HTML 放在 `$HOME` 時，子樹就是整個家目錄（`preview-webkit-check-view.swift` 的「已知範圍」檢查記錄這個行為）。cookie 與 storage 不保存。Markdown 頁面允許載入網路圖片（打開檔案時圖片的主機會知道）。
 - **限制**：預覽 tab 是 focused tab 時，Ghostty 自己的 keybinding（例如分割方向鍵）不會動；⌘[、⌘] 與 tab 切換仍可用。
 - **記憶體**：每個預覽 tab 有一個 WKWebView。WebKit 會另外起網頁內容的 process，用量未實測。
 - **不受影響**：非可預覽檔案的 ⌘-click、網址、hook、agent 狀態、通知 bar。

@@ -53,7 +53,7 @@
 ## 特色
 
 - **輕。**<br>
-  整個 app 25 MB，不管開一個工作區還是二十個，閒置 CPU 都接近 0%。用原生 Swift 寫，底層是 libghostty（僅於主動開啟 `.md` / `.html` 預覽分頁時載入 macOS `WKWebView`），沒有 Electron，設定也只有十個左右。
+  整個 app 25 MB，不管開一個工作區還是二十個，閒置 CPU 都接近 0%。用原生 Swift 寫，底層是 libghostty（僅於主動開啟 `.md` / `.html` 預覽分頁時使用 macOS `WKWebView`；開啟選單跳出時會先啟動一個備用的 WebKit 程序，不載入頁面也不連網），沒有 Electron，設定也只有十個左右。
 
 - **關掉、更新、重開機，全部都會回來。**<br>
   工作區、分割畫面、資料夾都會原樣還原，每個 Claude Code 或 Codex session 也會從上次停下的地方繼續。上禮拜關掉的？在 History（`⇧⌘H`）找到就能叫回來。

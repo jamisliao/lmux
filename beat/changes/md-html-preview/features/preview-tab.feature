@@ -82,7 +82,13 @@
     假設 一個 **預覽 tab** 正在顯示 Markdown
     當 使用者把 lmux 的外觀設定從 Light 改成 Dark
     那麼 預覽的背景與文字改成深色配色，不用重新開啟
-    而且 外觀設定是 System 時，預覽跟著 macOS 的深淺色切換
+
+  @e2e @manual @edge-case
+  # @covered-by: beat/changes/md-html-preview/manual-verification.md
+  場景: 外觀設定是 System 時，預覽跟著 macOS 的深淺色切換
+    假設 lmux 的外觀設定是 System，且一個 **預覽 tab** 正在顯示 Markdown
+    當 使用者在系統設定切換 macOS 的深淺色
+    那麼 預覽的背景與文字跟著 macOS 切換
 
   # --- HTML 渲染 ---
 
@@ -105,8 +111,8 @@
   @e2e @edge-case
   # @covered-by: App/scripts/preview-webkit-check-view.swift
   # @covered-by: App/Sources/lmux-apptest/Preview.swift
-  場景: 重新開啟預覽時，不保留上一次的 cookie 與 storage
-    假設 一個 **預覽 tab** 開啟的 HTML 在 localStorage 存了一筆資料
+  場景: 重新開啟預覽時，不保留上一次的 cookie 與瀏覽器儲存區
+    假設 一個 **預覽 tab** 開啟的 HTML 在瀏覽器儲存區存了一筆資料
     而且 使用者關掉這個預覽 tab
     當 使用者再用新的 **預覽 tab** 開啟同一個 HTML
     那麼 頁面讀不到上一次存的資料
@@ -133,7 +139,6 @@
     而且 之後再改 "design.md"，預覽仍然會更新
 
   @e2e @error-handling
-  # @covered-by: App/scripts/preview-webkit-check.swift
   # @covered-by: App/scripts/preview-webkit-check-view.swift
   # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 預覽中的檔案被刪除
@@ -164,14 +169,21 @@
 
   @e2e @happy-path
   # @covered-by: App/scripts/preview-webkit-check-view.swift
-  # @covered-by: App/scripts/preview-webkit-check-security.swift
   # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 點網址連結，照終端機裡點連結的規則處理
     假設 一個 **預覽 tab** 正在顯示的頁面有連到 "https://example.com" 的連結
     當 使用者點這個連結
     那麼 這個網址的處理方式，與在終端機 ⌘-click 同一個網址相同
     而且 預覽 tab 仍然顯示原本的頁面
-    而且 頁面的 script 自己觸發點擊、或用 meta refresh 跳轉時，不會開啟任何網址，預覽仍然顯示原本的頁面
+
+  @behavior @edge-case
+  # @covered-by: App/scripts/preview-webkit-check-view.swift
+  # @covered-by: App/scripts/preview-webkit-check-security.swift
+  # @covered-by: App/scripts/preview-webkit-check-boundaries.swift
+  場景: 沒有使用者點擊時，頁面自動跳轉網址不會開啟任何東西
+    假設 一個 **預覽 tab** 正在顯示的頁面有連到 "https://example.com" 的連結
+    當 頁面的 script 在沒有使用者點擊時觸發點擊、或用 meta refresh 跳轉到外部網址
+    那麼 不會開啟任何網址，預覽仍然顯示原本的頁面
 
   # --- tab 行為 ---
 
@@ -190,6 +202,7 @@
 
   @e2e @happy-path
   # @covered-by: App/Sources/lmux-apptest/PreviewPersistence.swift
+  # @covered-by: beat/changes/md-html-preview/manual-verification.md
   場景: 關閉預覽 tab 後，相鄰 tab 成為 focused tab
     假設 一個 **workspace** 有 **終端機 tab** A 與 **預覽 tab** P 左右並排
     而且 P 是 **focused tab**
@@ -234,6 +247,7 @@
   # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: CLI 指定預覽 tab 時回傳錯誤
     假設 **預覽 tab** P 存在
+    而且 lmux 設定允許從外部送字（external send）
     當 使用者執行 "lmux send"，目標是 P
     那麼 指令失敗，錯誤訊息說明 P 不是終端機
     而且 "lmux list" 的結果不列出 P
