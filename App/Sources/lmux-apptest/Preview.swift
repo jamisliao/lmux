@@ -275,6 +275,7 @@ func runPreview() async -> Int32 {
     }
 
     await runPreviewInteractionChecks(r, c, fixtures, external: external)
+    await runPreviewTextChecks(r, c, fixtures, external: external)
     await runPreviewPersistenceChecks(r, c, fixtures)
     return finish(r, c)
 }
