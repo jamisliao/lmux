@@ -312,8 +312,9 @@ public final class PreviewView: NSView, WKNavigationDelegate {
         watcher = PreviewWatcher(file: file) { [weak self] in
             guard let self, !self.isClosed else { return }
             let real = PreviewTarget.resolvingPath(self.fileURL)
-            if PreviewTarget.isMarkdown(self.fileURL) {
-                if PreviewTarget.hasUnsafeScalar(real.path) || !PreviewTarget.isMarkdown(real) || self.isShowingFallbackPage {
+            if PreviewTarget.usesPreviewScheme(self.fileURL) {
+                if PreviewTarget.hasUnsafeScalar(real.path) || PreviewTarget.kind(real) != PreviewTarget.kind(self.fileURL)
+                    || self.isShowingFallbackPage {
                     self.show(self.fileURL, fromWatcher: true, preserveRoot: true)
                 } else {
                     self.webView.reload()

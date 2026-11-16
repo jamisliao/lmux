@@ -171,4 +171,49 @@ extension PreviewWebKitCheck {
               v.webView.url?.lastPathComponent == "gate.html" && !gateText.contains("TOP-SECRET"),
               v.webView.url?.absoluteString ?? "nil")
     }
+
+    // @feature: plain-text-preview.feature
+    // @scenario: 純文字檔內容改變後，預覽自動更新
+    // @scenario: 預覽中的純文字檔被刪除
+    @MainActor static func textWatchChecks(_ root: URL) async {
+        let dir = root.appendingPathComponent("text-watch")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let yaml = dir.appendingPathComponent("live.yaml")
+        try? "name: one\n".write(to: yaml, atomically: true, encoding: .utf8)
+        let hidden = dir.appendingPathComponent("hidden-secret")
+        try? "TOP-SECRET\n".write(to: hidden, atomically: true, encoding: .utf8)
+        let tail = dir.appendingPathComponent("tail.log")
+        try? (1...400).map { "line \($0)" }.joined(separator: "\n").write(to: tail, atomically: true, encoding: .utf8)
+        try? await Task.sleep(for: .milliseconds(500))
+        let v = PreviewView(fileURL: yaml)
+        let win = host(v)
+        defer { v.close(); win.close() }
+        check("開啟 live.yaml", await waitBody(v.webView, contains: "name: one"))
+        try? await Task.sleep(for: .milliseconds(300))
+        try? "name: one\ndebug: true\n".write(to: yaml, atomically: true, encoding: .utf8)
+        check("純文字檔改寫後自動顯示新內容", await waitBody(v.webView, contains: "debug: true"))
+        try? FileManager.default.removeItem(at: yaml)
+        check("純文字檔被刪除後顯示「檔案已不存在」與完整路徑", await waitBody(v.webView, contains: "檔案已不存在", also: yaml.path))
+        try? "name: two\n".write(to: yaml, atomically: true, encoding: .utf8)
+        check("純文字檔重新出現後恢復顯示", await waitBody(v.webView, contains: "name: two"))
+
+        // 換成指向「沒有副檔名」檔案的 symlink：種類變了，不顯示目標內容
+        try? await Task.sleep(for: .milliseconds(300))
+        try? FileManager.default.removeItem(at: yaml)
+        try? FileManager.default.createSymbolicLink(at: yaml, withDestinationURL: hidden)
+        check("監看中把檔案換成指向無副檔名檔案的 symlink：顯示「檔案已不存在」",
+              await waitBody(v.webView, contains: "檔案已不存在", excluding: "TOP-SECRET"))
+
+        // 自動更新後捲動位置不變（plan 階段實測：重新載入保留 scrollY；改用重新 show 會跳回 0）
+        v.show(tail)
+        _ = await waitBody(v.webView, contains: "line 400")
+        _ = await js(v.webView, "window.scrollTo(0, document.documentElement.scrollHeight)")
+        try? await Task.sleep(for: .milliseconds(300))
+        let before = await js(v.webView, "window.scrollY") as? Double ?? -1
+        try? ((1...400).map { "line \($0)" } + ["line 401"]).joined(separator: "\n").write(to: tail, atomically: true, encoding: .utf8)
+        _ = await waitBody(v.webView, contains: "line 401")
+        try? await Task.sleep(for: .milliseconds(300))
+        let after = await js(v.webView, "window.scrollY") as? Double ?? -1
+        check("自動更新後捲動位置不變，不跳回開頭", before > 0 && after == before, "before=\(before) after=\(after)")
+    }
 }
