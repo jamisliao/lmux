@@ -121,11 +121,13 @@ enum PreviewWebKitCheck {
             await securityChecks(root)
             await regressionChecks(root)
             await boundaryChecks(root)
+            await textSchemeChecks(root)
             try? FileManager.default.removeItem(at: root)
             print(failures == 0 ? "WEBKIT CHECK: ok" : "WEBKIT CHECK: FAILED (\(failures))")
             exit(failures == 0 ? 0 : 1)
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 120) { print("WEBKIT CHECK: FAILED (timeout)"); exit(2) }
+        // 預覽檢查變多（含純文字檔），整體時限放寬到 240 秒；失敗時每項最多等 6 秒，120 秒會在印出 FAIL 前就逾時。
+        DispatchQueue.main.asyncAfter(deadline: .now() + 240) { print("WEBKIT CHECK: FAILED (timeout)"); exit(2) }
         app.run()
     }
 

@@ -2,18 +2,18 @@ import Foundation
 import UniformTypeIdentifiers
 import WebKit
 
-/// 提供 `lmux-preview:///<絕對路徑>` 給預覽 tab（beat: preview-tab.feature）：Markdown 檔回傳
-/// `MarkdownHTML` 轉好的頁面，圖片原樣回傳（Markdown 頁面用相對路徑引用的圖片）。
+/// 提供 `lmux-preview:///<絕對路徑>` 給預覽 tab（beat: preview-tab.feature、plain-text-preview.feature）：
+/// Markdown 檔與純文字檔回傳 `MarkdownHTML` 轉好的頁面，圖片原樣回傳（Markdown 頁面用相對路徑引用的圖片）。
 ///
 /// 安全：這個 scheme 給得出任何路徑的檔案，所以
 /// - 只回應「主頁面也是 lmux-preview」的請求。HTML 頁面（file://）用 iframe、script、img、fetch
 ///   要這個 scheme 時一律拒絕，否則它能讀任意本機檔案再送上網路（2026-11-13 實測過 iframe 可以）。
-/// - Markdown 以外只給圖片，而且不給 SVG（SVG 可以帶 script）。
+/// - Markdown 與純文字檔以外只給圖片，而且不給 SVG（SVG 可以帶 script）。純文字檔只當整頁回應，不當子資源。
 /// - 只讀一般檔案、最多 `maxBytes`：`/dev/zero` 或指向它的 symlink 不會讓主執行緒卡住。
 /// - 這個 scheme 的頁面不執行 JavaScript（`PreviewView` 關掉，頁面也帶 CSP）。
 final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "lmux-preview"
-    /// 一個請求最多讀多少位元組（圖片與 HTML）；Markdown 另外收緊避免主執行緒轉換大檔卡頓。
+    /// 一個請求最多讀多少位元組（圖片與 HTML）；Markdown 與純文字檔另外收緊（`maxMarkdownBytes`），避免主執行緒轉換大檔卡頓。
     static let maxBytes = 20 * 1024 * 1024
     static let maxMarkdownBytes = 2 * 1024 * 1024
 
@@ -68,16 +68,28 @@ final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     /// 這個 scheme 對 `file` 的回應：內容與 MIME type；不給的檔案回傳 nil。
-    static func response(for file: URL) -> (data: Data, mime: String)? {
+    /// `mainDocument`：這個請求是整頁（主框架）本身。純文字檔只當整頁回應；Markdown 頁面用 `<img>` 之類
+    /// 引用純文字檔時拒絕，和加入純文字預覽前一樣（beat: plain-text-preview）。
+    static func response(for file: URL, mainDocument: Bool = false) -> (data: Data, mime: String)? {
         let real = PreviewTarget.resolvingPath(file)
         guard !PreviewTarget.hasUnsafeScalar(file.path),
               !PreviewTarget.hasUnsafeScalar(real.path) else { return nil }
-        if PreviewTarget.isMarkdown(file) {
-            guard PreviewTarget.isMarkdown(real) else { return nil }
+        if PreviewTarget.usesPreviewScheme(file) {
+            guard PreviewTarget.kind(real) == PreviewTarget.kind(file) else { return nil }
+            if PreviewTarget.isText(file) && !mainDocument { return nil }
             switch readRegularFileResult(real, maxBytes: maxMarkdownBytes) {
             case .ok(let data):
                 let text = String(decoding: data, as: UTF8.self)
-                return (Data(MarkdownHTML.page(text, title: file.lastPathComponent).utf8), "text/html")
+                let page: String
+                switch PreviewTarget.kind(file) {
+                case .markdown?:
+                    page = MarkdownHTML.page(text, title: file.lastPathComponent)
+                case .text?:
+                    page = MarkdownHTML.textPage(text, title: file.lastPathComponent)
+                case .html?, nil:
+                    return nil
+                }
+                return (Data(page.utf8), "text/html")
             case .tooLarge:
                 return (Data(MarkdownHTML.tooLargePage(path: file.path, maxMB: maxMarkdownBytes / (1024 * 1024)).utf8), "text/html")
             case .missing:
@@ -97,7 +109,7 @@ final class PreviewSchemeHandler: NSObject, WKURLSchemeHandler {
     func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         guard let url = task.request.url, let file = Self.file(for: url),
               task.request.mainDocumentURL?.scheme?.lowercased() == Self.scheme,
-              let (data, mime) = Self.response(for: file) else {
+              let (data, mime) = Self.response(for: file, mainDocument: task.request.mainDocumentURL == url) else {
             task.didFailWithError(URLError(.noPermissionsToReadFile))
             return
         }
