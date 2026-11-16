@@ -27,6 +27,8 @@
   # --- 判斷是不是純文字檔 ---
 
   @e2e @happy-path
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景大綱: ⌘-click 純文字檔的路徑跳出開啟選單
     假設 目前目錄裡有 "<路徑>"
     而且 終端機輸出了文字 "<路徑>"
@@ -45,6 +47,8 @@
       | tools/check.py   |
 
   @e2e @edge-case
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景大綱: macOS 不認為是純文字、或被排除的檔案，照原本流程
     假設 目前目錄裡有 "<路徑>"
     而且 終端機輸出了文字 "<路徑>"
@@ -62,6 +66,9 @@
   # --- 顯示原文 ---
 
   @e2e @happy-path
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/scripts/preview-webkit-check-text.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景: 純文字檔以等寬字型原樣顯示
     假設 "scripts/deploy.sh" 的內容有一行 "echo '<b>done</b>'"
     當 使用者 ⌘-click "scripts/deploy.sh" 並選 "在新 tab 預覽"
@@ -70,6 +77,8 @@
     而且 "<b>done</b>" 原樣顯示成文字，不是粗體
 
   @e2e @edge-case
+  # @covered-by: App/scripts/preview-webkit-check-text.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景: 有執行權限的 shell script 只顯示，不執行
     假設 "scripts/deploy.sh" 有執行權限，執行時會建立 "/tmp/deploy-ran"
     當 使用者 ⌘-click "scripts/deploy.sh" 並選 "在新 tab 預覽"
@@ -77,6 +86,8 @@
     而且 "/tmp/deploy-ran" 不存在
 
   @e2e @edge-case
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/scripts/preview-webkit-check-text.swift
   場景: 很長的一行自動換行
     假設 "logs/run.log" 有一行比預覽 tab 還寬
     當 使用者在 **預覽 tab** 開啟 "logs/run.log"
@@ -84,6 +95,8 @@
     而且 預覽沒有橫向捲動
 
   @e2e @edge-case
+  # @covered-by: App/scripts/preview-check.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景: 路徑帶行號時，從檔案開頭顯示
     假設 終端機輸出了文字 "config/app.yaml:42"
     當 使用者 ⌘-click 這段文字並選 "在新 tab 預覽"
@@ -91,12 +104,15 @@
     而且 **預覽 tab** 從檔案的第 1 行開始顯示
 
   @e2e @happy-path
+  # @covered-by: App/scripts/preview-webkit-check-text.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景: 純文字預覽跟著 lmux 的外觀設定切換深淺色
     假設 **預覽 tab** 正在顯示 "config/app.yaml"
     當 使用者把 lmux 的外觀設定從 Light 改成 Dark
     那麼 預覽改用深色背景與淺色文字
 
   @e2e @edge-case
+  # @covered-by: App/scripts/preview-webkit-check-text.swift
   場景: 內容有不是 UTF-8 的位元組
     假設 "logs/run.log" 有幾個不是 UTF-8 的位元組，其他內容是正常文字
     當 使用者在 **預覽 tab** 開啟 "logs/run.log"
@@ -104,6 +120,7 @@
     而且 其他內容照常顯示
 
   @e2e @edge-case
+  # @covered-by: App/scripts/preview-webkit-check-text.swift
   場景: 檔案超過大小上限
     假設 "logs/run.log" 超過預覽的大小上限
     當 使用者在 **預覽 tab** 開啟 "logs/run.log"
@@ -112,12 +129,16 @@
   # --- 自動更新 ---
 
   @e2e @happy-path
+  # @covered-by: App/scripts/preview-webkit-check-text.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景: 純文字檔內容改變後，預覽自動更新
     假設 **預覽 tab** 正在顯示 "config/app.yaml"
     當 另一個程式在 "config/app.yaml" 加上一行 "debug: true"
     那麼 預覽顯示新加的 "debug: true"，不需要使用者操作
 
   @e2e @edge-case
+  # @covered-by: App/scripts/preview-webkit-check-text.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景: 預覽中的純文字檔被刪除
     假設 **預覽 tab** 正在顯示 "config/app.yaml"
     當 "config/app.yaml" 被刪除
@@ -126,6 +147,7 @@
   # --- 開啟選單的其他項目與預覽裡的連結（行為不變） ---
 
   @e2e @edge-case
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景: shell script 選「用預設 app 開」仍被安全規則擋下
     假設 "scripts/deploy.sh" 跳出了 **開啟選單**
     當 使用者選 "用預設 app 開"
@@ -134,6 +156,8 @@
     而且 沒有開出 **預覽 tab**
 
   @e2e @edge-case
+  # @covered-by: App/scripts/preview-webkit-check-text.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewText.swift
   場景: Markdown 預覽裡連到純文字檔的連結不換頁
     假設 **預覽 tab** 正在顯示 "docs/guide.md"
     而且 "docs/guide.md" 有一個相對路徑連結指向 "../config/app.yaml"
