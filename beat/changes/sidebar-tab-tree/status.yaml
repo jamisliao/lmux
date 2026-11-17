@@ -1,9 +1,9 @@
 name: sidebar-tab-tree
 created: 2026-11-17
-phase: design
+phase: implement
 preset: full
 pipeline:
   proposal: { status: done }
   gherkin: { status: done }
   design: { status: done }
-  tasks: { status: pending }
+  tasks: { status: done }
