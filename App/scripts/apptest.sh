@@ -9,6 +9,7 @@
 #   App/scripts/apptest.sh --quick          only the main pass (no restore / 50MB transcript / latency runs)
 #   App/scripts/apptest.sh --rewind         only ✎ × ⌘Z on the fake rewind menu (part of the main pass too)
 #   App/scripts/apptest.sh --preview        only the preview suite (preview-check, preview-webkit-check, --preview, --preview-restore)
+#   App/scripts/apptest.sh --sidebar-tabs   only the sidebar tab tree suite (--sidebar-tabs, --sidebar-tabs-restore)
 #   App/scripts/apptest.sh --screenshots D  also write D/p1-dark.png and D/p1-light.png
 #   App/scripts/apptest.sh --real-window [SHOTS_DIR]
 #                                           CI ONLY (refuses unless GITHUB_ACTIONS=true): a VISIBLE window
@@ -136,6 +137,17 @@ if [ "${1:-}" = "--preview" ]; then
   run_preview_suite
   exit $status
 fi
+# Sidebar tab tree (beat: sidebar-tab-tree.feature): expand a workspace's tabs, then the relaunch.
+run_sidebar_tabs_suite() {
+  mkdir -p "$T/sidebar-tabs"
+  for phase in --sidebar-tabs --sidebar-tabs-restore; do
+    LMUX_STATE_DIR="$T/sidebar-tabs" LMUX_IGNORE_GHOSTTY_CONFIG=1 "$BIN/lmux-apptest" $phase 2>/dev/null | filter || status=1
+  done
+}
+if [ "${1:-}" = "--sidebar-tabs" ]; then
+  run_sidebar_tabs_suite
+  exit $status
+fi
 LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"
@@ -143,6 +155,7 @@ LMUX_STATE_DIR="$T/titlebar" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 
 # Sidebar: the row × on hover, ⌘/⇧-click multi-selection, closing idle shells and busy panes.
 mkdir -p "$T/sidebar"
 LMUX_STATE_DIR="$T/sidebar" "$BIN/lmux-apptest" --sidebar 2>/dev/null | filter || status=1
+run_sidebar_tabs_suite
 # Split zoom, manual Clear Status, and sidebar drag-to-reorder.
 mkdir -p "$T/zoomclear"
 LMUX_STATE_DIR="$T/zoomclear" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --zoom-clear-reorder 2>/dev/null | filter || status=1
