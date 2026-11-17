@@ -317,6 +317,11 @@ public enum LmuxTokens {
         public static let rowGap: CGFloat = 4
         /// The hover × in a row's trailing slot: hit target (the glyph is 9pt).
         public static let rowCloseButtonSize: CGFloat = 20
+        /// Sidebar 的 Tab 子列（beat: sidebar-tab-tree.feature）：列高、標題相對 workspace 列內容的縮排，
+        /// 以及展開箭頭的點擊範圍（箭頭本身 8pt）。
+        public static let tabChildRowHeight: CGFloat = 26
+        public static let tabChildIndent: CGFloat = 18
+        public static let tabDisclosureSize: CGFloat = 14
         /// Leading workspace chip (R7) and the gap to the title. Line 2 indents to the title.
         public static let accentChipSize: CGFloat = 8
         public static let accentChipGap: CGFloat = 8
