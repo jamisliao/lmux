@@ -4,7 +4,7 @@ Everything lmux does, in one page. For the short version, see the [README](../RE
 
 ## Light
 
-- A 25 MB app on libghostty. Native Swift (with macOS `WKWebView` loaded only for opt-in `.md` / `.html` preview tabs), no Electron, about ten settings.
+- A 25 MB app on libghostty. Native Swift (with macOS `WKWebView` loaded only for opt-in `.md` / `.html` / plain-text preview tabs), no Electron, about ten settings.
 - Windows that are hidden, minimized or covered stop drawing. Nothing animates unless it means something, and what does animate runs on Core Animation, off the main thread.
 - CI fails any change that pushes idle CPU over budget, both with idle shells and with agents running. Busy cases have budgets too: agents working in hidden panes, hook events, spinner titles, restoring 120 workspaces and History's first index.
 - Numbers and methodology: [scripts/BENCH.md](../scripts/BENCH.md).
@@ -34,7 +34,7 @@ Changed your mind? **Undo Import** (in the sheet, and as **lmux → Undo cmux Im
 
 ## Tabs
 
-Every pane has a tab bar; each tab can be a terminal or an opt-in `.md` / `.html` preview tab. It looks and works like cmux's.
+Every pane has a tab bar; each tab can be a terminal or an opt-in `.md` / `.html` / plain-text preview tab (plain text: any file macOS treats as text, such as `.sh`, `.yaml` or `.log`, shown as is). It looks and works like cmux's.
 
 - `⌘T` opens a tab right after the one you're on. So does the terminal button at the right end of the bar, or a double-click on its empty part; the two buttons next to it split the pane right and down.
 - `⇧⌘[` / `⇧⌘]` (or `⌃⇧⇥` / `⌃⇥`) switch tabs, `⌃1`–`⌃8` pick one by its place, `⌃9` the last. `⌥⇧⌘[` / `⌥⇧⌘]` move the tab. Workspaces moved to `⌃⌘[` / `⌃⌘]`, as in cmux; `⌘1`–`⌘9` still pick one.

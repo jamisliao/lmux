@@ -1,0 +1,9 @@
+name: plain-text-preview
+created: 2026-11-16
+phase: archive
+verification: { status: passed, critical: 0, date: 2026-11-16 }
+pipeline:
+  proposal: { status: done }
+  gherkin: { status: done, modified: ["beat/features/preview/open-menu.feature"] }
+  design: { status: done }
+  tasks: { status: done }

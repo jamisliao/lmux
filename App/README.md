@@ -2,7 +2,7 @@
 
 One window: a SwiftUI sidebar of workspaces, each workspace a split tree of libghostty
 surfaces (AppKit). SwiftUI is only in the sidebar and titlebar buttons, never in the
-terminal path; `WKWebView` is used only for `.md` / `.html` preview tabs (`PreviewView`, non-persistent data store); a spare WebKit process starts when the open menu pops up (no page, no network) so the tab opens fast.
+terminal path; `WKWebView` is used only for `.md` / `.html` / plain-text preview tabs (`PreviewView`, non-persistent data store); a spare WebKit process starts when the open menu pops up (no page, no network) so the tab opens fast.
 
 **Build from source**: `App/Frameworks/GhosttyKit.xcframework` links into `vendor/ghostty`, which a fresh
 checkout doesn't have. `scripts/bootstrap.sh` clones Ghostty at the commit in `GHOSTTY_COMMIT`, fetches Zig
@@ -21,7 +21,7 @@ App/scripts/apptest.sh           # app harness, headless: workspaces, splits, fo
                                  #   malformed hooks, corrupted layout.json / settings.plist)
 App/scripts/apptest.sh --quick   # main pass only (incl. preview checks); scripts/install-git-hooks.sh (opt-in) runs it
                                  #   + Core swift test before every git push
-App/scripts/apptest.sh --preview # Markdown/HTML preview suite alone (preview-check, WKWebView checks, preview UI)
+App/scripts/apptest.sh --preview # Markdown/HTML/plain-text preview suite alone (preview-check, WKWebView checks, preview UI)
 App/scripts/apptest.sh --screenshots DIR   # + DIR/p1-*.png, DIR/p2-*.png, dark and light (offscreen render)
 App/scripts/apptest.sh --real-window [DIR] # CI ONLY (refuses unless GITHUB_ACTIONS=true): VISIBLE window driven by real
                                  #   CGEvents: window drag, traffic lights, titlebar buttons, divider/sidebar/window
@@ -52,7 +52,7 @@ App/scripts/readme.sh hero       # site hero video (2000 px, H.264 CRF 21 / VP9 
 |---|---|
 | `LmuxTerminal` | libghostty runtime + `SurfaceView` (adapted from Ghostty, MIT) |
 | `LmuxTokens` | design tokens (`design/Tokens.swift` is a symlink to it) |
-| `LmuxUI` | window, sidebar, workspaces/splits, optional-`surface` panes (`Pane.Content`: terminal or Markdown/HTML `PreviewView`), `⌘`-click open menu, agent awareness, persistence, CLI socket, hooks onboarding |
+| `LmuxUI` | window, sidebar, workspaces/splits, optional-`surface` panes (`Pane.Content`: terminal or Markdown/HTML/plain-text `PreviewView`), `⌘`-click open menu, agent awareness, persistence, CLI socket, hooks onboarding |
 | `lmux` | the app (`main.swift` only) |
 | `lmux-cli` | the `lmux` command, bundled as `Contents/Resources/bin/lmux` (on PATH inside panes) |
 | `lmux-apptest`, `lmux-imetest` | headless harnesses |

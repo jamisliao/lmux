@@ -5,6 +5,7 @@
 //     && /tmp/preview-check
 
 import Foundation
+import UniformTypeIdentifiers
 
 @main
 enum PreviewCheck {
@@ -22,7 +23,7 @@ enum PreviewCheck {
         let badCwd = docs.appendingPathComponent("bad\u{202E}dir/sub", isDirectory: true)
         try? FileManager.default.createDirectory(at: badCwd, withIntermediateDirectories: true)
         try? Data("x".utf8).write(to: badCwd.appendingPathComponent("nested.md"))
-        for name in ["design.md", "page.html", "notes.txt", "UPPER.MD", "a\u{202E}b.md", "u\u{2028}v.md", "u\u{2029}w.md", "u\u{3164}z.md"] {
+        for name in ["design.md", "page.html", "notes.txt", "AppIcon.icns", "UPPER.MD", "a\u{202E}b.md", "u\u{2028}v.md", "u\u{2029}w.md", "u\u{3164}z.md"] {
             FileManager.default.createFile(atPath: docs.appendingPathComponent(name).path, contents: Data("x".utf8))
         }
         try? FileManager.default.createSymbolicLink(at: docs.appendingPathComponent("zero.md"),
@@ -54,7 +55,8 @@ enum PreviewCheck {
         expect(PreviewTarget.resolve(URL(fileURLWithPath: design).absoluteString, cwd: nil)?.path == design, "file:// 連結")
 
         // @scenario: 不是存在的可預覽檔案時，照原本流程
-        expect(PreviewTarget.resolve("docs/notes.txt", cwd: rootPath) == nil, "不是可預覽檔案")
+        expect(PreviewTarget.resolve("docs/AppIcon.icns", cwd: rootPath) == nil, "不是可預覽檔案（.icns）")
+        expect(PreviewTarget.resolve("docs/notes.txt", cwd: rootPath) != nil, "純文字檔（.txt）是可預覽檔案")
         expect(PreviewTarget.resolve("docs/missing.md", cwd: rootPath) == nil, "檔案不存在")
         expect(PreviewTarget.resolve("https://example.com/readme.md", cwd: rootPath) == nil, "網址")
         expect(PreviewTarget.resolve("docs/folder.md", cwd: rootPath) == nil, "資料夾不算檔案")
@@ -101,6 +103,60 @@ enum PreviewCheck {
         expect(!PreviewTarget.isMarkdown(docs.appendingPathComponent("page.html")), "isMarkdown .html")
         expect(PreviewTarget.isHTML(docs.appendingPathComponent("page.html")), "isHTML .html")
         expect(!PreviewTarget.isHTML(URL(fileURLWithPath: design)), "isHTML .md")
+
+        // @feature: plain-text-preview.feature
+        // @scenario: ⌘-click 純文字檔的路徑跳出開啟選單
+        // @scenario: macOS 不認為是純文字、或被排除的檔案，照原本流程
+        // 判斷依本機 macOS 的類型登記：失敗訊息附上 UTType，換一台電腦失敗時看得出原因。
+        func uti(_ name: String) -> String { UTType(filenameExtension: (name as NSString).pathExtension)?.identifier ?? "nil" }
+        let text = docs.appendingPathComponent("text")
+        try? FileManager.default.createDirectory(at: text, withIntermediateDirectories: true)
+        let textNames = ["todo.txt", "deploy.sh", "run.command", "app.yaml", "app.yml", "result.json", "run.log", "check.py", "LOUD.TXT"]
+        // .env 與 Makefile 沒有副檔名（pathExtension 是空字串），不查 UTType 就不是純文字檔。
+        let notTextNames = ["intro.rtf", "logo.svg", "app.ts", ".env", "Makefile", "photo.png", "notes.mdown"]
+        for name in textNames + notTextNames {
+            FileManager.default.createFile(atPath: text.appendingPathComponent(name).path, contents: Data("x".utf8))
+        }
+        for name in textNames {
+            expect(PreviewTarget.kind(text.appendingPathComponent(name)) == .text, "\(name) 的種類是純文字檔（UTType：\(uti(name))）")
+        }
+        for name in notTextNames {
+            expect(PreviewTarget.kind(text.appendingPathComponent(name)) == nil, "\(name) 不是可預覽檔案（UTType：\(uti(name))）")
+        }
+        expect(PreviewTarget.kind(URL(fileURLWithPath: design)) == .markdown, "kind：.md 是 Markdown")
+        expect(PreviewTarget.kind(docs.appendingPathComponent("page.html")) == .html, "kind：.html 是 HTML")
+        for u in (textNames + notTextNames).map({ text.appendingPathComponent($0) })
+            + [URL(fileURLWithPath: design), docs.appendingPathComponent("page.html"), docs.appendingPathComponent("UPPER.MD")] {
+            expect(PreviewTarget.isMarkdown(u) == (PreviewTarget.kind(u) == .markdown)
+                   && PreviewTarget.isHTML(u) == (PreviewTarget.kind(u) == .html), "kind 與 isMarkdown／isHTML 一致：\(u.lastPathComponent)")
+        }
+        for name in textNames {
+            let path = text.appendingPathComponent(name).standardizedFileURL.path
+            expect(PreviewTarget.resolve("docs/text/\(name)", cwd: rootPath)?.path == path,
+                   "純文字檔 \(name) 是可預覽檔案（UTType：\(uti(name))）")
+        }
+        for name in notTextNames {
+            expect(PreviewTarget.resolve("docs/text/\(name)", cwd: rootPath) == nil, "\(name) 照原本流程（UTType：\(uti(name))）")
+        }
+        // @scenario: 路徑帶行號時，從檔案開頭顯示
+        expect(PreviewTarget.resolve("docs/text/app.yaml:42", cwd: rootPath)?.path
+               == text.appendingPathComponent("app.yaml").standardizedFileURL.path, "純文字檔帶行號：去掉行號")
+        // symlink 的目標必須是同一種
+        try? FileManager.default.createSymbolicLink(at: text.appendingPathComponent("alias-md.txt"),
+                                                    withDestinationURL: URL(fileURLWithPath: design))
+        expect(PreviewTarget.resolve("docs/text/alias-md.txt", cwd: rootPath) == nil, "指向 .md 的 .txt symlink 不預覽（種類不同）")
+        try? FileManager.default.createSymbolicLink(at: text.appendingPathComponent("alias-sh.txt"),
+                                                    withDestinationURL: text.appendingPathComponent("deploy.sh"))
+        expect(PreviewTarget.resolve("docs/text/alias-sh.txt", cwd: rootPath) != nil, "指向純文字檔的 .txt symlink 可預覽")
+        try? FileManager.default.createSymbolicLink(at: docs.appendingPathComponent("alias-html.md"),
+                                                    withDestinationURL: docs.appendingPathComponent("page.html"))
+        expect(PreviewTarget.resolve("docs/alias-html.md", cwd: rootPath) == nil, "指向 .html 的 .md symlink 不預覽（種類不同，改走原本流程）")
+        expect(PreviewTarget.isText(text.appendingPathComponent("app.yaml")) && !PreviewTarget.isText(URL(fileURLWithPath: design)),
+               "isText：純文字檔是、Markdown 不是")
+        expect(PreviewTarget.usesPreviewScheme(URL(fileURLWithPath: design))
+               && PreviewTarget.usesPreviewScheme(text.appendingPathComponent("app.yaml"))
+               && !PreviewTarget.usesPreviewScheme(docs.appendingPathComponent("page.html")),
+               "Markdown 與純文字檔走 lmux-preview，HTML 不走")
 
         // @feature: preview-tab.feature
         // @scenario: Markdown 顯示成排版後的樣子
@@ -296,6 +352,20 @@ enum PreviewCheck {
         let (large, largeHTML) = headingSeconds(40_000)
         expect(largeHTML.contains("<h1 id=\"h39999\">H39999</h1>") && large < max(small, 0.05) * 6,
                "標題數 4 倍，時間不能超過 6 倍（實測：修好後約 4 倍，修好前約 8.5 倍）：\(small) 秒 → \(large) 秒")
+
+        // @feature: plain-text-preview.feature
+        // @scenario: 純文字檔以等寬字型原樣顯示
+        // @scenario: 很長的一行自動換行
+        let plain = MarkdownHTML.textPage("echo '<b>done</b>' & </code></pre><img src=x onerror=alert(1)>\n# 不是標題\n",
+                                          title: "deploy<1>.sh")
+        expect(plain.contains("<pre class=\"plain\"><code>echo &#39;&lt;b&gt;done&lt;/b&gt;&#39; &amp; &lt;/code&gt;&lt;/pre&gt;&lt;img src=x onerror=alert(1)&gt;\n# 不是標題\n</code></pre>"),
+               "純文字原樣跳脫，跳不出 <pre>：\(plain)")
+        expect(!plain.contains("<b>") && !plain.contains("<h1") && !plain.contains("<img"), "純文字不轉成 HTML 標籤：\(plain)")
+        expect(plain.contains("<title>deploy&lt;1&gt;.sh</title>"), "純文字頁的標題是跳脫後的檔名")
+        expect(plain.contains("Content-Security-Policy") && plain.contains("default-src 'none'") && !plain.contains("img-src"),
+               "純文字頁的 CSP 不允許任何載入（連圖片都不行）")
+        expect(plain.contains("pre.plain{white-space:pre-wrap;overflow-wrap:anywhere"), "純文字頁自動換行")
+        expect(MarkdownHTML.page("# T", title: "t").contains("img-src lmux-preview:"), "Markdown 頁面的 CSP 不變")
 
         print("preview check: ok")
     }

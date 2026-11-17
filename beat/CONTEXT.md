@@ -25,11 +25,15 @@ _Avoid_: 目前的 tab、active tab、選取的 tab
 ### 預覽
 
 **可預覽檔案**:
-副檔名是 `.md`、`.markdown`、`.html` 或 `.htm` 的本機檔案。
+lmux 能在 **預覽 tab** 顯示的本機檔案：Markdown（`.md`、`.markdown`）、HTML（`.html`、`.htm`），或 **純文字檔**。
 _Avoid_: 文件、doc、網頁
 
+**純文字檔**:
+macOS 判斷為純文字的本機檔案，例如 `.txt`、`.sh`、`.yaml`、`.json`、`.log`。不含 Markdown、HTML、RTF、SVG。哪些副檔名算純文字檔由 macOS 的類型判斷決定，lmux 不另外維護清單。
+_Avoid_: 文字檔、txt 檔、原始碼檔、code file
+
 **預覽 tab**:
-顯示一個 **可預覽檔案** 渲染結果的 **tab**。沒有終端機，也沒有 agent 狀態。
+顯示一個 **可預覽檔案** 的 **tab**：Markdown 與 HTML 顯示渲染結果，**純文字檔** 顯示原文。沒有終端機，也沒有 agent 狀態。
 _Avoid_: preview tab、文件 tab、viewer、Quick Look
 
 **開啟選單**:
@@ -108,5 +112,6 @@ _Avoid_: session 名稱、標題、tab 名稱
 - 「tab」：使用者說的 tab 等於 lmux 程式碼的 `Pane`（`App/Sources/LmuxUI/Tabs.swift:7-9`：每個 tab 都是一個 Pane）。規格一律用 **tab**。加入預覽後，`Pane` 不一定有終端機；只講其中一種時用 **終端機 tab** 或 **預覽 tab**。
 - 「預覽」：可能指 macOS 的 Quick Look、Settings 裡的主題預覽，或 lmux 裡的 **預覽 tab**。規格中「預覽」只指 **預覽 tab**。
 - 「點一下路徑」：使用者原話是「用滑鼠點一下」。lmux 沿用 Ghostty 的規則：按住 ⌘ 再點才開連結（`vendor/ghostty/src/config/Config.zig:4089`、`vendor/ghostty/src/Surface.zig:4490`）。不按 ⌘ 的點擊會選取文字，所以規格用 ⌘-click。
+- 「文字檔」：可能指任何文字內容的檔案（含 Markdown、HTML），也可能只指不渲染、直接顯示原文的檔案。規格中後者叫 **純文字檔**；Markdown 與 HTML 雖然 macOS 也判斷為文字，不算純文字檔。系統判斷不是文字的副檔名（例如被認成影片的 `.ts`、沒有對應類型的 `.env`）也不算，即使內容是文字（2026-11-16 本機實測）。
 - 「標題」：可能指 workspace 名稱、終端機標題（OSC 0/2）或 session 標題。規格中 session 標題一律叫 **任務名稱**；workspace 的叫「workspace 名稱」。
 - 「tab 沒顯示進行中」：進行中的轉圈圖示畫在 sidebar 的 workspace 列（`App/Sources/LmuxUI/Sidebar.swift:400`）；tab 列只畫待回應／未讀徽章（`App/Sources/LmuxUI/Tabs.swift:542`）。規格中「顯示進行中」指 workspace 列的轉圈圖示，狀態本身屬於 **tab**。

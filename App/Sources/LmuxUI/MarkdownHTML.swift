@@ -7,9 +7,9 @@ enum MarkdownHTML {
         pattern: #"<blockquote>(<p>)?\[!([A-Za-z]+)\][+-]?[ \t]*([^\n]*?)(?:\n|<br>|(?=</p>))"#,
         options: [])
 
-    private static func shellPage(title: String?, bodyHTML: String) -> String {
+    private static func shellPage(title: String?, bodyHTML: String, csp pageCSP: String = csp) -> String {
         let titleTag = title.map { "<title>\(escape($0))</title>" } ?? ""
-        return "<!doctype html><html><head><meta charset=\"utf-8\">" + csp
+        return "<!doctype html><html><head><meta charset=\"utf-8\">" + pageCSP
             + "<meta name=\"color-scheme\" content=\"light dark\">"
             + titleTag + "<style>\(css)</style></head>"
             + "<body><article>\(bodyHTML)</article></body></html>"
@@ -18,6 +18,12 @@ enum MarkdownHTML {
     /// 整頁：`<head>` 放樣式表，`<body>` 放轉好的 Markdown。
     static func page(_ markdown: String, title: String) -> String {
         shellPage(title: title, bodyHTML: body(markdown))
+    }
+
+    /// 純文字檔的整頁（beat: plain-text-preview.feature）：內容全部跳脫，放進等寬字型、會自動換行的 `<pre>`。
+    /// 用比 Markdown 更嚴的 CSP：純文字頁用不到圖片，連圖片都不載入。
+    static func textPage(_ text: String, title: String) -> String {
+        shellPage(title: title, bodyHTML: "<pre class=\"plain\"><code>\(escape(text))</code></pre>", csp: textCSP)
     }
 
     /// 預覽中的檔案不存在時顯示的頁面。
@@ -39,6 +45,9 @@ enum MarkdownHTML {
     /// 樣式只用頁面自己的。即使 JavaScript 沒被關掉，也多一層保護。
     static let csp = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; "
         + "img-src lmux-preview: https: http: data:; style-src 'unsafe-inline'\">"
+
+    /// 純文字頁的內容安全政策：什麼都不載入，只允許頁面自己的樣式。
+    static let textCSP = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">"
 
     /// 轉好的 Markdown（HTML 片段）。
     static func body(_ markdown: String) -> String {
@@ -392,6 +401,7 @@ enum MarkdownHTML {
     .callout{color:var(--fg);border-left-color:var(--note)}.callout-title{font-weight:600;color:var(--note)}
     .callout-tip{border-left-color:var(--tip)}.callout-tip .callout-title{color:var(--tip)}.callout-important{border-left-color:var(--important)}.callout-important .callout-title{color:var(--important)}
     .callout-warning{border-left-color:var(--warning)}.callout-warning .callout-title{color:var(--warning)}.callout-caution{border-left-color:var(--caution)}.callout-caution .callout-title{color:var(--caution)}
+    pre.plain{white-space:pre-wrap;overflow-wrap:anywhere;overflow:visible}pre.plain code{white-space:inherit}
     table{border-collapse:collapse;margin:0 0 1em}th,td{border:1px solid var(--border);padding:6px 13px}img{max-width:100%}li>p{margin:0}hr{border:0;border-top:1px solid var(--border)}
     """
 }
