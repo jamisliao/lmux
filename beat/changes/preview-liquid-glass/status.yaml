@@ -1,0 +1,9 @@
+name: preview-liquid-glass
+created: 2026-11-17
+phase: verify
+preset: standard
+pipeline:
+  proposal: { status: done }
+  design: { status: done }
+  tasks: { status: done }
+verification: { status: passed, critical: 0, date: 2026-11-17 }
