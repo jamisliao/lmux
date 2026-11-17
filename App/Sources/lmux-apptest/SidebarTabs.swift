@@ -241,6 +241,48 @@ func runSidebarTabs() async -> Int32 {
     r.check("A 與 B 都展開：B 被選取後，B 的 focused tab 那一列才有標示（那一列的畫面變了）",
             whileA != nil && tabChildPixels(c, ws[1], fb) != whileA)
 
+    // ------------------------------------------------------------- 拖曳排序
+    // @feature: sidebar-tab-tree.feature
+    // @scenario: 拖曳已展開的 workspace 時 Tab 子列跟著移動
+    // @scenario: 拖 Tab 子列不會移動 workspace
+    r.section = "tab tree: drag"
+    // 一組的高度不同時（workspace 列 34 + 2 列 Tab 子列各 26 + 間距 4 = 94），位移照高度算。
+    let geo = SidebarDragGeometry(order: ["a", "b", "c"], moving: ["a"],
+                                  frames: ["a": CGRect(x: 0, y: 0, width: 200, height: 94),
+                                           "b": CGRect(x: 0, y: 98, width: 200, height: 34),
+                                           "c": CGRect(x: 0, y: 136, width: 200, height: 34)], gap: 4)
+    let shifts = geo.offsets(grabbed: "a", dropIndex: 2)
+    r.check("位移：展開的 A 拖到最後，B 與 C 各往上移 A 整組的高度加間距", shifts["b"] == -98 && shifts["c"] == -98, "\(shifts)")
+
+    func order() -> String { c.model.workspaces.map(\.title).joined() }
+    ws = await stageTabWorkspaces(c, [("A", 2), ("B", 1), ("C", 1)])
+    let ga = ws[0]
+    c.toggleTabsExpanded(ga)
+    await settle()
+    // design 的未查證第 2 項：sidebar 量每一組的 frame 時，有沒有把 Tab 子列算進去。
+    let L = LmuxTokens.Layout.self
+    let groupHeight = (ga.showsStateLine ? L.workspaceRowHeightDouble : L.workspaceRowHeightSingle)
+        + 2 * (L.tabChildRowHeight + L.rowGap)
+    let measured = host.rootView.rowFrames.frames[ga.id]?.height ?? 0
+    r.check("sidebar 量到的 A 那一組的高度包含 2 列 Tab 子列（拖曳的位移用這個高度算）",
+            abs(measured - groupHeight) < 1, "\(measured) vs \(groupHeight)")
+    // 「往下」在 host 座標裡是哪個方向：第 1 列到第 2 列的方向。
+    let step = rowPoint(c, 1).y - rowPoint(c, 0).y
+    let below = NSPoint(x: rowPoint(c, 2).x, y: rowPoint(c, 2).y + (step > 0 ? 400 : -400))
+    await dragRow(host, from: tabChildPoint(c, ga, 0), to: below)
+    await sleepMs(400)
+    r.check("拖 A 的 Tab 子列：順序不變", order() == "ABC" && c.model.sidebarDrag == nil, order())
+    await dragRow(host, from: rowPoint(c, 0), to: below)
+    _ = await waitFor(2) { order() != "ABC" }
+    r.check("拖 A 的 workspace 列到 C 的下方：順序變成 B、C、A", order() == "BCA", order())
+    r.check("…A 仍然展開，有 2 列 Tab 子列", ga.showsTabChildren && ga.tabItems(selected: true).count == 2)
+    host.layoutSubtreeIfNeeded()
+    await sleepMs(300)
+    let last = ga.panes.first { $0 !== ga.focusedPane }!
+    await click(host, at: tabChildPoint(c, ga, ga.panes.firstIndex { $0 === last }!))
+    _ = await waitFor(2) { ga.focusedPane === last }
+    r.check("…Tab 子列跟著 A 到新位置，還點得到", ga.focusedPane === last)
+
     // ------------------------------------------------------------- 存檔（這一段留在最後）
     // @feature: sidebar-tab-tree.feature
     // @scenario: 重開 lmux 後維持展開狀態
