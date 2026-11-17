@@ -40,8 +40,8 @@ public struct AgentTransition: Sendable, Equatable {
 ///
 /// Rules:
 /// - UserPromptSubmit -> running (new episode).
-/// - Stop (main agent) -> done + alert. SubagentStop never ends the turn.
-///   Unless its `background_tasks` still has a running subagent: stay running, no alert.
+/// - Stop (main agent) -> done + alert, unless background subagents still run (below). SubagentStop
+///   never ends the turn.
 /// - StopFailure -> done + failed alert.
 /// - Events from a subagent (agent_id set) never mark the turn done, and their tool
 ///   events never change state. The one exception is a permission/elicitation dialog,
@@ -59,6 +59,12 @@ public struct AgentTransition: Sendable, Equatable {
 /// - Subagents (SubagentStart/Stop by agent_id) are counted while the turn runs, at most
 ///   `subagentCap`; the main turn ending (Stop, StopFailure, Esc), a new prompt or a new
 ///   session clears them, so a missed SubagentStop never outlives its turn.
+/// - A main Stop whose `background_tasks` lists subagents pauses the turn instead: the pane stays
+///   running with no alert, and the count becomes that list (it corrects missed SubagentStops).
+///   The next prompt (usually one of them reporting back) keeps the count and ends the pause;
+///   `idle_prompt` ends it as done (Claude Code sends it only once no background agent runs).
+///   A dialog still up then is a background subagent's: Stop leaves it, and answering it runs on.
+///   Esc / Ctrl+C at its prompt then stops none of them: the pane stays running.
 /// - A usage limit (StopFailure `rate_limit` whose message says when it resets) doesn't end the
 ///   turn: Claude Code can continue on its own once the limit resets. The pane stays running,
 ///   `usageLimitResets` says when, and no alert is raised. Claude's Notification
@@ -68,6 +74,9 @@ public struct AgentTransition: Sendable, Equatable {
 public struct PaneAgent: Sendable, Equatable {
     public private(set) var state: AgentState = .idle
     public private(set) var activeSubagents: Set<String> = []
+    /// The main agent is paused for background subagents: its last Stop listed some, and no prompt
+    /// (usually one of them reporting back) has come since.
+    public private(set) var awaitingBackgroundSubagents = false
     /// Waiting for a usage limit: when it resets as Claude Code wrote it ("3pm", "Nov 5, 3pm"), else nil.
     public private(set) var usageLimitResets: String?
     /// The time zone Claude Code named with it ("Asia/Seoul"), if any.
@@ -138,7 +147,9 @@ public struct PaneAgent: Sendable, Equatable {
         case .userPromptSubmit:
             state = .running
             blockingAgent = nil
-            activeSubagents.removeAll()
+            // Paused for background subagents, this is usually one of them reporting back: keep the rest.
+            if !awaitingBackgroundSubagents { activeSubagents.removeAll() }
+            awaitingBackgroundSubagents = false
         case .preToolUse:
             if !e.isSubagent, e.toolName == "AskUserQuestion" {
                 needInput(.question, nil)
@@ -174,6 +185,8 @@ public struct PaneAgent: Sendable, Equatable {
                 // turn waits for a usage limit: Claude sits at its prompt then on purpose).
                 if state == .running, !e.isSubagent, usageLimitResets == nil {
                     state = .done
+                    // Claude Code sends it only once no background agent runs: a pause is over too.
+                    awaitingBackgroundSubagents = false
                     alert = .done(lastMessage: nil)
                 }
             case "quota_auto_resume_fired":
@@ -198,14 +211,18 @@ public struct PaneAgent: Sendable, Equatable {
             if let id = e.agentID { activeSubagents.remove(id) }
         case .stop:
             guard !e.isSubagent else { break }
-            blockingAgent = nil
-            // 背景子 agent 還在跑：主回合雖然結束，工作還沒完。維持進行中，不發 alert，也不清掉子 agent 計數；
-            // 它們結束後 Claude 會再起一個回合（UserPromptSubmit），最後一個 Stop 才是完成。
-            if e.runningBackgroundSubagents > 0 {
+            if let ids = e.backgroundSubagentIDs, !ids.isEmpty {
+                // Paused, not finished: the background subagents wake it again. Claude Code's list wins.
+                activeSubagents = Set(ids.prefix(Self.subagentCap))
+                awaitingBackgroundSubagents = true
+                if case .needsInput = state { break }  // a background subagent's dialog is still up
+                blockingAgent = nil
                 state = .running
                 break
             }
+            awaitingBackgroundSubagents = false
             activeSubagents.removeAll()
+            blockingAgent = nil
             if state != .done {
                 state = .done
                 alert = .done(lastMessage: e.lastAssistantMessage)
@@ -213,6 +230,7 @@ public struct PaneAgent: Sendable, Equatable {
         case .stopFailure:
             guard !e.isSubagent else { break }
             activeSubagents.removeAll()
+            awaitingBackgroundSubagents = false
             blockingAgent = nil
             if let resets = Self.usageLimitResetTime(error: e.errorType, message: e.lastAssistantMessage) {
                 usageLimitResets = resets
@@ -228,6 +246,7 @@ public struct PaneAgent: Sendable, Equatable {
             state = .idle
             blockingAgent = nil
             activeSubagents.removeAll()
+            awaitingBackgroundSubagents = false
         case .preCompact:
             // `/compact`（或閒置時的自動壓縮）：壓縮完之前是 running。回合中的自動壓縮本來就是 running。
             if !e.isSubagent, state == .idle || state == .done {
@@ -299,7 +318,8 @@ public struct PaneAgent: Sendable, Equatable {
     public mutating func userTyped() -> AgentTransition {
         let from = state
         if case .needsInput = state {
-            state = .idle
+            // Paused, the main agent asks nothing: the dialog was a background subagent's, which runs on.
+            state = awaitingBackgroundSubagents ? .running : .idle
             blockingAgent = nil
         }
         return AgentTransition(from: from, to: state, alert: nil, notify: nil)
@@ -311,6 +331,8 @@ public struct PaneAgent: Sendable, Equatable {
     public mutating func userInterrupted() -> AgentTransition {
         let from = state
         stateBeforeCompaction = nil
+        // Paused, Claude sits at its prompt: the key stops none of the background subagents.
+        if awaitingBackgroundSubagents { return AgentTransition(from: from, to: state, alert: nil, notify: nil) }
         switch state {
         case .running, .needsInput:
             state = .idle
@@ -347,6 +369,7 @@ public struct PaneAgent: Sendable, Equatable {
         blockingAgent = nil
         stateBeforeCompaction = nil
         activeSubagents.removeAll()
+        awaitingBackgroundSubagents = false
         clearUsageLimit()
     }
 

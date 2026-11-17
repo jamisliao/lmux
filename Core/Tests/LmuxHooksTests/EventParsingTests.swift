@@ -46,10 +46,10 @@ func event(_ payload: String, pane: String = "pane-1") throws -> HookEvent {
     // @feature: subagent-running-state.feature
     // @scenario: 還在跑的只有背景 shell 時，主回合結束就是完成
     @Test func countsOnlyRunningBackgroundSubagents() throws {
-        #expect(try event(Payloads.stopBgSubagent).runningBackgroundSubagents == 1)
-        #expect(try event(Payloads.stopBgShell).runningBackgroundSubagents == 0)
-        #expect(try event(Payloads.stopBgSubagentDone).runningBackgroundSubagents == 0)
-        #expect(try event(Payloads.stop).runningBackgroundSubagents == 0)  // 沒有 background_tasks 欄位
+        #expect(try event(Payloads.stopBgSubagent).backgroundSubagentIDs == ["agent-7"])
+        #expect(try event(Payloads.stopBgShell).backgroundSubagentIDs == [])
+        #expect(try event(Payloads.stopBgSubagentDone).backgroundSubagentIDs == [])
+        #expect(try event(Payloads.stop).backgroundSubagentIDs == nil)  // 沒有 background_tasks 欄位
     }
 
     @Test func parsesCommonFields() throws {
