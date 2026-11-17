@@ -15,6 +15,7 @@
 //   lmux-apptest --cmux-real D   dry-run the cmux import on a COPY of real cmux files (LMUX_CMUX_HOME), PNGs into D
 //   lmux-apptest --bell          the bell's notification list (rows, read state, keys, cap)
 //   lmux-apptest --sidebar       row × on hover, ⌘/⇧-click multi-selection, closing (idle shells, busy panes)
+//   lmux-apptest --sidebar-tabs  sidebar 展開 workspace 的 tab（接著跑 --sidebar-tabs-restore）
 //   lmux-apptest --zoom-clear-reorder  split zoom, Clear Status, sidebar drag-to-reorder
 //   lmux-apptest --pane-tabs     tabs in a pane (keys, strip, status, splits, CLI, layout); --pane-tabs-restore: the relaunch
 //   lmux-apptest --new-workspace-dir   where ⌘N / splits start (Ghostty's working-directory keys);
@@ -134,6 +135,10 @@ final class Delegate: NSObject, NSApplicationDelegate {
                 code = await runBell()
             } else if let i = args.firstIndex(of: "--bell-shots"), i + 1 < args.count {
                 code = await runBellShots(URL(fileURLWithPath: args[i + 1]))
+            } else if args.contains("--sidebar-tabs-restore") {
+                code = await runSidebarTabsRestore()
+            } else if args.contains("--sidebar-tabs") {
+                code = await runSidebarTabs()
             } else if args.contains("--sidebar") {
                 code = await runSidebar()
             } else if args.contains("--new-workspace-dir-restore") {

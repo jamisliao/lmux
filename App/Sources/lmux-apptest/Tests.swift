@@ -55,7 +55,11 @@ func rowPoint(_ c: LmuxController, _ i: Int) -> NSPoint {
         ws.showsStateLine ? LmuxTokens.Layout.workspaceRowHeightDouble : LmuxTokens.Layout.workspaceRowHeightSingle
     }
     let ws = c.model.workspaces
-    let above = ws.prefix(i).reduce(CGFloat(0)) { $0 + h($1) + LmuxTokens.Layout.rowGap }
+    // 已展開的 workspace，下面還有它的 Tab 子列（beat: sidebar-tab-tree.feature）。
+    func kids(_ ws: Workspace) -> CGFloat {
+        ws.showsTabChildren ? CGFloat(ws.panes.count) * (LmuxTokens.Layout.tabChildRowHeight + LmuxTokens.Layout.rowGap) : 0
+    }
+    let above = ws.prefix(i).reduce(CGFloat(0)) { $0 + h($1) + kids($1) + LmuxTokens.Layout.rowGap }
     let y = LmuxTokens.Spacing.s + above + (i < ws.count ? h(ws[i]) : LmuxTokens.Layout.workspaceRowHeightSingle) / 2
     return NSPoint(x: 100, y: host.isFlipped ? y : host.bounds.height - y)
 }

@@ -33,11 +33,14 @@ public struct LayoutFile: Codable, Equatable {
         public var focusedPane: String?
         /// The split-zoomed pane (⇧⌘↩), if any; absent in layouts older lmux wrote.
         public var zoomedPane: String?
+        /// sidebar 展開了這個 workspace 的 Tab 子列（beat: sidebar-tab-tree.feature）。收合時不存；舊檔沒有這個欄位。
+        public var tabsExpanded: Bool?
         public var root: NodeState
 
-        public init(id: String, customTitle: String?, accent: Int, focusedPane: String?, zoomedPane: String? = nil, root: NodeState) {
+        public init(id: String, customTitle: String?, accent: Int, focusedPane: String?, zoomedPane: String? = nil,
+                    tabsExpanded: Bool? = nil, root: NodeState) {
             self.id = id; self.customTitle = customTitle; self.accent = accent; self.focusedPane = focusedPane
-            self.zoomedPane = zoomedPane; self.root = root
+            self.zoomedPane = zoomedPane; self.tabsExpanded = tabsExpanded; self.root = root
         }
 
         public init(from decoder: Decoder) throws {
@@ -47,6 +50,7 @@ public struct LayoutFile: Codable, Equatable {
             accent = try c.decodeIfPresent(Int.self, forKey: .accent) ?? 0
             focusedPane = try c.decodeIfPresent(String.self, forKey: .focusedPane)
             zoomedPane = try c.decodeIfPresent(String.self, forKey: .zoomedPane)
+            tabsExpanded = try c.decodeIfPresent(Bool.self, forKey: .tabsExpanded)
             root = try c.decode(NodeState.self, forKey: .root)
         }
     }
@@ -160,7 +164,8 @@ extension LmuxController {
             }
             let zoomed = ws.zoomedPane?.surface != nil ? ws.zoomedPane?.id : nil
             return .init(id: ws.id, customTitle: ws.customTitle, accent: ws.accent,
-                         focusedPane: focused, zoomedPane: zoomed, root: root)
+                         focusedPane: focused, zoomedPane: zoomed,
+                         tabsExpanded: ws.tabsExpanded ? true : nil, root: root)
         }
         f.selected = f.workspaces.contains { $0.id == model.selectedID } ? model.selectedID : f.workspaces.first?.id
         f.sidebarVisible = model.sidebarVisible
@@ -254,6 +259,7 @@ extension LmuxController {
             guard Self.isWellFormed(w.root), let root = buildNode(w.root) else { dropped = true; continue }
             let ws = Workspace(id: w.id, accent: w.accent, root: root)
             ws.customTitle = w.customTitle
+            ws.tabsExpanded = w.tabsExpanded ?? false
             if let f = w.focusedPane, let p = ws.panes.first(where: { $0.id == f }) { ws.focusedPane = p }
             // Zoomed as the user left it, on the zoomed pane (focused, as zooming it needed); a pane
             // that is gone, or a split that no longer is one, restores unzoomed.
