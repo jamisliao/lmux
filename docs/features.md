@@ -24,7 +24,7 @@ Changed your mind? **Undo Import** (in the sheet, and as **lmux → Undo cmux Im
 
 ## Workspaces and splits
 
-- Workspaces in the sidebar with branch and directory. Hover a row and `×` closes it; `⌘`-click or `⇧`-click picks several.
+- Workspaces in the sidebar with branch and directory. Hover a row and `×` closes it; `⌘`-click or `⇧`-click picks several. A workspace with two or more tabs has a disclosure arrow: expand it to list its tabs with each one's own status, click a tab to jump to it.
 - Press-and-drag a row to reorder it (a small threshold keeps clicks, multi-select and rename working); dragging a row that's part of a selection moves the whole selection, in order. Esc cancels. The order is saved and `⌘1`–`⌘8` follow it.
 - Splits in any direction, `⌘[` / `⌘]` to move between panes.
 - A new workspace (`⌘N`, `+`, the menu) starts in your home folder, or in Ghostty's `working-directory` if you set it (a path, `~/…`, or `home`). To start it in the focused pane's folder instead, set `working-directory = inherit` or `window-inherit-working-directory = true` in your Ghostty config. Ghostty itself inherits by default; lmux doesn't unless you say so. A split starts in its pane's folder, unless you set `split-inherit-working-directory = false`. A relaunch brings every pane back in its own folder either way.
