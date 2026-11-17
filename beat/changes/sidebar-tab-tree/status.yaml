@@ -1,9 +1,9 @@
 name: sidebar-tab-tree
 created: 2026-11-17
 phase: design
-verification: { status: pending }
+preset: full
 pipeline:
   proposal: { status: done }
-  gherkin: { status: done, created: ["beat/changes/sidebar-tab-tree/features/sidebar-tab-tree.feature"] }
+  gherkin: { status: done }
   design: { status: done }
   tasks: { status: pending }

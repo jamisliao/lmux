@@ -30,6 +30,13 @@ _Avoid_: disclosure triangle、折疊鈕、下拉箭頭
 sidebar 展開 workspace 後，縮排顯示在該 workspace 下方的個別 **tab** 項目列。
 _Avoid_: tab row、子項目、分頁列
 
+**tab 列**:
+終端機區域上方橫向排列同一格裡各個 **tab** 的那一列。
+_Avoid_: tab bar、tab strip、分頁列、水平分頁列
+
+**釘選的 tab**:
+固定在 **tab 列** 最前面、不能用關閉按鈕或 ⌘W 關閉的 **tab**。
+_Avoid_: pinned tab、固定分頁
 
 ### 預覽
 
@@ -58,6 +65,10 @@ _Avoid_: running、working、busy、執行中
 **完成**:
 tab 的 agent 回合已結束、結果等使用者看的狀態（sidebar 顯示 ✓）。
 _Avoid_: done、結束
+
+**等待回應**:
+tab 裡的 agent 停下來等使用者回答或核准的狀態。
+_Avoid_: 待回應、待輸入、needs input、等待確認
 
 **閒置**:
 tab 沒有回合在跑、也沒有待看結果的狀態。
@@ -104,6 +115,7 @@ _Avoid_: session 名稱、標題、tab 名稱
 ## Relationships
 
 - 一個 **workspace** 有一個或多個 **tab**；同一時間最多一個 **focused tab**。
+- 有 2 個以上 **tab** 的 **workspace** 才有 **展開箭頭**；展開後每個 **tab** 對應一列 **Tab 子列**。
 - 一則通知來自零個或一個 **終端機 tab**（從 tab 外面用 `lmux notify` 送的通知沒有 tab）。**預覽 tab** 不送通知。
 - 一個 **終端機 tab** 有零個或一個 **任務名稱**（不是 Claude、或 Claude 還沒取標題時沒有）。**預覽 tab** 沒有 Claude agent 的任務名稱，但使用者仍可透過雙擊標題或右鍵選單在 lmux 手動重新命名其 tab 標題。
 - 一則通知在 **通知 bar** 裡對應一張 **通知卡片**。
@@ -123,4 +135,4 @@ _Avoid_: session 名稱、標題、tab 名稱
 - 「點一下路徑」：使用者原話是「用滑鼠點一下」。lmux 沿用 Ghostty 的規則：按住 ⌘ 再點才開連結（`vendor/ghostty/src/config/Config.zig:4089`、`vendor/ghostty/src/Surface.zig:4490`）。不按 ⌘ 的點擊會選取文字，所以規格用 ⌘-click。
 - 「文字檔」：可能指任何文字內容的檔案（含 Markdown、HTML），也可能只指不渲染、直接顯示原文的檔案。規格中後者叫 **純文字檔**；Markdown 與 HTML 雖然 macOS 也判斷為文字，不算純文字檔。系統判斷不是文字的副檔名（例如被認成影片的 `.ts`、沒有對應類型的 `.env`）也不算，即使內容是文字（2026-11-16 本機實測）。
 - 「標題」：可能指 workspace 名稱、終端機標題（OSC 0/2）或 session 標題。規格中 session 標題一律叫 **任務名稱**；workspace 的叫「workspace 名稱」。
-- 「tab 沒顯示進行中」：進行中的轉圈圖示畫在 sidebar 的 workspace 列（`App/Sources/LmuxUI/Sidebar.swift:400`）；tab 列只畫待回應／未讀徽章（`App/Sources/LmuxUI/Tabs.swift:542`）。規格中「顯示進行中」指 workspace 列的轉圈圖示，狀態本身屬於 **tab**。
+- 「tab 沒顯示進行中」：進行中的轉圈圖示畫在 sidebar 的 workspace 列（`App/Sources/LmuxUI/Sidebar.swift:400`）；**tab 列** 只畫等待回應／未讀徽章（`App/Sources/LmuxUI/Tabs.swift:542`）。規格中「顯示進行中」沒寫位置時指 workspace 列的轉圈圖示；指 **Tab 子列** 時要寫明「Tab 子列顯示進行中」。狀態本身屬於 **tab**。
