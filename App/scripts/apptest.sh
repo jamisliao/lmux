@@ -136,7 +136,7 @@ if [ "${1:-}" = "--preview" ]; then
   run_preview_suite
   exit $status
 fi
-LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
+LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"
 LMUX_STATE_DIR="$T/titlebar" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --titlebar 2>/dev/null | filter || status=1
@@ -149,7 +149,7 @@ LMUX_STATE_DIR="$T/zoomclear" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest"
 # Tabs inside a pane (keys, strip, status across tabs, splits, CLI, layout.json), then the relaunch.
 mkdir -p "$T/tabs"
 for phase in --pane-tabs --pane-tabs-restore; do
-  LMUX_STATE_DIR="$T/tabs" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" $phase 2>/dev/null | filter || status=1
+  LMUX_STATE_DIR="$T/tabs" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" $phase 2>/dev/null | filter || status=1
 done
 # Where a new workspace / split starts (Ghostty's working-directory keys, written to a temp lmux config;
 # never the user's Ghostty config), then a relaunch: saved panes keep their directories.
@@ -167,7 +167,7 @@ for phase in --new-workspace-dir --new-workspace-dir-restore; do
 done
 # Settings (themes, font, toggles; lmux's config is $LMUX_CONFIG_FILE) and the cmux import from fixtures.
 mkdir -p "$T/settings"
-LMUX_STATE_DIR="$T/settings" LMUX_CONFIG_FILE="$T/settings/lmux-config" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --settings 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/settings" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/settings/lmux-config" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --settings 2>/dev/null | filter || status=1
 # Unattended rows: the breathing reminder (fake clock) and its idle cost.
 mkdir -p "$T/attention"
 LMUX_STATE_DIR="$T/attention" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --attention 2>/dev/null | filter || status=1
