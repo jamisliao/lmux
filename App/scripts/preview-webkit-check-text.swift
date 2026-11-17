@@ -1,7 +1,7 @@
 import AppKit
 import WebKit
 
-// 純文字檔的預覽（beat/changes/plain-text-preview）在真的 WKWebView 裡的檢查。
+// 純文字檔的預覽（beat/changes/archive/2026-11-17-plain-text-preview）在真的 WKWebView 裡的檢查。
 // 由 preview-webkit-check.swift 的 main 呼叫；固定資料夾在 makeFixtures 建的 root 底下的 text/。
 extension PreviewWebKitCheck {
     // @feature: plain-text-preview.feature

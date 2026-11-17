@@ -5,7 +5,7 @@ import LmuxTerminal
 import UniformTypeIdentifiers
 import WebKit
 
-/// 純文字檔的預覽（beat/changes/plain-text-preview）：⌘-click 跳出開啟選單、開出預覽 tab、外觀、自動更新、
+/// 純文字檔的預覽（beat/changes/archive/2026-11-17-plain-text-preview）：⌘-click 跳出開啟選單、開出預覽 tab、外觀、自動更新、
 /// 頁內連結、`.sh`／`.command` 選「用預設 app 開」仍被擋。選單由 `openMenuTestHook` 回答，提示由 `UntrustedURLAlert.testHook` 回答。
 @MainActor
 func runPreviewTextChecks(_ r: Report, _ c: LmuxController, _ fx: PreviewFixtures, external: PreviewExternalSpy) async {

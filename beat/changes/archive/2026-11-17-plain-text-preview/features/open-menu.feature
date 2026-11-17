@@ -1,12 +1,12 @@
 # language: zh-TW
 功能: ⌘-click 可預覽檔案的路徑時選擇開在哪裡
 
-  終端機輸出裡的 .md 與 .html 路徑，⌘-click 後跳出開啟選單。使用者可以開成預覽 tab、
+  終端機輸出裡的可預覽檔案路徑（Markdown、HTML、純文字檔），⌘-click 後跳出開啟選單。使用者可以開成預覽 tab、
   交給系統預設 app、在 Finder 顯示，或複製路徑。其他路徑與網址照原本流程。
 
   身為 整天看 Claude 產出文件的使用者
-  我想要 ⌘-click 終端機裡的 .md／.html 路徑時，選擇要開在哪裡
-  以便 不離開 lmux 就能看渲染後的文件，需要時仍能用其他 app 開
+  我想要 ⌘-click 終端機裡的文件、腳本、設定檔路徑時，選擇要開在哪裡
+  以便 不離開 lmux 就能看渲染後的文件或檔案原文，需要時仍能用其他 app 開
 
   流程:
     1. 使用者按住 ⌘ 點終端機裡的路徑文字或 OSC 8 連結
@@ -73,7 +73,8 @@
 
     例子:
       | 輸出                          | 情況                     |
-      | App/Sources/LmuxUI/Tabs.swift | 這個檔案存在，但不是可預覽檔案 |
+      | assets/AppIcon.icns           | 這個檔案存在，但不是可預覽檔案 |
+      | assets/icon.svg               | 這個檔案是 SVG，不是可預覽檔案 |
       | docs/missing.md               | 這個檔案不存在           |
       | https://example.com/readme.md | 這是網址，不是本機檔案   |
 
