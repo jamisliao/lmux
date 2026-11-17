@@ -24,6 +24,17 @@ extension LmuxController {
         if model.isMultiSelection { setSelection([], anchor: ws.id) }
         focus(pane)
     }
+
+    /// 點 Tab 子列的關閉按鈕。規則與 tab 列相同（`requestClosePane`）：閒置的 shell 直接關；
+    /// 還有程式在跑就先詢問。詢問的卡片顯示在那個 tab 上，所以先切過去（它可能在沒選取的
+    /// workspace，或被同一格的其他 tab 蓋住），使用者才看得到。
+    public func closeTabFromSidebar(_ pane: Pane) {
+        // 釘選的 tab 不能關。Tab 子列本來就不畫它的關閉按鈕；這裡再擋一次，
+        // 因為 requestClosePane 只在那一格有 tab 列時才擋。
+        if pane.pinned { NSSound.beep(); return }
+        if runningProcess(pane) != nil { focus(pane) }
+        requestClosePane(pane)
+    }
 }
 
 /// 一列 Tab 子列要顯示的內容。view 只畫這個；測試直接檢查它。
@@ -77,7 +88,9 @@ struct SidebarTabChildren: View {
             VStack(spacing: T.Layout.rowGap) {
                 ForEach(ws.tabItems(selected: selected)) { item in
                     if let pane = ws.panes.first(where: { $0.id == item.id }) {
-                        SidebarTabChildRow(item: item, pane: pane, hover: false, controller: controller)
+                        SidebarTabChildRow(item: item, pane: pane,
+                                           hover: hoverEnabled && controller.model.hoveredTabRowID == item.id,
+                                           controller: controller)
                     }
                 }
             }
@@ -109,6 +122,7 @@ struct SidebarTabChildRow: View {
                 StateIndicator(display: item.display, unread: item.unread,
                                pulse: controller.model.pulseMotion, reduceMotion: controller.model.reduceMotion,
                                waiting: item.waiting)
+                    .opacity(hover && item.closable ? 0 : 1)
             }
         }
         .padding(.leading, T.Layout.rowPaddingX + T.Layout.tabChildIndent)
@@ -118,6 +132,19 @@ struct SidebarTabChildRow: View {
         .padding(.horizontal, T.Layout.rowInsetX)
         .contentShape(Rectangle())
         .onTapGesture { controller.clickTabRow(pane) }
+        // 在列的點擊手勢之外：點關閉按鈕不會先切換到這個 tab。釘選的 tab 沒有關閉按鈕。
+        .overlay(alignment: .trailing) {
+            if hover && item.closable {
+                RowCloseButton(label: "Close \(item.title)", help: "Close Tab") {
+                    controller.closeTabFromSidebar(pane)
+                }
+                .padding(.trailing, WorkspaceRow.closeTrailing)
+            }
+        }
+        .onHover { inside in
+            if inside { controller.model.hoveredTabRowID = item.id }
+            else if controller.model.hoveredTabRowID == item.id { controller.model.hoveredTabRowID = nil }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(item.title)
         .accessibilityAddTraits(item.focused ? [.isSelected, .isButton] : [.isButton])

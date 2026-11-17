@@ -401,6 +401,64 @@ func runSidebarTabs() async -> Int32 {
         ws[3].tabsExpanded = false
     }
 
+    // ------------------------------------------------------------- 從 Tab 子列關閉
+    // @feature: sidebar-tab-tree.feature
+    // @scenario: 從 Tab 子列關閉 tab
+    // @scenario: 釘選的 tab 的 Tab 子列沒有關閉按鈕
+    // @scenario: 關閉還有程式在跑的終端機 tab 會先詢問
+    r.section = "tab tree: close"
+    /// 把滑鼠放到 `p` 的 Tab 子列上，點關閉按鈕的位置（列的最右邊那一格）。
+    func clickTabClose(_ w: Workspace, _ p: Pane) async {
+        c.model.hoveredTabRowID = p.id
+        host.layoutSubtreeIfNeeded()
+        await sleepMs(150)
+        let k = w.panes.firstIndex { $0 === p } ?? 0
+        let x = host.bounds.width - WorkspaceRow.closeTrailing - LmuxTokens.Layout.rowCloseButtonSize / 2
+        await click(host, at: NSPoint(x: x, y: tabChildPoint(c, w, k).y))
+        c.model.hoveredTabRowID = nil
+        await sleepMs(150)
+    }
+    ws = await stageTabWorkspaces(c, [("A", 3)])
+    let ca = ws[0]
+    c.toggleTabsExpanded(ca)
+    host.layoutSubtreeIfNeeded()
+    await sleepMs(300)
+    let victim = ca.panes.first { $0 !== ca.focusedPane }!
+    await clickTabClose(ca, victim)
+    _ = await waitFor(3) { ca.panes.count == 2 }
+    r.check("點閒置 tab 的關閉按鈕：這個 tab 關閉", ca.panes.count == 2 && !ca.panes.contains { $0 === victim })
+    r.check("…下方剩 2 列 Tab 子列", ca.showsTabChildren && ca.tabItems(selected: true).count == 2)
+
+    let pinned = ca.panes.first { $0 !== ca.focusedPane }!
+    c.togglePin(pinned)
+    r.check("釘選的 tab：Tab 子列沒有關閉按鈕", ca.tabItems(selected: true).first { $0.id == pinned.id }?.closable == false)
+    await clickTabClose(ca, pinned)
+    await sleepMs(300)
+    r.check("…點那個位置不會關閉它", ca.panes.count == 2 && ca.panes.contains { $0 === pinned })
+    r.check("…那一下點到的是列本身（沒有按鈕接走）：它成為 focused tab", ca.focusedPane === pinned)
+
+    let busyScript = paths.stateDir.appendingPathComponent("busy.sh")
+    try? "#!/bin/sh\nexec /bin/sleep 600\n".write(to: busyScript, atomically: true, encoding: .utf8)
+    chmod(busyScript.path, 0o755)
+    ws = await stageTabWorkspaces(c, [("A", 1), ("B", 1)])
+    let cb = ws[1]
+    let busy = c.newTab(cb.panes[0], program: busyScript.path, select: false)!
+    _ = await waitFor(10) { busy.surface!.foregroundPID > 0 && c.runningProcess(busy) == "sleep" }
+    c.toggleTabsExpanded(cb)
+    host.layoutSubtreeIfNeeded()
+    await sleepMs(300)
+    r.check("佈置：A 是選取中的 workspace，B 的 T 還有程式在跑、被蓋住",
+            c.model.selected === ws[0] && c.runningProcess(busy) == "sleep" && cb.root.find(busy)?.shownTab !== busy)
+    await clickTabClose(cb, busy)
+    _ = await waitFor(3) { c.cardShown(busy) }
+    r.check("點 T 的關閉按鈕：B 成為選取中的 workspace，T 成為 focused tab", c.model.selected === cb && cb.focusedPane === busy)
+    r.check("…T 上出現是否關閉的詢問", c.cardShown(busy))
+    r.check("…T 還沒關閉", cb.panes.contains { $0 === busy } && cb.panes.count == 2)
+    busy.view.overlay.card?.confirm.performClick()
+    _ = await waitFor(3) { cb.panes.count == 1 }
+    r.check("確認之後：T 關閉，B 剩 1 個 tab，展開箭頭與 Tab 子列消失",
+            cb.panes.count == 1 && !cb.showsTabDisclosure && !cb.showsTabChildren)
+
     // ------------------------------------------------------------- 存檔（這一段留在最後）
     // @feature: sidebar-tab-tree.feature
     // @scenario: 重開 lmux 後維持展開狀態

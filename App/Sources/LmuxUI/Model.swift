@@ -763,6 +763,8 @@ public final class AppModel {
     public var selectionAnchorID: String?
     /// The sidebar row under the pointer (shows the ×).
     public var hoveredRowID: String?
+    /// 滑鼠所在的 Tab 子列（那個 tab 的 id）：這一列顯示關閉按鈕（beat: sidebar-tab-tree.feature）。
+    public var hoveredTabRowID: String?
     /// A sidebar row drag-to-reorder in progress (press-and-drag past a small threshold).
     public struct SidebarDrag: Equatable {
         /// Workspace ids moving (the dragged row, or the selection it's part of), in sidebar order.
