@@ -119,7 +119,7 @@ _Avoid_: session 名稱、標題、tab 名稱
 _Avoid_: 正式介面、mockup 網頁、preview 頁面
 
 **右側 Inspector**:
-**UI 原型** 視窗右側可收合與調寬的輔助面板，提供「即時預覽」、「變更」與「執行記錄」三個分頁。
+**UI 原型** 視窗右側可收合與調寬的輔助面板，提供「即時預覽」、「變更 (Diff)」與「執行記錄」三個分頁。
 _Avoid_: 右側欄、預覽面板、預覽 tab
 
 **視窗底部狀態列**:
@@ -133,7 +133,7 @@ _Avoid_: 底部 bar（這是指左側 **通知 bar**）、footer、狀態 bar
 - 一則通知來自零個或一個 **終端機 tab**（從 tab 外面用 `lmux notify` 送的通知沒有 tab）。**預覽 tab** 不送通知。
 - 一個 **終端機 tab** 有零個或一個 **任務名稱**（不是 Claude、或 Claude 還沒取標題時沒有）。**預覽 tab** 沒有 Claude agent 的任務名稱，但使用者仍可透過雙擊標題或右鍵選單在 lmux 手動重新命名其 tab 標題。
 - 一則通知在 **通知 bar** 裡對應一張 **通知卡片**。
-- 一份 **UI 原型** 包含標題列、左側 **workspace** 清單與 **通知 bar**、中央分割區、**右側 Inspector** 與 **視窗底部狀態列**。
+- 一份 **UI 原型** 包含標題列、左側 sidebar（裝 **workspace** 清單與 **通知 bar**）、中央分割區、**右側 Inspector** 與 **視窗底部狀態列**。
 - 一個 **預覽 tab** 同一時間顯示一個 **可預覽檔案**；在預覽裡點連結換頁後，仍是同一個預覽 tab。
 
 ## Example dialogue
@@ -147,7 +147,8 @@ _Avoid_: 底部 bar（這是指左側 **通知 bar**）、footer、狀態 bar
 
 - 「tab」：使用者說的 tab 等於 lmux 程式碼的 `Pane`（`App/Sources/LmuxUI/Tabs.swift:7-9`：每個 tab 都是一個 Pane）。規格一律用 **tab**。加入預覽後，`Pane` 不一定有終端機；只講其中一種時用 **終端機 tab** 或 **預覽 tab**。
 - 「預覽」：可能指 macOS 的 Quick Look、Settings 裡的主題預覽，或 lmux 裡的 **預覽 tab**。正式規格中「預覽」只指 **預覽 tab**；在 **UI 原型** 裡位於右側面板的預覽分頁一律寫為 **右側 Inspector** 的「即時預覽分頁」，不與 **預覽 tab** 混稱。
-- 「底部 bar」與「狀態列」：左側欄底部的通知區塊一律叫 **通知 bar**（在 **UI 原型** 畫面標題標示為 Inbox）；橫跨整個 **UI 原型** 視窗最底部的那一列叫 **視窗底部狀態列**。
+- 「sidebar」與「右側 Inspector」：正式 lmux 只有左邊一個 sidebar；在 **UI 原型** 裡，左邊裝 **workspace** 清單與 **通知 bar** 的那一欄照舊叫 sidebar（畫面上的控制鈕文字寫「左側欄」），右邊的面板一律叫 **右側 Inspector**（畫面上的控制鈕文字寫「右側欄 (Inspector)」），規格內文不把 **右側 Inspector** 簡稱為「右側欄」。
+- 「底部 bar」與「狀態列」：sidebar 底部的通知區塊一律叫 **通知 bar**（在 **UI 原型** 畫面標題標示為 Inbox）；橫跨整個 **UI 原型** 視窗最底部的那一列叫 **視窗底部狀態列**。
 - 「點一下路徑」：使用者原話是「用滑鼠點一下」。lmux 沿用 Ghostty 的規則：按住 ⌘ 再點才開連結（`vendor/ghostty/src/config/Config.zig:4089`、`vendor/ghostty/src/Surface.zig:4490`）。不按 ⌘ 的點擊會選取文字，所以規格用 ⌘-click。
 - 「文字檔」：可能指任何文字內容的檔案（含 Markdown、HTML），也可能只指不渲染、直接顯示原文的檔案。規格中後者叫 **純文字檔**；Markdown 與 HTML 雖然 macOS 也判斷為文字，不算純文字檔。系統判斷不是文字的副檔名（例如被認成影片的 `.ts`、沒有對應類型的 `.env`）也不算，即使內容是文字（2026-11-16 本機實測）。
 - 「標題」：可能指 workspace 名稱、終端機標題（OSC 0/2）或 session 標題。規格中 session 標題一律叫 **任務名稱**；workspace 的叫「workspace 名稱」。

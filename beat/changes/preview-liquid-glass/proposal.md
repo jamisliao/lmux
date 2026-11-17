@@ -1,48 +1,46 @@
-# Apple Liquid Glass 與雙側邊欄介面重設計 UI 原型
+# Apple Liquid Glass 與雙欄介面 UI 原型
 
 ## Why
 
-1. **在動手改正式 SwiftUI／AppKit 程式前，需要先驗證新版版面與視覺層次**：目前 lmux 只有左側 **workspace** 列表與底部的 **通知 bar**，預覽與 agent 上下文仍分散在分割窗格裡。如果要探索「**右側 Inspector** + 橫跨視窗的 **視窗底部狀態列** + 雙主題 Apple Liquid Glass」的新介面配置，直接在 Swift 程式碼裡反覆試調成本太高，需要一個可在瀏覽器或 lmux **預覽 tab** 即開即測的互動式 **UI 原型**。
-2. **驗證玻璃材質在大量拖曳調寬時的 GPU 開銷策略**：多層 `backdrop-filter` 高斯模糊在側邊欄或 **通知 bar** 拖曳調整尺寸時若逐影格重算，容易造成掉幀；原型需要實際驗證「拖曳期間暫停模糊、放開後立即恢復」的手感，以及對系統「減少透明度」與「減少動態效果」無障礙設定的降級表現。
+1. **改正式 Swift 程式前，需要先確認新版面與玻璃層次**：目前 lmux 只有左側 sidebar（含 **workspace** 清單與底部的 **通知 bar**），預覽與 agent 資訊散在分割區裡。要試「**右側 Inspector** + 橫跨視窗底部的 **視窗底部狀態列** + 雙主題 Apple Liquid Glass」的配置，直接改 SwiftUI 來回調整太慢，先做一份瀏覽器或 **預覽 tab** 點開就能互動的 **UI 原型** 比較快。
+2. **確認拖曳調整面板大小時怎麼避免 `backdrop-filter` 掉幀**：多個玻璃圖層同時開高斯模糊時，拉動 sidebar、**右側 Inspector** 或 **通知 bar** 若每一個 frame 都重算模糊，GPU 負擔很大。原型用來實測「拖曳時暫停模糊、放開後恢復」的做法，以及系統開啟「減少透明度」與「減少動態效果」時的降級畫面。
 
 ## What Changes
 
-1. **新增單檔互動式 UI 原型（`preview-mockup.html`）**
-   - 自足的單一 HTML 檔案（內嵌 CSS 與 vanilla JavaScript），無需建置工具或外部相依即可在瀏覽器或 WebKit 檢視。
-2. **Light／Dark 雙主題 Liquid Glass 視覺系統與無障礙降級**
-   - 預設採用淺色高光模式（High-Key Crystal），可透過頂部控制列即時切換為深色模式（Obsidian Midnight）。
-   - 建立分層玻璃透明度、Specular Edge 頂部高光邊線、內外陰影與文字視覺對比。
-   - 支援系統 `prefers-reduced-transparency`（停用全部毛玻璃濾鏡並降級為不透明底色）與 `prefers-reduced-motion`（縮短過渡與動畫時間）。
-3. **雙側邊欄佈局、快捷鍵收合與拖曳效能守護**
-   - 標題列與頂部控制列支援收合／展開左側欄（`⌘B`）與右側欄（`⌥⌘B`），按鈕啟用狀態與側邊欄狀態保持同步。
-   - 左右側欄支援水平拖曳調寬並限制最小／最大寬度；左側 **通知 bar** 支援垂直拖曳調高、拖至最小臨界值自動收合、雙擊調整手把或點擊 **摘要列** 切換收合／展開。
-   - 拖曳任一側邊欄或 **通知 bar** 期間，全域進入調整狀態，暫停全部玻璃圖層的模糊重繪與過渡動畫，拖曳結束後立即恢復。
+1. **新增單檔 UI 原型 `preview-mockup.html`**
+   - 單一 HTML 檔（內嵌 CSS 與原生 JavaScript），不靠打包工具或外部套件。
+2. **淺色／深色雙主題 Liquid Glass 與無障礙降級**
+   - 預設是淺色主題（High-Key Crystal），可從頂部控制列切到深色主題（Obsidian Midnight）。
+   - 分層設定視窗、sidebar／**右側 Inspector**、標題列／**視窗底部狀態列** 與內層卡片的透明度、模糊半徑、頂部 1px 亮邊與內外陰影。
+   - 支援 `prefers-reduced-transparency`（停用全部玻璃圖層的模糊濾鏡，sidebar 與 **右側 Inspector** 改用不透明底色）與 `prefers-reduced-motion`（縮短動畫與過渡時間）。
+3. **面板收合、拖曳調大小與拖曳期間停用模糊**
+   - 標題列按鈕、頂部控制列與快捷鍵可收合或展開 sidebar（`⌘B`）與 **右側 Inspector**（`⌥⌘B`，**視窗底部狀態列** 最右邊也有一顆 `⌥⌘B` 鈕）；收合時標題列對應按鈕取消亮起。
+   - sidebar 與 **右側 Inspector** 可水平拖曳調寬（有最小與最大寬度限制）；**通知 bar** 可垂直拖曳調高、拉到過低時自動收合，也能點 **摘要列**、雙擊調整手把或點頂部控制列的「Inbox 收合」鈕切換收合／展開。
+   - 拖曳任一調整手把期間，全部玻璃面板與卡片暫停模糊濾鏡與過渡動畫，sidebar 與 **右側 Inspector** 改用對應主題的不透明底色；放開滑鼠後恢復。
 4. **右側 Inspector、視窗底部狀態列與通知互動**
-   - **右側 Inspector** 透過分段切換列在「即時預覽」、「變更（Diff）」與「執行記錄」三個分頁間切換；「即時預覽」分頁可進一步切換模擬的 HTML、Markdown（`README.md`）與 Swift Token（`GlassTokens.swift`）檢視內容。
-   - **視窗底部狀態列**橫跨整個視窗底部，顯示目前 agent 模型、最近工具呼叫、Context Window 使用量與 Git 變更摘要；點擊各區塊可自動展開 **右側 Inspector** 並切至對應分頁。
-   - 點擊左側 **workspace** 列可切換選取焦點；點擊 **通知 bar** 裡的未讀 **通知卡片**，會標記為已讀、遞減並適時隱藏未讀徽章／鈴鐺紅點，並將對應 **workspace** 設為選取狀態。
+   - **右側 Inspector** 可在「即時預覽」、「變更 (Diff)」與「執行記錄」三個分頁間切換。「即時預覽」分頁可切換 HTML、Markdown（`README.md`）與 Swift（`GlassTokens.swift`）三份示意內容；點重新整理鈕 `↻` 會切回 HTML 並讓 HTML 檔案鈕亮起，點 `↗` 則在新分頁開啟目前頁面。
+   - **視窗底部狀態列** 顯示目前 agent 模型、最近工具呼叫、Context Window 用量與 Git 變更統計；點各區塊會展開已收合的 **右側 Inspector** 並切到對應分頁。
+   - 點 sidebar 的 **workspace** 列可切換選取狀態；點 **通知 bar** 裡的未讀 **通知卡片** 會改成已讀、扣減未讀數（歸零時隱藏未讀徽章與鈴鐺紅點），並選取對應的 **workspace** 列。
 
 ## 不變
 
-- `App/` 與 `Core/` 下的正式 Swift / Ghostty 程式碼完全不變，不影響現有應用程式行為與測試。
-- 正式產品既有的 **預覽 tab**（`beat/features/preview/`）與左側 **通知 bar** 規格不變。
+- `App/` 與 `Core/` 下的 Swift 與 Ghostty 程式碼不變。
+- 正式產品既有的 **預覽 tab**（`beat/features/preview/`）與 **通知 bar** 規格不變。
 
 ## 先不做
 
-- 不實作模擬資料以外的真實終端機 PTY、檔案監看或 Git 指令整合。
-- 不實作畫面中裝飾性控制項的動作（視窗紅黃綠控制鈕、新增 workspace `⌘T`、視窗分割 `⌘D` / `⇧⌘D`、終端機分頁新增／關閉、歷史紀錄搜尋框篩選、右側預覽器的上一頁／下一頁按鈕）。
-- `⌘⇧R` 快捷鍵不納入實作（右側欄維持使用 `⌥⌘B`）。
+- 不接真實的終端機 PTY、本機檔案監看或 Git 指令。
+- 畫面中僅供版面示意的按鈕不做動作：視窗紅黃綠鈕、新增 workspace `⌘T`、分割窗格 `⌘D` / `⇧⌘D`、終端機分頁新增／關閉、歷史搜尋框篩選、預覽位址列的上一頁／下一頁鈕。
+- 不實作 `⌘⇧R` 快捷鍵（收合 **右側 Inspector** 固定用 `⌥⌘B`）。
 
 ## Impact
 
-- **檔案範圍**：
-  - 新增根目錄原型檔 `preview-mockup.html`。
-  - 新增與重整 Beat 規格與詞彙：`beat/changes/preview-liquid-glass/`、`GLOSSARY.md`。
-  - 不修改任何 Swift 原始碼，與上游 lmux 合併零衝突。
-- **現況缺陷修正（待 `/beat:plan` → `/beat:apply` 處理）**：交叉檢視既有的 `preview-mockup.html` 後，發現 5 處與本規格預期行為不符之處需於後續實作階段修補：
-  1. 樣式表第 289–298 行殘留無 selector 的孤立 CSS 片段與重複 `.ctrl-pill-btn:hover` 規則。
-  2. `.is-resizing` 與 `prefers-reduced-transparency` 誤寫了不存在的 `.inbox-accessory-panel`（DOM 實為 `.sidebar-inbox-accessory`），且遺漏了 `.window-footer`、`.terminal-pane`、`.inspector-card`、`.preview-browser-card`、`.preview-viewport-card` 的 `backdrop-filter` 停用（後面三者寫死了 `blur(16px)` 而非使用 token）。
-  3. 淺色主題拖曳 fallback selector 誤寫為 `[data-theme="light"] body.is-resizing`（多了一個後代空白，導致 `<body data-theme="light">` 永遠匹配不到，淺色模式拖曳時會閃成深色底）。
-  4. 執行記錄分頁的 `bash` 工具項目（`.activity-bash`）缺少對應 CSS 色彩規則。
-  5. 即時預覽分頁卡片與模擬記錄文字仍顯示 `blur(36px)`，與實際的 `40px` blur token 不一致。
-- **驗證方式**：後續於 `/beat:plan` 與 `/beat:apply` 建立不依賴 Node/npm 的 macOS `WKWebView` Swift 檢查腳本（比照 `App/scripts/preview-webkit-check.swift` 模式），驗證主題切換、鍵盤快捷鍵、Inspector 分頁切換、Inbox 未讀數連動與 `.is-resizing` 樣式行為，並同步驗證上述 5 處修正。
+- **檔案**：新增根目錄 `preview-mockup.html`；更新 `GLOSSARY.md` 與 `beat/changes/preview-liquid-glass/` 下的規格檔。不動正式 Swift 原始碼，合併上游零衝突。
+- **現有 `preview-mockup.html` 待修正的 6 個問題（排入 `/beat:plan` → `/beat:apply`）**：
+  1. `preview-mockup.html:289-298` 殘留沒有 selector 的孤立 CSS 屬性與重複的 `.ctrl-pill-btn:hover`。
+  2. `.is-resizing` 與 `prefers-reduced-transparency` 把 `.sidebar-inbox-accessory`（`:2117`）誤寫成不存在的 `.inbox-accessory-panel`（`:167`, `:203`）；`.is-resizing` 漏了 `.mockup-controls`、`.window-footer`、`.terminal-pane`、`.inspector-card`、`.preview-browser-card`、`.preview-viewport-card`（`prefers-reduced-transparency` 也漏了後五個，且三張卡片在 `:1590`, `:1727`, `:1845` 寫死 `blur(16px)`）；另外 `.lmux-window`（`:335`）、`.titlebar`（`:372`）、`.sidebar-left`（`:527`）、`.sidebar-right`（`:1516`）漏寫 `-webkit-backdrop-filter`。
+  3. 淺色主題拖曳底色 selector 誤寫成 `[data-theme="light"] body.is-resizing`（`:180-181`，多了一個空白），因為 `data-theme="light"` 直接掛在 `<body>` 上，導致淺色模式拖曳時匹配不到而閃成深色底。
+  4. 執行記錄分頁的 `.activity-bash`（`:2770`）沒有對應的 CSS 樣式（CSS 只寫了 `.activity-read`、`.activity-edit`、`.activity-run`）。
+  5. 即時預覽位址列的重新整理鈕 `↻`（`:2320`, `:2597`）呼叫 `switchPreviewFile('html')` 時沒傳按鈕元素，切到 `README.md` 或 `GlassTokens.swift` 後按 `↻`，畫面回到 HTML 但上方的 `.preview-file-chip.active` 還停在舊檔案鈕（`:2489-2493`）。
+  6. 即時預覽卡片與模擬訊息寫 `blur(36px)` / `36px blur`（`:2285`, `:2365`, `:2520`, `:2642`），與實際 `--glass-blur: blur(40px)` 不一致。
+- **測試**：在 `/beat:plan` 與 `/beat:apply` 新增 `App/scripts/liquid-glass-mockup-check.swift`（比照 `App/scripts/preview-webkit-check.swift`，用 macOS `WKWebView` 載入 `preview-mockup.html` 檢查 DOM 互動、計算樣式與上述 6 項修正）。
