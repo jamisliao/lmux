@@ -50,6 +50,36 @@ func tabChildPixels(_ c: LmuxController, _ ws: Workspace, _ k: Int) -> Data? {
     return sidebarPixels(c, NSRect(x: p.x - 40, y: p.y - 8, width: 80, height: 16))
 }
 
+/// `ws` 的展開箭頭的範圍（sidebar host 座標）：workspace 列左邊的留白，垂直對齊第 1 行。
+@MainActor
+func disclosureRect(_ c: LmuxController, _ ws: Workspace) -> NSRect {
+    let L = LmuxTokens.Layout.self
+    let host = c.root.sidebarHost
+    let i = c.model.workspaces.firstIndex { $0 === ws } ?? 0
+    let two = ws.showsStateLine
+    let h = two ? L.workspaceRowHeightDouble : L.workspaceRowHeightSingle
+    let s = L.tabDisclosureSize
+    let center = rowPoint(c, i).y
+    let fromTop = (host.isFlipped ? center : host.bounds.height - center) - h / 2
+        + WorkspaceRow.closeTop(two) + (L.rowCloseButtonSize - s) / 2
+    let y = host.isFlipped ? fromTop : host.bounds.height - fromTop - s
+    return NSRect(x: WorkspaceRow.disclosureLeading, y: y, width: s, height: s)
+}
+
+/// 設了 LMUX_TABTREE_SHOTS（`dev.sh shots` 會設）時，把 sidebar 現在的樣子存成 <name>.png，給人看。
+/// sidebar 的底色是另一個 view 畫的，所以圖的背景是透明的。
+@MainActor
+func saveSidebarShot(_ c: LmuxController, _ name: String) {
+    guard let dir = env["LMUX_TABTREE_SHOTS"], !dir.isEmpty else { return }
+    let host = c.root.sidebarHost
+    host.layoutSubtreeIfNeeded()
+    guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return }
+    host.cacheDisplay(in: host.bounds, to: rep)
+    try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    try? rep.representation(using: .png, properties: [:])?
+        .write(to: URL(fileURLWithPath: dir).appendingPathComponent(name + ".png"))
+}
+
 @MainActor
 func runSidebarTabs() async -> Int32 {
     let r = Report()
@@ -282,6 +312,94 @@ func runSidebarTabs() async -> Int32 {
     await click(host, at: tabChildPoint(c, ga, ga.panes.firstIndex { $0 === last }!))
     _ = await waitFor(2) { ga.focusedPane === last }
     r.check("…Tab 子列跟著 A 到新位置，還點得到", ga.focusedPane === last)
+
+    // ------------------------------------------------------------- 展開箭頭
+    // @feature: sidebar-tab-tree.feature
+    // @scenario: 有多個 tab 的 workspace 可以展開與收合
+    // @scenario: 只有 1 個 tab 的 workspace 沒有展開箭頭
+    // @scenario: 點展開箭頭不切換 workspace
+    // @scenario: 展開時 workspace 列照常顯示整體狀態
+    r.section = "tab tree: disclosure"
+    func clickDisclosure(_ w: Workspace) async {
+        let f = disclosureRect(c, w)
+        await click(host, at: NSPoint(x: f.midX, y: f.midY))
+        await settle()
+    }
+    ws = await stageTabWorkspaces(c, [("A", 1)])
+    let noArrow = sidebarPixels(c, disclosureRect(c, ws[0]))
+    _ = c.newTab(ws[0].panes[0], select: false)
+    await settle()
+    r.check("開出第 2 個 tab 後，workspace 列左邊畫出展開箭頭（同一個位置的像素變了）",
+            noArrow != nil && sidebarPixels(c, disclosureRect(c, ws[0])) != noArrow)
+
+    ws = await stageTabWorkspaces(c, [("A", 3), ("B", 1), ("C", 2)])
+    let (da, db, dc) = (ws[0], ws[1], ws[2])
+    await clickDisclosure(da)
+    r.check("點 A 的展開箭頭：展開", da.showsTabChildren)
+    var reached: [String] = []
+    for k in 0..<3 {
+        await click(host, at: tabChildPoint(c, da, k))
+        _ = await waitFor(2) { da.focusedPane === da.panes[k] }
+        if da.focusedPane === da.panes[k] { reached.append(da.panes[k].id) }
+    }
+    r.check("…下方有 3 列 Tab 子列，每一列都點得到", reached == da.panes.map(\.id), "\(reached.count)")
+    await clickDisclosure(da)
+    r.check("再點一次：收合", !da.showsTabChildren)
+    let focusedBefore = da.focusedPane
+    await click(host, at: rowPoint(c, 1))
+    _ = await waitFor(2) { c.model.selected === db }
+    r.check("…Tab 子列消失：B 的 workspace 列回到 A 的正下方", c.model.selected === db && da.focusedPane === focusedBefore)
+
+    await clickDisclosure(db)
+    r.check("只有 1 個 tab 的 B：點同一個位置不會展開", !db.tabsExpanded && !db.showsTabChildren)
+
+    c.select(da)
+    await settle()
+    let keyboard = firstResponderPane(c)
+    await clickDisclosure(dc)
+    r.check("A 是選取中的 workspace 時點 C 的展開箭頭：C 展開", dc.showsTabChildren)
+    r.check("…A 仍然是選取中的 workspace", c.model.selected === da, c.model.selected?.title ?? "nil")
+    r.check("…鍵盤焦點沒有被箭頭拿走", keyboard != nil && firstResponderPane(c) === keyboard)
+
+    // 進行中的 tab：收合時只有 workspace 列轉圈；展開後 workspace 列照常轉圈，那個 tab 的 Tab 子列也轉圈。
+    ws = await stageTabWorkspaces(c, [("R", 2)])
+    let rw = ws[0]
+    let runner = rw.panes.first { $0 !== rw.focusedPane }!
+    _ = sendHook(pane: runner.id, hook("SessionStart", session: "s-spin"))
+    _ = sendHook(pane: runner.id, hook("UserPromptSubmit", session: "s-spin", #""prompt":"hi""#))
+    _ = await waitFor(5) { runner.agent.state == .running }
+    await settle()
+    let spinsCollapsed = spinningViews(c)
+    r.check("收合：workspace 列有 1 個轉圈圖示", spinsCollapsed == 1, "\(spinsCollapsed)")
+    await clickDisclosure(rw)
+    r.check("展開：workspace 列照常轉圈，進行中的 tab 的 Tab 子列也轉圈（共 2 個）", spinningViews(c) == 2, "\(spinningViews(c))")
+
+    // ------------------------------------------------------------- 截圖（給人看；不是檢查）
+    if env["LMUX_TABTREE_SHOTS"] != nil {
+        ws = await stageTabWorkspaces(c, [("alpha", 3), ("beta", 1), ("gamma", 2), ("delta", 2)])
+        let appearance0 = NSApp.appearance
+        for (name, dark) in [("light", false), ("dark", true)] {
+            NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+            ws[0].tabsExpanded = false
+            c.select(ws[0]); c.setSelection([], anchor: ws[0].id); c.model.hoveredRowID = nil
+            await settle()
+            saveSidebarShot(c, "1-collapsed-selected-\(name)")       // 選取中的列：箭頭壓在底色左緣上嗎
+            c.model.hoveredRowID = ws[2].id
+            await settle()
+            saveSidebarShot(c, "2-collapsed-hover-\(name)")          // 滑鼠在另一列上
+            c.model.hoveredRowID = nil
+            c.setSelection([ws[0].id, ws[2].id], anchor: ws[0].id)
+            await settle()
+            saveSidebarShot(c, "3-collapsed-multiselect-\(name)")    // 多選
+            c.setSelection([], anchor: ws[0].id)
+            ws[0].tabsExpanded = true
+            ws[3].tabsExpanded = true
+            await settle()
+            saveSidebarShot(c, "4-expanded-\(name)")                 // 展開：縮排、列高、標示
+        }
+        NSApp.appearance = appearance0
+        ws[3].tabsExpanded = false
+    }
 
     // ------------------------------------------------------------- 存檔（這一段留在最後）
     // @feature: sidebar-tab-tree.feature

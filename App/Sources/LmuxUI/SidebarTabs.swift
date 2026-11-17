@@ -129,3 +129,23 @@ struct SidebarTabChildRow: View {
         return hover ? T.Colors.rowHover.color : .clear
     }
 }
+
+/// workspace 列的展開箭頭：收合時朝右，展開時朝下。
+struct TabDisclosureButton: View {
+    let expanded: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "chevron.right")
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(T.Colors.textTertiary.color)
+                .rotationEffect(.degrees(expanded ? 90 : 0))
+                .frame(width: T.Layout.tabDisclosureSize, height: T.Layout.tabDisclosureSize)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(expanded ? "Hide Tabs" : "Show Tabs")
+        .accessibilityLabel(expanded ? "Hide Tabs" : "Show Tabs")
+    }
+}

@@ -220,6 +220,15 @@ struct WorkspaceRow: View {
                     .padding(.trailing, Self.closeTrailing)
                 }
             }
+            // 展開箭頭（beat: sidebar-tab-tree.feature）：和 × 一樣在列的點擊手勢之外，點它不會先選取這一列。
+            // 放在列左邊的留白，不動列的內容。
+            .overlay(alignment: .topLeading) {
+                if ws.showsTabDisclosure {
+                    TabDisclosureButton(expanded: ws.tabsExpanded) { controller.toggleTabsExpanded(ws) }
+                        .padding(.top, Self.closeTop(detail != nil) + (T.Layout.rowCloseButtonSize - T.Layout.tabDisclosureSize) / 2)
+                        .padding(.leading, Self.disclosureLeading)
+                }
+            }
             .onHover { inside in
                 if inside { controller.model.hoveredRowID = ws.id }
                 else if controller.model.hoveredRowID == ws.id { controller.model.hoveredRowID = nil }
@@ -235,6 +244,8 @@ struct WorkspaceRow: View {
     /// "Close Workspace (⇧⌘W)": the Close Workspace shortcut (Ghostty's `close_window`, ⇧⌘W by default).
     static func closeHelp(_ title: String) -> String { "\(title) (⇧⌘W)" }
 
+    /// 展開箭頭左邊的留白：14pt 的點擊範圍落在 x 1…15，在色塊（x 16 起）的左邊。
+    static let disclosureLeading: CGFloat = 1
     /// The × centered on line 1's trailing 12pt slot, its hit target `rowCloseButtonSize` square.
     static let closeTrailing = T.Layout.rowInsetX + T.Layout.rowPaddingX + 6 - T.Layout.rowCloseButtonSize / 2
     static func closeTop(_ twoLines: Bool) -> CGFloat {
