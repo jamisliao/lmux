@@ -7,4 +7,4 @@
 | [build](build/README.md) | 自己編的 lmux.app 的 build 版號 |
 | [preview](preview/README.md) | 預覽 tab：⌘-click 終端機裡的 `.md`／`.html`／純文字檔路徑，在 lmux 裡顯示並自動更新 |
 
-用詞見 [`../CONTEXT.md`](../CONTEXT.md)。已封存的 change 在 `../changes/archive/`。
+用詞見 [`GLOSSARY.md`](../../GLOSSARY.md)。已封存的 change 在 `../changes/archive/`。
