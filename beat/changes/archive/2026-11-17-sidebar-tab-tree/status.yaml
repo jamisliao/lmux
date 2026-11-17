@@ -1,9 +1,10 @@
 name: sidebar-tab-tree
 created: 2026-11-17
-phase: verify
+phase: archive
 preset: full
 pipeline:
   proposal: { status: done }
   gherkin: { status: done }
   design: { status: done }
   tasks: { status: done }
+verification: { status: passed, critical: 0, date: 2026-11-17 }
