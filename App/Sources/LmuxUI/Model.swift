@@ -485,6 +485,13 @@ public final class Workspace: Identifiable {
     /// Left unattended past the reminder delay (the row's glyph breathes): since when.
     public internal(set) var unattendedSince: Date?
     public var focusedPane: Pane?
+    /// sidebar 是否展開這個 workspace 的 Tab 子列（beat: sidebar-tab-tree.feature）。存進 layout.json。
+    /// 只剩 1 個 tab 時不顯示 Tab 子列，但這個值不變，所以 tab 數回到 2 個以上會回到原本的狀態。
+    public var tabsExpanded = false
+    /// 有 2 個以上的 tab 才有展開箭頭。
+    public var showsTabDisclosure: Bool { panes.count >= 2 }
+    /// sidebar 現在要不要畫這個 workspace 的 Tab 子列。
+    public var showsTabChildren: Bool { tabsExpanded && showsTabDisclosure }
     /// Latest `lmux notify` text, shown on line 2 when no agent state is more relevant.
     public var notification: String?
     /// Split zoom (Ghostty's `toggle_split_zoom`): the one pane shown full-size, the rest hidden
