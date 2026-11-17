@@ -160,10 +160,6 @@ open class SurfaceView: NSView, NSTextInputClient {
     /// Temporary lead surrogate that's waiting for the trail
     private var leadSurrogate: LeadSurrogate?
 
-    // True when we've consumed a left mouse-down only to move focus and
-    // should suppress the matching mouse-up from being reported.
-    private var suppressNextLeftMouseUp: Bool = false
-
     /// The pointer shape libghostty asked for (MOUSE_SHAPE: I-beam over text, pointing hand over a link).
     public private(set) var pointerCursor: NSCursor = .iBeam
     private var eventMonitor: Any?
@@ -325,7 +321,6 @@ open class SurfaceView: NSView, NSTextInputClient {
         guard let surface = self.surface else { return }
         guard self.focused != focused else { return }
         self.focused = focused
-        if !focused { suppressNextLeftMouseUp = false }
         ghostty_surface_set_focus(surface, focused)
         onFocusChange?(focused)
     }
@@ -510,13 +505,9 @@ open class SurfaceView: NSView, NSTextInputClient {
         guard let contentView = window.contentView else { return event }
         let location = contentView.superview?.convert(event.locationInWindow, from: nil) ?? event.locationInWindow
         guard contentView.hitTest(location) == self else { return event }
-        suppressNextLeftMouseUp = false
         guard window.firstResponder !== self else { return event }
-        if NSApp.isActive && window.isKeyWindow {
-            window.makeFirstResponder(self)
-            suppressNextLeftMouseUp = true
-            return nil
-        }
+        // The event is returned, not consumed (the monitor's `?? event` turns a nil into the
+        // original event), so the press reaches libghostty and its release must too.
         window.makeFirstResponder(self)
         return event
     }
@@ -538,10 +529,6 @@ open class SurfaceView: NSView, NSTextInputClient {
     }
 
     open override func mouseUp(with event: NSEvent) {
-        if suppressNextLeftMouseUp {
-            suppressNextLeftMouseUp = false
-            return
-        }
         prevPressureStage = 0
         guard let surface = self.surface, !inputHeld else { return }
         let mods = Ghostty.ghosttyMods(event.modifierFlags)
