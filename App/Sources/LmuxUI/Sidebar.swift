@@ -51,10 +51,16 @@ struct SidebarView: View {
                             ForEach(Array(model.workspaces.enumerated()), id: \.element.id) { _, ws in
                                 SidebarRowMotion(model: model, id: ws.id, shift: shifts[ws.id] ?? 0,
                                                  lifted: drag?.ids.contains(ws.id) ?? false) {
-                                    WorkspaceRow(ws: ws, disambiguator: names[ws.id], selected: ws.id == model.selectedID,
-                                                 inSelection: model.isInSelection(ws),
-                                                 hover: drag == nil && model.hoveredRowID == ws.id,
-                                                 controller: controller, rowFrames: rowFrames)
+                                    // workspace 列與它的 Tab 子列是同一組（beat: sidebar-tab-tree.feature）：
+                                    // 外層量到的 frame 包含 Tab 子列，拖曳時整組一起移動。
+                                    VStack(spacing: T.Layout.rowGap) {
+                                        WorkspaceRow(ws: ws, disambiguator: names[ws.id], selected: ws.id == model.selectedID,
+                                                     inSelection: model.isInSelection(ws),
+                                                     hover: drag == nil && model.hoveredRowID == ws.id,
+                                                     controller: controller, rowFrames: rowFrames)
+                                        SidebarTabChildren(ws: ws, selected: ws.id == model.selectedID,
+                                                           hoverEnabled: drag == nil, controller: controller)
+                                    }
                                 }
                             }
                         }

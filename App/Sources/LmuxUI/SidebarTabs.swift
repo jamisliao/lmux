@@ -16,6 +16,14 @@ extension LmuxController {
         }
         scheduleSave()
     }
+
+    /// 點一列 Tab 子列：切換到那個 tab（必要時先切換 workspace、把被蓋住的 tab 顯示出來、取消放大）。
+    /// 和點 workspace 列一樣，會結束 sidebar 的多選。
+    public func clickTabRow(_ pane: Pane) {
+        guard let ws = pane.workspace else { return }
+        if model.isMultiSelection { setSelection([], anchor: ws.id) }
+        focus(pane)
+    }
 }
 
 /// 一列 Tab 子列要顯示的內容。view 只畫這個；測試直接檢查它。
@@ -52,5 +60,72 @@ extension Workspace {
                                   focused: focused,
                                   closable: !pane.pinned)
         }
+    }
+}
+
+/// 一個 workspace 的 Tab 子列。自成一個 view：tab 的標題或狀態改變時，只重畫這一塊，不重畫整個 sidebar。
+struct SidebarTabChildren: View {
+    let ws: Workspace
+    /// 這個 workspace 是不是選取中的 workspace。
+    let selected: Bool
+    /// 拖曳 workspace 列的期間不顯示 hover。
+    let hoverEnabled: Bool
+    let controller: LmuxController
+
+    var body: some View {
+        if ws.showsTabChildren {
+            VStack(spacing: T.Layout.rowGap) {
+                ForEach(ws.tabItems(selected: selected)) { item in
+                    if let pane = ws.panes.first(where: { $0.id == item.id }) {
+                        SidebarTabChildRow(item: item, pane: pane, hover: false, controller: controller)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// 一列 Tab 子列：類型圖示、標題、這個 tab 自己的狀態。點它切換到這個 tab。
+struct SidebarTabChildRow: View {
+    let item: SidebarTabItem
+    let pane: Pane
+    let hover: Bool
+    let controller: LmuxController
+    @Environment(\.controlActiveState) private var activeState
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: item.isPreview ? "doc.text" : "terminal")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(T.Colors.textTertiary.color)
+                .frame(width: 14)
+            Text(item.title)
+                .font(T.Typography.rowSubtitle.font)
+                .foregroundStyle((item.focused ? T.Colors.textPrimary : T.Colors.textSecondary).color)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if !item.isPreview {
+                StateIndicator(display: item.display, unread: item.unread,
+                               pulse: controller.model.pulseMotion, reduceMotion: controller.model.reduceMotion,
+                               waiting: item.waiting)
+            }
+        }
+        .padding(.leading, T.Layout.rowPaddingX + T.Layout.tabChildIndent)
+        .padding(.trailing, T.Layout.rowPaddingX)
+        .frame(maxWidth: .infinity, minHeight: T.Layout.tabChildRowHeight, maxHeight: T.Layout.tabChildRowHeight, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous).fill(fill))
+        .padding(.horizontal, T.Layout.rowInsetX)
+        .contentShape(Rectangle())
+        .onTapGesture { controller.clickTabRow(pane) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(item.title)
+        .accessibilityAddTraits(item.focused ? [.isSelected, .isButton] : [.isButton])
+    }
+
+    /// 底色：有標示的那一列與 workspace 列的選取底色相同；滑鼠在上面時是 hover 色。
+    private var fill: Color {
+        if item.focused { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.rowSelected).color }
+        return hover ? T.Colors.rowHover.color : .clear
     }
 }

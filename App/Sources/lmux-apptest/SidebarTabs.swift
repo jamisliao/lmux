@@ -31,10 +31,32 @@ func stageTabWorkspaces(_ c: LmuxController, _ spec: [(title: String, tabs: Int)
     return made
 }
 
+/// `ws` 的第 k 列 Tab 子列的中心點（sidebar host 座標）。要先展開。
+@MainActor
+func tabChildPoint(_ c: LmuxController, _ ws: Workspace, _ k: Int) -> NSPoint {
+    let L = LmuxTokens.Layout.self
+    let host = c.root.sidebarHost
+    let i = c.model.workspaces.firstIndex { $0 === ws } ?? 0
+    let row = rowPoint(c, i)
+    let h = ws.showsStateLine ? L.workspaceRowHeightDouble : L.workspaceRowHeightSingle
+    let down = h / 2 + L.rowGap + CGFloat(k) * (L.tabChildRowHeight + L.rowGap) + L.tabChildRowHeight / 2
+    return NSPoint(x: row.x, y: host.isFlipped ? row.y + down : row.y - down)
+}
+
+/// `ws` 的第 k 列 Tab 子列中間一塊的像素（標題的位置），用來比較「有沒有變」。
+@MainActor
+func tabChildPixels(_ c: LmuxController, _ ws: Workspace, _ k: Int) -> Data? {
+    let p = tabChildPoint(c, ws, k)
+    return sidebarPixels(c, NSRect(x: p.x - 40, y: p.y - 8, width: 80, height: 16))
+}
+
 @MainActor
 func runSidebarTabs() async -> Int32 {
     let r = Report()
     let c = makeController()
+    let host = c.root.sidebarHost
+    /// 等 sidebar 重新排版。
+    func settle() async { host.layoutSubtreeIfNeeded(); await sleepMs(300) }
 
     // ------------------------------------------------------------- 佈置
     r.section = "tab tree: setup"
@@ -124,6 +146,100 @@ func runSidebarTabs() async -> Int32 {
     r.check("選取中的 workspace：只有 focused tab 的 Tab 子列有標示", marked == [idle.id], "\(marked)")
     r.check("…有標示的那一列不顯示未讀數", item(idle)?.unread == 0)
     r.check("沒選取的 workspace：Tab 子列都沒有標示", t.tabItems(selected: false).allSatisfy { !$0.focused })
+
+    // ------------------------------------------------------------- 點 Tab 子列
+    // @feature: sidebar-tab-tree.feature
+    // @scenario: 點 Tab 子列切換到另一個 workspace 的 tab
+    r.section = "tab tree: click"
+    ws = await stageTabWorkspaces(c, [("A", 1), ("B", 2)])
+    let wb = ws[1]
+    let t1 = wb.focusedPane!
+    let t2 = wb.panes.first { $0 !== t1 }!
+    c.toggleTabsExpanded(wb)
+    await settle()
+    r.check("佈置：A 是選取中的 workspace，B 的 T1 顯示在最前面、T2 被蓋住",
+            c.model.selected === ws[0] && wb.root.find(t2)?.shownTab === t1)
+    let k2 = wb.panes.firstIndex { $0 === t2 }!
+    await click(host, at: tabChildPoint(c, wb, k2))
+    _ = await waitFor(2) { c.model.selected === wb && wb.focusedPane === t2 }
+    r.check("點 T2 的 Tab 子列：B 成為選取中的 workspace", c.model.selected === wb, c.model.selected?.title ?? "nil")
+    r.check("…T2 顯示在它那一格的最前面，並成為 focused tab", wb.root.find(t2)?.shownTab === t2 && wb.focusedPane === t2)
+    r.check("…鍵盤焦點也在 T2", firstResponderPane(c) === t2)
+    let k1 = wb.panes.firstIndex { $0 === t1 }!
+    await click(host, at: tabChildPoint(c, wb, k1))
+    _ = await waitFor(2) { wb.focusedPane === t1 }
+    r.check("再點 T1 的 Tab 子列：T1 回到最前面", wb.root.find(t1)?.shownTab === t1 && wb.focusedPane === t1)
+
+    // workspace 列的位置：展開的在下面時不受影響；展開的在上面時往下移一組的高度。
+    await click(host, at: rowPoint(c, 0))
+    _ = await waitFor(2) { c.model.selected === ws[0] }
+    r.check("B 展開時，B 上面的 A 的 workspace 列位置不變，還點得到", c.model.selected === ws[0])
+    ws = await stageTabWorkspaces(c, [("A", 2), ("B", 1)])
+    c.toggleTabsExpanded(ws[0])
+    await settle()
+    await click(host, at: rowPoint(c, 1))
+    _ = await waitFor(2) { c.model.selected === ws[1] }
+    r.check("A 展開時，A 下面的 B 的 workspace 列還點得到", c.model.selected === ws[1], c.model.selected?.title ?? "nil")
+
+    // 多選時點 Tab 子列：和點 workspace 列一樣，多選結束。
+    let ma = ws[0]
+    c.select(ma)
+    c.setSelection([ma.id, ws[1].id], anchor: ma.id)
+    await settle()
+    let other = ma.panes.first { $0 !== ma.focusedPane }!
+    r.check("佈置：A 與 B 都在多選裡，A 是選取中的 workspace", c.model.isMultiSelection && c.model.selected === ma)
+    await click(host, at: tabChildPoint(c, ma, ma.panes.firstIndex { $0 === other }!))
+    _ = await waitFor(2) { ma.focusedPane === other }
+    r.check("多選時點選取中 workspace 的 Tab 子列：切到那個 tab，多選結束",
+            ma.focusedPane === other && !c.model.isMultiSelection, "\(c.model.selection.count)")
+
+    // 放大某一格時點另一格的 tab：先取消放大。
+    ws = await stageTabWorkspaces(c, [("Z", 1)])
+    let z = ws[0]
+    let zLeft = z.panes[0]
+    let zRight = c.split(zLeft, .right)!
+    _ = await waitFor(5) { zRight.surface!.foregroundPID > 0 }
+    c.focus(zLeft)
+    c.toggleZoom(for: zLeft)
+    c.toggleTabsExpanded(z)
+    await settle()
+    r.check("佈置：Z 放大左邊那一格", z.zoomedPane === zLeft)
+    await click(host, at: tabChildPoint(c, z, z.panes.firstIndex { $0 === zRight }!))
+    _ = await waitFor(2) { z.focusedPane === zRight }
+    r.check("放大時點另一格的 Tab 子列：取消放大，那個 tab 成為 focused tab", z.zoomedPane == nil && z.focusedPane === zRight)
+
+    // ------------------------------------------------------------- 畫出來的樣子
+    // @feature: sidebar-tab-tree.feature
+    // @scenario: Tab 子列顯示 tab 的類型與標題
+    // @scenario: Tab 子列顯示該 tab 自己的 agent 狀態
+    // @scenario: 預覽 tab 的 Tab 子列沒有狀態圖示
+    // @scenario: 只有 focused tab 的 Tab 子列有標示
+    r.section = "tab tree: render"
+    let anyPane = z.panes[0]
+    /// 把一列 Tab 子列畫到畫面外，回傳像素。
+    func shot(preview: Bool, _ display: AgentDisplay, focused: Bool = false) -> Data? {
+        let item = SidebarTabItem(id: anyPane.id, title: "x", isPreview: preview, display: display, waiting: false,
+                                  unread: 0, focused: focused, closable: true)
+        return renderBytes(SidebarTabChildRow(item: item, pane: anyPane, hover: false, controller: c),
+                           size: NSSize(width: 240, height: LmuxTokens.Layout.tabChildRowHeight), dark: false)
+    }
+    let plain = shot(preview: false, .idle)
+    r.check("完成的終端機 tab 畫出來與閒置的不同（有 ✓）", plain != nil && shot(preview: false, .done(nil)) != plain)
+    r.check("等待回應的終端機 tab 畫出來與閒置的不同", shot(preview: false, .needsInput(nil)) != plain)
+    r.check("預覽 tab 的類型圖示與終端機 tab 的不同", shot(preview: true, .idle) != plain)
+    r.check("預覽 tab 不畫狀態圖示（給它完成狀態，畫出來仍與閒置相同）", shot(preview: true, .done(nil)) == shot(preview: true, .idle))
+    r.check("有標示的那一列畫出來與沒有標示的不同", shot(preview: false, .idle, focused: true) != plain)
+
+    ws = await stageTabWorkspaces(c, [("A", 2), ("B", 2)])
+    c.toggleTabsExpanded(ws[0])
+    c.toggleTabsExpanded(ws[1])
+    await settle()
+    let fb = ws[1].panes.firstIndex { $0 === ws[1].focusedPane }!
+    let whileA = tabChildPixels(c, ws[1], fb)
+    c.select(ws[1])
+    await settle()
+    r.check("A 與 B 都展開：B 被選取後，B 的 focused tab 那一列才有標示（那一列的畫面變了）",
+            whileA != nil && tabChildPixels(c, ws[1], fb) != whileA)
 
     // ------------------------------------------------------------- 存檔（這一段留在最後）
     // @feature: sidebar-tab-tree.feature
