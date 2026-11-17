@@ -1,8 +1,8 @@
 name: preview-liquid-glass
 created: 2026-11-17
-phase: design
+phase: implement
 pipeline:
   proposal: { status: done }
   gherkin: { status: done }
   design: { status: done }
-  tasks: { status: pending }
+  tasks: { status: done }
