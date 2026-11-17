@@ -69,6 +69,62 @@ func runSidebarTabs() async -> Int32 {
     _ = c.newTab(a.panes[0], select: false)
     r.check("…再開 1 個 tab：回到展開", a.showsTabDisclosure && a.showsTabChildren && a.panes.count == 2)
 
+    // ------------------------------------------------------------- Tab 子列的內容
+    // @feature: sidebar-tab-tree.feature
+    // @scenario: 分割出來的 tab 也列在同一層
+    // @scenario: Tab 子列顯示 tab 的類型與標題
+    // @scenario: Tab 子列顯示該 tab 自己的 agent 狀態
+    // @scenario: 預覽 tab 的 Tab 子列沒有狀態圖示
+    // @scenario: 只有 focused tab 的 Tab 子列有標示
+    r.section = "tab tree: content"
+    ws = await stageTabWorkspaces(c, [("S", 2)])
+    let s = ws[0]
+    let leftTabs = s.root.find(s.panes[0])!.tabs.map(\.id)
+    let right = c.split(s.panes[0], .right)!
+    _ = await waitFor(5) { right.surface!.foregroundPID > 0 }
+    r.check("分割：左邊那格的 2 個 tab 依 tab 列順序，然後是右邊那格的 tab",
+            s.tabItems(selected: true).map(\.id) == leftTabs + [right.id], "\(s.tabItems(selected: true).map(\.id))")
+
+    ws = await stageTabWorkspaces(c, [("T", 4)])
+    let t = ws[0]
+    let idle = t.focusedPane!
+    let others = t.panes.filter { $0 !== idle }
+    let (run, done, need) = (others[0], others[1], others[2])
+    run.titleState.title = "fix login"
+    let doc = paths.stateDir.appendingPathComponent("design.md")
+    try? "# design\n".write(to: doc, atomically: true, encoding: .utf8)
+    let pv = c.newPreviewTab(doc, after: idle)!
+    c.focus(idle)
+    func item(_ p: Pane, selected: Bool = true) -> SidebarTabItem? { t.tabItems(selected: selected).first { $0.id == p.id } }
+    r.check("終端機 tab：終端機類型，標題是任務名稱", item(run)?.isPreview == false && item(run)?.title == "fix login", item(run)?.title ?? "nil")
+    r.check("預覽 tab：文件類型，標題是檔名", item(pv)?.isPreview == true && item(pv)?.title == "design.md", item(pv)?.title ?? "nil")
+
+    // needHook：照 Step 1 查到的寫法。
+    let needHook = hook("PermissionRequest", session: "s-need", #""tool_name":"Bash""#)
+    let prompt = #""prompt":"hi""#
+    _ = sendHook(pane: run.id, hook("SessionStart", session: "s-run"))
+    _ = sendHook(pane: run.id, hook("UserPromptSubmit", session: "s-run", prompt))
+    _ = sendHook(pane: done.id, hook("SessionStart", session: "s-done"))
+    _ = sendHook(pane: done.id, hook("UserPromptSubmit", session: "s-done", prompt))
+    _ = sendHook(pane: done.id, hook("Stop", session: "s-done"))
+    _ = sendHook(pane: need.id, hook("SessionStart", session: "s-need"))
+    _ = sendHook(pane: need.id, hook("UserPromptSubmit", session: "s-need", prompt))
+    _ = sendHook(pane: need.id, needHook)
+    _ = await waitFor(5) { run.agent.state == .running && done.agent.state == .done && need.needsInput }
+    func isRunning(_ d: AgentDisplay?) -> Bool { if case .running = d { return true }; return false }
+    func isDone(_ d: AgentDisplay?) -> Bool { if case .done = d { return true }; return false }
+    func isNeedsInput(_ d: AgentDisplay?) -> Bool { if case .needsInput = d { return true }; return false }
+    r.check("進行中的 tab：Tab 子列是進行中", isRunning(item(run)?.display), "\(String(describing: item(run)?.display))")
+    r.check("完成的 tab：Tab 子列是完成", isDone(item(done)?.display), "\(String(describing: item(done)?.display))")
+    r.check("等待回應的 tab：Tab 子列是等待回應", isNeedsInput(item(need)?.display), "\(String(describing: item(need)?.display))")
+    r.check("閒置的 tab：沒有狀態", item(idle)?.display == .idle)
+    r.check("預覽 tab：沒有狀態，也沒有未讀數", item(pv)?.display == .idle && item(pv)?.unread == 0)
+
+    let marked = t.tabItems(selected: true).filter(\.focused).map(\.id)
+    r.check("選取中的 workspace：只有 focused tab 的 Tab 子列有標示", marked == [idle.id], "\(marked)")
+    r.check("…有標示的那一列不顯示未讀數", item(idle)?.unread == 0)
+    r.check("沒選取的 workspace：Tab 子列都沒有標示", t.tabItems(selected: false).allSatisfy { !$0.focused })
+
     // ------------------------------------------------------------- 存檔（這一段留在最後）
     // @feature: sidebar-tab-tree.feature
     // @scenario: 重開 lmux 後維持展開狀態
