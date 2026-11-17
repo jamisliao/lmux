@@ -22,6 +22,15 @@ _Avoid_: terminal pane、shell tab
 目前選取的 **workspace** 裡持有鍵盤焦點的 **tab**。
 _Avoid_: 目前的 tab、active tab、選取的 tab
 
+**展開箭頭**:
+sidebar 上 workspace 列左側用來展開或收合其底下 **tab** 列表的箭頭按鈕（▶ / ▼）。
+_Avoid_: disclosure triangle、折疊鈕、下拉箭頭
+
+**Tab 子列**:
+sidebar 展開 workspace 後，縮排顯示在該 workspace 下方的個別 **tab** 項目列。
+_Avoid_: tab row、子項目、分頁列
+
+
 ### 預覽
 
 **可預覽檔案**:
