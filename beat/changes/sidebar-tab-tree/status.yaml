@@ -1,6 +1,6 @@
 name: sidebar-tab-tree
 created: 2026-11-17
-phase: implement
+phase: verify
 preset: full
 pipeline:
   proposal: { status: done }

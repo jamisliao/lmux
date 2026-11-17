@@ -113,12 +113,12 @@ design「邊緣情況」表的對照：放大某一格時點 Tab 子列（6）�
 **Interfaces:**
 - Produces: 上面「共用指令」表的指令；基準 log `${TMPDIR:-/tmp}/sidebar-tab-tree/baseline-quick.log` 與 `baseline-full.log`。
 
-- [ ] **Step 1: 確認 worktree 有 Ghostty**
+- [x] **Step 1: 確認 worktree 有 Ghostty**
 
 Run: `ls -d vendor/ghostty/macos/GhosttyKit.xcframework`
 Expected: 印出這個路徑。印出 `No such file` 就停下來回報（`vendor` 應該是指到主 checkout 的 symlink）。
 
-- [ ] **Step 2: 建立 `beat/changes/sidebar-tab-tree/dev.sh`**
+- [x] **Step 2: 建立 `beat/changes/sidebar-tab-tree/dev.sh`**
 
 ```bash
 #!/bin/bash
@@ -197,18 +197,18 @@ esac
 
 Run: `chmod +x beat/changes/sidebar-tab-tree/dev.sh`
 
-- [ ] **Step 3: 確認 build 通過**
+- [x] **Step 3: 確認 build 通過**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh build`
 Expected: 最後一行 `BUILD EXIT: 0`。
 
-- [ ] **Step 4: 存基準**
+- [x] **Step 4: 存基準**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh baseline`（quick 約 10 分鐘，full 更久；逾時就照 Global Constraints 用背景執行，指令換成 `baseline`，看到 `APPTEST EXIT (baseline-full)` 才算跑完）
 Expected: `APPTEST EXIT (baseline-quick): 0` 與 `APPTEST EXIT (baseline-full): 0`，沒有 `FAIL` 行。
 （2026-11-17 在同樣的程式碼上，quick 是 1696 PASS、0 FAIL；full 那次沒跑過。有 FAIL 也繼續：之後只看 `new-failures`。回報時列出基準的 FAIL。）
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add beat/changes/sidebar-tab-tree/dev.sh
@@ -230,7 +230,7 @@ git commit -m "chore(sidebar-tab-tree): 新增實作用的 dev.sh"
   - `func stageTabWorkspaces(_ c: LmuxController, _ spec: [(title: String, tabs: Int)]) async -> [Workspace]`
   - `App/scripts/apptest.sh --sidebar-tabs`
 
-- [ ] **Step 1: 建立 `App/Sources/lmux-apptest/SidebarTabs.swift`**
+- [x] **Step 1: 建立 `App/Sources/lmux-apptest/SidebarTabs.swift`**
 
 ```swift
 import AppKit
@@ -291,7 +291,7 @@ func runSidebarTabsRestore() async -> Int32 {
 }
 ```
 
-- [ ] **Step 2: 在 `main.swift` 加分派**
+- [x] **Step 2: 在 `main.swift` 加分派**
 
 在 `} else if args.contains("--sidebar") {` 這一行**之前**插入（放前面，讀的人才不會誤以為 `--sidebar` 會吃掉它）：
 
@@ -308,7 +308,7 @@ func runSidebarTabsRestore() async -> Int32 {
 //   lmux-apptest --sidebar-tabs  sidebar 展開 workspace 的 tab（接著跑 --sidebar-tabs-restore）
 ```
 
-- [ ] **Step 3: 在 `apptest.sh` 加模式**
+- [x] **Step 3: 在 `apptest.sh` 加模式**
 
 在這 4 行之後：
 
@@ -353,12 +353,12 @@ run_sidebar_tabs_suite
 #   App/scripts/apptest.sh --sidebar-tabs   only the sidebar tab tree suite (--sidebar-tabs, --sidebar-tabs-restore)
 ```
 
-- [ ] **Step 4: 確認新模式會跑**
+- [x] **Step 4: 確認新模式會跑**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh tabs`
 Expected: 2 行 `PASS`（`佈置`、`重開`）、2 行 `RESULT: PASS`、`TABS EXIT: 0`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/lmux-apptest/SidebarTabs.swift App/Sources/lmux-apptest/main.swift App/scripts/apptest.sh
@@ -381,7 +381,7 @@ git commit -m "test(sidebar-tab-tree): 新增 --sidebar-tabs 測試模式的骨�
   - `Workspace.showsTabChildren: Bool`（`tabsExpanded && showsTabDisclosure`）
   - `LmuxController.toggleTabsExpanded(_ ws: Workspace)`
 
-- [ ] **Step 1: 寫檢查**
+- [x] **Step 1: 寫檢查**
 
 在 `runSidebarTabs()` 的 `return finish(r, c)` **之前**加：
 
@@ -413,12 +413,12 @@ git commit -m "test(sidebar-tab-tree): 新增 --sidebar-tabs 測試模式的骨�
     r.check("…再開 1 個 tab：回到展開", a.showsTabDisclosure && a.showsTabChildren && a.panes.count == 2)
 ```
 
-- [ ] **Step 2: 確認失敗**
+- [x] **Step 2: 確認失敗**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh errors SidebarTabs.swift`
 Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `showsTabDisclosure`、`showsTabChildren`、`tabsExpanded` 或 `toggleTabsExpanded` 不存在。
 
-- [ ] **Step 3: 在 `Model.swift` 的 `Workspace` 加屬性**
+- [x] **Step 3: 在 `Model.swift` 的 `Workspace` 加屬性**
 
 在 `public var focusedPane: Pane?` 這一行之後加：
 
@@ -432,7 +432,7 @@ Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `showsTabDisclosure`、`s
     public var showsTabChildren: Bool { tabsExpanded && showsTabDisclosure }
 ```
 
-- [ ] **Step 4: 建立 `App/Sources/LmuxUI/SidebarTabs.swift`**
+- [x] **Step 4: 建立 `App/Sources/LmuxUI/SidebarTabs.swift`**
 
 ```swift
 import AppKit
@@ -456,12 +456,12 @@ extension LmuxController {
 }
 ```
 
-- [ ] **Step 5: 確認通過**
+- [x] **Step 5: 確認通過**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh tabs`
 Expected: `[tab tree: state]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Model.swift App/Sources/LmuxUI/SidebarTabs.swift App/Sources/lmux-apptest/SidebarTabs.swift
@@ -480,7 +480,7 @@ git commit -m "feat(sidebar-tab-tree): workspace 記錄 Tab 子列的展開狀�
 - Consumes: `Workspace.tabsExpanded`（Task 2）
 - Produces: `LayoutFile.WorkspaceState.tabsExpanded: Bool?`（展開時 `true`，收合時 `nil`）
 
-- [ ] **Step 1: 寫檢查（存）**
+- [x] **Step 1: 寫檢查（存）**
 
 在 `runSidebarTabs()` 的 `return finish(r, c)` **之前**加。這一段要留在函式的最後面：它佈置的 workspace 是 `--sidebar-tabs-restore` 要讀的。之後的 task 都把新檢查加在這一段**之前**。
 
@@ -517,7 +517,7 @@ git commit -m "feat(sidebar-tab-tree): workspace 記錄 Tab 子列的展開狀�
         .write(to: paths.stateDir.appendingPathComponent("sidebar-tabs-expect.json"))
 ```
 
-- [ ] **Step 2: 寫檢查（讀）**
+- [x] **Step 2: 寫檢查（讀）**
 
 把 `runSidebarTabsRestore()` 整個換成：
 
@@ -549,12 +549,12 @@ func runSidebarTabsRestore() async -> Int32 {
 }
 ```
 
-- [ ] **Step 3: 確認失敗**
+- [x] **Step 3: 確認失敗**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh errors SidebarTabs.swift`
 Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `WorkspaceState` 沒有 `tabsExpanded`。
 
-- [ ] **Step 4: 改 `WorkspaceState`（`Persistence.swift:29-51`）**
+- [x] **Step 4: 改 `WorkspaceState`（`Persistence.swift:29-51`）**
 
 在 `public var zoomedPane: String?` 之後加：
 
@@ -579,7 +579,7 @@ Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `WorkspaceState` 沒有 `
             tabsExpanded = try c.decodeIfPresent(Bool.self, forKey: .tabsExpanded)
 ```
 
-- [ ] **Step 5: 存與讀**
+- [x] **Step 5: 存與讀**
 
 `snapshotLayout()`（`:162-163`）把：
 
@@ -602,12 +602,12 @@ Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `WorkspaceState` 沒有 `
             ws.tabsExpanded = w.tabsExpanded ?? false
 ```
 
-- [ ] **Step 6: 確認通過**
+- [x] **Step 6: 確認通過**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh tabs`
 Expected: `[tab tree: save]` 與 `[tab tree: relaunch]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Persistence.swift App/Sources/lmux-apptest/SidebarTabs.swift
@@ -627,12 +627,12 @@ git commit -m "feat(sidebar-tab-tree): 展開狀態存進 layout.json"
   - `struct SidebarTabItem: Identifiable, Equatable`，欄位依序是 `id: String`、`title: String`、`isPreview: Bool`、`display: AgentDisplay`、`waiting: Bool`、`unread: Int`、`focused: Bool`、`closable: Bool`
   - `Workspace.tabItems(selected: Bool) -> [SidebarTabItem]`（`selected`：這個 workspace 是不是選取中的 workspace）
 
-- [ ] **Step 1: 先查「等待回應」的 hook 寫法**
+- [x] **Step 1: 先查「等待回應」的 hook 寫法**
 
 Run: `rg -n 'hook\("(PermissionRequest|Notification)"' App/Sources/lmux-apptest | head -5`
 Expected: 至少 1 行。2026-11-17 查到的是 `PaneTabs.swift:528`：`hook("PermissionRequest", session: "tab-s1", #""tool_name":"Bash""#)`。Step 2 的 `needHook` 照這個寫法；查到的寫法不同就照查到的改，沒有任何結果就停下來回報。
 
-- [ ] **Step 2: 寫檢查**
+- [x] **Step 2: 寫檢查**
 
 加在「存檔（這一段留在最後）」那一段**之前**：
 
@@ -694,12 +694,12 @@ Expected: 至少 1 行。2026-11-17 查到的是 `PaneTabs.swift:528`：`hook("P
     r.check("沒選取的 workspace：Tab 子列都沒有標示", t.tabItems(selected: false).allSatisfy { !$0.focused })
 ```
 
-- [ ] **Step 3: 確認失敗**
+- [x] **Step 3: 確認失敗**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh errors SidebarTabs.swift`
 Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `SidebarTabItem` 或 `tabItems` 不存在。
 
-- [ ] **Step 4: 在 `App/Sources/LmuxUI/SidebarTabs.swift` 加 `SidebarTabItem`**
+- [x] **Step 4: 在 `App/Sources/LmuxUI/SidebarTabs.swift` 加 `SidebarTabItem`**
 
 加在檔案最後：
 
@@ -742,7 +742,7 @@ extension Workspace {
 }
 ```
 
-- [ ] **Step 5: 確認通過**
+- [x] **Step 5: 確認通過**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh tabs`
 Expected: `[tab tree: content]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
@@ -751,7 +751,7 @@ Expected: `[tab tree: content]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
 
 「預覽 tab：文件類型，標題是檔名」失敗、而且印出的標題不是 `design.md` 時，停下來回報印出的標題（`headerTitle` 對預覽 tab 回什麼，plan 階段只讀過程式、沒有執行）。
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/SidebarTabs.swift App/Sources/lmux-apptest/SidebarTabs.swift
@@ -774,7 +774,7 @@ git commit -m "feat(sidebar-tab-tree): 算出每列 Tab 子列要顯示的內容
   - `LmuxTokens.Layout.tabChildRowHeight`（26）、`tabChildIndent`（18）、`tabDisclosureSize`（14）
   - `rowPoint(_:_:)` 會算入上面已展開的 workspace 的 Tab 子列高度
 
-- [ ] **Step 1: 加尺寸（`Tokens.swift`）**
+- [x] **Step 1: 加尺寸（`Tokens.swift`）**
 
 在 `public static let rowCloseButtonSize: CGFloat = 20` 之後加：
 
@@ -786,7 +786,7 @@ git commit -m "feat(sidebar-tab-tree): 算出每列 Tab 子列要顯示的內容
         public static let tabDisclosureSize: CGFloat = 14
 ```
 
-- [ ] **Step 2: `rowPoint` 算入 Tab 子列的高度（`Tests.swift:51-62`）**
+- [x] **Step 2: `rowPoint` 算入 Tab 子列的高度（`Tests.swift:51-62`）**
 
 把 `let above = ...` 那一行換成：
 
@@ -798,18 +798,18 @@ git commit -m "feat(sidebar-tab-tree): 算出每列 Tab 子列要顯示的內容
     let above = ws.prefix(i).reduce(CGFloat(0)) { $0 + h($1) + kids($1) + LmuxTokens.Layout.rowGap }
 ```
 
-- [ ] **Step 3: 確認 build 通過**
+- [x] **Step 3: 確認 build 通過**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh errors Tests.swift Tokens.swift`
 Expected: `ERRORS TOTAL: 0`、`BUILD EXIT: 0`。
 
-- [ ] **Step 4: 確認沒有弄壞既有的檢查**
+- [x] **Step 4: 確認沒有弄壞既有的檢查**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh apptest-quick`，跑完後 `beat/changes/sidebar-tab-tree/dev.sh new-failures quick`
 Expected: `NEW FAILURES: 0`、`MISSING CHECKS: 0`。
 （這個 helper 在上面有展開的 workspace 時算得對不對，Task 6 的「A 展開時，A 下面的 B 還點得到」會檢查。）
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/LmuxTokens/Tokens.swift App/Sources/lmux-apptest/Tests.swift
@@ -833,7 +833,7 @@ git commit -m "test(sidebar-tab-tree): 新增 Tab 子列的尺寸，rowPoint 算
   - `struct SidebarTabChildRow: View`（`item`、`pane`、`hover`、`controller`）
   - 測試用：`func tabChildPoint(_ c: LmuxController, _ ws: Workspace, _ k: Int) -> NSPoint`
 
-- [ ] **Step 1: 寫檢查**
+- [x] **Step 1: 寫檢查**
 
 在 `App/Sources/lmux-apptest/SidebarTabs.swift` 的 `stageTabWorkspaces` 之後加 helper：
 
@@ -964,12 +964,12 @@ func tabChildPixels(_ c: LmuxController, _ ws: Workspace, _ k: Int) -> Data? {
             whileA != nil && tabChildPixels(c, ws[1], fb) != whileA)
 ```
 
-- [ ] **Step 2: 確認失敗**
+- [x] **Step 2: 確認失敗**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh errors SidebarTabs.swift`
 Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `SidebarTabChildRow` 不存在。
 
-- [ ] **Step 3: 在 `App/Sources/LmuxUI/SidebarTabs.swift` 加 `clickTabRow`**
+- [x] **Step 3: 在 `App/Sources/LmuxUI/SidebarTabs.swift` 加 `clickTabRow`**
 
 在 `extension LmuxController` 裡，`toggleTabsExpanded` 之後加：
 
@@ -983,7 +983,7 @@ Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `SidebarTabChildRow` 不�
     }
 ```
 
-- [ ] **Step 4: 在同一個檔案加 view**
+- [x] **Step 4: 在同一個檔案加 view**
 
 加在檔案最後：
 
@@ -1058,7 +1058,7 @@ struct SidebarTabChildRow: View {
 
 （`hover: false` 與 `hoverEnabled` 還沒用到，是 Task 9 要接的。）
 
-- [ ] **Step 5: 在 `Sidebar.swift` 把 Tab 子列放進每一組（`:52-58`）**
+- [x] **Step 5: 在 `Sidebar.swift` 把 Tab 子列放進每一組（`:52-58`）**
 
 把：
 
@@ -1086,12 +1086,12 @@ struct SidebarTabChildRow: View {
 
 先確認要換掉的 4 行與檔案裡的完全相同；不同就停下來回報。不要在這裡加 `.animation`：動畫由 `toggleTabsExpanded` 的 `withAnimation` 帶動。
 
-- [ ] **Step 6: 確認通過**
+- [x] **Step 6: 確認通過**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh tabs`
 Expected: `[tab tree: click]` 與 `[tab tree: render]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/SidebarTabs.swift App/Sources/LmuxUI/Sidebar.swift App/Sources/lmux-apptest/SidebarTabs.swift
@@ -1112,7 +1112,7 @@ design 預期 `SidebarReorder.swift` 不用改（未實測）。這個 task 只�
 **Interfaces:**
 - Consumes: `dragRow(_:from:to:modifiers:)`（`ZoomClearReorder.swift:13`）、`SidebarDragGeometry`、`tabChildPoint`
 
-- [ ] **Step 1: 寫檢查**
+- [x] **Step 1: 寫檢查**
 
 加在「存檔（這一段留在最後）」那一段**之前**：
 
@@ -1160,7 +1160,7 @@ design 預期 `SidebarReorder.swift` 不用改（未實測）。這個 task 只�
     r.check("…Tab 子列跟著 A 到新位置，還點得到", ga.focusedPane === last)
 ```
 
-- [ ] **Step 2: 執行**
+- [x] **Step 2: 執行**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh tabs`
 Expected: `[tab tree: drag]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
@@ -1168,7 +1168,7 @@ Expected: `[tab tree: drag]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
 
 有 `FAIL` 時停下來回報：哪一行、印出的順序或位移。design 的「拖曳排序」一節寫明這是未實測的推論。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add App/Sources/lmux-apptest/SidebarTabs.swift
@@ -1193,7 +1193,7 @@ git commit -m "test(sidebar-tab-tree): 展開的 workspace 拖曳時 Tab 子列�
   - `WorkspaceRow.disclosureLeading: CGFloat`（1）
   - 測試用：`func disclosureRect(_ c: LmuxController, _ ws: Workspace) -> NSRect`、`func saveSidebarShot(_ c: LmuxController, _ name: String)`
 
-- [ ] **Step 1: 在 `App/Sources/LmuxUI/SidebarTabs.swift` 加 `TabDisclosureButton`**
+- [x] **Step 1: 在 `App/Sources/LmuxUI/SidebarTabs.swift` 加 `TabDisclosureButton`**
 
 加在檔案最後：
 
@@ -1219,7 +1219,7 @@ struct TabDisclosureButton: View {
 }
 ```
 
-- [ ] **Step 2: 在 `Sidebar.swift` 的 `WorkspaceRow` 加 overlay**
+- [x] **Step 2: 在 `Sidebar.swift` 的 `WorkspaceRow` 加 overlay**
 
 在關閉按鈕的 overlay 結束之後（`.padding(.trailing, Self.closeTrailing)` 之後的兩個 `}`，約 `:216`），`.onHover {` **之前**加：
 
@@ -1242,7 +1242,7 @@ struct TabDisclosureButton: View {
     static let disclosureLeading: CGFloat = 1
 ```
 
-- [ ] **Step 3: 加截圖的 helper 與截圖用的佈置**
+- [x] **Step 3: 加截圖的 helper 與截圖用的佈置**
 
 在 `App/Sources/lmux-apptest/SidebarTabs.swift` 的 `tabChildPixels` 之後加：
 
@@ -1309,12 +1309,12 @@ func saveSidebarShot(_ c: LmuxController, _ name: String) {
     }
 ```
 
-- [ ] **Step 4: 截圖**
+- [x] **Step 4: 截圖**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh shots`
 Expected: 列出 8 個 PNG（`1-collapsed-selected-light.png` … `4-expanded-dark.png`），`SHOTS: 8`。
 
-- [ ] **Step 5: 停下來，請使用者看圖決定**
+- [x] **Step 5: 停下來，請使用者看圖決定**
 
 把 8 個 PNG 的完整路徑給使用者，問這一題，然後**等回答**：
 
@@ -1326,7 +1326,7 @@ Expected: 列出 8 個 PNG（`1-collapsed-selected-light.png` … `4-expanded-da
 - 回答 2：停止。回報「Task 8 之後要重新規劃」，不要自己改 `WorkspaceRowContent`。Step 1–3 的改動先不 commit，留在工作目錄。
 - 使用者要調整數值（例如 `disclosureLeading`、箭頭大小）：改 `Sidebar.swift` 的 `disclosureLeading` 或 `Tokens.swift` 的 `tabDisclosureSize`，回到 Step 4。`disclosureRect` 讀的是同樣的常數，不用改。
 
-- [ ] **Step 6: 寫檢查**
+- [x] **Step 6: 寫檢查**
 
 加在「截圖」那一段**之前**：
 
@@ -1393,7 +1393,7 @@ Expected: 列出 8 個 PNG（`1-collapsed-selected-light.png` … `4-expanded-da
     r.check("展開：workspace 列照常轉圈，進行中的 tab 的 Tab 子列也轉圈（共 2 個）", spinningViews(c) == 2, "\(spinningViews(c))")
 ```
 
-- [ ] **Step 7: 確認通過**
+- [x] **Step 7: 確認通過**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh tabs`
 Expected: `[tab tree: disclosure]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
@@ -1401,13 +1401,13 @@ Expected: `[tab tree: disclosure]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
 - 「只有 1 個 tab 的 B：點同一個位置不會展開」之後，B 可能被選取（點到的是 workspace 列）。這是預期的，下一行有 `c.select(da)`。
 - 「收合：workspace 列有 1 個轉圈圖示」印出 0 時停下來回報：`spinningViews`（`AttentionTests.swift`）在這個測試模式下數不數得到轉圈，plan 階段沒有執行過。
 
-- [ ] **Step 8: 確認沒有弄壞其他測試**
+- [x] **Step 8: 確認沒有弄壞其他測試**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh apptest-quick`，跑完後 `beat/changes/sidebar-tab-tree/dev.sh new-failures quick`
 Expected: `NEW FAILURES: 0`、`MISSING CHECKS: 0`。
 （箭頭會出現在其他測試裡有 2 個以上 tab 的 workspace 列上，所以這裡跑整輪。）
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/SidebarTabs.swift App/Sources/LmuxUI/Sidebar.swift App/Sources/lmux-apptest/SidebarTabs.swift
@@ -1429,7 +1429,7 @@ git commit -m "feat(sidebar-tab-tree): workspace 列加上展開箭頭"
   - `AppModel.hoveredTabRowID: String?`（滑鼠所在的 Tab 子列的 tab id）
   - `LmuxController.closeTabFromSidebar(_ pane: Pane)`
 
-- [ ] **Step 1: 寫檢查**
+- [x] **Step 1: 寫檢查**
 
 加在「存檔（這一段留在最後）」那一段**之前**：
 
@@ -1493,12 +1493,12 @@ git commit -m "feat(sidebar-tab-tree): workspace 列加上展開箭頭"
             cb.panes.count == 1 && !cb.showsTabDisclosure && !cb.showsTabChildren)
 ```
 
-- [ ] **Step 2: 確認失敗**
+- [x] **Step 2: 確認失敗**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh errors SidebarTabs.swift`
 Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `AppModel` 沒有 `hoveredTabRowID`。
 
-- [ ] **Step 3: 在 `Model.swift` 的 `AppModel` 加屬性**
+- [x] **Step 3: 在 `Model.swift` 的 `AppModel` 加屬性**
 
 在 `public var hoveredRowID: String?` 之後加：
 
@@ -1507,7 +1507,7 @@ Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `AppModel` 沒有 `hovere
     public var hoveredTabRowID: String?
 ```
 
-- [ ] **Step 4: 在 `App/Sources/LmuxUI/SidebarTabs.swift` 加關閉的入口**
+- [x] **Step 4: 在 `App/Sources/LmuxUI/SidebarTabs.swift` 加關閉的入口**
 
 在 `extension LmuxController` 裡，`clickTabRow` 之後加：
 
@@ -1524,7 +1524,7 @@ Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `AppModel` 沒有 `hovere
     }
 ```
 
-- [ ] **Step 5: 接上 hover 與關閉按鈕**
+- [x] **Step 5: 接上 hover 與關閉按鈕**
 
 `SidebarTabChildren` 裡，把：
 
@@ -1567,12 +1567,12 @@ Expected: `ERRORS TOTAL` 大於 0，錯誤訊息提到 `AppModel` 沒有 `hovere
             }
 ```
 
-- [ ] **Step 6: 確認通過**
+- [x] **Step 6: 確認通過**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh tabs`
 Expected: `[tab tree: close]` 沒有 `FAIL` 行，`TABS EXIT: 0`。
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Model.swift App/Sources/LmuxUI/SidebarTabs.swift App/Sources/lmux-apptest/SidebarTabs.swift
@@ -1587,13 +1587,13 @@ git commit -m "feat(sidebar-tab-tree): 從 Tab 子列關閉 tab，規則與 tab 
 - Modify: `beat/changes/sidebar-tab-tree/features/sidebar-tab-tree.feature`
 - Modify: `docs/features.md:27`
 
-- [ ] **Step 1: 跑全部的 apptest**
+- [x] **Step 1: 跑全部的 apptest**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh apptest-full`（比 quick 久；逾時就用背景執行，看到 `APPTEST EXIT (full)` 才算跑完），跑完後 `beat/changes/sidebar-tab-tree/dev.sh new-failures full`
 Expected: `NEW FAILURES: 0`、`MISSING CHECKS: 0`。`${TMPDIR:-/tmp}/sidebar-tab-tree/full.log` 裡有 `[tab tree:` 開頭的檢查，而且都是 `PASS`。
 （full 比 quick 多跑 `--restore`、`--compat` 與第二次 `--sidebar`。Task 3 改了存檔格式，Task 6、8 改了 sidebar 的點擊位置，所以收尾跑 full。）
 
-- [ ] **Step 2: 加 `@covered-by`**
+- [x] **Step 2: 加 `@covered-by`**
 
 在 feature 檔的每個場景（共 18 個，含 1 個場景大綱），標籤那一行（`@e2e ...`）與 `場景:`／`場景大綱:` 之間加一行：
 
@@ -1604,7 +1604,7 @@ Expected: `NEW FAILURES: 0`、`MISSING CHECKS: 0`。`${TMPDIR:-/tmp}/sidebar-tab
 Run: `node /Users/jamis.liao/.claude/plugins/cache/beat/beat/0.7.0/skills/design/scripts/lint-features.mjs beat/changes/sidebar-tab-tree/features/sidebar-tab-tree.feature`
 Expected: `0 error(s)`。
 
-- [ ] **Step 3: 更新 `docs/features.md:27`**
+- [x] **Step 3: 更新 `docs/features.md:27`**
 
 把：
 
@@ -1621,7 +1621,7 @@ Expected: `0 error(s)`。
 Run: `if [ -f scripts/build-docs.py ]; then python3 scripts/build-docs.py --check; fi`
 Expected: 結束碼 0（2026-11-17 這個 worktree 沒有 `scripts/build-docs.py`，所以不會執行任何檢查）。失敗時把輸出貼進回報，不要自己改 `build-docs.py`。
 
-- [ ] **Step 4: 重新截圖，列出要請使用者手動確認的項目**
+- [x] **Step 4: 重新截圖，列出要請使用者手動確認的項目**
 
 Run: `beat/changes/sidebar-tab-tree/dev.sh shots`
 Expected: `SHOTS: 8`。
@@ -1640,7 +1640,7 @@ Expected: `SHOTS: 8`。
 
 後續（不在這個 change）：README 的示意圖（`assets/screenshots/hero-*.png`）的場景有 4 個 tab 的 workspace（`Hero.swift:725-728`），下次跑 `App/scripts/readme.sh` 重新產生時會多出展開箭頭。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add beat/changes/sidebar-tab-tree/features/sidebar-tab-tree.feature docs/features.md
