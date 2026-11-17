@@ -5,9 +5,9 @@
   展開後，每個 tab 在 workspace 列下方有一列 Tab 子列，顯示它的類型、標題與 agent 狀態。
   點 Tab 子列就切換到那個 tab。終端機區域上方的 tab 列照舊。
 
-  身為 同時在多個 workspace 各開幾個 tab 的使用者
+  作為 同時在多個 workspace 各開幾個 tab 的使用者
   我想要 在 sidebar 展開 workspace，看到它的每個 tab 與各自的狀態
-  以便 不必先切換 workspace，就知道哪個 tab 在等我，並且點一下就過去
+  這樣 不必先切換 workspace，就知道哪個 tab 在等我，並且點一下就過去
 
   關鍵決策:
     **只有兩層**：workspace 底下直接列出所有 tab，分割出來的 tab 也在同一層。使用者 2026-11-17 選擇不依分割分組。
