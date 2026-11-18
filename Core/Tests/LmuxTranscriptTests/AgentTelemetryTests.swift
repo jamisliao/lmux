@@ -42,4 +42,44 @@ final class AgentTelemetryTests: XCTestCase {
         XCTAssertEqual(idx.telemetry.inputTokens, 0)
         XCTAssertEqual(idx.telemetry.outputTokens, 500)
     }
+
+    func testCodexRolloutParsesTokenCountIncrementallyAndViaStaticParse() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("rollout-test-\(UUID().uuidString).jsonl")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let meta = #"{"timestamp":"2026-11-18T00:00:00Z","type":"session_meta","payload":{"id":"s1","cwd":"/tmp","model":"gpt-5.3-codex"}}"#
+        let u1 = #"{"timestamp":"2026-11-18T00:00:01Z","type":"event_msg","payload":{"type":"user_message","message":"fix bug"}}"#
+        let tok1 = #"{"timestamp":"2026-11-18T00:00:02Z","type":"event_msg","payload":{"type":"token_count","info":{"model_context_window":272000,"last_token_usage":{"input_tokens":12000,"cached_input_tokens":8000,"output_tokens":450}}}}"#
+        let bad = #"{"type":"event_msg","broken": "#
+        try (meta + "\n" + u1 + "\n" + tok1 + "\n" + bad + "\n").write(to: tmp, atomically: true, encoding: .utf8)
+
+        let rollout = CodexRollout(url: tmp)
+        _ = try rollout.update()
+        XCTAssertEqual(rollout.fullReads, 1)
+        XCTAssertEqual(rollout.telemetry.model, "gpt-5.3-codex")
+        XCTAssertEqual(rollout.telemetry.turnCount, 1)
+        XCTAssertEqual(rollout.telemetry.contextUsedTokens, 12000)
+        XCTAssertEqual(rollout.telemetry.cacheReadTokens, 8000)
+        XCTAssertEqual(rollout.telemetry.contextLimitTokens, 272_000)
+
+        let firstBytes = rollout.bytesParsed
+        let ctx = #"{"timestamp":"2026-11-18T00:00:03Z","type":"turn_context","payload":{"model":"o3"}}"#
+        let u2 = #"{"timestamp":"2026-11-18T00:00:04Z","type":"event_msg","payload":{"type":"user_message","message":"again"}}"#
+        let tok2 = #"{"timestamp":"2026-11-18T00:00:05Z","type":"event_msg","payload":{"type":"token_count","info":{"model_context_window":200000,"last_token_usage":{"input_tokens":-10,"cached_input_tokens":5000,"output_tokens":100}}}}"#
+        let h = try FileHandle(forUpdating: tmp)
+        defer { try? h.close() }
+        try h.seekToEnd()
+        try h.write(contentsOf: Data((ctx + "\n" + u2 + "\n" + tok2 + "\n").utf8))
+
+        _ = try rollout.update()
+        XCTAssertEqual(rollout.fullReads, 1)
+        XCTAssertGreaterThan(rollout.bytesParsed, firstBytes)
+        XCTAssertEqual(rollout.telemetry.model, "o3")
+        XCTAssertEqual(rollout.telemetry.turnCount, 2)
+        XCTAssertEqual(rollout.telemetry.contextUsedTokens, 0)
+        XCTAssertEqual(rollout.telemetry.outputTokens, 550)
+
+        let whole = try CodexRollout.parse(tmp)
+        XCTAssertEqual(whole.telemetry.model, "o3")
+        XCTAssertEqual(whole.telemetry.turnCount, 2)
+    }
 }

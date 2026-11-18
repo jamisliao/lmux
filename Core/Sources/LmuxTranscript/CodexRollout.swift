@@ -33,6 +33,7 @@ public final class CodexRollout: @unchecked Sendable {
     /// Codex's own title for the session (`thread_name_updated`), if this file has one.
     public private(set) var threadName: String?
     public private(set) var turns: [TranscriptIndex.Turn] = []
+    public private(set) var telemetry = AgentTelemetrySnapshot()
     public private(set) var bytesParsed = 0
     public private(set) var fullReads = 0
 
@@ -120,6 +121,7 @@ public final class CodexRollout: @unchecked Sendable {
         meta = acc.meta
         threadName = acc.threadName
         turns = acc.indexTurns()
+        telemetry = acc.telemetry
         return true
     }
 
@@ -158,6 +160,7 @@ public final class CodexRollout: @unchecked Sendable {
         public var bytes: Int
         /// Byte offset of the last turn's prompt line.
         public var lastTurnOffset: Int?
+        public var telemetry: AgentTelemetrySnapshot
     }
 
     /// Streams the file (one chunk at a time; a big rollout of tool output never sits in memory whole).
@@ -183,7 +186,7 @@ public final class CodexRollout: @unchecked Sendable {
         }
         return Parsed(meta: acc.meta, threadName: acc.threadName, turns: acc.transcriptTurns(),
                       firstTimestamp: acc.firstTimestamp, lastTimestamp: acc.lastTimestamp, bytes: bytes,
-                      lastTurnOffset: acc.recs.last?.promptLine.lowerBound)
+                      lastTurnOffset: acc.recs.last?.promptLine.lowerBound, telemetry: acc.telemetry)
     }
 
     /// Complete lines already in memory, starting at byte `offset` of the file.
@@ -192,7 +195,7 @@ public final class CodexRollout: @unchecked Sendable {
         acc.consumeLines(data, at: offset)
         return Parsed(meta: acc.meta, threadName: acc.threadName, turns: acc.transcriptTurns(),
                       firstTimestamp: acc.firstTimestamp, lastTimestamp: acc.lastTimestamp, bytes: offset + data.count,
-                      lastTurnOffset: acc.recs.last?.promptLine.lowerBound)
+                      lastTurnOffset: acc.recs.last?.promptLine.lowerBound, telemetry: acc.telemetry)
     }
 
     // MARK: - Lines
@@ -246,6 +249,7 @@ public final class CodexRollout: @unchecked Sendable {
         var meta = Meta()
         var threadName: String?
         var recs: [Rec] = []
+        var telemetry = AgentTelemetrySnapshot()
         var firstTimestamp: Date?
         var lastTimestamp: Date?
         nonisolated(unsafe) static let iso: ISO8601DateFormatter = {
@@ -284,6 +288,42 @@ public final class CodexRollout: @unchecked Sendable {
                 meta.cliVersion = meta.cliVersion ?? (p["cli_version"] as? String)
                 if let b = (p["git"] as? [String: Any])?["branch"] as? String, !b.isEmpty { meta.gitBranch = b }
                 if let s = p["source"] as? [String: Any], s["subagent"] != nil { meta.isSubagent = true }
+                if let m = p["model"] as? String {
+                    telemetry.model = m
+                    telemetry.contextLimitTokens = ModelPricing.contextLimit(for: m)
+                }
+                return
+            }
+            if o["type"] as? String == "turn_context", let p = o["payload"] as? [String: Any] {
+                if let m = p["model"] as? String {
+                    telemetry.model = m
+                    telemetry.contextLimitTokens = ModelPricing.contextLimit(for: m)
+                }
+                return
+            }
+            if p?["type"] as? String == "token_count", let info = p?["info"] as? [String: Any] {
+                if let limit = (info["model_context_window"] as? NSNumber)?.intValue, limit > 0 {
+                    telemetry.contextLimitTokens = limit
+                }
+                if let usage = info["last_token_usage"] as? [String: Any] {
+                    let input = max(0, (usage["input_tokens"] as? NSNumber)?.intValue ?? 0)
+                    let cached = max(0, (usage["cached_input_tokens"] as? NSNumber)?.intValue ?? 0)
+                    let output = max(0, (usage["output_tokens"] as? NSNumber)?.intValue ?? 0)
+                    telemetry.contextUsedTokens = input
+                    telemetry.inputTokens = max(0, input - cached)
+                    telemetry.cacheReadTokens = cached
+                    telemetry.outputTokens += output
+                    if let stepCost = ModelPricing.estimateCostUSD(
+                        model: telemetry.model,
+                        input: input,
+                        cacheCreation: 0,
+                        cacheRead: cached,
+                        output: output
+                    ) {
+                        telemetry.estimatedCostUSD = (telemetry.estimatedCostUSD ?? 0.0) + stepCost
+                    }
+                    telemetry.updatedAt = Date()
+                }
                 return
             }
             if p?["type"] as? String == "thread_name_updated", let n = p?["thread_name"] as? String,
@@ -302,6 +342,7 @@ public final class CodexRollout: @unchecked Sendable {
                 }
                 let (capped, truncated) = keepText ? (text, false) : Self.cap(text)
                 recs.append(Rec(turnID: turnID, timestamp: ts, prompt: capped, promptTruncated: truncated, promptLine: range))
+                telemetry.turnCount = recs.count
             case .agentMessage, .finalAnswer:
                 guard !recs.isEmpty, !text.isEmpty else { return }
                 let final = kind == .finalAnswer

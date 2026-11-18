@@ -123,7 +123,7 @@ git commit -m "feat(core): extract incremental model and token telemetry from Cl
   - `CodexRollout`: `public private(set) var telemetry: AgentTelemetrySnapshot`
   - `CodexRollout.Parsed`: `public var telemetry: AgentTelemetrySnapshot`（供 `CodexRollout.parse(_:)` 回傳完整遙測）
 
-- [ ] **Step 1: 在 `AgentTelemetryTests.swift` 新增 Codex rollout 增量追加、`turn_context`、`parse(_:)` 與損毀行測試**
+- [x] **Step 1: 在 `AgentTelemetryTests.swift` 新增 Codex rollout 增量追加、`turn_context`、`parse(_:)` 與損毀行測試**
 
 ```swift
 func testCodexRolloutParsesTokenCountIncrementallyAndViaStaticParse() throws {
@@ -167,21 +167,21 @@ func testCodexRolloutParsesTokenCountIncrementallyAndViaStaticParse() throws {
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [x] **Step 2: 執行測試確認失敗**
 
 Run: `swift test --package-path Core --filter testCodexRolloutParsesTokenCountIncrementallyAndViaStaticParse`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `CodexRollout` 增量與整檔遙測抽取**
+- [x] **Step 3: 實作 `CodexRollout` 增量與整檔遙測抽取**
 
 在 `Accumulator.consume(_:at:)` 執行 `guard let c = CodexRollout.classify(o)` **之前** 先抽取 `session_meta` / `turn_context`（`model`）與 `event_msg` `token_count`（`info.model_context_window`、`info.last_token_usage`；`max(0, ...)` 防負值），並在 `Parsed` 加上 `public var telemetry: AgentTelemetrySnapshot`。
 
-- [ ] **Step 4: 執行全套 `LmuxTranscriptTests`**
+- [x] **Step 4: 執行全套 `LmuxTranscriptTests`**
 
 Run: `swift test --package-path Core --filter LmuxTranscriptTests`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 2**
+- [x] **Step 5: 提交 Task 2**
 
 ```bash
 git add Core/Sources/LmuxTranscript/CodexRollout.swift Core/Tests/LmuxTranscriptTests/AgentTelemetryTests.swift
