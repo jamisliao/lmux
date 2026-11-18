@@ -626,7 +626,7 @@ git commit -m "feat(ui): apply Liquid Glass translucent border to selected rows,
 **Interfaces:**
 - Modifies `MarkdownHTML.css` (`App/Sources/LmuxUI/MarkdownHTML.swift`), preserving `--bg:#ffffff;--fg:#24292f` (light) and `--bg:#0d1117;--fg:#e6edf3` (dark) as well as `MarkdownHTML.page(_:title:)`, `MarkdownHTML.textPage(_:title:)`, `MarkdownHTML.csp`, and `MarkdownHTML.textCSP`.
 
-- [ ] **Step 1: 在 `App/scripts/liquid-glass-app-check.swift` 新增 `MarkdownHTML` 的 Liquid Glass 樣式與降級檢查（先寫失敗測試）**
+- [x] **Step 1: 在 `App/scripts/liquid-glass-app-check.swift` 新增 `MarkdownHTML` 的 Liquid Glass 樣式與降級檢查（先寫失敗測試）**
 
 在 `App/scripts/liquid-glass-app-check.swift` 的 `main()`（`print(failures == 0 ...)` 之前）加入：
 ```swift
@@ -655,12 +655,12 @@ git commit -m "feat(ui): apply Liquid Glass translucent border to selected rows,
         )
 ```
 
-- [ ] **Step 2: 執行 `dev.sh check` 確認新測試先失敗（紅燈）**
+- [x] **Step 2: 執行 `dev.sh check` 確認新測試先失敗（紅燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `FAIL  MarkdownHTML 包含淺深雙主題 Liquid Glass 變數、頂部內高光與 pre/blockquote/callout/table 卡片規則`。
 
-- [ ] **Step 3: 更新 `App/Sources/LmuxUI/MarkdownHTML.swift` 的 `static let css`**
+- [x] **Step 3: 更新 `App/Sources/LmuxUI/MarkdownHTML.swift` 的 `static let css`**
 
 修改 `App/Sources/LmuxUI/MarkdownHTML.swift`（`:392-407`）：
 ```swift
@@ -684,12 +684,12 @@ Expected: `FAIL  MarkdownHTML 包含淺深雙主題 Liquid Glass 變數、頂部
     """
 ```
 
-- [ ] **Step 4: 執行 `dev.sh check` 與 `App/scripts/apptest.sh --preview` 確認全部綠燈**
+- [x] **Step 4: 執行 `dev.sh check` 與 `App/scripts/apptest.sh --preview` 確認全部綠燈**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check && App/scripts/apptest.sh --preview`
 Expected: `APP TOKEN CHECK: ok`、`MOCKUP CHECK: ok`，且 `--preview` 套件全數 `PASS`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/MarkdownHTML.swift App/scripts/liquid-glass-app-check.swift

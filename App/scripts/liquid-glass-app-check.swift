@@ -75,6 +75,33 @@ enum LiquidGlassAppCheck {
             )
         }
 
+        // 3. MarkdownHTML 預覽頁雙主題 Liquid Glass 樣式與無障礙降級檢查
+        let html = MarkdownHTML.page("> [!NOTE]\n> Glass callout\n\n```swift\nlet x = 1\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |\n", title: "Spec")
+        check(
+            "MarkdownHTML 保留嚴格 CSP 與淺深雙主題 --bg/--fg 相容色碼",
+            html.contains("default-src 'none'") &&
+            html.contains("--bg:#ffffff;--fg:#24292f") &&
+            html.contains("@media (prefers-color-scheme: dark){:root{--bg:#0d1117;--fg:#e6edf3")
+        )
+        check(
+            "MarkdownHTML 包含淺深雙主題 Liquid Glass 變數、頂部內高光與 pre/blockquote/callout/table 卡片規則",
+            html.contains("--glass-surface:") &&
+            html.contains("--glass-border:") &&
+            html.contains("--glass-highlight:") &&
+            html.contains("inset 0 1px 0 var(--glass-highlight)") &&
+            html.contains("pre{background:var(--glass-surface)") &&
+            html.contains("blockquote{") &&
+            html.contains("table{border-collapse:") &&
+            html.contains("<pre><code class=\"language-swift\">") &&
+            html.contains("class=\"callout") &&
+            html.contains("<table><thead>")
+        )
+        check(
+            "MarkdownHTML 包含 prefers-reduced-transparency 與 prefers-reduced-motion 降級規則",
+            html.contains("@media (prefers-reduced-transparency: reduce)") &&
+            html.contains("@media (prefers-reduced-motion: reduce)")
+        )
+
         print(failures == 0 ? "APP TOKEN CHECK: ok" : "APP TOKEN CHECK: FAILED (\(failures))")
         exit(failures == 0 ? 0 : 1)
     }
