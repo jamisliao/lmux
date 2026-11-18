@@ -39,6 +39,7 @@
   # --- 雙主題視覺與無障礙降級 ---
 
   @e2e @happy-path
+  # @covered-by: App/scripts/liquid-glass-mockup-check.swift
   場景: 預設顯示淺色主題並可在淺色與深色之間切換
     那麼 **UI 原型** 套用淺色玻璃主題，且淺色主題鈕亮起
     當 使用者點深色主題鈕
