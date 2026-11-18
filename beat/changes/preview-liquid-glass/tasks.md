@@ -218,7 +218,7 @@ git commit -m "feat(tokens): add Liquid Glass specular, border, and drag-handle 
   - `public func setSidebarResizing(_ active: Bool)`
   - `public var isSidebarResizing: Bool`
 
-- [ ] **Step 1: 在 `App/Sources/LmuxUI/RootView.swift` 與 `SidebarAccessory.swift` 實作 `specular`、`isResizing`、視窗縮放／失焦（`didResignKey` + `didResignActive`）自動復原與 `SidebarResizeHandle` 狀態回呼**
+- [x] **Step 1: 在 `App/Sources/LmuxUI/RootView.swift` 與 `SidebarAccessory.swift` 實作 `specular`、`isResizing`、視窗縮放／失焦（`didResignKey` + `didResignActive`）自動復原與 `SidebarResizeHandle` 狀態回呼**
 
 1. 修改 `App/Sources/LmuxUI/RootView.swift` 的 `SidebarBackdrop`（`:256-303`）：
 ```swift
@@ -344,7 +344,7 @@ final class SidebarResizeHandle: NSView {
     }
 ```
 
-- [ ] **Step 2: 連結 `vendor` 並以 `swift build` 驗證 `LmuxUI` 編譯通過**
+- [x] **Step 2: 連結 `vendor` 並以 `swift build` 驗證 `LmuxUI` 編譯通過**
 
 Run:
 ```bash
@@ -352,7 +352,7 @@ ln -sfn /Users/jamis.liao/opensource/lmux/vendor vendor && swift build --package
 ```
 Expected: `Build complete!`（0 errors）。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/RootView.swift App/Sources/LmuxUI/SidebarAccessory.swift

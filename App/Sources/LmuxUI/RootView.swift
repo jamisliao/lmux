@@ -67,6 +67,29 @@ final class RootView: FlippedView {
             self.needsLayout = true
             self.controller?.scheduleSave()
         }
+        resizeHandle.onDragStateChange = { [weak self] active in
+            self?.sidebarBackdrop.isResizing = active
+        }
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: NSWindow.willStartLiveResizeNotification, object: nil, queue: .main) { [weak self] note in
+            MainActor.assumeIsolated {
+                guard let self, let w = self.window, note.object as AnyObject? === w else { return }
+                self.sidebarBackdrop.isResizing = true
+            }
+        }
+        for name in [NSWindow.didEndLiveResizeNotification, NSWindow.didResignKeyNotification] {
+            nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                MainActor.assumeIsolated {
+                    guard let self, let w = self.window, note.object as AnyObject? === w else { return }
+                    self.sidebarBackdrop.isResizing = false
+                }
+            }
+        }
+        nc.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.sidebarBackdrop.isResizing = false
+            }
+        }
         trackSidebarState()
         header.onDoubleClickTitle = { [weak self] in
             guard let self, let ws = self.model.selected else { return }
@@ -260,8 +283,11 @@ extension NSView {
 final class SidebarBackdrop: NSView {
     let material = NSVisualEffectView()
     let tint = ColorView(T.Colors.sidebarTint.nsColor)
+    let specular = ColorView(T.Colors.specularHighlight.nsColor)
     /// Forced opaque (headless snapshots, tests).
     var forceOpaque = false { didSet { update() } }
+    /// Set while dragging a resize handle / split divider or during window live resize to pause blur recomputation.
+    var isResizing = false { didSet { if isResizing != oldValue { update() } } }
     /// The terminal's background when the sidebar matches it (setting), else nil (translucent Nord).
     var matchColor: NSColor? { didSet { update() } }
 
@@ -272,6 +298,7 @@ final class SidebarBackdrop: NSView {
         material.state = .followsWindowActiveState
         addSubview(material)
         addSubview(tint)
+        addSubview(specular)
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.update() }
@@ -281,23 +308,29 @@ final class SidebarBackdrop: NSView {
     required init?(coder: NSCoder) { fatalError() }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
-    var isOpaqueFallback: Bool { forceOpaque || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency }
+    var isOpaqueFallback: Bool {
+        forceOpaque || isResizing || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+    }
 
     private func update() {
         if let c = matchColor {
             material.isHidden = true
+            specular.isHidden = true
             tint.color = c
             return
         }
         let opaque = isOpaqueFallback
         material.isHidden = opaque
+        specular.isHidden = opaque
         tint.color = (opaque ? T.Colors.sidebarBackground : T.Colors.sidebarTint).nsColor
+        specular.color = T.Colors.specularHighlight.nsColor
     }
 
     override func layout() {
         super.layout()
         material.frame = bounds
         tint.frame = bounds
+        specular.frame = NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: min(1, bounds.height))
     }
 }
 
@@ -482,12 +515,18 @@ final class ContentHeaderView: TitlebarDragView {
 /// Invisible strip on the sidebar edge; drag to resize the sidebar.
 final class SidebarResizeHandle: NSView {
     var onDrag: ((CGFloat) -> Void)?
+    var onDragStateChange: ((Bool) -> Void)?
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override var mouseDownCanMoveWindow: Bool { false }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeLeftRight) }
-    override func mouseDown(with event: NSEvent) {}
+    override func mouseDown(with event: NSEvent) {
+        onDragStateChange?(true)
+    }
     override func mouseDragged(with event: NSEvent) {
         guard let sv = superview else { return }
         onDrag?(sv.convert(event.locationInWindow, from: nil).x)
+    }
+    override func mouseUp(with event: NSEvent) {
+        onDragStateChange?(false)
     }
 }
