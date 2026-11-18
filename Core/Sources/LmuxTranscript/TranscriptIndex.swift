@@ -56,6 +56,7 @@ public final class TranscriptIndex: @unchecked Sendable {
     public private(set) var aiTitle: String?
     /// Current turn list (recomputed after each `update()` that saw new lines).
     public private(set) var turns: [Turn] = []
+    public private(set) var telemetry = AgentTelemetrySnapshot()
 
     private struct Node {
         var uuid: String?
@@ -144,6 +145,7 @@ public final class TranscriptIndex: @unchecked Sendable {
         indexedBytes = 0
         tailFP = Data()
         turns = []
+        telemetry = AgentTelemetrySnapshot()
     }
 
     // MARK: - Parsing
@@ -188,10 +190,38 @@ public final class TranscriptIndex: @unchecked Sendable {
             let p = Self.promptText(message)
             n.prompt = p.count > Self.promptCap ? String(p.prefix(Self.promptCap)) : p
             n.promptTruncated = p.count > Self.promptCap
+            telemetry.turnCount += 1
         }
         if type == "user", let r = o["toolUseResult"] as? [String: Any], r["type"] as? String == "create",
            let f = r["filePath"] as? String {
             n.createdFiles.append(f)
+        }
+        if n.isAssistant {
+            if let m = message?["model"] as? String {
+                telemetry.model = m
+                telemetry.contextLimitTokens = ModelPricing.contextLimit(for: m)
+            }
+            if let usage = message?["usage"] as? [String: Any] {
+                let input = max(0, (usage["input_tokens"] as? NSNumber)?.intValue ?? 0)
+                let cacheCreation = max(0, (usage["cache_creation_input_tokens"] as? NSNumber)?.intValue ?? 0)
+                let cacheRead = max(0, (usage["cache_read_input_tokens"] as? NSNumber)?.intValue ?? 0)
+                let output = max(0, (usage["output_tokens"] as? NSNumber)?.intValue ?? 0)
+                telemetry.contextUsedTokens = input + cacheCreation + cacheRead
+                telemetry.inputTokens = input
+                telemetry.cacheCreationTokens = cacheCreation
+                telemetry.cacheReadTokens = cacheRead
+                telemetry.outputTokens += output
+                if let cost = ModelPricing.estimateCostUSD(
+                    model: telemetry.model,
+                    input: input,
+                    cacheCreation: cacheCreation,
+                    cacheRead: cacheRead,
+                    output: output
+                ) {
+                    telemetry.estimatedCostUSD = (telemetry.estimatedCostUSD ?? 0.0) + cost
+                }
+                telemetry.updatedAt = Date()
+            }
         }
         if n.isAssistant, let blocks = message?["content"] as? [[String: Any]] {
             n.messageID = message?["id"] as? String

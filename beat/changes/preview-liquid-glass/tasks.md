@@ -38,7 +38,7 @@ If the main assertion is `toHaveBeenCalledWith`, rewrite to assert on the functi
   - `public enum ModelPricing { public static func contextLimit(for model: String?) -> Int; public static func estimateCostUSD(model: String?, input: Int, cacheCreation: Int, cacheRead: Int, output: Int) -> Double? }`
   - `TranscriptIndex`: `public private(set) var telemetry = AgentTelemetrySnapshot()`
 
-- [ ] **Step 1: 建立失敗單元測試（`AgentTelemetryTests.swift`，含 `// @feature:` 標註、增量追加驗證與異常降級檢查）**
+- [x] **Step 1: 建立失敗單元測試（`AgentTelemetryTests.swift`，含 `// @feature:` 標註、增量追加驗證與異常降級檢查）**
 
 ```swift
 // @feature: liquid-glass-app.feature
@@ -88,21 +88,21 @@ final class AgentTelemetryTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [x] **Step 2: 執行測試確認失敗**
 
 Run: `swift test --package-path Core --filter AgentTelemetryTests`
 Expected: FAIL（`AgentTelemetrySnapshot` 與 `idx.telemetry` 尚未定義）
 
-- [ ] **Step 3: 實作 `AgentTelemetry.swift` 並擴充 `TranscriptIndex.swift` 增量解析**
+- [x] **Step 3: 實作 `AgentTelemetry.swift` 並擴充 `TranscriptIndex.swift` 增量解析**
 
 在 `AgentTelemetry.swift` 定義 `AgentTelemetrySnapshot` 與 `ModelPricing`；在 `TranscriptIndex.swift` 的單行讀取處解析完整 `assistant` 行的 `message["model"]` 與 `message["usage"]`（所有 token 欄位 `max(0, val)` 防負值；每出現新 `usage` 更新最新 `contextUsedTokens = input + cacheCreation + cacheRead`，並累加總 `outputTokens` 與成本），不更動既有 `Transcript.outlineObject`。
 
-- [ ] **Step 4: 重跑測試驗證通過**
+- [x] **Step 4: 重跑測試驗證通過**
 
 Run: `swift test --package-path Core --filter AgentTelemetryTests`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 1**
+- [x] **Step 5: 提交 Task 1**
 
 ```bash
 git add Core/Sources/LmuxTranscript/AgentTelemetry.swift Core/Sources/LmuxTranscript/TranscriptIndex.swift Core/Tests/LmuxTranscriptTests/AgentTelemetryTests.swift
