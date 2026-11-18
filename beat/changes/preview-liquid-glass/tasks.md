@@ -63,7 +63,7 @@ If the main assertion is `toHaveBeenCalledWith`, rewrite to assert on the functi
   - `public static let dragHandlePillWidth: CGFloat = 24`
   - `public static let dragHandlePillHeight: CGFloat = 2.5`
 
-- [ ] **Step 1: 建立 `App/scripts/liquid-glass-app-check.swift` 並掛入 `dev.sh`（先寫失敗測試）**
+- [x] **Step 1: 建立 `App/scripts/liquid-glass-app-check.swift` 並掛入 `dev.sh`（先寫失敗測試）**
 
 建立 `App/scripts/liquid-glass-app-check.swift`：
 ```swift
@@ -163,12 +163,12 @@ enum LiquidGlassAppCheck {
       && "$OUT/liquid-glass-mockup-check" ;;
 ```
 
-- [ ] **Step 2: 執行 `dev.sh check` 確認因缺少新 Token 而編譯失敗（紅燈）**
+- [x] **Step 2: 執行 `dev.sh check` 確認因缺少新 Token 而編譯失敗（紅燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: 編譯失敗，回報 `LmuxTokens.Colors` 無 `specularHighlight`、`glassBorder`、`dragHandlePill`、`dragHandlePillActive`。
 
-- [ ] **Step 3: 在 `App/Sources/LmuxTokens/Tokens.swift` 實作新 Token**
+- [x] **Step 3: 在 `App/Sources/LmuxTokens/Tokens.swift` 實作新 Token**
 
 於 `App/Sources/LmuxTokens/Tokens.swift` 的 `Colors`（`:126-129` `border` 下方）新增：
 ```swift
@@ -187,12 +187,12 @@ Expected: 編譯失敗，回報 `LmuxTokens.Colors` 無 `specularHighlight`、`g
         public static let dragHandlePillHeight: CGFloat = 2.5
 ```
 
-- [ ] **Step 4: 執行 `dev.sh check` 確認綠燈通過**
+- [x] **Step 4: 執行 `dev.sh check` 確認綠燈通過**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `APP TOKEN CHECK: ok` 與 `MOCKUP CHECK: ok`（exit code 0）。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add App/Sources/LmuxTokens/Tokens.swift App/scripts/liquid-glass-app-check.swift beat/changes/preview-liquid-glass/dev.sh

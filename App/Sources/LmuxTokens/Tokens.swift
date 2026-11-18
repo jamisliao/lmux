@@ -125,6 +125,13 @@ public enum LmuxTokens {
         public static let separator = DynamicColor(light: Nord.nord0, dark: 0x000000, lightAlpha: 0.10, darkAlpha: 0.32)
         /// Field and popover outlines. Polish: hairline-weight, used at 0.5–1px only.
         public static let border = DynamicColor(light: Nord.nord0, dark: Nord.nord6, lightAlpha: 0.14, darkAlpha: 0.10)
+        /// Liquid Glass top 1pt specular edge on the sidebar and notification bar.
+        public static let specularHighlight = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.65, darkAlpha: 0.12)
+        /// Subtle translucent border on selected workspace pills, highlighted notification cards, and the History search field.
+        public static let glassBorder = DynamicColor(light: Nord.nord0, dark: 0xFFFFFF, lightAlpha: 0.09, darkAlpha: 0.11)
+        /// Center capsule indicator on the notification bar's resize handle (idle vs hover/dragging).
+        public static let dragHandlePill = DynamicColor(light: Nord.nord0, dark: Nord.nord6, lightAlpha: 0.22, darkAlpha: 0.24)
+        public static let dragHandlePillActive = DynamicColor(light: 0x46658E, dark: Nord.nord8, lightAlpha: 0.70, darkAlpha: 0.75)
 
         // Sidebar rows
         /// Polish: hover and selection are neutral tints of the text color (Linear/Finder style).
@@ -354,6 +361,8 @@ public enum LmuxTokens {
         /// The hovered turn's action pill: inset from the pane's right edge.
         public static let turnActionInset: CGFloat = 10
         public static let sheetWidth: CGFloat = 460
+        public static let dragHandlePillWidth: CGFloat = 24
+        public static let dragHandlePillHeight: CGFloat = 2.5
     }
 
     // MARK: - Motion (minimal: ring fade, spinner, toast, hover)
