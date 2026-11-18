@@ -29,8 +29,8 @@
 
 ### 1. `LmuxTokens` 雙主題 Liquid Glass 語意 Token（`App/Sources/LmuxTokens/Tokens.swift`）
 
-- 在不破壞既有 Nord 調色盤與 WCAG AA 對比度（`P2Tests.swift:925-952`）的前提下，調整並擴充 `LmuxTokens.Colors` 與 `LmuxTokens.Layout`：
-  - `sidebarTint`：淺色維持高透亮感（`Nord.nord6`, alpha `0.78`）、深色微調為深邃曜石藍灰（`0x242934`, alpha `0.82`），讓背後桌面微透同時確保文字對比。
+- 在不破壞既有 Nord 調色盤與 WCAG AA 對比度（`P2Tests.swift:925-952`）的前提下，擴充 `LmuxTokens.Colors` 與 `LmuxTokens.Layout`：
+  - `sidebarTint`：維持既有 Nord 淺／深色調與透明度設定，搭配頂部高光與選取邊框呈現玻璃層次。
   - `specularHighlight`：`DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.65, darkAlpha: 0.12)`，用於 `SidebarBackdrop` 頂部與 **通知 bar** 上緣的 1pt 物理高光亮邊。
   - `glassBorder`：`DynamicColor(light: Nord.nord0, dark: 0xFFFFFF, lightAlpha: 0.09, darkAlpha: 0.11)`，用於選取中的 **workspace** 列、反白的 **通知卡片** 與 History 搜尋框的 0.5–1pt 微透立體邊框。
   - `dragHandlePill` / `dragHandlePillActive`：`DynamicColor` 用於 **通知 bar** 頂部調整手把的居中膠囊條（平時低調微透，游標移入或拖曳時增亮）。
@@ -108,12 +108,12 @@
 
 | 檔案 | 改動說明 |
 |---|---|
-| `App/Sources/LmuxTokens/Tokens.swift` | 新增 `Colors.specularHighlight`、`Colors.glassBorder`、`Colors.dragHandlePill`、`Colors.dragHandlePillActive` 與 `Layout.dragHandlePillWidth` / `dragHandlePillHeight`，微調 `sidebarTint` 並確保 WCAG AA 對比測試通過。 |
-| `App/Sources/LmuxUI/RootView.swift` | `SidebarBackdrop` 新增頂部 1pt `specular` 亮邊與 `isResizing` 狀態；`SidebarResizeHandle` 新增 `onDragStateChange`；監聽視窗 live resize 與 `didResignKey` 自動重置 `isResizing`。 |
-| `App/Sources/LmuxUI/PaneViews.swift` | `SplitView` 在拖曳分割線 `mouseDown` / `mouseUp` 時回呼切換 `isResizing`。 |
-| `App/Sources/LmuxUI/Sidebar.swift`、`History.swift` | `WorkspaceRowContent` 選取膠囊與 `HistorySection` 搜尋框加上 `glassBorder` 微透立體邊框。 |
+| `App/Sources/LmuxTokens/Tokens.swift` | 新增 `Colors.specularHighlight`、`Colors.glassBorder`、`Colors.dragHandlePill`、`Colors.dragHandlePillActive` 與 `Layout.dragHandlePillWidth` / `dragHandlePillHeight`，並確保 WCAG AA 對比測試通過。 |
+| `App/Sources/LmuxUI/RootView.swift` | `SidebarBackdrop` 新增頂部 1pt `specular` 亮邊與 `isResizing` 狀態；`SidebarResizeHandle` 新增 `onDragStateChange`；監聽視窗 live resize 與 `didResignKey` / `didResignActive` 自動重置 `isResizing`。 |
+| `App/Sources/LmuxUI/PaneViews.swift` | `SplitContainerView` 在拖曳分割線 `mouseDown` / `mouseUp` 時回呼切換 `isResizing`。 |
+| `App/Sources/LmuxUI/Sidebar.swift`、`History.swift` | `WorkspaceRowContent` 選取膠囊、`HistorySection` 搜尋框與 `HistoryRow` 選取列加上 `glassBorder` 微透立體邊框。 |
 | `App/Sources/LmuxUI/SidebarAccessory.swift` | `LmuxController` 新增 `public func setSidebarResizing(_ active: Bool)` 供 `LmuxNotificationBar` 在拖曳手把時同步 `isResizing`。 |
 | `App/Sources/LmuxNotificationBar/NotificationBar.swift`、`NotificationCard.swift` | `BarResizeHandle` 新增居中膠囊指示條並在拖曳時呼叫 `setSidebarResizing`；`NotificationCard` 反白與 hover 狀態加上 `glassBorder` 微透邊框。 |
-| `App/Sources/LmuxUI/MarkdownHTML.swift` | 升級預覽頁 CSS 為淺／深雙主題 Liquid Glass 卡片風格（含 `inset` 頂部亮邊與 `prefers-reduced-transparency` / `prefers-reduced-motion` 降級）。 |
-| `App/Sources/lmux-apptest/P2Tests.swift` | 新增正式 App 的 Liquid Glass tokens、拖曳 `isResizing` 降級／失焦恢復與 `MarkdownHTML` 樣式檢查。 |
+| `App/Sources/LmuxUI/MarkdownHTML.swift` | 升級預覽頁 CSS 為淺／深雙主題 Liquid Glass 卡片風格（保留既有 `--bg` / `--fg` 相容性，新增 `--glass-*`、`inset` 頂部亮邊與 `prefers-reduced-transparency` / `prefers-reduced-motion` 降級）。 |
+| `App/Sources/lmux-apptest/LiquidGlass.swift`、`App/scripts/liquid-glass-app-check.swift` | 新增正式 App 的 Liquid Glass tokens、拖曳 `isResizing` 降級／失焦恢復、通知 bar／卡片玻璃細節與 `MarkdownHTML` 樣式檢查。 |
 | `preview-mockup.html`、`App/scripts/liquid-glass-mockup-check*.swift` | 保留作為 **UI 原型** 對照與 `WKWebView` 驗證腳本。 |
