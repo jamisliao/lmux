@@ -69,7 +69,7 @@ let package = Package(
         // Headless app test harness (workspaces, splits, focus, persistence, hooks, CLI).
         .executableTarget(
             name: "lmux-apptest",
-            dependencies: ["LmuxUI", "LmuxTerminal", "LmuxTokens", "GhosttyKit",
+            dependencies: ["LmuxUI", "LmuxTerminal", "LmuxTokens", "LmuxNotificationBar", "GhosttyKit",
                            .product(name: "LmuxHooks", package: "Core"),
                            .product(name: "LmuxTranscript", package: "Core"),
                            .product(name: "LmuxSessions", package: "Core")],

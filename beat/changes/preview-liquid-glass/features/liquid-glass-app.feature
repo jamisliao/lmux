@@ -18,12 +18,14 @@
   # ===========================================================================
 
   @behavior @happy-path
+  # @covered-by: App/scripts/liquid-glass-app-check.swift
   場景: 淺色與深色外觀下提供具備頂部高光與無障礙對比的玻璃視覺設定
     當 系統外觀分別處於淺色模式與深色模式
     那麼 sidebar 背景、頂部入射光亮邊、選取膠囊邊框與調整手把指示條皆應提供對應主題的雙模態色彩
     而且 選取中的 **workspace** 列與搜尋結果列上的主要文字、次要文字及狀態文字對比度皆應符合無障礙閱讀標準
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlass.swift
   場景: Sidebar 背景在一般狀態顯示毛玻璃與頂部亮邊，並在系統開啟減少透明度時改用不透明實底
     當 系統未開啟減少透明度且 sidebar 未設定跟隨終端機底色
     那麼 sidebar 背景應啟用毛玻璃材質混合並顯示頂部入射光亮邊
@@ -35,6 +37,7 @@
   # ===========================================================================
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlass.swift
   場景大綱: 拖曳調整面板或分割窗格期間暫停毛玻璃並在放開後恢復
     當 使用者開始拖曳 <調整目標>
     那麼 sidebar 背景應立即切換為不透明實底以暫停毛玻璃混合
@@ -49,6 +52,7 @@
       | 視窗邊緣縮放       |
 
   @e2e @edge-case
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlass.swift
   場景: 拖曳途中視窗失去焦點時自動解除拖曳降級並恢復毛玻璃
     假設 使用者正在拖曳調整手把使 sidebar 背景處於不透明降級狀態
     當 視窗在拖曳途中失去焦點或結束縮放
@@ -59,6 +63,7 @@
   # ===========================================================================
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlass.swift
   場景: 選取中的 workspace 列、反白通知卡片與通知 bar 調整手把呈現立體玻璃細節
     當 使用者選取一個 **workspace** 並在 **通知 bar** 檢視來自 **focused tab** 的 **通知卡片**
     那麼 選取的 **workspace** 列與反白的 **通知卡片** 應顯示圓角膠囊底色與微透立體邊框
@@ -69,6 +74,7 @@
   # ===========================================================================
 
   @behavior @happy-path
+  # @covered-by: App/scripts/liquid-glass-app-check.swift
   場景: 預覽 tab 渲染 Markdown 檔案時套用雙主題玻璃卡片樣式與減少透明度降級規則
     當 使用者在 **預覽 tab** 開啟包含程式碼區塊、提示框與表格的 Markdown **可預覽檔案**
     那麼 產生的預覽頁面樣式應同時包含淺色與深色主題的玻璃表面、邊框高光與圓角設定

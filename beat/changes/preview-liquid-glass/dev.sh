@@ -16,6 +16,7 @@ case "${1:-}" in
       App/Sources/LmuxUI/MarkdownHTML.swift \
       App/scripts/liquid-glass-app-check.swift \
       && "$OUT/liquid-glass-app-check" \
+      && App/scripts/apptest.sh --liquid-glass \
       && swiftc -parse-as-library -o "$OUT/liquid-glass-mockup-check" \
         App/scripts/liquid-glass-mockup-check*.swift \
       && "$OUT/liquid-glass-mockup-check" ;;
