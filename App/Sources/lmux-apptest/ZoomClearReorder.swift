@@ -230,6 +230,10 @@ func runZoomClearReorder() async -> Int32 {
     func titles() -> String { c.model.workspaces.map(\.title).joined() }
 
     _ = await stageWorkspaces(c, ["A", "B", "C", "D", "E"])
+    // The same process at rest before any drag, to read "after a drag" against (the runners' idle differs).
+    await sleepMs(500)
+    let beforeDrags = await idleCost(4)
+    print(String(format: "INFO  [sidebar drag] before any drag: idle CPU %.2f%% over 4s, CVDisplayLink: %@", beforeDrags.cpu, beforeDrags.links.text))
     let past = NSPoint(x: rowPoint(c, 4).x, y: rowPoint(c, 4).y + 400)
     await dragRow(host, from: rowPoint(c, 0), to: past)
     _ = await waitFor(2) { titles() != "ABCDE" }

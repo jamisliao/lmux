@@ -181,7 +181,8 @@ func runAgents() async -> Int32 {
     let prevWS = c.model.selected
     let dws = c.newWorkspace(program: launch.path)
     let dp = dws.panes[0]
-    _ = await waitFor(15) { c.foregroundIs(dp, app: "my-agent") }
+    let dUp = await waitFor(15) { c.foregroundIs(dp, app: "my-agent") }
+    r.check("(setup) the reporter to kill is in front", dUp, foregroundName(dp) ?? "-")
     c.programStatus(dp, report(.working))
     c.flushPaneChrome()
     let named = dp.view.header.label.stringValue
@@ -363,8 +364,9 @@ func runAgents() async -> Int32 {
     let nws = c.newWorkspace(select: false, program: nextLaunch.path)
     let np = nws.panes[0]
     let nextCounted = await waitFor(15) { np.needsInput }
+    // One lookup per read of the burst at most: a slow runner splits the 200 into more reads (5 seen there).
     r.check("`cat 200-reports-naming-next-agent; next-agent`: next-agent's own report still counts; a few lookups, not 200",
-            nextCounted && np.agentName == "next-agent" && c.argvLookups - lookupsNext <= 4,
+            nextCounted && np.agentName == "next-agent" && c.argvLookups - lookupsNext <= 8,
             "\(c.argvLookups - lookupsNext) lookups " + "\(np.display) " + c.actionLog.filter { $0.contains("pane=\(np.id.prefix(8))") }.joined(separator: " | "))
     c.closeWorkspace(nws)
 
