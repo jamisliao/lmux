@@ -712,7 +712,7 @@ git commit -m "feat(preview): style MarkdownHTML with dual-theme Liquid Glass su
 - Consumes: `SidebarBackdrop`, `SidebarResizeHandle`, `SplitContainerView`, `LmuxController.setSidebarResizing(_:)` / `isSidebarResizing`, `NotificationBarPlugin`, `BarLayout`, `BarResizeHandle`, `NotificationCard`, `WorkspaceRowContent`, `HistoryRow`
 - Produces: `runLiquidGlass() async -> Int32` (`App/Sources/lmux-apptest/LiquidGlass.swift`), `lmux-apptest --liquid-glass`, `App/scripts/apptest.sh --liquid-glass`
 
-- [ ] **Step 1: 在 `App/Package.swift` 將 `LmuxNotificationBar` 連結至 `lmux-apptest`，並建立 `App/Sources/lmux-apptest/LiquidGlass.swift`**
+- [x] **Step 1: 在 `App/Package.swift` 將 `LmuxNotificationBar` 連結至 `lmux-apptest`，並建立 `App/Sources/lmux-apptest/LiquidGlass.swift`**
 
 1. 修改 `App/Package.swift`（`:70-77`）在 `lmux-apptest` 的 `dependencies` 加入 `"LmuxNotificationBar"`：
 ```swift
@@ -886,7 +886,7 @@ fi
       && "$OUT/liquid-glass-mockup-check" ;;
 ```
 
-- [ ] **Step 2: 為 `beat/changes/preview-liquid-glass/features/liquid-glass-app.feature` 全部 6 個場景補上 `# @covered-by:` 標註**
+- [x] **Step 2: 為 `beat/changes/preview-liquid-glass/features/liquid-glass-app.feature` 全部 6 個場景補上 `# @covered-by:` 標註**
 
 在 `liquid-glass-app.feature` 每個場景的標籤列與 `場景:`／`場景大綱:` 列之間加上對應的 `# @covered-by:`：
 - 場景 1（`淺色與深色外觀下提供具備頂部高光與無障礙對比的玻璃視覺設定`）：`# @covered-by: App/scripts/liquid-glass-app-check.swift`
@@ -896,7 +896,7 @@ fi
 - 場景 5（`選取中的 workspace 列、反白通知卡片與通知 bar 調整手把呈現立體玻璃細節`）：`# @covered-by: App/Sources/lmux-apptest/LiquidGlass.swift`
 - 場景 6（`預覽 tab 渲染 Markdown 檔案時套用雙主題玻璃卡片樣式與減少透明度降級規則`）：`# @covered-by: App/scripts/liquid-glass-app-check.swift`
 
-- [ ] **Step 3: 執行 `dev.sh check`、`App/scripts/apptest.sh --preview` 與 `App/scripts/bundle.sh` 建置並啟動 `App/build/lmux.app`**
+- [x] **Step 3: 執行 `dev.sh check`、`App/scripts/apptest.sh --preview` 與 `App/scripts/bundle.sh` 建置並啟動 `App/build/lmux.app`**
 
 Run:
 ```bash
@@ -909,7 +909,7 @@ Expected:
 - `--preview` 測試全數 `PASS`
 - `App/scripts/bundle.sh` 產出 `App/build/lmux.app` 並成功啟動供使用者測試。
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add App/Package.swift App/Sources/lmux-apptest/LiquidGlass.swift App/Sources/lmux-apptest/main.swift App/scripts/apptest.sh beat/changes/preview-liquid-glass/dev.sh beat/changes/preview-liquid-glass/features/liquid-glass-app.feature

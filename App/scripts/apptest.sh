@@ -148,6 +148,15 @@ if [ "${1:-}" = "--sidebar-tabs" ]; then
   run_sidebar_tabs_suite
   exit $status
 fi
+run_liquid_glass_suite() {
+  mkdir -p "$T/liquid-glass"
+  LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+    "$BIN/lmux-apptest" --liquid-glass 2>/dev/null | filter || status=1
+}
+if [ "${1:-}" = "--liquid-glass" ]; then
+  run_liquid_glass_suite
+  exit $status
+fi
 LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"
@@ -156,6 +165,7 @@ LMUX_STATE_DIR="$T/titlebar" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 
 mkdir -p "$T/sidebar"
 LMUX_STATE_DIR="$T/sidebar" "$BIN/lmux-apptest" --sidebar 2>/dev/null | filter || status=1
 run_sidebar_tabs_suite
+run_liquid_glass_suite
 # Split zoom, manual Clear Status, and sidebar drag-to-reorder.
 mkdir -p "$T/zoomclear"
 LMUX_STATE_DIR="$T/zoomclear" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --zoom-clear-reorder 2>/dev/null | filter || status=1
