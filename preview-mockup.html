@@ -32,6 +32,7 @@
 
       --glass-blur: blur(40px) saturate(210%) contrast(104%);
       --glass-blur-subtle: blur(24px) saturate(180%);
+      --glass-blur-card: blur(16px);
       --bg-resizing-fallback: rgba(18, 22, 30, 0.98);
 
       /* Text Tokens (Dark) */
@@ -86,6 +87,7 @@
 
       --glass-blur: blur(40px) saturate(240%) contrast(105%) brightness(103%);
       --glass-blur-subtle: blur(24px) saturate(200%) brightness(102%);
+      --glass-blur-card: blur(16px);
 
       --text-primary: #181A1E;
       --text-secondary: rgba(24, 26, 30, 0.75);
@@ -196,13 +198,19 @@
       :root, [data-theme="light"] {
         --glass-blur: none !important;
         --glass-blur-subtle: none !important;
+        --glass-blur-card: none !important;
       }
       .lmux-window,
       .sidebar-left,
       .sidebar-right,
-      .inbox-accessory-panel,
+      .sidebar-inbox-accessory,
       .titlebar,
-      .mockup-controls {
+      .mockup-controls,
+      .window-footer,
+      .terminal-pane,
+      .inspector-card,
+      .preview-browser-card,
+      .preview-viewport-card {
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
       }
@@ -287,14 +295,6 @@
     [data-theme="dark"] .ctrl-pill-btn:hover {
       background: rgba(255, 255, 255, 0.14);
     }
-      background: rgba(0, 0, 0, 0.05);
-      border: 1px solid rgba(0, 0, 0, 0.08);
-    }
-
-    .ctrl-pill-btn:hover {
-      background: rgba(255, 255, 255, 0.16);
-      transform: translateY(-1px);
-    }
 
     .ctrl-pill-btn:active {
       transform: scale(0.96);
@@ -333,6 +333,7 @@
       overflow: hidden;
       background: var(--bg-window-tint);
       backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
       box-shadow: var(--glass-outer-shadow);
       border: var(--glass-specular-edge);
       transform: translateZ(0);
@@ -370,6 +371,7 @@
       border-bottom: 1px solid var(--glass-sidebar-border);
       background: var(--glass-titlebar);
       backdrop-filter: var(--glass-blur-subtle);
+      -webkit-backdrop-filter: var(--glass-blur-subtle);
     }
 
     /* Left Titlebar: Traffic Lights & Left Sidebar Toggle */
@@ -525,6 +527,7 @@
       height: 100%;
       background: var(--glass-sidebar);
       backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
       border-right: 1px solid var(--glass-sidebar-border);
       display: flex;
       flex-direction: column;
@@ -1514,6 +1517,7 @@
       height: 100%;
       background: var(--glass-sidebar);
       backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
       border-left: 1px solid var(--glass-sidebar-border);
       display: flex;
       flex-direction: column;
@@ -1587,8 +1591,8 @@
     /* Cards inside Right Sidebar */
     .inspector-card {
       background: var(--glass-card);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: var(--glass-blur-card);
+      -webkit-backdrop-filter: var(--glass-blur-card);
       border: 1px solid var(--glass-sidebar-border);
       border-radius: var(--radius-card);
       padding: 12px;
@@ -1685,7 +1689,8 @@
 
     .activity-read { background: rgba(10, 132, 255, 0.15); color: var(--accent-blue); }
     .activity-edit { background: rgba(255, 159, 10, 0.15); color: var(--accent-orange); }
-    .activity-run { background: rgba(48, 209, 88, 0.15); color: var(--accent-green); }
+    .activity-run,
+    .activity-bash { background: rgba(48, 209, 88, 0.15); color: var(--accent-green); }
 
     .activity-content {
       flex: 1;
@@ -1724,8 +1729,8 @@
        ========================================================================== */
     .preview-browser-card {
       background: var(--glass-card);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: var(--glass-blur-card);
+      -webkit-backdrop-filter: var(--glass-blur-card);
       border: 1px solid var(--glass-sidebar-border);
       border-radius: var(--radius-card);
       overflow: hidden;
@@ -1842,8 +1847,8 @@
 
     .preview-viewport-card {
       background: var(--glass-card);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: var(--glass-blur-card);
+      -webkit-backdrop-filter: var(--glass-blur-card);
       border: 1px solid var(--glass-sidebar-border);
       border-radius: var(--radius-card);
       flex: 1;
@@ -2282,7 +2287,7 @@
               <br>
               <div><span style="color: var(--text-tertiary);">11:42:01 AM</span> <span style="color: var(--accent-teal);">[vite]</span> hmr update <span style="color: var(--accent-blue);">/src/App.css</span> (x2)</div>
               <div><span style="color: var(--text-tertiary);">11:42:05 AM</span> <span style="color: var(--accent-teal);">[vite]</span> hmr update <span style="color: var(--accent-blue);">/src/RootView.swift</span></div>
-              <div><span style="color: var(--text-tertiary);">11:42:18 AM</span> <span style="color: var(--accent-teal);">[vite]</span> glass vibrancy recomputed: <span style="color: var(--accent-green);">36px blur @ 60fps</span></div>
+              <div><span style="color: var(--text-tertiary);">11:42:18 AM</span> <span style="color: var(--accent-teal);">[vite]</span> glass vibrancy recomputed: <span style="color: var(--accent-green);">40px blur @ 60fps</span></div>
               <div><span style="color: var(--text-tertiary);">11:42:42 AM</span> <span style="color: var(--accent-teal);">[vite]</span> connected to Metal GPU surface buffer</div>
               <br>
               <div class="cli-prompt-line" style="color: var(--text-tertiary);">
@@ -2362,7 +2367,7 @@
                 </button>
               </div>
               <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-tertiary); background: var(--glass-surface-recessed); padding: 8px; border-radius: 6px; border: 1px solid var(--glass-sidebar-border);">
-                blur(36px) saturate(240%) · Hot-reload Active
+                blur(40px) saturate(240%) · Hot-reload Active
               </div>
             </div>
           </div>
@@ -2517,7 +2522,7 @@
               </button>
             </div>
             <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-tertiary); background: var(--glass-surface-recessed); padding: 8px; border-radius: 6px; border: 1px solid var(--glass-sidebar-border);">
-              blur(36px) saturate(240%) · Hot-reload Active
+              blur(40px) saturate(240%) · Hot-reload Active
             </div>
           </div>
         `;
@@ -2555,7 +2560,7 @@
             <div><span style="color: var(--accent-purple);">import</span> <span style="color: var(--text-primary);">QuartzCore</span></div>
             <br>
             <div><span style="color: var(--accent-purple);">public struct</span> <span style="color: var(--accent-teal);">GlassMaterialTokens</span> {</div>
-            <div>&nbsp;&nbsp;<span style="color: var(--accent-purple);">public static let</span> blurRadius: <span style="color: var(--accent-orange);">CGFloat</span> = <span style="color: var(--accent-green);">36.0</span></div>
+            <div>&nbsp;&nbsp;<span style="color: var(--accent-purple);">public static let</span> blurRadius: <span style="color: var(--accent-orange);">CGFloat</span> = <span style="color: var(--accent-green);">40.0</span></div>
             <div>&nbsp;&nbsp;<span style="color: var(--accent-purple);">public static let</span> saturation: <span style="color: var(--accent-orange);">CGFloat</span> = <span style="color: var(--accent-green);">2.4</span></div>
             <div>&nbsp;&nbsp;<span style="color: var(--accent-purple);">public static let</span> specularRim: <span style="color: var(--accent-orange);">CGFloat</span> = <span style="color: var(--accent-green);">0.55</span></div>
             <br>
@@ -2639,7 +2644,7 @@
                 </button>
               </div>
               <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-tertiary); background: var(--glass-surface-recessed); padding: 8px; border-radius: 6px; border: 1px solid var(--glass-sidebar-border);">
-                blur(36px) saturate(240%) · Hot-reload Active
+                blur(40px) saturate(240%) · Hot-reload Active
               </div>
             </div>
           </div>
