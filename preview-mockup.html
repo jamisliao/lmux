@@ -2459,15 +2459,16 @@
       }
     }
 
-    // Keyboard Shortcuts: Cmd+B (Left), Opt+Cmd+B / Cmd+Shift+R (Right)
+    // Keyboard Shortcuts: Cmd+B (Left), Opt+Cmd+B (Right)
     window.addEventListener('keydown', (e) => {
+      const isBKey = e.key === 'b' || e.key === 'B' || e.code === 'KeyB';
       // Cmd + B
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key === 'b' || e.key === 'B')) {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && isBKey) {
         e.preventDefault();
         toggleSidebar('left');
       }
       // Option + Cmd + B
-      if ((e.metaKey || e.ctrlKey) && e.altKey && (e.key === 'b' || e.key === 'B')) {
+      if ((e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && isBKey) {
         e.preventDefault();
         toggleSidebar('right');
       }

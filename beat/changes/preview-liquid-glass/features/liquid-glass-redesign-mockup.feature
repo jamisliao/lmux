@@ -64,6 +64,7 @@
   # --- 面板收合、拖曳調大小與效能守護 ---
 
   @e2e @happy-path
+  # @covered-by: App/scripts/liquid-glass-mockup-check-panels.swift
   場景大綱: 用按鈕或快捷鍵收合與展開 sidebar 及右側 Inspector
     當 使用者透過 <操作方式> 切換 <目標面板>
     那麼 <目標面板> 收合，且 <對應標題列鈕> 取消亮起
@@ -105,6 +106,7 @@
     那麼 通知 bar 自動收合，且 UI 原型恢復毛玻璃模糊濾鏡
 
   @e2e @edge-case
+  # @covered-by: App/scripts/liquid-glass-mockup-check-panels.swift
   場景大綱: 透過摘要列、雙擊手把或頂部控制列切換通知 bar 收合與展開
     當 使用者透過 <收合操作> 切換 **通知 bar**
     那麼 通知 bar 收合（只露出 **摘要列**）
