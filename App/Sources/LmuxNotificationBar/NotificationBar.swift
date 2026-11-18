@@ -12,8 +12,8 @@ private typealias T = LmuxTokens
 @MainActor
 public enum NotificationBarPlugin {
     static let rowHeight: CGFloat = 29
-    /// 最上緣的拖曳帶：1pt 分隔線在最上面，其餘透明，整條都可以拖。
-    static let handleHeight: CGFloat = 5
+    /// 最上緣的拖曳帶：1pt 分隔線在最上面，中央放膠囊指示條，整條都可以拖。
+    static let handleHeight: CGFloat = 6
 
     /// 最小高度，也是沒拖過時的自動高度：拖曳帶 + 每個 plugin 一行（有 plugin 時再加一條分隔線）
     /// + 摘要列 + 一張完整的通知卡片（不拖拉也看得到第一張卡片）。
@@ -66,8 +66,31 @@ public enum NotificationBarPlugin {
 final class BarLayout {
     static let defaultsKey = "sidebarBarExtraHeight"
     var extra: CGFloat
+    private(set) var dragStart: CGFloat?
+
+    var isDragging: Bool { dragStart != nil }
 
     init() { extra = max(0, CGFloat(UserDefaults.standard.double(forKey: Self.defaultsKey))) }
+
+    func beginDrag(on controller: LmuxController) {
+        if dragStart == nil {
+            dragStart = extra
+            controller.setSidebarResizing(true)
+        }
+    }
+
+    func updateDrag(translationHeight: CGFloat, maxExtra: CGFloat, on controller: LmuxController) {
+        beginDrag(on: controller)
+        let start = dragStart ?? extra
+        // 往上拖（translation 為負）bar 變高。
+        extra = min(max(0, start - translationHeight), max(0, maxExtra))
+    }
+
+    func endDrag(on controller: LmuxController) {
+        dragStart = nil
+        controller.setSidebarResizing(false)
+        save()
+    }
 
     /// 拖曳結束才寫入，拖曳過程中不必每一步都寫。
     func save() { UserDefaults.standard.set(Double(extra), forKey: Self.defaultsKey) }
@@ -88,7 +111,7 @@ struct NotificationBar: View {
     var body: some View {
         let pluginRows = host?.rows ?? []
         VStack(spacing: 0) {
-            BarResizeHandle(layout: layout) {
+            BarResizeHandle(layout: layout, controller: controller) {
                 controller.sidebarAccessoryMaxHeight - NotificationBarPlugin.minHeight(pluginRows: pluginRows.count)
             }
             if let host, !pluginRows.isEmpty {
@@ -104,32 +127,38 @@ struct NotificationBar: View {
 /// bar 最上緣：往上拖變高、往下拖變矮（不會低於最小高度），雙擊恢復自動高度。
 struct BarResizeHandle: View {
     let layout: BarLayout
+    let controller: LmuxController
     /// 以目前的視窗大小，`extra` 最多可以到多少。
     let maxExtra: () -> CGFloat
-    @State private var dragStart: CGFloat?
+    @State private var hover = false
+
+    static func pillColor(hover: Bool, isDragging: Bool) -> LmuxTokens.DynamicColor {
+        (hover || isDragging) ? T.Colors.dragHandlePillActive : T.Colors.dragHandlePill
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
+        let pill = Self.pillColor(hover: hover, isDragging: layout.isDragging)
+        ZStack(alignment: .top) {
             Rectangle().fill(T.Colors.separator.color).frame(height: 1)
-            Spacer(minLength: 0)
+            Capsule()
+                .fill(pill.color)
+                .frame(width: T.Layout.dragHandlePillWidth, height: T.Layout.dragHandlePillHeight)
+                .padding(.top, 2)
         }
         .frame(maxWidth: .infinity)
         .frame(height: NotificationBarPlugin.handleHeight)
         .contentShape(Rectangle())
         .onHover { inside in
+            hover = inside
             if inside { NSCursor.resizeUpDown.push() } else { NSCursor.pop() }
         }
         // global 座標：bar 在拖曳中會跟著變高、位置會移動，用 local 座標的話位移量會抖動。
         .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
             .onChanged { value in
-                let start = dragStart ?? layout.extra
-                dragStart = start
-                // 往上拖（translation 為負）bar 變高。
-                layout.extra = min(max(0, start - value.translation.height), max(0, maxExtra()))
+                layout.updateDrag(translationHeight: value.translation.height, maxExtra: maxExtra(), on: controller)
             }
             .onEnded { _ in
-                dragStart = nil
-                layout.save()
+                layout.endDrag(on: controller)
             })
         .onTapGesture(count: 2) {
             layout.extra = 0

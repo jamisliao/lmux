@@ -216,6 +216,7 @@ final class SplitContainerView: FlippedView {
     let second: NSView
     let divider = ColorView(T.Colors.separator.nsColor)
     var onRatioChange: (() -> Void)?
+    var onDragStateChange: ((Bool) -> Void)?
     private let grab: CGFloat = 3  // extra hit area on each side of the divider
 
     init(node: SplitNode, axis: SplitAxis, first: NSView, second: NSView) {
@@ -264,11 +265,17 @@ final class SplitContainerView: FlippedView {
         addCursorRect(dividerHitRect, cursor: axis == .horizontal ? .resizeLeftRight : .resizeUpDown)
     }
 
-    override func mouseDown(with event: NSEvent) {}
+    override func mouseDown(with event: NSEvent) {
+        onDragStateChange?(true)
+    }
 
     override func mouseDragged(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
         setRatio(forPosition: axis == .horizontal ? p.x : p.y)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        onDragStateChange?(false)
     }
 
     /// Move the divider to `pos` (points from the leading edge), clamped so

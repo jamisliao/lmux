@@ -970,6 +970,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         case .split(let axis, let a, let b):
             let v = SplitContainerView(node: node, axis: axis, first: buildView(a), second: buildView(b))
             v.onRatioChange = { [weak self] in self?.scheduleSave() }
+            v.onDragStateChange = { [weak self] active in self?.setSidebarResizing(active) }
             return v
         }
     }
