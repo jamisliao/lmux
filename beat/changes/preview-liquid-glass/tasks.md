@@ -301,7 +301,7 @@ git commit -m "feat(core): add bounded live ToolCallStream tracking to PaneAgent
   - `public struct GitDiffSnapshot: Equatable`（`cwd: String?`, `isGitRepo: Bool`, `branch: String?`, `totalAdded: Int`, `totalDeleted: Int`, `files: [GitDiffFile]`, `previewCandidates: [URL]`）
   - `@MainActor @Observable public final class GitDiffService`（`public private(set) var snapshot: GitDiffSnapshot`, `public private(set) var isLoading: Bool`, `public func refresh(cwd: String?, immediate: Bool = false)`, `static func parseNumstat(_:)`, `static func parseUnifiedDiff(_:maxLines:)`）
 
-- [ ] **Step 1: 建立 `LiquidGlassTelemetryTests.swift` 並註冊 `--liquid-glass-telemetry` 至 `main.swift` 與 `App/scripts/apptest.sh` 的 `run_liquid_glass_suite`**
+- [x] **Step 1: 建立 `LiquidGlassTelemetryTests.swift` 並註冊 `--liquid-glass-telemetry` 至 `main.swift` 與 `App/scripts/apptest.sh` 的 `run_liquid_glass_suite`**
 
 涵蓋斷言（標註 `// @feature: liquid-glass-app.feature` / `// @scenario: Git Diff 服務讀取工作區變更統計與檔案 hunks，非 Git 目錄呈現空狀態`）：
 1. `parseNumstat` 與 `parseUnifiedDiff` 解析單檔／多檔、`binary - -` 安全略過、`maxLines` 截斷設 `truncated == true`。
@@ -310,12 +310,12 @@ git commit -m "feat(core): add bounded live ToolCallStream tracking to PaneAgent
 4. 目錄包含 unsafe scalars / symlink 指向外層 `/etc/passwd` 時，`previewCandidates` 只收錄通過 `PreviewTarget.resolve` 驗證的一般檔案（上限 5 筆，`README.md` 優先），且路徑經過 `PreviewTarget.replacingUnsafeScalars`。
 5. 切換至非 Git 暫存目錄後 `snapshot.isGitRepo == false`、`files.isEmpty`；快速連續切換兩個目錄（cancel generation）後只保留最後一次目錄結果。
 
-- [ ] **Step 2: 編譯並執行確認 RED**
+- [x] **Step 2: 編譯並執行確認 RED**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass-telemetry`
 Expected: FAIL（`GitDiffService` 未定義）
 
-- [ ] **Step 3: 實作安全強化版 `GitDiffService.swift`**
+- [x] **Step 3: 實作安全強化版 `GitDiffService.swift`**
 
 實作重點：
 - `200ms` debounce（測試可用 `immediate: true`），切換時遞增 generation ID 並對進行中 `Process` 呼叫 `terminate()`。
@@ -323,12 +323,12 @@ Expected: FAIL（`GitDiffService` 未定義）
 - Stdout / stderr 使用 async readabilityHandler 並於達到硬性 byte 上限（例如 `256 KB`）前停止累積再等待結束，搭配 3 秒 timeout 保護絕不 deadlock。
 - Unborn HEAD fallback（`diff HEAD` 失敗改讀 `diff --cached` + `status --porcelain=v1 -z` untracked），以 `PreviewTarget.replacingUnsafeScalars` 清洗所有 `branch` 與檔案路徑。
 
-- [ ] **Step 4: 執行 `--liquid-glass-telemetry` 驗證 GREEN**
+- [x] **Step 4: 執行 `--liquid-glass-telemetry` 驗證 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass-telemetry`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 4**
+- [x] **Step 5: 提交 Task 4**
 
 ```bash
 git add App/Sources/LmuxUI/GitDiffService.swift App/Sources/lmux-apptest/LiquidGlassTelemetryTests.swift App/Sources/lmux-apptest/main.swift App/scripts/apptest.sh
