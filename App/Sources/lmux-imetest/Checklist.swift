@@ -119,11 +119,25 @@ func runIMEChecks(_ r: Report, runtime: GhosttyRuntime, real: Bool) async {
         : { SimulatedKoreanIMEView(app: $0, options: $1) }
 
     // Real IME: make sure this view's input context talks to the Korean 2-Set IME.
+    // The switch is asynchronous, and on CI's VM a fixed wait sometimes isn't enough: the IME then
+    // passes raw jamo through (#23). So probe it: "r" must start a composition (ㄱ in preedit);
+    // backspace drops the preedit again, so nothing reaches the pty. Retry, then report setup.
     func attachIME(_ term: SinkTerminal) async {
         guard real, let ctx = term.view.inputContext else { return }
-        ctx.selectedKeyboardInputSource = koreanInputSourceID
-        ctx.activate()
-        await sleepMs(200)
+        var composes = false
+        for attempt in 0..<4 where !composes {
+            if attempt > 0 { ctx.deactivate() }
+            ctx.selectedKeyboardInputSource = koreanInputSourceID
+            ctx.activate()
+            await sleepMs(200 + 300 * attempt)
+            await post(Key.latin("r"), to: term.window)
+            for _ in 0..<20 where !term.view.hasMarkedText() { await sleepMs(50) }
+            composes = term.view.hasMarkedText()
+            await post([.backspace], to: term.window)
+            for _ in 0..<20 where term.view.hasMarkedText() { await sleepMs(50) }
+            await sleepMs(100)
+        }
+        if !composes { r.check("(setup) the Korean 2-Set IME composes in \(term.window.title)", false) }
     }
 
     // ---- Fresh terminal for cursor / rendering checks.
