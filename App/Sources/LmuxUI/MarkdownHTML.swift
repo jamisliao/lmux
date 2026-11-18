@@ -389,19 +389,22 @@ enum MarkdownHTML {
         }
     }
 
-    /// 樣式表：淺色與深色兩組顏色，跟著 `prefers-color-scheme` 切換（WKWebView 跟著 lmux 的外觀設定）。
+    /// 樣式表：淺色與深色兩組顏色與 Liquid Glass 卡片表面，跟著 `prefers-color-scheme` 切換（WKWebView 跟著 lmux 的外觀設定），
+    /// 並在系統開啟 `prefers-reduced-transparency` 或 `prefers-reduced-motion` 時自動降級。
     static let css = """
-    :root{--bg:#ffffff;--fg:#24292f;--muted:#57606a;--border:#d0d7de;--code-bg:#f6f8fa;--link:#0969da;--note:#0969da;--tip:#1a7f37;--important:#8250df;--warning:#9a6700;--caution:#cf222e}
-    @media (prefers-color-scheme: dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--border:#30363d;--code-bg:#161b22;--link:#4493f8;--note:#4493f8;--tip:#3fb950;--important:#ab7df8;--warning:#d29922;--caution:#f85149}}
+    :root{--bg:#ffffff;--fg:#24292f;--muted:#57606a;--border:#d0d7de;--code-bg:#f6f8fa;--glass-surface:rgba(246,248,250,0.78);--glass-border:rgba(36,41,47,0.10);--glass-highlight:rgba(255,255,255,0.82);--glass-shadow:0 4px 14px rgba(15,23,42,0.04);--link:#0969da;--note:#0969da;--tip:#1a7f37;--important:#8250df;--warning:#9a6700;--caution:#cf222e}
+    @media (prefers-color-scheme: dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#8d96a0;--border:#30363d;--code-bg:#161b22;--glass-surface:rgba(22,27,34,0.78);--glass-border:rgba(255,255,255,0.10);--glass-highlight:rgba(255,255,255,0.12);--glass-shadow:0 8px 22px rgba(0,0,0,0.28);--link:#4493f8;--note:#4493f8;--tip:#3fb950;--important:#ab7df8;--warning:#d29922;--caution:#f85149}}
+    @media (prefers-reduced-transparency: reduce){:root{--glass-surface:#f6f8fa;--glass-highlight:transparent;--glass-shadow:none}@media (prefers-color-scheme: dark){:root{--glass-surface:#161b22;--glass-highlight:transparent;--glass-shadow:none}}}
+    @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:0.01ms !important;transition-duration:0.01ms !important}}
     html{background:var(--bg);color:var(--fg)}body{margin:0;font:15px/1.6 -apple-system,"PingFang TC",sans-serif}article{max-width:880px;margin:0 auto;padding:24px 32px}
     a{color:var(--link)}h1,h2{border-bottom:1px solid var(--border);padding-bottom:.3em}
     code{font:13px ui-monospace,Menlo,monospace;background:var(--code-bg);padding:.1em .3em;border-radius:4px}
-    pre{background:var(--code-bg);padding:12px 16px;border-radius:6px;overflow:auto}pre code{padding:0;background:none}
-    blockquote{margin:0 0 1em;padding:0 1em;color:var(--muted);border-left:4px solid var(--border)}
+    pre{background:var(--glass-surface);padding:12px 16px;border-radius:8px;border:1px solid var(--glass-border);box-shadow:inset 0 1px 0 var(--glass-highlight),var(--glass-shadow);overflow:auto}pre code{padding:0;background:none}
+    blockquote{margin:0 0 1em;padding:8px 1em;color:var(--muted);background:var(--glass-surface);border:1px solid var(--glass-border);border-left:4px solid var(--border);border-radius:8px;box-shadow:inset 0 1px 0 var(--glass-highlight)}
     .callout{color:var(--fg);border-left-color:var(--note)}.callout-title{font-weight:600;color:var(--note)}
     .callout-tip{border-left-color:var(--tip)}.callout-tip .callout-title{color:var(--tip)}.callout-important{border-left-color:var(--important)}.callout-important .callout-title{color:var(--important)}
     .callout-warning{border-left-color:var(--warning)}.callout-warning .callout-title{color:var(--warning)}.callout-caution{border-left-color:var(--caution)}.callout-caution .callout-title{color:var(--caution)}
     pre.plain{white-space:pre-wrap;overflow-wrap:anywhere;overflow:visible}pre.plain code{white-space:inherit}
-    table{border-collapse:collapse;margin:0 0 1em}th,td{border:1px solid var(--border);padding:6px 13px}img{max-width:100%}li>p{margin:0}hr{border:0;border-top:1px solid var(--border)}
+    table{border-collapse:collapse;margin:0 0 1em;background:var(--glass-surface);box-shadow:inset 0 1px 0 var(--glass-highlight)}th,td{border:1px solid var(--border);padding:6px 13px}img{max-width:100%}li>p{margin:0}hr{border:0;border-top:1px solid var(--border)}
     """
 }
