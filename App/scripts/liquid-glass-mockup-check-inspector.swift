@@ -7,12 +7,7 @@ import WebKit
 
 extension LiquidGlassMockupCheck {
     @MainActor static func inspectorChecks() async {
-        let (web, win) = makeWebView()
-        defer { win.close() }
-        guard await loadMockup(web, in: win) else {
-            check("右側 Inspector 檢查載入 preview-mockup.html", false)
-            return
-        }
+        await withLoadedMockup("右側 Inspector 檢查載入 preview-mockup.html") { web in
 
         // 1. 切換 Markdown / Swift 範例、按重新整理 ↻（驗證缺陷 #5）並驗證外部開啟 ↗ 按鈕
         _ = await js(web, "document.querySelectorAll('.preview-file-chip')[1].click(); true")
@@ -99,6 +94,7 @@ extension LiquidGlassMockupCheck {
             document.querySelector(".segment-btn[data-tab='\(expectedTab)']").classList.contains('active')
             """)
             check("點擊底部狀態列「\(label)」自動展開右側 Inspector 並切至 \(expectedTab)", opened)
+        }
         }
     }
 }

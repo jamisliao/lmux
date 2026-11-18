@@ -7,12 +7,7 @@ import WebKit
 
 extension LiquidGlassMockupCheck {
     @MainActor static func panelChecks() async {
-        let (web, win) = makeWebView()
-        defer { win.close() }
-        guard await loadMockup(web, in: win) else {
-            check("面板收合檢查載入 preview-mockup.html", false)
-            return
-        }
+        await withLoadedMockup("面板收合檢查載入 preview-mockup.html") { web in
 
         // 1. 左側 sidebar 三種切換入口：標題列鈕、頂部控制列鈕、快捷鍵 Cmd+B
         let leftEntries: [(String, String)] = [
@@ -77,6 +72,7 @@ extension LiquidGlassMockupCheck {
             document.getElementById('sidebar-inbox').style.height === '175px'
             """)
             check("通知 bar（\(label)）恢復展開並回到 175px", isExpanded)
+        }
         }
     }
 }

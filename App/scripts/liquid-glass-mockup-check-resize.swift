@@ -8,12 +8,7 @@ import WebKit
 
 extension LiquidGlassMockupCheck {
     @MainActor static func resizeChecks() async {
-        let (web, win) = makeWebView()
-        defer { win.close() }
-        guard await loadMockup(web, in: win) else {
-            check("拖曳檢查載入 preview-mockup.html", false)
-            return
-        }
+        await withLoadedMockup("拖曳檢查載入 preview-mockup.html") { web in
 
         // 在 WebKit 中透過 PointerEvent 驅動 setupResize / setupInboxResize 驗證真實計算樣式與寬高變化。
         let helpersJS = """
@@ -234,5 +229,6 @@ extension LiquidGlassMockupCheck {
         !document.getElementById('handle-inbox').classList.contains('active')
         """)
         check("window blur 可清除 is-resizing / resizing-row 與手把 .active", blurCleared)
+        }
     }
 }
