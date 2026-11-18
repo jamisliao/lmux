@@ -7,12 +7,7 @@ import WebKit
 
 extension LiquidGlassMockupCheck {
     @MainActor static func styleChecks() async {
-        let (web, win) = makeWebView()
-        defer { win.close() }
-        guard await loadMockup(web, in: win) else {
-            check("樣式檢查載入 preview-mockup.html", false)
-            return
-        }
+        await withLoadedMockup("樣式檢查載入 preview-mockup.html") { web in
 
         // 1. 檢查 <style> 剝除註解後的大括號平衡與 .ctrl-pill-btn:hover 無重複規則（對應缺陷 #1）
         let braceBalanceOK = await jsBool(web, """
@@ -146,5 +141,6 @@ extension LiquidGlassMockupCheck {
         })()
         """)
         check("預覽文案與模擬 Token 皆已統一為 40px（無 36px / 36.0 殘留）", noStale36px)
+        }
     }
 }

@@ -83,6 +83,21 @@ enum LiquidGlassMockupCheck {
         }
     }
 
+    @MainActor static func withLoadedMockup(
+        _ loadLabel: String,
+        reportSuccess: Bool = false,
+        _ body: (WKWebView) async -> Void
+    ) async {
+        let (web, win) = makeWebView()
+        defer { win.close() }
+        let loaded = await loadMockup(web, in: win)
+        if reportSuccess || !loaded {
+            check(loadLabel, loaded)
+        }
+        guard loaded else { return }
+        await body(web)
+    }
+
     static func main() {
         setvbuf(stdout, nil, _IOLBF, 0)
         let app = NSApplication.shared
@@ -105,24 +120,22 @@ enum LiquidGlassMockupCheck {
     }
 
     @MainActor static func themeChecks() async {
-        let (web, win) = makeWebView()
-        defer { win.close() }
-        check("載入 preview-mockup.html 完成", await loadMockup(web, in: win))
+        await withLoadedMockup("載入 preview-mockup.html 完成", reportSuccess: true) { web in
+            let initialTheme = await jsString(web, "document.body.getAttribute('data-theme')") ?? ""
+            let lightInitiallyActive = await jsBool(web, "document.getElementById('btn-theme-light').classList.contains('active')")
+            check("預設為淺色主題且淺色鈕亮起", initialTheme == "light" && lightInitiallyActive, "theme=\(initialTheme)")
 
-        let initialTheme = await jsString(web, "document.body.getAttribute('data-theme')") ?? ""
-        let lightInitiallyActive = await jsBool(web, "document.getElementById('btn-theme-light').classList.contains('active')")
-        check("預設為淺色主題且淺色鈕亮起", initialTheme == "light" && lightInitiallyActive, "theme=\(initialTheme)")
+            _ = await js(web, "document.getElementById('btn-theme-dark').click(); true")
+            let darkTheme = await jsString(web, "document.body.getAttribute('data-theme')") ?? ""
+            let darkActive = await jsBool(web, "document.getElementById('btn-theme-dark').classList.contains('active')")
+            let lightInactive = await jsBool(web, "!document.getElementById('btn-theme-light').classList.contains('active')")
+            check("點擊深色主題鈕切換為 dark 並更新按鈕亮起狀態", darkTheme == "dark" && darkActive && lightInactive, "theme=\(darkTheme)")
 
-        _ = await js(web, "document.getElementById('btn-theme-dark').click(); true")
-        let darkTheme = await jsString(web, "document.body.getAttribute('data-theme')") ?? ""
-        let darkActive = await jsBool(web, "document.getElementById('btn-theme-dark').classList.contains('active')")
-        let lightInactive = await jsBool(web, "!document.getElementById('btn-theme-light').classList.contains('active')")
-        check("點擊深色主題鈕切換為 dark 並更新按鈕亮起狀態", darkTheme == "dark" && darkActive && lightInactive, "theme=\(darkTheme)")
-
-        _ = await js(web, "document.getElementById('btn-theme-light').click(); true")
-        let backTheme = await jsString(web, "document.body.getAttribute('data-theme')") ?? ""
-        let backLightActive = await jsBool(web, "document.getElementById('btn-theme-light').classList.contains('active')")
-        let darkInactive = await jsBool(web, "!document.getElementById('btn-theme-dark').classList.contains('active')")
-        check("再點擊淺色主題鈕恢復為 light", backTheme == "light" && backLightActive && darkInactive, "theme=\(backTheme)")
+            _ = await js(web, "document.getElementById('btn-theme-light').click(); true")
+            let backTheme = await jsString(web, "document.body.getAttribute('data-theme')") ?? ""
+            let backLightActive = await jsBool(web, "document.getElementById('btn-theme-light').classList.contains('active')")
+            let darkInactive = await jsBool(web, "!document.getElementById('btn-theme-dark').classList.contains('active')")
+            check("再點擊淺色主題鈕恢復為 light", backTheme == "light" && backLightActive && darkInactive, "theme=\(backTheme)")
+        }
     }
 }

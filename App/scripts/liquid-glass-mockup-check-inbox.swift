@@ -8,12 +8,7 @@ import WebKit
 
 extension LiquidGlassMockupCheck {
     @MainActor static func inboxChecks() async {
-        let (web, win) = makeWebView()
-        defer { win.close() }
-        guard await loadMockup(web, in: win) else {
-            check("通知 bar 檢查載入 preview-mockup.html", false)
-            return
-        }
+        await withLoadedMockup("通知 bar 檢查載入 preview-mockup.html") { web in
 
         // 1. 點擊第二個 workspace 列應成為唯一選取狀態
         _ = await js(web, "document.querySelectorAll('.ws-row')[1].click(); true")
@@ -75,5 +70,6 @@ extension LiquidGlassMockupCheck {
         })()
         """)
         check("點擊最後一張未讀卡片後全部已讀、徽章與提示點隱藏且選取 api-gateway", afterAllRead)
+        }
     }
 }
