@@ -1,41 +1,42 @@
-# 正式 App Apple Liquid Glass 視覺材質與拖曳零開銷守護
+# 正式 App 1:1 Apple Liquid Glass 雙欄工作台與 Core 遙測管線
 
 ## Why
 
-1. **正式 macOS App 需要同步落實 Apple Liquid Glass 層次與閱讀體驗**：先前已先透過根目錄的 **UI 原型**（`preview-mockup.html`）驗證了淺／深雙主題的玻璃表面層次、頂部 1pt 入射光高光（Specular Highlight）、微透卡片邊框與調整手把回饋，但正式 `lmux.app`（`LmuxTokens`、`LmuxUI`、`LmuxNotificationBar`）仍停留在舊版平面色塊與單純分隔線，啟動 App 時無法實際體驗新設計。
-2. **拖曳調整面板與分割窗格時需要停用即時毛玻璃重繪以維持流暢度**：`SidebarBackdrop` 使用 `NSVisualEffectView(.sidebar, .behindWindow)` 進行背景混合；在拖曳調整 sidebar 寬度、**通知 bar** 高度、分割窗格比例或視窗縮放期間，若每個影格都重算毛玻璃模糊會增加合成器負擔。需要在拖曳期間自動切換為不透明實底（Opaque Fallback），放開後立即恢復毛玻璃。
+1. **正式 App 需要與設計原型 `preview-mockup.html` 達到 1:1 視覺與工作流對齊**：先前的保守調整僅在舊版 Nord 版面加入極淡邊框與 `1pt` 微光，實際啟動後仍與舊版 UI 高度相似，未能呈現 **High-Key Crystal（淺色）** 與 **Obsidian Midnight（深色）** 的通透玻璃層次、置中 Titlebar 資訊膠囊、**Pane Tab Strip**、**右側 Inspector** 與 **底部狀態列**。
+2. **原型中的檢視與監控面板需要真實後端資料支撐**：**右側 Inspector** 的「變更 (Diff)」、「執行記錄」與 **底部狀態列** 的模型、Turn 數、Context Window Token 進度條與 Tool Call 即時串流，目前在 `Core/` 與 `LmuxUI` 尚未暴露完整的資料管線，必須補齊後才能成為真正可用的原生功能。
 
 ## What Changes
 
-1. **擴充 `LmuxTokens`（`App/Sources/LmuxTokens/Tokens.swift`）的 Liquid Glass 視覺 Token**
-   - 在維持既有 Nord 色票與 WCAG AA 對比度（確保既有對比測試不退化）的前提下，新增淺／深雙主題 Liquid Glass 語意色與尺寸：
-     - `Colors.specularHighlight`：頂部 1pt 物理入射光亮邊（淺色高光、深色微光）。
-     - `Colors.glassBorder`：選取膠囊、搜尋框與 **通知卡片** 的微透立體邊框。
-     - `Colors.dragHandlePill` / `Colors.dragHandlePillActive`：**通知 bar** 調整手把的膠囊指示條顏色（一般／hover 或拖曳中）。
-     - `Layout.dragHandlePillWidth`、`Layout.dragHandlePillHeight`：調整手把膠囊尺寸常數。
-2. **升級 Sidebar、標題列與通知 bar 的 Liquid Glass 視覺層次（`LmuxUI` + `LmuxNotificationBar`）**
-   - `SidebarBackdrop`（`RootView.swift`）：在毛玻璃與色調層之上繪製頂部 1pt `specularHighlight`（全螢幕或無透明度降級時自動調整），讓 sidebar 具備 Liquid Glass 的物理邊緣光澤。
-   - `WorkspaceRowContent`、`HistorySection`（`Sidebar.swift`, `History.swift`）與 `NotificationCard`（`NotificationCard.swift`）：選取中的 **workspace** 列、反白的 **通知卡片** 與 History 搜尋框加上 `glassBorder` 微透立體細邊框。
-   - `BarResizeHandle`（`NotificationBar.swift`）：在頂部 1pt 分隔線下方加入居中膠囊把手（hover 或拖曳時切換為 `dragHandlePillActive`），提升可發現性與操作回饋。
-3. **實作拖曳與視窗縮放期間的 GPU 零開銷守護（`RootView.swift`、`PaneViews.swift`、`NotificationBar.swift`）**
-   - `SidebarBackdrop` 新增 `isResizing: Bool` 狀態並納入 `isOpaqueFallback`（`forceOpaque || isResizing || accessibilityDisplayShouldReduceTransparency`）。
-   - 當使用者拖曳 `SidebarResizeHandle`（調整 sidebar 寬度）、`SplitView`（調整分割窗格）、`BarResizeHandle`（調整 **通知 bar** 高度）或視窗處於 live resize 時，將 `sidebarBackdrop.isResizing` 設為 `true`（隱藏 `NSVisualEffectView` 並改用不透明 `sidebarBackground`）；放開滑鼠、結束縮放或視窗失焦時立即恢復為 `false`。
-   - 支援系統「減少透明度」（`accessibilityDisplayShouldReduceTransparency`）與「減少動態效果」（`LmuxTokens.Motion.reduceMotion`）。
-4. **升級內建預覽 tab（`App/Sources/LmuxUI/MarkdownHTML.swift`）為雙主題 Liquid Glass 卡片樣式**
-   - 更新 `MarkdownHTML.css`（淺色與 `@media (prefers-color-scheme: dark)` 深色雙主題）：為程式碼區塊（`<pre>`）、提示框（`.callout`）與表格（`<table>` / `<th>`）加入微透玻璃表面、圓角、1px 邊框與頂部內高光，並加入 `@media (prefers-reduced-transparency: reduce)` 實底降級，同時保留既有 CSP 與 DOM 結構相容性。
-5. **保留 `preview-mockup.html` 作為視覺對照原型**
-   - 保留根目錄 **UI 原型** `preview-mockup.html` 與其 `WKWebView` 檢查腳本作為設計基準。
+1. **補齊 Core Agent 遙測與 Git Diff 資料管線（`Core/LmuxHooks`、`Core/LmuxTranscript`、`LmuxUI`）**
+   - 擴充讀取 Claude Code transcript（`.jsonl`）的模型名稱與 `usage`（input、cache read/creation、output tokens）及 Codex rollout 的 `token_count` / `model_context_window`，並結合 `HookEvent`（`PreToolUse` / `PostToolUse` / `PostToolUseFailure`）產出 **Agent 遙測**（目前模型、Turn 計數、Context 已用與上限、Cache 命中、估算費用與最近 Tool Call 即時串流）。
+   - 新增背景非同步 `GitDiffService`（切換工作區或檔案變更時以 debounce 執行 `git status` / `git diff`），彙整分支名稱、增刪行總計與逐檔 diff hunks；無作用中 Agent 或非 Git 目錄時顯示清楚空狀態（`—` / 提示訊息）。
+
+2. **重構 `LmuxTokens` 為 1:1 雙主題 Apple Liquid Glass 設計系統（`App/Sources/LmuxTokens/Tokens.swift`）**
+   - 建立淺色 **High-Key Crystal** 與深色 **Obsidian Midnight** 兩套完整的玻璃底色、物理高光邊緣（Specular Highlight）、微透立體邊框、狀態藥丸色票、**active-ring** 焦點光暈，以及 `44pt` Titlebar、`32pt` **底部狀態列**、`260pt` 左側欄、`320pt` **右側 Inspector** 尺寸常數，並確保主要／次要文字在雙主題皆通過 WCAG AA 對比檢核，同時支援系統「減少透明度」與「減少動態效果」。
+
+3. **實作 1:1 原生三欄玻璃工作台、置中 Titlebar 與雙軌即時預覽（`LmuxUI`、`LmuxNotificationBar`）**
+   - **44pt 統一玻璃 Titlebar**：左側配置系統視窗按鈕、左側欄切換鈕（同時支援 `⌘B` 與既有 `⌃⌘S`）、鈴鐺未讀角標與 `+` 新增 **workspace**；中央配置置中玻璃資訊膠囊（狀態燈、名稱、Git 分支與目錄路徑）；右側配置向右分割（`⌘D`）、向下分割（`⇧⌘D`）與 **右側 Inspector** 切換鈕（`⌥⌘B`）。
+   - **左側玻璃欄（預設 `260pt`，可調範圍 `180–400pt`）**：上方加入「工作區」標題與狀態篩選按鈕；**workspace** 列改為圓角玻璃卡片、左側 `3pt` 垂直彩色 Accent 條、狀態藥丸、摘要文字與相對時間，同時完整保留右鍵選單、`⌘`/`⇧` 多選、拖曳排序與 Tab 子樹；History 搜尋框移至 **通知 bar** 上方；**通知 bar** 保留拖曳調整手把膠囊、未讀藍點與玻璃通知卡片。
+   - **中央圓角終端畫布**：每個分割格採用圓角玻璃卡片與 **active-ring** 焦點光暈，並固定顯示整合式 **Pane Tab Strip**（分頁圓點、標題、關閉鈕、`+` 開分頁鈕與右側分割／關閉操作列），內部仍使用 `libghostty` Metal 原生終端渲染。
+   - **右側 Inspector（預設展開 `320pt`，可調範圍 `240–500pt`，`⌥⌘B` 切換）**：提供 Segmented Control 分頁（`即時預覽` / `變更 (Diff)` / `執行記錄`）。**雙軌預覽**：終端機點擊檔案的 **開啟選單** 新增「在右側欄即時預覽」作為首選預設項目，同時保留「在新 tab 預覽」與完整 Split **預覽 tab** 功能；`即時預覽` 分頁提供簡易瀏覽位址列（`‹` `›` `↻`、檔名與 `LIVE` 標記、外開 `↗`）、工作區常用檔案快速切換列與受控 `WKWebView`。
+   - **32pt 全寬底部狀態列**：統一顯示 Agent 模型徽章、最近 Tool Call、Turn 數、Context Window Token 進度條、Git 分支 `+adds -dels` 與「即時預覽」/`⌥⌘B` 快捷鈕；點擊任一指標可展開並切換至 **右側 Inspector** 對應分頁。
+
+4. **全面板 `拖曳降級` 守護**
+   - 拖曳調整左側欄寬度、**右側 Inspector** 寬度、**通知 bar** 高度、窗格分割線或縮放視窗期間，所有 `NSVisualEffectView` 背景統一進入 `拖曳降級`（暫停背景模糊合成並切換不透明實底），放開或視窗失焦時立即恢復。
 
 ## Impact
 
 - **修改模組**：
-  - `App/Sources/LmuxTokens/Tokens.swift`（與符號連結 `design/Tokens.swift`）
-  - `App/Sources/LmuxUI/RootView.swift`、`Sidebar.swift`、`History.swift`、`PaneViews.swift`、`MarkdownHTML.swift`
-  - `App/Sources/LmuxNotificationBar/NotificationBar.swift`、`NotificationCard.swift`
-  - `App/Sources/lmux-apptest/`（新增 Liquid Glass token、拖曳 `isResizing` 降級與預覽頁樣式測試）
+  - `Core/LmuxHooks/`、`Core/LmuxTranscript/`（擴充模型、Token Usage、Tool Call 歷史與即時串流欄位與測試）
+  - `App/Sources/LmuxTokens/Tokens.swift`（及 `design/Tokens.swift`）
+  - `App/Sources/LmuxUI/`（Titlebar、Workspace 清單、History 位置調整、Pane 圓角／Tab Strip、**右側 Inspector**、**底部狀態列**、`GitDiffService`、`OpenMenu`、`Persistence` 相容擴充）
+  - `App/Sources/LmuxNotificationBar/`（玻璃卡片、未讀點與外觀同步）
+  - `App/Sources/lmux-apptest/` 與 `App/scripts/`（更新並擴充對照測試）
+  - `beat/CONTEXT.md`、`beat/features/preview/open-menu.feature`（建立 `.orig` 備份後更新）
 - **不變**：
-  - `Core/` 與 `LmuxTerminal`（libghostty 終端機渲染路徑）完全不變；SwiftUI 仍僅用於 sidebar、標題列按鈕與 **通知 bar**，絕不進入終端機表面。
-  - 既有鍵盤快捷鍵、持久化格式（`layout.json`）與 `MarkdownHTML` 的 CSP 安全限制完全相容。
+  - `App/Sources/LmuxTerminal/` 與 `vendor/ghostty` 終端機核心繪圖路徑完全不變。
+  - 既有的鍵盤快捷鍵（含 `⌃⌘S`、`⇧⌘H`、`⌘T`、`⌘D`、`⇧⌘D`）、`MarkdownHTML` CSP 安全隔離、與舊版 `layout.json` 持久化皆維持向後相容。
 - **驗證方式**：
-  - 透過 `App/scripts/bundle.sh` 建置正式 `App/build/lmux.app` 並啟動實測。
-  - 透過 `App/scripts/apptest.sh --quick`、`App/scripts/apptest.sh --preview` 與 `beat/changes/preview-liquid-glass/dev.sh check` 進行自動化驗證。
+  - `swift test --package-path Core` 驗證 Telemetry 與 Transcript/Hook 解析單元測試。
+  - `beat/changes/preview-liquid-glass/dev.sh check` 驗證 Token、WCAG AA 對比、`--liquid-glass` App 測試與 `preview-mockup.html`。
+  - `App/scripts/apptest.sh --quick`、`--preview` 等相關整合測試，最後以 `App/scripts/bundle.sh` 重建 `App/build/lmux.app` 並實機啟動驗證。
