@@ -378,7 +378,7 @@ git commit -m "feat(ui): add SidebarBackdrop specular edge and isResizing GPU gu
   - `func updateDrag(translationHeight: CGFloat, maxExtra: CGFloat, on controller: LmuxController)`
   - `func endDrag(on controller: LmuxController)`
 
-- [ ] **Step 1: 在 `SplitContainerView` 與 `Controller.buildView` 串接分割線拖曳狀態**
+- [x] **Step 1: 在 `SplitContainerView` 與 `Controller.buildView` 串接分割線拖曳狀態**
 
 修改 `App/Sources/LmuxUI/PaneViews.swift`（`:218` 與 `:267-273`）：
 ```swift
@@ -411,7 +411,7 @@ git commit -m "feat(ui): add SidebarBackdrop specular edge and isResizing GPU gu
             return v
 ```
 
-- [ ] **Step 2: 升級 `BarLayout` 與 `BarResizeHandle`（`NotificationBar.swift`）加入居中膠囊指示條並串接 `setSidebarResizing`**
+- [x] **Step 2: 升級 `BarLayout` 與 `BarResizeHandle`（`NotificationBar.swift`）加入居中膠囊指示條並串接 `setSidebarResizing`**
 
 修改 `App/Sources/LmuxNotificationBar/NotificationBar.swift`：
 1. 將 `handleHeight` 由 `5` 調整為 `6`（`:16`）：
@@ -507,12 +507,12 @@ struct BarResizeHandle: View {
 }
 ```
 
-- [ ] **Step 3: 執行 `swift build` 驗證 `LmuxNotificationBar` 與 `lmux` 編譯通過**
+- [x] **Step 3: 執行 `swift build` 驗證 `LmuxNotificationBar` 與 `lmux` 編譯通過**
 
 Run: `swift build --package-path App --target lmux`
 Expected: `Build complete!`（0 errors）。
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/PaneViews.swift App/Sources/LmuxUI/Controller.swift App/Sources/LmuxNotificationBar/NotificationBar.swift
