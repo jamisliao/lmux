@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # A stand-in for Claude Code 2.1.x at its prompt, for the apptests: it draws a conversation and the
 # input box, and Esc Esc opens a rewind menu drawn row for row like the real one (captured from
-# 2.1.280, its list as 2.1.322 draws it): the message list ("❯ (current)" first, ↑ / ↓ moves, "↑ N more"),
+# 2.1.280, its list as 2.1.322 draws it, its confirmation as 2.1.326 does): the message list ("❯ (current)" first, ↑ / ↓ moves, "↑ N more"),
 # then the confirmation with its numbered options. Home jumps to the first message (⇧↑ did up to 2.1.280,
 # and does nothing now: logged as "key shift-up"). "Restore conversation" drops the message and everything
 # after it and puts its text in the input, like Claude Code. Every action goes to the log file, so a
@@ -146,14 +146,17 @@ def draw():
                 out.append('    ↓ %d more\r\n' % (len(items) - hi))
             out.append('   Enter to continue · Esc to cancel')
         else:
-            out.append('   Confirm you want to restore to the point before you sent this message:\r\n\r\n')
-            for l in prompts[sel].split('\n')[:4]:
-                out.append('   │ ' + l + '\r\n')
+            out.append('   Restore to the point before you sent this message:\r\n\r\n')
+            lines = prompts[sel].split('\n')
+            for i, l in enumerate(lines[:3]):  # 2.1.326: 3 lines, the last with "…" when there's more
+                out.append('   │ ' + l + ('…' if i == 2 and len(lines) > 3 else '') + '\r\n')
             out.append('   │ (%ds ago)\r\n\r\n' % (6 + int(time.time() - started)))
-            out.append('   The conversation will be forked.\r\n')
+            out.append('   The conversation goes back to before this message.\r\n')
             out.append('   The code will be restored in note.txt.\r\n\r\n' if files else '   The code will be unchanged.\r\n\r\n')
             for i, label in enumerate(options()):
                 out.append(('   ❯ ' if i == opt else '     ') + '%d. %s\r\n' % (i + 1, label))
+            if files:
+                out.append('\r\n   ⚠ Restored files go back whole, losing later changes by anyone. Bash changes to other files are not undone.\r\n')
     sys.stdout.write(''.join(out))
     sys.stdout.flush()
 

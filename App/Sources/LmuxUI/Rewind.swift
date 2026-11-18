@@ -34,15 +34,18 @@ private typealias T = LmuxTokens
 /// An entry is the prompt's first line, cut to the pane's width with "…" (a multi-line prompt
 /// always ends in "…"). Return on one asks to confirm:
 ///
-///        Confirm you want to restore to the point before you sent this message:
+///        Restore to the point before you sent this message:   (up to 2.1.325: "Confirm you want to restore to…")
 ///        │ what is 6 times 7                (up to 4 lines of the prompt, wrapped)
 ///        │ (6s ago)
-///        …
+///        The conversation goes back to before this message.
+///        The code will be restored -1 in note.txt.
 ///        ❯ 1. Restore code and conversation    (only when files changed since: the default)
 ///          2. Restore conversation
 ///          3. Restore code
 ///          4. Summarize from here
 ///        ↓ 5. Summarize up to here             (a list taller than the pane scrolls)
+///          6. Never mind
+///        ⚠ Restored files go back whole, …     (with the code options)
 ///
 /// Without file checkpoints there are no code options, and Return on an entry may restore the
 /// conversation right away.
@@ -67,6 +70,9 @@ enum RewindMenu {
     /// × / ⌘Z's "Remove and Restore Files": the files Claude edited through its own tools go back too.
     static let restoreCodeAndConversation = "Restore code and conversation"
     static let footer = "Enter to continue · Esc to cancel"
+    /// The confirmation's first line: 2.1.326 on, and up to 2.1.325.
+    static let confirmHeaders = ["Restore to the point before you sent this message", "Confirm you want to restore"]
+    static func isConfirmHeader(_ row: String) -> Bool { confirmHeaders.contains { row.hasPrefix($0) } }
 
     static func read(_ rows: [String]) -> Screen {
         let trimmed = rows.map { $0.trimmingCharacters(in: .whitespaces) }
@@ -76,13 +82,13 @@ enum RewindMenu {
         }) else {
             // The input box is hidden while the menu is up.
             if TurnLocator.locate(rows: rows, turns: []).inputRow != nil { return .closed }
-            let open = trimmed.contains { $0.hasPrefix(footer) || $0.hasPrefix("Confirm you want to restore")
+            let open = trimmed.contains { $0.hasPrefix(footer) || isConfirmHeader($0)
                 || $0.contains("conversation to the point before") }
             return open ? .open : .closed
         }
         let body = Array(trimmed[(title + 1)...])
         if body.contains(where: { $0.hasPrefix("Nothing to rewind to yet") }) { return .nothing }
-        if let c = body.firstIndex(where: { $0.hasPrefix("Confirm you want to restore") }) {
+        if let c = body.firstIndex(where: isConfirmHeader) {
             var quote: [String] = []
             var i = c + 1
             while i < body.count, body[i].isEmpty { i += 1 }
@@ -149,8 +155,15 @@ enum RewindMenu {
 
     /// The confirmation's quote (up to 4 lines of the prompt, wrapped at any character) is this
     /// prompt: compared without whitespace, it starts the prompt and is as long as the menu shows.
+    /// 2.1.326 shows 3 lines and ends the last with "…" when there's more: then it starts the prompt
+    /// and the prompt goes on past it.
     static func quoteMatches(_ quote: String, prompt: String) -> Bool {
         let q = quote.filter { !$0.isWhitespace }
+        if q.hasSuffix("…") {
+            let cut = q.dropLast()
+            let whole = promptLines(prompt).joined().filter { !$0.isWhitespace }
+            if !cut.isEmpty, whole.hasPrefix(cut), whole.count > cut.count { return true }
+        }
         let p = promptLines(prompt).prefix(4).joined().filter { !$0.isWhitespace }
         guard !q.isEmpty, p.hasPrefix(q) else { return false }
         return q.count >= min(p.count, 120)
@@ -671,6 +684,9 @@ extension LmuxController {
     /// Something didn't look as expected: Esc until no menu is left. Nothing was changed.
     private func backOut(_ pane: Pane, _ why: String, waitLate: Bool = true) async -> RewindOutcome {
         log("rewind: backing out (\(why))")
+        // What was on screen, for when Claude Code changes its menu again (the log stays in memory).
+        log("rewind: screen: " + screenRows(pane).map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }.suffix(24).joined(separator: " ⏎ "))
         // A menu that opens late (a slow Claude) is closed too: input stays held until then.
         if waitLate, RewindMenu.read(screenRows(pane)) == .closed { _ = await waitScreen(pane, 3, { RewindMenu.read($0) != .closed }) }
         // Never into a hidden pane (its waits end at once: the Escs would come in a burst, a pair of
