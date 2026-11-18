@@ -966,7 +966,7 @@ git commit -m "test(preview-liquid-glass): 新增 workspace 選取與通知 bar 
 - Consumes: `LiquidGlassMockupCheck.makeWebView()`, `loadMockup(_:in:)`, `js(_:_:)`, `jsBool(_:_:)`, `jsString(_:_:)`, `check(_:_:_:)`
 - Produces: `LiquidGlassMockupCheck.inspectorChecks()`
 
-- [ ] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-inspector.swift` 並掛入 `main()`**
+- [x] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-inspector.swift` 並掛入 `main()`**
 
 ```swift
 // @feature: liquid-glass-redesign-mockup.feature
@@ -1076,12 +1076,12 @@ extension LiquidGlassMockupCheck {
 
 在 `App/scripts/liquid-glass-mockup-check.swift` 的 `main()` 補上 `await inspectorChecks()`。
 
-- [ ] **Step 2: 執行檢查確認 `↻` 按鈕測試先失敗（紅燈）**
+- [x] **Step 2: 執行檢查確認 `↻` 按鈕測試先失敗（紅燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `FAIL  點擊預覽重新整理 ↻ 回到 HTML 並同步亮起 HTML 範例鈕`（因為 `chips[0]` 沒有 `.active`，`chips[2]` 仍留著 `.active`）。
 
-- [ ] **Step 3: 修正 `preview-mockup.html:2489-2493` 的 `switchPreviewFile`**
+- [x] **Step 3: 修正 `preview-mockup.html:2489-2493` 的 `switchPreviewFile`**
 
 將 `switchPreviewFile(type, el)`（`:2489-2493`）改為在未傳 `el` 時自動比對對應的 `.preview-file-chip`：
 ```javascript
@@ -1093,12 +1093,12 @@ Expected: `FAIL  點擊預覽重新整理 ↻ 回到 HTML 並同步亮起 HTML �
       }
 ```
 
-- [ ] **Step 4: 執行檢查確認全部通過（綠燈）**
+- [x] **Step 4: 執行檢查確認全部通過（綠燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: 全部檢查項目 `PASS`，最後一行 `MOCKUP CHECK: ok`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add preview-mockup.html App/scripts/liquid-glass-mockup-check.swift App/scripts/liquid-glass-mockup-check-inspector.swift

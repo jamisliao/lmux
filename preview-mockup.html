@@ -2501,9 +2501,10 @@
 
     // Switch Previewed File inside Live Preview Viewport
     function switchPreviewFile(type, el) {
-      if (el) {
+      const targetChip = el || document.querySelector(`.preview-file-chip[onclick*="'${type}'"]`);
+      if (targetChip) {
         document.querySelectorAll('.preview-file-chip').forEach(c => c.classList.remove('active'));
-        el.classList.add('active');
+        targetChip.classList.add('active');
       }
       const urlText = document.getElementById('preview-url-text');
       const viewport = document.getElementById('preview-viewport-content');

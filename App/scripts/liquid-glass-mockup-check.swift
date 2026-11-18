@@ -84,6 +84,7 @@ enum LiquidGlassMockupCheck {
             await panelChecks()
             await resizeChecks()
             await inboxChecks()
+            await inspectorChecks()
             print(failures == 0 ? "MOCKUP CHECK: ok" : "MOCKUP CHECK: FAILED (\(failures))")
             exit(failures == 0 ? 0 : 1)
         }
