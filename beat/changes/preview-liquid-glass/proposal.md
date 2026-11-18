@@ -1,46 +1,41 @@
-# Apple Liquid Glass 與雙欄介面 UI 原型
+# 正式 App Apple Liquid Glass 視覺材質與拖曳零開銷守護
 
 ## Why
 
-1. **改正式 Swift 程式前，需要先確認新版面與玻璃層次**：目前 lmux 只有左側 sidebar（含 **workspace** 清單與底部的 **通知 bar**），預覽與 agent 資訊散在分割區裡。要試「**右側 Inspector** + 橫跨視窗底部的 **視窗底部狀態列** + 雙主題 Apple Liquid Glass」的配置，直接改 SwiftUI 來回調整太慢，先做一份瀏覽器或 **預覽 tab** 點開就能互動的 **UI 原型** 比較快。
-2. **確認拖曳調整面板大小時怎麼避免 `backdrop-filter` 掉幀**：多個玻璃圖層同時開高斯模糊時，拉動 sidebar、**右側 Inspector** 或 **通知 bar** 若每一個 frame 都重算模糊，GPU 負擔很大。原型用來實測「拖曳時暫停模糊、放開後恢復」的做法，以及系統開啟「減少透明度」與「減少動態效果」時的降級畫面。
+1. **正式 macOS App 需要同步落實 Apple Liquid Glass 層次與閱讀體驗**：先前已先透過根目錄的 **UI 原型**（`preview-mockup.html`）驗證了淺／深雙主題的玻璃表面層次、頂部 1pt 入射光高光（Specular Highlight）、微透卡片邊框與調整手把回饋，但正式 `lmux.app`（`LmuxTokens`、`LmuxUI`、`LmuxNotificationBar`）仍停留在舊版平面色塊與單純分隔線，啟動 App 時無法實際體驗新設計。
+2. **拖曳調整面板與分割窗格時需要停用即時毛玻璃重繪以維持流暢度**：`SidebarBackdrop` 使用 `NSVisualEffectView(.sidebar, .behindWindow)` 進行背景混合；在拖曳調整 sidebar 寬度、**通知 bar** 高度、分割窗格比例或視窗縮放期間，若每個影格都重算毛玻璃模糊會增加合成器負擔。需要在拖曳期間自動切換為不透明實底（Opaque Fallback），放開後立即恢復毛玻璃。
 
 ## What Changes
 
-1. **新增單檔 UI 原型 `preview-mockup.html`**
-   - 單一 HTML 檔（內嵌 CSS 與原生 JavaScript），不靠打包工具或外部套件。
-2. **淺色／深色雙主題 Liquid Glass 與無障礙降級**
-   - 預設是淺色主題（High-Key Crystal），可從頂部控制列切到深色主題（Obsidian Midnight）。
-   - 分層設定視窗、sidebar／**右側 Inspector**、標題列／**視窗底部狀態列** 與內層卡片的透明度、模糊半徑、頂部 1px 亮邊與內外陰影。
-   - 支援 `prefers-reduced-transparency`（停用全部玻璃圖層的模糊濾鏡，sidebar 與 **右側 Inspector** 改用不透明底色）與 `prefers-reduced-motion`（縮短動畫與過渡時間）。
-3. **面板收合、拖曳調大小與拖曳期間停用模糊**
-   - 標題列按鈕、頂部控制列與快捷鍵可收合或展開 sidebar（`⌘B`）與 **右側 Inspector**（`⌥⌘B`，**視窗底部狀態列** 最右邊也有一顆 `⌥⌘B` 鈕）；收合時標題列對應按鈕取消亮起。
-   - sidebar 與 **右側 Inspector** 可水平拖曳調寬（有最小與最大寬度限制）；**通知 bar** 可垂直拖曳調高、拉到過低時自動收合，也能點 **摘要列**、雙擊調整手把或點頂部控制列的「Inbox 收合」鈕切換收合／展開。
-   - 拖曳任一調整手把期間，全部玻璃面板與卡片暫停模糊濾鏡與過渡動畫，sidebar 與 **右側 Inspector** 改用對應主題的不透明底色；放開滑鼠後恢復。
-4. **右側 Inspector、視窗底部狀態列與通知互動**
-   - **右側 Inspector** 可在「即時預覽」、「變更 (Diff)」與「執行記錄」三個分頁間切換。「即時預覽」分頁可切換 HTML、Markdown（`README.md`）與 Swift（`GlassTokens.swift`）三份示意內容；點重新整理鈕 `↻` 會切回 HTML 並讓 HTML 檔案鈕亮起，點 `↗` 則在新分頁開啟目前頁面。
-   - **視窗底部狀態列** 顯示目前 agent 模型、最近工具呼叫、Context Window 用量與 Git 變更統計；點各區塊會展開已收合的 **右側 Inspector** 並切到對應分頁。
-   - 點 sidebar 的 **workspace** 列可切換選取狀態；點 **通知 bar** 裡的未讀 **通知卡片** 會改成已讀、扣減未讀數（歸零時隱藏未讀徽章與鈴鐺提示點），並選取對應的 **workspace** 列。
-
-## 不變
-
-- `App/` 與 `Core/` 下的 Swift 與 Ghostty 程式碼不變。
-- 正式產品既有的 **預覽 tab**（`beat/features/preview/`）與 **通知 bar** 規格不變。
-
-## 先不做
-
-- 不接真實的終端機 PTY、本機檔案監看或 Git 指令。
-- 畫面中僅供版面示意的按鈕不做動作：視窗紅黃綠鈕、新增 workspace `⌘T`、分割窗格 `⌘D` / `⇧⌘D`、終端機分頁新增／關閉、歷史搜尋框篩選、預覽位址列的上一頁／下一頁鈕。
-- 不實作 `⌘⇧R` 快捷鍵（收合 **右側 Inspector** 固定用 `⌥⌘B`）。
+1. **擴充 `LmuxTokens`（`App/Sources/LmuxTokens/Tokens.swift`）的 Liquid Glass 視覺 Token**
+   - 在維持既有 Nord 色票與 WCAG AA 對比度（確保既有對比測試不退化）的前提下，新增淺／深雙主題 Liquid Glass 語意色與尺寸：
+     - `Colors.specularHighlight`：頂部 1pt 物理入射光亮邊（淺色高光、深色微光）。
+     - `Colors.glassBorder`：選取膠囊、搜尋框與 **通知卡片** 的微透立體邊框。
+     - `Colors.dragHandlePill` / `Colors.dragHandlePillActive`：**通知 bar** 調整手把的膠囊指示條顏色（一般／hover 或拖曳中）。
+     - `Layout.dragHandlePillWidth`、`Layout.dragHandlePillHeight`：調整手把膠囊尺寸常數。
+2. **升級 Sidebar、標題列與通知 bar 的 Liquid Glass 視覺層次（`LmuxUI` + `LmuxNotificationBar`）**
+   - `SidebarBackdrop`（`RootView.swift`）：在毛玻璃與色調層之上繪製頂部 1pt `specularHighlight`（全螢幕或無透明度降級時自動調整），讓 sidebar 具備 Liquid Glass 的物理邊緣光澤。
+   - `WorkspaceRowContent`、`HistorySection`（`Sidebar.swift`, `History.swift`）與 `NotificationCard`（`NotificationCard.swift`）：選取中的 **workspace** 列、反白的 **通知卡片** 與 History 搜尋框加上 `glassBorder` 微透立體細邊框。
+   - `BarResizeHandle`（`NotificationBar.swift`）：在頂部 1pt 分隔線下方加入居中膠囊把手（hover 或拖曳時切換為 `dragHandlePillActive`），提升可發現性與操作回饋。
+3. **實作拖曳與視窗縮放期間的 GPU 零開銷守護（`RootView.swift`、`PaneViews.swift`、`NotificationBar.swift`）**
+   - `SidebarBackdrop` 新增 `isResizing: Bool` 狀態並納入 `isOpaqueFallback`（`forceOpaque || isResizing || accessibilityDisplayShouldReduceTransparency`）。
+   - 當使用者拖曳 `SidebarResizeHandle`（調整 sidebar 寬度）、`SplitView`（調整分割窗格）、`BarResizeHandle`（調整 **通知 bar** 高度）或視窗處於 live resize 時，將 `sidebarBackdrop.isResizing` 設為 `true`（隱藏 `NSVisualEffectView` 並改用不透明 `sidebarBackground`）；放開滑鼠、結束縮放或視窗失焦時立即恢復為 `false`。
+   - 支援系統「減少透明度」（`accessibilityDisplayShouldReduceTransparency`）與「減少動態效果」（`LmuxTokens.Motion.reduceMotion`）。
+4. **升級內建預覽 tab（`App/Sources/LmuxUI/MarkdownHTML.swift`）為雙主題 Liquid Glass 卡片樣式**
+   - 更新 `MarkdownHTML.css`（淺色與 `@media (prefers-color-scheme: dark)` 深色雙主題）：為程式碼區塊（`<pre>`）、提示框（`.callout`）與表格（`<table>` / `<th>`）加入微透玻璃表面、圓角、1px 邊框與頂部內高光，並加入 `@media (prefers-reduced-transparency: reduce)` 實底降級，同時保留既有 CSP 與 DOM 結構相容性。
+5. **保留 `preview-mockup.html` 作為視覺對照原型**
+   - 保留根目錄 **UI 原型** `preview-mockup.html` 與其 `WKWebView` 檢查腳本作為設計基準。
 
 ## Impact
 
-- **檔案**：新增根目錄 `preview-mockup.html`；更新 `GLOSSARY.md` 與 `beat/changes/preview-liquid-glass/` 下的規格檔。不動正式 Swift 原始碼，合併上游零衝突。
-- **現有 `preview-mockup.html` 待修正的 6 個問題（排入 `/beat:plan` → `/beat:apply`）**：
-  1. `preview-mockup.html:289-298` 殘留沒有 selector 的孤立 CSS 屬性與重複的 `.ctrl-pill-btn:hover`。
-  2. `.is-resizing` 與 `prefers-reduced-transparency` 把 `.sidebar-inbox-accessory`（`:2117`）誤寫成不存在的 `.inbox-accessory-panel`（`:167`, `:203`）；`.is-resizing` 漏了 `.mockup-controls`、`.window-footer`、`.terminal-pane`、`.inspector-card`、`.preview-browser-card`、`.preview-viewport-card`（`prefers-reduced-transparency` 也漏了後五個，且三張卡片在 `:1590`, `:1727`, `:1845` 寫死 `blur(16px)`）；另外 `.lmux-window`（`:335`）、`.titlebar`（`:372`）、`.sidebar-left`（`:527`）、`.sidebar-right`（`:1516`）漏寫 `-webkit-backdrop-filter`。
-  3. 淺色主題拖曳底色 selector 誤寫成 `[data-theme="light"] body.is-resizing`（`:180-181`，多了一個空白），因為 `data-theme="light"` 直接掛在 `<body>` 上，導致淺色模式拖曳時匹配不到而閃成深色底。
-  4. 執行記錄分頁的 `.activity-bash`（`:2770`）沒有對應的 CSS 樣式（CSS 只寫了 `.activity-read`、`.activity-edit`、`.activity-run`）。
-  5. 即時預覽位址列的重新整理鈕 `↻`（`:2320`, `:2597`）呼叫 `switchPreviewFile('html')` 時沒傳按鈕元素，切到 `README.md` 或 `GlassTokens.swift` 後按 `↻`，畫面回到 HTML 但上方的 `.preview-file-chip.active` 還停在舊檔案鈕（`:2489-2493`）。
-  6. 即時預覽卡片與模擬訊息寫 `blur(36px)` / `36px blur`（`:2285`, `:2365`, `:2520`, `:2642`），與實際 `--glass-blur: blur(40px)` 不一致。
-- **測試**：於 `App/scripts/liquid-glass-mockup-check*.swift`（6 支聚焦模組）與 `beat/changes/preview-liquid-glass/dev.sh` 建立不依賴 Node/npm 的 macOS `WKWebView` Swift 檢查腳本（比照 `App/scripts/preview-webkit-check.swift` 模式），驗證主題切換、鍵盤快捷鍵、Inspector 分頁切換、Inbox 未讀數連動與 `.is-resizing` 樣式行為，並涵蓋上述 6 項修正。
+- **修改模組**：
+  - `App/Sources/LmuxTokens/Tokens.swift`（與符號連結 `design/Tokens.swift`）
+  - `App/Sources/LmuxUI/RootView.swift`、`Sidebar.swift`、`History.swift`、`PaneViews.swift`、`MarkdownHTML.swift`
+  - `App/Sources/LmuxNotificationBar/NotificationBar.swift`、`NotificationCard.swift`
+  - `App/Sources/lmux-apptest/`（新增 Liquid Glass token、拖曳 `isResizing` 降級與預覽頁樣式測試）
+- **不變**：
+  - `Core/` 與 `LmuxTerminal`（libghostty 終端機渲染路徑）完全不變；SwiftUI 仍僅用於 sidebar、標題列按鈕與 **通知 bar**，絕不進入終端機表面。
+  - 既有鍵盤快捷鍵、持久化格式（`layout.json`）與 `MarkdownHTML` 的 CSP 安全限制完全相容。
+- **驗證方式**：
+  - 透過 `App/scripts/bundle.sh` 建置正式 `App/build/lmux.app` 並啟動實測。
+  - 透過 `App/scripts/apptest.sh --quick`、`App/scripts/apptest.sh --preview` 與 `beat/changes/preview-liquid-glass/dev.sh check` 進行自動化驗證。
