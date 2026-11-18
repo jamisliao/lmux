@@ -125,12 +125,14 @@
   # --- Workspace 選取與通知 bar 互動 ---
 
   @e2e @happy-path
+  # @covered-by: App/scripts/liquid-glass-mockup-check-inbox.swift
   場景: 點 sidebar 的 workspace 列切換選取狀態
     假設 sidebar 清單第一個 **workspace** 目前是選取狀態
     當 使用者點另一個 workspace 列
     那麼 被點擊的 workspace 列變成唯一選取狀態
 
   @e2e @happy-path
+  # @covered-by: App/scripts/liquid-glass-mockup-check-inbox.swift
   場景: 點未讀通知卡片標記已讀並選取對應 workspace
     假設 **通知 bar** 有 2 張未讀的 **通知卡片**，**摘要列** 的未讀徽章顯示 2 且鈴鐺紅點可見
     當 使用者點來自 "web-client-auth" 的未讀通知卡片
@@ -141,6 +143,7 @@
     那麼 所有通知卡片皆為已讀，未讀徽章與鈴鐺紅點隱藏
 
   @e2e @edge-case
+  # @covered-by: App/scripts/liquid-glass-mockup-check-inbox.swift
   場景: 點已讀通知卡片仍選取對應 workspace 且不扣減未讀數
     假設 **通知 bar** 裡來自 "lmux-glass-design" 的 **通知卡片** 是已讀狀態，且目前選取的 **workspace** 不是 "lmux-glass-design"
     當 使用者點這張已讀通知卡片

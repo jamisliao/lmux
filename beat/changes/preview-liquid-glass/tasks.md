@@ -855,7 +855,7 @@ git commit -m "fix(preview-liquid-glass): 修正 .is-resizing 玻璃清單與淺
 - Consumes: `LiquidGlassMockupCheck.makeWebView()`, `loadMockup(_:in:)`, `js(_:_:)`, `jsBool(_:_:)`, `jsString(_:_:)`, `check(_:_:_:)`
 - Produces: `LiquidGlassMockupCheck.inboxChecks()`
 
-- [ ] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-inbox.swift` 並掛入 `main()`**
+- [x] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-inbox.swift` 並掛入 `main()`**
 
 ```swift
 // @feature: liquid-glass-redesign-mockup.feature
@@ -941,12 +941,12 @@ extension LiquidGlassMockupCheck {
 
 在 `App/scripts/liquid-glass-mockup-check.swift` 的 `main()` 補上 `await inboxChecks()`。
 
-- [ ] **Step 2: 執行檢查確認通過**
+- [x] **Step 2: 執行檢查確認通過**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `inboxChecks` 全數 `PASS`，最後一行 `MOCKUP CHECK: ok`。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add App/scripts/liquid-glass-mockup-check.swift App/scripts/liquid-glass-mockup-check-inbox.swift
