@@ -493,7 +493,7 @@ git commit -m "fix(preview-liquid-glass): 修正孤立 CSS、活動圖示樣式�
 - Consumes: `LiquidGlassMockupCheck.makeWebView()`, `loadMockup(_:in:)`, `js(_:_:)`, `jsBool(_:_:)`, `check(_:_:_:)`
 - Produces: `LiquidGlassMockupCheck.panelChecks()`
 
-- [ ] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-panels.swift` 並掛入 `main()`**
+- [x] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-panels.swift` 並掛入 `main()`**
 
 ```swift
 // @feature: liquid-glass-redesign-mockup.feature
@@ -582,12 +582,12 @@ extension LiquidGlassMockupCheck {
 
 在 `App/scripts/liquid-glass-mockup-check.swift` 的 `main()` 補上 `await panelChecks()`。
 
-- [ ] **Step 2: 執行檢查確認 macOS `⌥⌘B`（`key: '∫'`）測試先失敗（紅燈）**
+- [x] **Step 2: 執行檢查確認 macOS `⌥⌘B`（`key: '∫'`）測試先失敗（紅燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `FAIL  右側 Inspector 透過「快捷鍵 ⌥⌘B（macOS Option 送出 '∫'）」收合且標題列鈕取消亮起`。
 
-- [ ] **Step 3: 修正 `preview-mockup.html` 的鍵盤快捷鍵判斷與註解**
+- [x] **Step 3: 修正 `preview-mockup.html` 的鍵盤快捷鍵判斷與註解**
 
 修改 `preview-mockup.html`（基準 `9d15b95` 行號 `:2457-2469`）：
 ```javascript
@@ -607,12 +607,12 @@ Expected: `FAIL  右側 Inspector 透過「快捷鍵 ⌥⌘B（macOS Option 送�
     });
 ```
 
-- [ ] **Step 4: 執行檢查確認全部通過（綠燈）**
+- [x] **Step 4: 執行檢查確認全部通過（綠燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `themeChecks`、`styleChecks`、`panelChecks` 全數 `PASS`，最後一行 `MOCKUP CHECK: ok`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add preview-mockup.html App/scripts/liquid-glass-mockup-check.swift App/scripts/liquid-glass-mockup-check-panels.swift
