@@ -523,7 +523,7 @@ struct HistorySection: View {
         .background(RoundedRectangle(cornerRadius: T.Radius.field, style: .continuous)
             .fill(focused ? T.Colors.elevatedBackground.color : (hoverField ? T.Colors.rowSelected.color : T.Colors.rowHover.color)))
         .overlay(RoundedRectangle(cornerRadius: T.Radius.field, style: .continuous)
-            .stroke(T.Colors.border.color, lineWidth: 1).opacity(focused ? 1 : 0))
+            .strokeBorder(focused ? T.Colors.border.color : T.Colors.glassBorder.color, lineWidth: focused ? 1 : 0.5))
         .overlay(RoundedRectangle(cornerRadius: T.Radius.field + 2.5, style: .continuous)
             .stroke(T.Colors.focusRing.color, lineWidth: 2.5).padding(-2.5).opacity(focused ? 1 : 0))
         .contentShape(Rectangle())
@@ -576,8 +576,15 @@ struct HistoryRow: View {
         }
         .padding(.horizontal, T.Layout.rowPaddingX)
         .frame(maxWidth: .infinity, minHeight: rowHeight, maxHeight: rowHeight, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
-            .fill(selected ? T.Colors.rowSelected.color : (hover ? T.Colors.rowHover.color : .clear)))
+        .background(
+            RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
+                .fill(selected ? T.Colors.rowSelected.color : (hover ? T.Colors.rowHover.color : .clear))
+                .overlay(
+                    RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
+                        .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)
+                        .opacity(Self.showsGlassBorder(selected: selected) ? 1 : 0)
+                )
+        )
         .padding(.horizontal, T.Layout.rowInsetX)
         .contentShape(Rectangle())
         .onHover { hover = $0 }
@@ -593,6 +600,7 @@ struct HistoryRow: View {
 
     private var rowHeight: CGFloat { Self.height(compact: compact) }
     static func height(compact: Bool) -> CGFloat { compact ? 28 : T.Layout.historyRowHeight }
+    static func showsGlassBorder(selected: Bool) -> Bool { selected }
 
     private var snippet: AttributedString {
         guard let s = item.snippet else {
