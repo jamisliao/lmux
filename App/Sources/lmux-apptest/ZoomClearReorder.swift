@@ -282,7 +282,9 @@ func runZoomClearReorder() async -> Int32 {
     await sleepMs(500)
     let after = await idleCost(4)
     print(String(format: "INFO  [sidebar drag] after drops and Esc: idle CPU %.2f%% over 4s, CVDisplayLink: %@", after.cpu, after.links.text))
-    r.check(String(format: "after a drag, idle CPU < 1%% (%.2f%%)", after.cpu), after.cpu < 1.0 * ciSlow)
+    // Against the same process before any drag: on CI its rest alone read 1.37% (after: 0.74%).
+    r.check(String(format: "after a drag, idle CPU < 1%% or no more than before any drag (%.2f%%, before %.2f%%)", after.cpu, beforeDrags.cpu),
+            after.cpu < 1.0 * ciSlow || after.cpu <= beforeDrags.cpu + 0.2)
     r.check("…no CVDisplayLink kept running (\(after.links.text))", !after.links.kept)
 
     // The drag geometry itself: one block per drag (a multi-selection closes up behind the grabbed row).

@@ -388,8 +388,11 @@ import Testing
         p.standardError = FileHandle.nullDevice
         let t0 = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)
         try p.run()
-        inPipe.fileHandleForWriting.write(Data(stdin.utf8))
-        try inPipe.fileHandleForWriting.close()
+        // A hook that exits before reading all of stdin (no socket, say) must not take the test
+        // process down: EPIPE instead of SIGPIPE, and the throwing write instead of an ObjC exception.
+        signal(SIGPIPE, SIG_IGN)
+        try? inPipe.fileHandleForWriting.write(contentsOf: Data(stdin.utf8))
+        try? inPipe.fileHandleForWriting.close()
         p.waitUntilExit()
         let t1 = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)
         return (p.terminationStatus, outPipe.fileHandleForReading.readDataToEndOfFile(), Double(t1 - t0) / 1e6)

@@ -35,11 +35,18 @@ import Testing
 
     static let extras = #"{"type":"last-prompt","leafUuid":"as4","explicit":true,"sessionId":"S"}"# + "\n"
 
-    @Test(arguments: [Fixtures.basic, Fixtures.compacted, Fixtures.crossTurnTool, Fixtures.basic + extras,
-                      Fixtures.basic + #"{"type":"last-prompt","leafUuid":"as4","sessionId":"S"}"# + "\n",
-                      Fixtures.rewoundThenPrompted, Fixtures.explicitThenStraggler,
-                      Fixtures.basic + #"{"type":"last-prompt","leafUuid":"int","explicit":true,"sessionId":"S"}"# + "\n"
-                          + #"{"parentUuid":"int","isSidechain":false,"type":"user","message":{"role":"user","content":"again"},"uuid":"u9","timestamp":"T11","turnOrigin":"human"}"# + "\n"])
+    // A typed constant, not a literal in the macro: Swift 6.4 can't type-check that one in time.
+    static let parserCases: [String] = {
+        let implicitPrompt: String = #"{"type":"last-prompt","leafUuid":"as4","sessionId":"S"}"# + "\n"
+        let explicitInt: String = #"{"type":"last-prompt","leafUuid":"int","explicit":true,"sessionId":"S"}"# + "\n"
+        let again: String = #"{"parentUuid":"int","isSidechain":false,"type":"user","message":{"role":"user","content":"again"},"uuid":"u9","timestamp":"T11","turnOrigin":"human"}"# + "\n"
+        return [Fixtures.basic, Fixtures.compacted, Fixtures.crossTurnTool, Fixtures.basic + extras,
+                Fixtures.basic + implicitPrompt,
+                Fixtures.rewoundThenPrompted, Fixtures.explicitThenStraggler,
+                Fixtures.basic + explicitInt + again]
+    }()
+
+    @Test(arguments: parserCases)
     func agreesWithTheFullParser(_ text: String) throws {
         let url = try temp(text)
         let idx = TranscriptIndex(url: url)
