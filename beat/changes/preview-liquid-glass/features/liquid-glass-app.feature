@@ -110,6 +110,7 @@
     那麼 解析器應略過異常行並維持已完成輪次的正確數值，不應發生崩潰或回報負值
 
   @behavior @happy-path
+  # @covered-by: Core/Tests/LmuxHooksTests/ToolCallStreamTests.swift
   場景: Hook 即時工具事件與終止事件更新即時 Tool Call 串流與狀態
     假設 一個 **終端機 tab** 正在執行編碼代理人
     當 依序收到 `PreToolUse` 與 `PostToolUse`（或 `PostToolUseFailure`）事件
