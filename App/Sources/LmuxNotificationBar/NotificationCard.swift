@@ -77,6 +77,11 @@ struct NotificationCard: View {
         .background(
             RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
                 .fill(background)
+                .overlay(
+                    RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
+                        .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)
+                        .opacity(Self.showsGlassBorder(highlighted: highlighted, hover: hover) ? 1 : 0)
+                )
         )
         .padding(.horizontal, Self.outerPaddingX)
         .padding(.vertical, Self.outerPaddingY)
@@ -92,6 +97,10 @@ struct NotificationCard: View {
     private var background: Color {
         if highlighted { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.rowSelected).color }
         return hover ? T.Colors.rowHover.color : .clear
+    }
+
+    static func showsGlassBorder(highlighted: Bool, hover: Bool) -> Bool {
+        highlighted || hover
     }
 }
 

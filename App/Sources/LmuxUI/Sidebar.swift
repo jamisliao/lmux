@@ -343,8 +343,17 @@ struct WorkspaceRowContent: View {
         .background(
             RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
                 .fill(pillColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
+                        .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)
+                        .opacity(Self.showsGlassBorder(selected: selected, inSelection: inSelection) ? 1 : 0)
+                )
         )
         .padding(.horizontal, T.Layout.rowInsetX)
+    }
+
+    static func showsGlassBorder(selected: Bool, inSelection: Bool) -> Bool {
+        selected || inSelection
     }
 
     private var pillColor: Color {

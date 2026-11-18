@@ -535,7 +535,7 @@ git commit -m "feat(resize): wire split divider and notification bar handle to i
   - `HistoryRow.showsGlassBorder(selected: Bool) -> Bool` (`History.swift`)
   - `NotificationCard.showsGlassBorder(highlighted: Bool, hover: Bool) -> Bool` (`NotificationCard.swift`)
 
-- [ ] **Step 1: 在 `WorkspaceRowContent`、`HistorySection.field`、`HistoryRow` 與 `NotificationCard` 加上 `glassBorder` 細邊框**
+- [x] **Step 1: 在 `WorkspaceRowContent`、`HistorySection.field`、`HistoryRow` 與 `NotificationCard` 加上 `glassBorder` 細邊框**
 
 1. 修改 `App/Sources/LmuxUI/Sidebar.swift`（`:343-356`）：
 ```swift
@@ -603,12 +603,12 @@ git commit -m "feat(resize): wire split divider and notification bar handle to i
     }
 ```
 
-- [ ] **Step 2: 執行 `swift build` 驗證編譯通過**
+- [x] **Step 2: 執行 `swift build` 驗證編譯通過**
 
 Run: `swift build --package-path App --target lmux`
 Expected: `Build complete!`（0 errors）。
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add App/Sources/LmuxUI/Sidebar.swift App/Sources/LmuxUI/History.swift App/Sources/LmuxNotificationBar/NotificationCard.swift
