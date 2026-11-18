@@ -91,7 +91,9 @@ enum LiquidGlassAppCheck {
             html.contains("inset 0 1px 0 var(--glass-highlight)") &&
             html.contains("pre{background:var(--glass-surface)") &&
             html.contains("blockquote{") &&
-            html.contains("table{border-collapse:") &&
+            html.contains("table{border-collapse:separate;border-spacing:0;") &&
+            html.contains("border-radius:8px;box-shadow:inset 0 1px 0 var(--glass-highlight);overflow:hidden") &&
+            html.contains("th{background:var(--code-bg)") &&
             html.contains("<pre><code class=\"language-swift\">") &&
             html.contains("class=\"callout") &&
             html.contains("<table><thead>")

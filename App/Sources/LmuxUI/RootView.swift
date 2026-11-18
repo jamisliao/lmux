@@ -26,6 +26,7 @@ final class RootView: FlippedView {
     let sidebarHost: SidebarHostingView<SidebarView>
     let sidebarEdge = ColorView(T.Colors.separator.nsColor)
     let resizeHandle = SidebarResizeHandle()
+    private var resizeObservers: [NSObjectProtocol] = []
     let cluster: SidebarHostingView<TitlebarCluster>
     let header = ContentHeaderView(frame: .zero)
     /// Holds the selected workspace's split tree.
@@ -71,25 +72,25 @@ final class RootView: FlippedView {
             self?.sidebarBackdrop.isResizing = active
         }
         let nc = NotificationCenter.default
-        nc.addObserver(forName: NSWindow.willStartLiveResizeNotification, object: nil, queue: .main) { [weak self] note in
+        resizeObservers.append(nc.addObserver(forName: NSWindow.willStartLiveResizeNotification, object: nil, queue: .main) { [weak self] note in
             MainActor.assumeIsolated {
                 guard let self, let w = self.window, note.object as AnyObject? === w else { return }
                 self.sidebarBackdrop.isResizing = true
             }
-        }
+        })
         for name in [NSWindow.didEndLiveResizeNotification, NSWindow.didResignKeyNotification] {
-            nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+            resizeObservers.append(nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 MainActor.assumeIsolated {
                     guard let self, let w = self.window, note.object as AnyObject? === w else { return }
                     self.sidebarBackdrop.isResizing = false
                 }
-            }
+            })
         }
-        nc.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+        resizeObservers.append(nc.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.sidebarBackdrop.isResizing = false
             }
-        }
+        })
         trackSidebarState()
         header.onDoubleClickTitle = { [weak self] in
             guard let self, let ws = self.model.selected else { return }
@@ -97,6 +98,10 @@ final class RootView: FlippedView {
         }
     }
     required init?(coder: NSCoder) { fatalError() }
+
+    deinit {
+        resizeObservers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
 
     /// Re-layout when the sidebar is toggled or resized (from anywhere).
     private func trackSidebarState() {
