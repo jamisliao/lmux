@@ -405,6 +405,6 @@ enum MarkdownHTML {
     .callout-tip{border-left-color:var(--tip)}.callout-tip .callout-title{color:var(--tip)}.callout-important{border-left-color:var(--important)}.callout-important .callout-title{color:var(--important)}
     .callout-warning{border-left-color:var(--warning)}.callout-warning .callout-title{color:var(--warning)}.callout-caution{border-left-color:var(--caution)}.callout-caution .callout-title{color:var(--caution)}
     pre.plain{white-space:pre-wrap;overflow-wrap:anywhere;overflow:visible}pre.plain code{white-space:inherit}
-    table{border-collapse:collapse;margin:0 0 1em;background:var(--glass-surface);box-shadow:inset 0 1px 0 var(--glass-highlight)}th,td{border:1px solid var(--border);padding:6px 13px}img{max-width:100%}li>p{margin:0}hr{border:0;border-top:1px solid var(--border)}
+    table{border-collapse:separate;border-spacing:0;margin:0 0 1em;background:var(--glass-surface);border:1px solid var(--glass-border);border-radius:8px;box-shadow:inset 0 1px 0 var(--glass-highlight);overflow:hidden}th,td{border-bottom:1px solid var(--border);border-right:1px solid var(--border);padding:6px 13px}th{background:var(--code-bg);font-weight:600}tr:last-child td{border-bottom:0}th:last-child,td:last-child{border-right:0}img{max-width:100%}li>p{margin:0}hr{border:0;border-top:1px solid var(--border)}
     """
 }

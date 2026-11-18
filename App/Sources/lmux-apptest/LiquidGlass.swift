@@ -43,12 +43,19 @@ func runLiquidGlass() async -> Int32 {
                 !bd.isOpaqueFallback && !bd.material.isHidden && !bd.specular.isHidden && bd.specular.frame.height == 1)
     }
     bd.forceOpaque = true
-    r.check("SidebarBackdrop: opaque fallback hides NSVisualEffectView and specular edge",
-            bd.isOpaqueFallback && bd.material.isHidden && bd.specular.isHidden)
+    var expectedOpaque: NSColor?
+    var actualTint: NSColor?
+    bd.effectiveAppearance.performAsCurrentDrawingAppearance {
+        expectedOpaque = LmuxTokens.Colors.sidebarBackground.nsColor.usingColorSpace(.sRGB)
+        actualTint = bd.tint.color.usingColorSpace(.sRGB)
+    }
+    r.check("SidebarBackdrop: opaque fallback hides NSVisualEffectView, specular edge, and uses sidebarBackground",
+            bd.isOpaqueFallback && bd.material.isHidden && bd.specular.isHidden &&
+            expectedOpaque != nil && actualTint == expectedOpaque)
     bd.forceOpaque = false
     bd.matchColor = .black
-    r.check("SidebarBackdrop: terminal matchColor hides NSVisualEffectView and specular edge",
-            bd.material.isHidden && bd.specular.isHidden)
+    r.check("SidebarBackdrop: terminal matchColor hides NSVisualEffectView, specular edge, and applies matchColor",
+            bd.material.isHidden && bd.specular.isHidden && bd.tint.color == NSColor.black)
     bd.matchColor = nil
 
     // 2. 四種拖曳調整大小目標期間暫停毛玻璃並在放開後恢復
@@ -59,7 +66,7 @@ func runLiquidGlass() async -> Int32 {
     c.root.resizeHandle.mouseUp(with: mouseEvent(.leftMouseUp))
     r.check("SidebarResizeHandle mouseUp restores blur (isResizing == false)", !bd.isResizing)
 
-    // (b) 窗格分割線
+    // (b) 窗格分割線（含移出視窗清理）
     if let ws = c.model.selected, let p0 = ws.focusedPane {
         let pSplit = c.split(p0, .right)
         if let sv = c.splitView(for: ws.root) {
@@ -68,25 +75,29 @@ func runLiquidGlass() async -> Int32 {
                     bd.isResizing && bd.isOpaqueFallback && bd.material.isHidden)
             sv.mouseUp(with: mouseEvent(.leftMouseUp))
             r.check("SplitContainerView divider mouseUp restores blur", !bd.isResizing)
+            sv.mouseDown(with: mouseEvent(.leftMouseDown))
+            sv.removeFromSuperview()
+            r.check("SplitContainerView removed mid-drag clears isResizing", !bd.isResizing)
         } else {
             r.check("SplitContainerView created for split workspace", false)
         }
         if let pSplit { c.closePane(pSplit) }
     }
 
-    // (c) 通知 bar 高度手把（安裝 NotificationBarPlugin 並透過 BarLayout 驅動拖曳）
-    NotificationBarPlugin.install(on: c)
+    // (c) 通知 bar 高度手把（安裝 NotificationBarPlugin 並透過獨立 UserDefaults suite 驅動實際 BarLayout）
+    let suiteName = "dev.lmux.apptest.liquid-glass.\(UUID().uuidString)"
+    let testDefaults = UserDefaults(suiteName: suiteName)!
+    defer { UserDefaults.standard.removePersistentDomain(forName: suiteName) }
+    let barLayout = NotificationBarPlugin.install(on: c, defaults: testDefaults)
     c.root.layoutSubtreeIfNeeded()
-    let barLayout = BarLayout()
     let savedExtra = barLayout.extra
     barLayout.updateDrag(translationHeight: -40, maxExtra: 200, on: c)
     r.check("BarResizeHandle / BarLayout drag pauses blur and increases bar height",
             barLayout.isDragging && c.isSidebarResizing && bd.isOpaqueFallback && barLayout.extra == savedExtra + 40)
     barLayout.endDrag(on: c)
-    r.check("BarResizeHandle / BarLayout endDrag restores blur",
-            !barLayout.isDragging && !c.isSidebarResizing && !bd.isResizing)
-    barLayout.extra = savedExtra
-    barLayout.save()
+    r.check("BarResizeHandle / BarLayout endDrag restores blur and writes scoped defaults",
+            !barLayout.isDragging && !c.isSidebarResizing && !bd.isResizing &&
+            testDefaults.double(forKey: BarLayout.defaultsKey) == Double(savedExtra + 40))
 
     // (d) 視窗邊緣縮放（willStartLiveResize -> didEndLiveResize）
     NotificationCenter.default.post(name: NSWindow.willStartLiveResizeNotification, object: w)
@@ -95,14 +106,18 @@ func runLiquidGlass() async -> Int32 {
     NotificationCenter.default.post(name: NSWindow.didEndLiveResizeNotification, object: w)
     r.check("Window didEndLiveResize restores blur", !bd.isResizing)
 
-    // 3. 拖曳途中視窗或應用程式失去焦點時自動解除拖曳降級
-    c.setSidebarResizing(true)
+    // 3. 拖曳途中視窗或應用程式失去焦點時自動解除拖曳降級與 BarLayout.isDragging（並可再次拖曳）
+    barLayout.updateDrag(translationHeight: -10, maxExtra: 200, on: c)
     NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: w)
-    r.check("Window didResignKey mid-drag clears isResizing", !bd.isResizing)
+    r.check("Window didResignKey mid-drag clears isResizing and BarLayout.isDragging",
+            !bd.isResizing && !barLayout.isDragging)
 
-    c.setSidebarResizing(true)
+    barLayout.updateDrag(translationHeight: -10, maxExtra: 200, on: c)
+    r.check("Subsequent BarLayout drag after interruption re-engages isResizing",
+            barLayout.isDragging && c.isSidebarResizing)
     NotificationCenter.default.post(name: NSApplication.didResignActiveNotification, object: NSApp)
-    r.check("App didResignActive mid-drag clears isResizing", !bd.isResizing)
+    r.check("App didResignActive mid-drag clears isResizing and BarLayout.isDragging",
+            !bd.isResizing && !barLayout.isDragging)
 
     // 4. 選取中的 workspace 列、反白通知卡片與通知 bar 調整手把呈現立體玻璃細節
     if let ws = c.model.selected, let p0 = ws.focusedPane {

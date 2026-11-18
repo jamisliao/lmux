@@ -22,16 +22,19 @@ public enum NotificationBarPlugin {
     }
 
     /// 在 `controller.start()` 之後呼叫。
-    public static func install(on controller: LmuxController) {
+    @discardableResult
+    public static func install(on controller: LmuxController, defaults: UserDefaults = .standard) -> BarLayout {
         let host = makeHost(controller)
-        let layout = BarLayout()
+        let layout = BarLayout(defaults: defaults)
         let view = BarHostingView(rootView: NotificationBar(model: controller.model, controller: controller,
                                                             host: host, layout: layout))
         // 尺寸與位置由 RootView 決定，比照 RootView 對 sidebarHost 的設定。
         view.sizingOptions = []
         view.safeAreaRegions = []
         followHeight(host, layout, view, controller, last: -1)
+        layout.observeFocusLoss(for: view, controller: controller)
         host?.reloadAll()
+        return layout
     }
 
     /// plugin 資料夾：`LMUX_PLUGIN_DIR`，否則 `~/.config/lmux/plugins`。
@@ -63,20 +66,47 @@ public enum NotificationBarPlugin {
 
 /// 使用者拖出來、超過最小高度的部分（都給通知清單），存在 UserDefaults，重開 lmux 後維持。
 @MainActor @Observable
-final class BarLayout {
+public final class BarLayout {
     static let defaultsKey = "sidebarBarExtraHeight"
     var extra: CGFloat
     private(set) var dragStart: CGFloat?
+    private let defaults: UserDefaults
+    @ObservationIgnored private nonisolated(unsafe) var focusObservers: [NSObjectProtocol] = []
 
     var isDragging: Bool { dragStart != nil }
 
-    init() { extra = max(0, CGFloat(UserDefaults.standard.double(forKey: Self.defaultsKey))) }
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        extra = max(0, CGFloat(defaults.double(forKey: Self.defaultsKey)))
+    }
+
+    deinit {
+        focusObservers.forEach { NotificationCenter.default.removeObserver($0) }
+    }
+
+    func observeFocusLoss(for view: NSView, controller: LmuxController) {
+        focusObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        focusObservers.removeAll()
+        let nc = NotificationCenter.default
+        focusObservers.append(nc.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self, weak view, weak controller] note in
+            MainActor.assumeIsolated {
+                guard let self, let view, let controller, let w = view.window, note.object as AnyObject? === w else { return }
+                if self.isDragging { self.endDrag(on: controller) }
+            }
+        })
+        focusObservers.append(nc.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self, weak controller] _ in
+            MainActor.assumeIsolated {
+                guard let self, let controller else { return }
+                if self.isDragging { self.endDrag(on: controller) }
+            }
+        })
+    }
 
     func beginDrag(on controller: LmuxController) {
         if dragStart == nil {
             dragStart = extra
-            controller.setSidebarResizing(true)
         }
+        controller.setSidebarResizing(true)
     }
 
     func updateDrag(translationHeight: CGFloat, maxExtra: CGFloat, on controller: LmuxController) {
@@ -93,7 +123,7 @@ final class BarLayout {
     }
 
     /// 拖曳結束才寫入，拖曳過程中不必每一步都寫。
-    func save() { UserDefaults.standard.set(Double(extra), forKey: Self.defaultsKey) }
+    func save() { defaults.set(Double(extra), forKey: Self.defaultsKey) }
 }
 
 /// 比照 LmuxUI 的 SidebarHostingView：視窗不在前景時第一下點擊就有效，且不搶 terminal 的鍵盤焦點。
@@ -131,6 +161,7 @@ struct BarResizeHandle: View {
     /// 以目前的視窗大小，`extra` 最多可以到多少。
     let maxExtra: () -> CGFloat
     @State private var hover = false
+    @GestureState private var isGestureDragging = false
 
     static func pillColor(hover: Bool, isDragging: Bool) -> LmuxTokens.DynamicColor {
         (hover || isDragging) ? T.Colors.dragHandlePillActive : T.Colors.dragHandlePill
@@ -139,7 +170,10 @@ struct BarResizeHandle: View {
     var body: some View {
         let pill = Self.pillColor(hover: hover, isDragging: layout.isDragging)
         ZStack(alignment: .top) {
-            Rectangle().fill(T.Colors.separator.color).frame(height: 1)
+            VStack(spacing: 0) {
+                Rectangle().fill(T.Colors.separator.color).frame(height: 1)
+                Rectangle().fill(T.Colors.specularHighlight.color).frame(height: 1)
+            }
             Capsule()
                 .fill(pill.color)
                 .frame(width: T.Layout.dragHandlePillWidth, height: T.Layout.dragHandlePillHeight)
@@ -154,12 +188,23 @@ struct BarResizeHandle: View {
         }
         // global 座標：bar 在拖曳中會跟著變高、位置會移動，用 local 座標的話位移量會抖動。
         .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
+            .updating($isGestureDragging) { _, state, _ in state = true }
             .onChanged { value in
                 layout.updateDrag(translationHeight: value.translation.height, maxExtra: maxExtra(), on: controller)
             }
             .onEnded { _ in
                 layout.endDrag(on: controller)
             })
+        .onChange(of: isGestureDragging) { _, active in
+            if !active, layout.isDragging {
+                layout.endDrag(on: controller)
+            }
+        }
+        .onDisappear {
+            if layout.isDragging {
+                layout.endDrag(on: controller)
+            }
+        }
         .onTapGesture(count: 2) {
             layout.extra = 0
             layout.save()
