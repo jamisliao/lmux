@@ -22,4 +22,13 @@ extension LmuxController {
         guard let root else { return 0 }
         return max(0, root.bounds.height - root.titlebarHeight - RootView.sidebarListMinHeight)
     }
+
+    /// 設定或查詢 sidebar 是否正處於拖曳調整大小狀態（拖曳時暫停毛玻璃模糊，放開後恢復）。
+    public func setSidebarResizing(_ active: Bool) {
+        root?.sidebarBackdrop.isResizing = active
+    }
+
+    public var isSidebarResizing: Bool {
+        root?.sidebarBackdrop.isResizing ?? false
+    }
 }
