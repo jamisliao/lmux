@@ -1,126 +1,119 @@
-# 設計：Apple Liquid Glass 與雙欄介面 UI 原型
-
-行號是 2026-11-17 在 commit `9d15b95` 查的。
+# 正式 App Apple Liquid Glass 視覺材質與拖曳零開銷守護 — 技術設計
 
 ## Approach
 
-### 畫面結構
-
-`preview-mockup.html` 是單一 HTML 檔，CSS、DOM 與 JS 都寫在同一個檔案裡，不靠外部框架或打包工具：
+本次改動在保留根目錄 **UI 原型**（`preview-mockup.html`）作為視覺對照基準的同時，將 Apple Liquid Glass 的雙主題材質層次、1pt 物理入射光高光（Specular Highlight）、微透立體卡片邊框與拖曳期間的 GPU 零開銷守護，正式落實到 macOS 原生 Swift App（`LmuxTokens`、`LmuxUI`、`LmuxNotificationBar`）與內建 **預覽 tab**（`MarkdownHTML`）。
 
 ```
-body[data-theme="light" | "dark"]
- ├── .mockup-controls                  ← 頂部控制列（淺色/深色主題、左側欄、右側欄 (Inspector)、Inbox 收合）
- └── .lmux-window#window-frame         ← 視窗外框（頂部 ::before 1px 亮邊）
-      ├── header.titlebar              ← 紅黃綠鈕、#tb-toggle-left (⌘B)、Branch chip、#tb-toggle-right (⌥⌘B)
-      ├── main.window-body
-      │    ├── aside#sidebar-left      ← 左側 sidebar（180–400px；#handle-left 水平拖曳調寬）
-      │    │    ├── .workspace-list    ← 4 列示意 workspace（點 .ws-row 切換 .selected）
-      │    │    ├── .sidebar-history-row ← 搜尋框（僅外觀示意）
-      │    │    └── #sidebar-inbox     ← 通知 bar（38–340px；#handle-inbox 垂直拖曳／雙擊收合）
-      │    ├── section.content-canvas  ← 中央雙格終端機分割區（各自含 .pane-tab-strip，靜態內容）
-      │    └── aside#sidebar-right     ← 右側 Inspector（240–500px；#handle-right 水平拖曳調寬）
-      │         ├── .segmented-control ← 分頁切換：即時預覽 / 變更 (Diff) / 執行記錄
-      │         └── #tab-content-context ← 依目前分頁替換 HTML
-      └── footer#terminal-footer       ← 32px 視窗底部狀態列；點各區塊展開右側 Inspector 並切換分頁
+┌─────────────────────────────────────────────────────────────────────────┐
+│ NSWindow (RootView)                                                     │
+│ ┌──────────────────────────┬──────────────────────────────────────────┐ │
+│ │ Sidebar Column           │ Content Column                           │ │
+│ │  SidebarBackdrop         │  ContentHeaderView (1pt bottom rule)     │ │
+│ │  ├─ NSVisualEffectView   │  ─────────────────────────────────────── │ │
+│ │  ├─ sidebarTint          │  SplitView / Pane Leaves                 │ │
+│ │  └─ topSpecular (1pt)    │  ├─ Terminal SurfaceView (libghostty)    │ │
+│ │  SidebarView (SwiftUI)   │  └─ PreviewView (WKWebView MarkdownHTML) │ │
+│ │  ├─ WorkspaceRow (glass) │     └─ Liquid Glass <pre>/callout/table  │ │
+│ │  └─ HistorySection       │                                          │ │
+│ │  NotificationBar         │                                          │ │
+│ │  ├─ BarResizeHandle(pill)│                                          │ │
+│ │  └─ NotificationCard     │                                          │ │
+│ └──────────────────────────┴──────────────────────────────────────────┘ │
+│            ▲                                   ▲                        │
+│            └── SidebarResizeHandle / SplitView / BarResizeHandle ───────┘
+│                拖曳或視窗 Live Resize 時：sidebarBackdrop.isResizing = true
+│                → 隱藏 NSVisualEffectView、改繪製不透明 sidebarBackground
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1. 雙主題與三層 Liquid Glass Token
+### 1. `LmuxTokens` 雙主題 Liquid Glass 語意 Token（`App/Sources/LmuxTokens/Tokens.swift`）
 
-顏色與模糊半徑都放在 CSS 變數裡，依 `body` 的 `data-theme` 切換：
+- 在不破壞既有 Nord 調色盤與 WCAG AA 對比度（`P2Tests.swift:925-952`）的前提下，調整並擴充 `LmuxTokens.Colors` 與 `LmuxTokens.Layout`：
+  - `sidebarTint`：淺色維持高透亮感（`Nord.nord6`, alpha `0.78`）、深色微調為深邃曜石藍灰（`0x242934`, alpha `0.82`），讓背後桌面微透同時確保文字對比。
+  - `specularHighlight`：`DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.65, darkAlpha: 0.12)`，用於 `SidebarBackdrop` 頂部與 **通知 bar** 上緣的 1pt 物理高光亮邊。
+  - `glassBorder`：`DynamicColor(light: Nord.nord0, dark: 0xFFFFFF, lightAlpha: 0.09, darkAlpha: 0.11)`，用於選取中的 **workspace** 列、反白的 **通知卡片** 與 History 搜尋框的 0.5–1pt 微透立體邊框。
+  - `dragHandlePill` / `dragHandlePillActive`：`DynamicColor` 用於 **通知 bar** 頂部調整手把的居中膠囊條（平時低調微透，游標移入或拖曳時增亮）。
+  - `Layout.dragHandlePillWidth: CGFloat = 24`、`Layout.dragHandlePillHeight: CGFloat = 2.5`。
 
-| 層級 / 變數 | Dark（`:root`，`:11-68`） | Light（`[data-theme="light"]`，`:73-103`） | 套用元件 |
-|---|---|---|---|
-| 視窗底色 `--bg-window-tint` | `rgba(16, 20, 28, 0.82)` | `rgba(255, 255, 255, 0.28)` | `.lmux-window`（`:334`） |
-| 側邊面板 `--glass-sidebar` | `rgba(20, 24, 34, 0.84)` | `rgba(255, 255, 255, 0.34)` | `.sidebar-left`（`:526`）、`.sidebar-right`（`:1515`） |
-| 標題／狀態列 `--glass-titlebar` | `rgba(18, 22, 32, 0.86)` | `rgba(255, 255, 255, 0.38)` | `.titlebar`（`:371`）、`.window-footer`（`:1330`） |
-| 內凹底色 `--glass-surface-recessed` | `rgba(11, 14, 20, 0.94)` | `rgba(255, 255, 255, 0.44)` | `.terminal-pane`（`:1031`）、預覽位址列與程式碼底框 |
-| 卡片底色 `--glass-card` | `rgba(255, 255, 255, 0.045)` | `rgba(255, 255, 255, 0.32)` | `.inspector-card`、`.preview-*-card`、`.diff-file-card` |
-| 主模糊 `--glass-blur` | `blur(40px) saturate(210%) contrast(104%)` | `blur(40px) saturate(240%) contrast(105%) brightness(103%)` | `.lmux-window`、`.sidebar-left`、`.sidebar-right` |
-| 次模糊 `--glass-blur-subtle` | `blur(24px) saturate(180%)` | `blur(24px) saturate(200%) brightness(102%)` | `.mockup-controls`、`.titlebar`、`.terminal-pane`、`.window-footer` |
-| 內層卡片模糊 `--glass-blur-card` | `blur(16px)` | `blur(16px)` | `.inspector-card`、`.preview-browser-card`、`.preview-viewport-card` |
+### 2. 原生 Sidebar、標題列與通知 bar 的玻璃表面與立體邊框（`LmuxUI` + `LmuxNotificationBar`）
 
-- **預設主題**：`<body data-theme="light">`（`:1936`）。`setTheme('light' | 'dark')`（`:2436`）改 `document.body` 的 `data-theme`，並切換 `#btn-theme-light` 與 `#btn-theme-dark` 的 `.active`。
-- **亮邊與字距**：`.lmux-window::before`（`:343-357`）與 `.window-footer::before`（`:1341-1355`）畫頂部 1px 漸層亮邊；標題類文字（`:186-192`）設 `font-optical-sizing: auto; letter-spacing: -0.015em`。
+- **`SidebarBackdrop`（`App/Sources/LmuxUI/RootView.swift`）**：
+  - 除了 `material`（`NSVisualEffectView(.sidebar, .behindWindow)`）與 `tint`（`ColorView`）外，新增 1pt 高的頂部高光視圖 `specular = ColorView(T.Colors.specularHighlight.nsColor)`。
+  - 當 `matchColor == nil` 且非不透明降級時顯示 `specular`；若設定了跟隨終端機底色（`matchColor != nil`）或處於不透明降級時自動調整，確保視覺自然。
+- **`WorkspaceRowContent` 與 `HistorySection`（`App/Sources/LmuxUI/Sidebar.swift`、`History.swift`）**：
+  - 當 `selected` 或 `inSelection` 為 `true` 時，在圓角膠囊背景（`RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)`）上疊加 `.strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)`，呈現 Liquid Glass 選取膠囊的邊緣折射感。
+- **`NotificationCard` 與 `BarResizeHandle`（`App/Sources/LmuxNotificationBar/`）**：
+  - `NotificationCard` 在 `highlighted`（來自 **focused tab** 的最新通知）或 `hover` 時，於圓角背景加上微透 `glassBorder` 細邊框。
+  - `BarResizeHandle` 的高度調整為 `6pt`，除了最上方的 1pt 分隔線外，中央繪製 `24×2.5pt` 的圓角膠囊指示條（`Capsule()`），在 hover 或拖曳中（`dragStart != nil`）切換為 `T.Colors.dragHandlePillActive.color`。
 
-### 2. 面板收合、快捷鍵、右側 Inspector 與視窗底部狀態列
+### 3. 拖曳調整大小與視窗縮放期間的 GPU 零開銷守護（`isResizing`）
 
-| 操作 | 呼叫函式 | 行為 |
-|---|---|---|
-| 收合／展開 sidebar | `toggleSidebar('left')`（`:2443`） | 入口：標題列 `#tb-toggle-left`（`:1976`）、頂部控制列「左側欄」鈕（`:1951`）、快捷鍵 `⌘B`（`:2459-2463`）。切換 `#sidebar-left.collapsed` 並同步 `#tb-toggle-left.active`。 |
-| 收合／展開 **右側 Inspector** | `toggleSidebar('right')`（`:2449`） | 入口：標題列 `#tb-toggle-right`（`:2020`）、頂部控制列「右側欄 (Inspector)」鈕（`:1954`）、**視窗底部狀態列** 最右側 `⌥⌘B` 鈕（`:2425`）、快捷鍵 `⌥⌘B`（`:2465-2468`）。切換 `#sidebar-right.collapsed` 並同步 `#tb-toggle-right.active`。 |
-| 切換 **右側 Inspector** 分頁 | `switchRightTab(tabName, el)` | `tabName` 為 `'preview'`、`'diff'`、`'trace'`（也接受 `'context'`），更新 `.segment-btn.active` 並重繪 `#tab-content-context`（頁面載入時初始化為 `'preview'`，且 `'preview'` 內呼叫 `switchPreviewFile('html')` 渲染，避免重複三份 HTML）。 |
-| 切換即時預覽示意檔 | `switchPreviewFile(type, el)` | `type` 為 `'html'`（`preview-mockup.html`）、`'markdown'`（`README.md`）、`'swift'`（`App/Sources/LmuxUI/GlassTokens.swift`），依 `el` 或 `.preview-file-chip[data-file]` 更新 `#preview-url-text`、`#preview-viewport-content` 與 `.preview-file-chip.active`。位址列 `↻` 呼叫 `switchPreviewFile('html')`；`↗` 呼叫 `window.open`。 |
-| 點 **視窗底部狀態列** 各區 | `openRightPanel(tabName)`（`:2478-2486`） | 若 `#sidebar-right` 是 `.collapsed`，先展開並讓 `#tb-toggle-right` 亮起，再呼叫 `switchRightTab(tabName)`（agent 徽章、最近工具呼叫、Context 用量 → `'trace'`；Git 統計 → `'diff'`；即時預覽鈕 → `'preview'`）。 |
+- **`SidebarBackdrop.isResizing`（`App/Sources/LmuxUI/RootView.swift`）**：
+  - 新增 `public internal(set) var isResizing = false { didSet { if isResizing != oldValue { update() } } }`。
+  - `var isOpaqueFallback: Bool` 更新為：
+    ```swift
+    forceOpaque || isResizing || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+    ```
+  - 當 `isOpaqueFallback == true` 時，`material.isHidden = true` 並將 `tint.color` 切換為不透明的 `T.Colors.sidebarBackground.nsColor`，完全省去 `NSVisualEffectView` 在每個拖曳 frame 的背景高斯模糊合成開銷。
+- **四個觸發入口與失焦保護**：
+  1. **`SidebarResizeHandle`（水平拉寬 sidebar，`RootView.swift`）**：新增 `onDragStateChange: ((Bool) -> Void)?`，在 `mouseDown` 設 `isResizing = true`、`mouseUp` 設 `isResizing = false`。
+  2. **`SplitView`（拉動窗格分割線，`PaneViews.swift`）**：在分割線 `mouseDown` / `mouseUp` 通知 `RootView` 切換 `isResizing`。
+  3. **`BarResizeHandle`（垂直拉高通知 bar，`NotificationBar.swift` + `SidebarAccessory.swift`）**：透過 `LmuxController.setSidebarResizing(_ active: Bool)` 在 `DragGesture.onChanged` 首個事件設為 `true`、`onEnded` 設為 `false`。
+  4. **視窗 Live Resize 與失焦清理（`RootView.swift`）**：監聽 `NSWindow.willStartLiveResizeNotification`（設 `isResizing = true`）、`NSWindow.didEndLiveResizeNotification` 與 `NSWindow.didResignKeyNotification` / `NSApplication.didResignActiveNotification`（設 `isResizing = false`），確保拖曳途中若切換應用程式或視窗失焦，絕不會卡在 `isResizing == true`。
 
-### 3. 通知 bar 與 Workspace 選取
+### 4. 內建預覽 tab 的雙主題 Liquid Glass 樣式（`App/Sources/LmuxUI/MarkdownHTML.swift`）
 
-- **選取 workspace**：`selectWorkspace(el)`（`:2472-2475`）清掉其他 `.ws-row.selected`，替被點的列加上 `.selected`。
-- **調整與收合通知 bar**：
-  - `setupInboxResize()`（`:2835-2882`）把 `#sidebar-inbox` 高度限制在 `38px`–`340px`（往上拖變高）。高度 `<= 42px` 時加上 `.collapsed`（CSS 鎖定 `height: 38px !important`，`:878-880`），大於 `42px` 時移除。
-  - 點 `.inbox-summary-row`（`:2122`）、雙擊 `#handle-inbox`（`:2879`）或點頂部控制列「Inbox 收合」鈕（`:1957`）都呼叫 `toggleInboxCollapse()`（`:2885-2893`）；從收合展開時高度重設回 `175px`。
-- **點擊通知卡片**：`openInboxNotification(id, workspaceName)` 把未讀卡片 `#inbox-card-<id>` 的 `.unread` 換成 `.read`，呼叫 `updateUnreadBadge()` 重算 `.inbox-card.unread` 數量（歸零時把 `#inbox-badge` 與 `#inbox-dot-indicator` 設成 `display: none`），再比對 `.ws-title` 文字完全相符（`===`）的 `.ws-row` 呼叫 `selectWorkspace(row)`。已讀卡片被點時不改未讀數，照常選取對應的 **workspace**。
+- 更新 `MarkdownHTML.css`：
+  - 在 `:root`（淺色 High-Key Crystal）與 `@media (prefers-color-scheme: dark)`（深色 Obsidian Midnight）定義玻璃表面變數（`--glass-surface`、`--glass-border`、`--glass-highlight`、`--glass-shadow`）。
+  - `<pre>`、`.callout`、`<table>` 與 `<th>` 套用圓角、1px 微透邊框與 `box-shadow: inset 0 1px 0 var(--glass-highlight)` 頂部亮邊。
+  - 加入 `@media (prefers-reduced-transparency: reduce)` 與 `@media (prefers-reduced-motion: reduce)` 規則，在系統開啟無障礙降級時改用不透明實底並停用過渡動畫。
+  - 完全不動 `MarkdownHTML.csp` 與 `textCSP`，維持既有安全性與測試相容性。
 
-### 4. 拖曳效能守護（`.is-resizing`）與無障礙降級
+### 5. 自動化驗證與實機測試策略
 
-- **水平拖曳調寬**：`setupResize(handleId, sidebarId, isLeft)`（`:2788-2832`）在 `pointerdown` 時替 `document.body` 加上 `.is-resizing`，`pointermove` 時把 `#sidebar-left` 限制在 `180px`–`400px`、`#sidebar-right` 限制在 `240px`–`500px`，`pointerup` / `pointercancel` 時移除 `.is-resizing` 與 `.resizing-row`。
-- **拖曳期間停用模糊**：`body.is-resizing` 期間固定全域滑鼠游標（水平 `col-resize`，**通知 bar** 垂直拖曳加 `.resizing-row` 改 `row-resize`），並將所有玻璃圖層的 `backdrop-filter` / `-webkit-backdrop-filter` 與 `transition` 設為 `none !important`；`#sidebar-left` 與 `#sidebar-right` 改用不透明底色（深色 `rgba(18, 22, 30, 0.98)`，淺色 `rgba(245, 247, 252, 0.98)`）。
-- **無障礙降級**：
-  - `@media (prefers-reduced-transparency: reduce)`（`:195-217`）：將 `--glass-blur`、`--glass-blur-subtle`、`--glass-blur-card` 設為 `none !important`，停用全部玻璃圖層的 `backdrop-filter` / `-webkit-backdrop-filter`，並把 `#sidebar-left` 與 `#sidebar-right` 底色改為 `#141822`（深色）與 `#F3F5F9`（淺色）。
-  - `@media (prefers-reduced-motion: reduce)`（`:219-225`）：將動畫與 transition 時間設為 `0.01ms !important`。
+- **正式 App 自動化測試（`App/Sources/lmux-apptest/`）**：
+  - `@behavior`：驗證 `LmuxTokens` 新增的 Liquid Glass 色彩／尺寸 token 在淺色與深色外觀下皆可正常解析、WCAG AA 對比度全數通過，且 `MarkdownHTML.page` 輸出包含雙主題玻璃變數、頂部內高光與 `prefers-reduced-transparency` / `prefers-reduced-motion` 規則。
+  - `@e2e`：在 `lmux-apptest` 驗證 `SidebarBackdrop` 一般狀態啟用 `NSVisualEffectView` 與 `specular` 亮邊、在 `SidebarResizeHandle` / `SplitView` / `BarResizeHandle` / 視窗 live resize 期間自動進入 `isResizing == true`（`material.isHidden == true`、改用不透明 `sidebarBackground`），並在放開滑鼠或視窗失焦後恢復 `isResizing == false`。
+- **保留 UI 原型檢查（`App/scripts/liquid-glass-mockup-check*.swift`）**：
+  - `beat/changes/preview-liquid-glass/dev.sh check` 同時驗證 **UI 原型** 與正式 App 的檢查。
+- **實機建置與啟動**：
+  - 連結 `vendor/ghostty` 後透過 `App/scripts/bundle.sh` 產出 `App/build/lmux.app` 並啟動供使用者直接操作測試。
 
-### 5. 已修正的初版 6 個問題（對照 commit `9d15b95`）
-
-以下 6 處初版問題已於實作階段修正並由自動化腳本驗證：
-
-1. **孤立的無效 CSS 與重複規則（原 `:290-298`）**：已清除 `[data-theme="dark"] .ctrl-pill-btn:hover` 後方無 selector 的殘留片段與重複的 `.ctrl-pill-btn:hover`。
-2. **模糊停用清單 selector 寫錯與缺漏（原 `:165-173`, `:200-208`, `:335`, `:372`, `:527`, `:1516`, `:1590`, `:1727`, `:1845`）**：
-   - 已將 `.inbox-accessory-panel` 修正為 `.sidebar-inbox-accessory`。
-   - `body.is-resizing` 與 `prefers-reduced-transparency` 皆已涵蓋全部 11 個玻璃圖層（含 `.mockup-controls`、`.window-footer`、`.terminal-pane`、`.inspector-card`、`.preview-browser-card`、`.preview-viewport-card`）。
-   - 三張內層卡片已抽為 `--glass-blur-card: blur(16px)`。
-   - `.lmux-window`、`.titlebar`、`.sidebar-left`、`.sidebar-right` 已補齊 `-webkit-backdrop-filter`。
-3. **淺色主題拖曳底色 selector 多了空白（原 `:180-183`）**：已改為 `body[data-theme="light"].is-resizing .sidebar-left, body[data-theme="light"].is-resizing .sidebar-right`，並補齊 `body.is-resizing` 與 `body.is-resizing.resizing-row` 對 `body` 本身的游標覆蓋。
-4. **`.activity-bash` 缺 CSS 樣式（原 `:2770`）**：已補上 `.activity-bash` 與 `.activity-run` 共用的綠色徽章樣式。
-5. **重新整理鈕 `↻` 未同步檔案按鈕亮起狀態（原 `:2320`, `:2489-2493`, `:2597`）**：`switchPreviewFile(type, el)` 已改為未傳 `el` 時自動依 `.preview-file-chip[data-file="${type}"]` 同步 `.active`。
-6. **畫面文字寫 `36px` 與實際 `40px` 變數不一致（原 `:2285`, `:2365`, `:2520`, `:2642`, `:2558`）**：預覽卡片、模擬輸出與 `GlassTokens.swift` 示意碼已統一為 `40px`／`40.0`。
-
-### 6. 測試設計
-
-比照 `App/scripts/preview-webkit-check*.swift`，以 `beat/changes/preview-liquid-glass/dev.sh check` 編譯並執行 6 支聚焦的 macOS `WKWebView` Swift 檢查模組（`App/scripts/liquid-glass-mockup-check*.swift`，每支皆小於 300 行，開螢幕外的 `WKWebView` 載入 `preview-mockup.html`）：
-
-- **`@e2e` 場景檢查**：
-  - 預設 `data-theme="light"`，點深色／淺色鈕切換主題與按鈕 `.active`。
-  - sidebar 的 3 個收合入口（標題列、頂部控制列、`⌘B`）與 **右側 Inspector** 的 4 個收合入口（標題列、頂部控制列、**視窗底部狀態列** `⌥⌘B` 鈕、`⌥⌘B` 快捷鍵）收合／展開及 `#tb-toggle-left` / `#tb-toggle-right` 狀態同步。
-  - 對調整手把派送 `PointerEvent` 驗證：拖曳中 `body.is-resizing` 讓所有玻璃圖層的 `backdropFilter` / `webkitBackdropFilter` 為 `none`、淺色模式拖曳時 sidebar 底色為 `rgba(245, 247, 252, 0.98)`、放開後恢復模糊；sidebar（`180–400px`）與 **右側 Inspector**（`240–500px`）寬度上下限夾緊；**通知 bar** 往上拖變高、往下拖到 `<= 42px` 自動加上 `.collapsed`、透過 **摘要列**／雙擊手把／頂部控制列 Inbox 鈕收合與展開回 `175px`。
-  - 點 `.ws-row` 切換選取；點兩張未讀 **通知卡片** 依序讓未讀數 `2 -> 1 -> 0` 並隱藏 `#inbox-badge` 與 `#inbox-dot-indicator`，點已讀卡片不改未讀數，且都會選取對應的 **workspace**。
-  - **右側 Inspector** 三個分頁切換、即時預覽三個檔案切換、點 `↻` 回到 `preview-mockup.html` 並讓 HTML 範例鈕亮起；從收合狀態點 **視窗底部狀態列** 5 個區塊自動展開 **右側 Inspector** 並切到目標分頁。
-- **`@behavior` 場景檢查**：
-  - 檢查 `document.styleSheets` 的 CSS 規則樹：確認無孤立壞規則、`.activity-bash` 有顏色定義、文案皆為 `40px`，且 `@media (prefers-reduced-transparency: reduce)` 與 `@media (prefers-reduced-motion: reduce)` 規則涵蓋全部玻璃圖層與 `.sidebar-inbox-accessory`。
+---
 
 ## Key Decisions
 
-1. **維持單一 HTML 檔 `preview-mockup.html`，不拆多檔或加打包工具**
-   - 理由：雙擊檔案或用 lmux **預覽 tab** 就能直接打開看，不用先跑 build。
-   - 替代方案：拆成 HTML / CSS / JS 多檔或引入 Vite。
-   - ADR 檢查：只影響這個原型檔，隨時可拆 → 不難還原 → **不需 ADR**。
-2. **本 change 只管 UI 原型與其驗證腳本，不動 `App/` 下的正式 Swift 程式**
-   - 理由：右側 Inspector 與視窗底部狀態列還在設計驗證階段，確定要搬進正式 app 時再開獨立的 change。
-   - ADR 檢查：沒有對正式產品做架構承諾 → **不需 ADR**。
-3. **封存時放在獨立 capability（不進 `beat/features/preview/`），並在 `GLOSSARY.md` 區分「右側 Inspector」與「預覽 tab」**
-   - 理由：`beat/features/preview/` 是正式產品的終端機內 **預覽 tab** 規格，混放會讓人誤以為正式 app 已有右側預覽面板。
-   - ADR 檢查：只是文件目錄與用詞分類，很容易搬動 → **不需 ADR**。
-4. **用 macOS `WKWebView` Swift 腳本做自動化檢查，不裝 Playwright**
-   - 理由：repo 裡已有 `App/scripts/preview-webkit-check.swift` 可沿用，不用為了單一 HTML 原型引入 `node_modules`，而且直接測 WebKit 引擎。
-   - ADR 檢查：只是一支測試腳本，隨時能換 → **不需 ADR**。
+1. **維持單一 `SidebarBackdrop` 的 `NSVisualEffectView`，不在個別 SwiftUI 列上疊加多層 `Material`**
+   - 理由：macOS 視窗中重疊多個 `NSVisualEffectView` 或 SwiftUI `.ultraThinMaterial` 會在捲動與展開時倍增離屏模糊合成成本。在單一 `SidebarBackdrop` 上方用微透色塊（`rowSelected` + `glassBorder` + 1pt `specularHighlight`）即可達成 Liquid Glass 層次，同時維持極致效能。
+   - 替代方案：在每個 `WorkspaceRow` 與 `NotificationCard` 掛載獨立的 SwiftUI `Material`。
+   - ADR 檢查：遵循專案既有 `App/README.md` 與 `POLISH.md` 的單一背景材質原則，且僅影響內部視圖繪製 → 不難還原、不令人意外 → **不需 ADR**。
 
-狀態機檢查：各個開關都是 2 到 3 個狀態的單純切換，沒有並行狀態轉換或重試流程，**不做狀態機驗證**。
+2. **拖曳時透過 `SidebarBackdrop.isResizing` 切換不透明 `sidebarBackground` 作為 GPU 守護**
+   - 理由：`SidebarBackdrop` 原本就有 `isOpaqueFallback`（處理 `forceOpaque` 與系統「減少透明度」）。將 `SidebarResizeHandle`、`SplitView`、`BarResizeHandle` 與視窗 live resize 統一匯流到 `isResizing`，只需幾行程式碼就能在所有縮放路徑零延遲暫停 `NSVisualEffectView`，並在視窗失焦時自動復原。
+   - 替代方案：調整 `CAFilter` 模糊半徑或完全不做拖曳降級。
+   - ADR 檢查：局部於 `RootView` / `SidebarBackdrop` 的狀態旗標，隨時可調整 → **不需 ADR**。
+
+3. **保留根目錄 `preview-mockup.html` 與其 `WKWebView` 檢查腳本作為設計參考**
+   - 理由：使用者確認保留 `preview-mockup.html` 作為視覺對照基準，同時在正式 App 落實方案 A。
+   - ADR 檢查：單純保留對照檔案 → **不需 ADR**。
+
+狀態機檢查：`SidebarBackdrop` 的材質狀態僅由布林旗標（`forceOpaque`、`isResizing`、`accessibilityDisplayShouldReduceTransparency`、`matchColor != nil`）組合決定（`< 4` 個狀態、無並行或重試流程），**不需執行 `/statechart` 形式化驗證**。
+
+架構中樞檢查：本次改動完全在既有 `LmuxTokens`、`LmuxUI`、`LmuxNotificationBar` 模組職責內演進，未新增或拆分模組，不需新增 `beat/ARCHITECTURE.md`。
+
+---
 
 ## Components
 
-| 檔案 | 改動 |
+| 檔案 | 改動說明 |
 |---|---|
-| `preview-mockup.html` | 原型主體；已修正第 5 節 6 項 CSS／JS／文案缺陷，整合共用拖曳縮放 helper（左鍵防護、`window` 指標監聽與 `pointercancel` / `lostpointercapture` / `blur` 清理），並補齊 `Option+Cmd+B` `e.code` 辨識與 `body.is-resizing` 游標覆蓋。 |
-| `GLOSSARY.md` | 新增 **UI 原型**、**右側 Inspector**、**視窗底部狀態列** 定義，並說明與 sidebar、**預覽 tab**、**通知 bar** 的區別。 |
-| `App/scripts/liquid-glass-mockup-check*.swift` | 新增 6 支 `WKWebView` 自動化檢查模組（主程式、樣式、面板收合、拖曳縮放、通知 bar、Inspector），覆蓋本規格全部 13 個 `@e2e` 與 `@behavior` 場景。 |
-| `beat/changes/preview-liquid-glass/dev.sh` | 編譯並執行 `liquid-glass-mockup-check*.swift` 的輔助腳本。 |
-| `App/`、`Core/`（正式程式碼） | 不改。 |
+| `App/Sources/LmuxTokens/Tokens.swift` | 新增 `Colors.specularHighlight`、`Colors.glassBorder`、`Colors.dragHandlePill`、`Colors.dragHandlePillActive` 與 `Layout.dragHandlePillWidth` / `dragHandlePillHeight`，微調 `sidebarTint` 並確保 WCAG AA 對比測試通過。 |
+| `App/Sources/LmuxUI/RootView.swift` | `SidebarBackdrop` 新增頂部 1pt `specular` 亮邊與 `isResizing` 狀態；`SidebarResizeHandle` 新增 `onDragStateChange`；監聽視窗 live resize 與 `didResignKey` 自動重置 `isResizing`。 |
+| `App/Sources/LmuxUI/PaneViews.swift` | `SplitView` 在拖曳分割線 `mouseDown` / `mouseUp` 時回呼切換 `isResizing`。 |
+| `App/Sources/LmuxUI/Sidebar.swift`、`History.swift` | `WorkspaceRowContent` 選取膠囊與 `HistorySection` 搜尋框加上 `glassBorder` 微透立體邊框。 |
+| `App/Sources/LmuxUI/SidebarAccessory.swift` | `LmuxController` 新增 `public func setSidebarResizing(_ active: Bool)` 供 `LmuxNotificationBar` 在拖曳手把時同步 `isResizing`。 |
+| `App/Sources/LmuxNotificationBar/NotificationBar.swift`、`NotificationCard.swift` | `BarResizeHandle` 新增居中膠囊指示條並在拖曳時呼叫 `setSidebarResizing`；`NotificationCard` 反白與 hover 狀態加上 `glassBorder` 微透邊框。 |
+| `App/Sources/LmuxUI/MarkdownHTML.swift` | 升級預覽頁 CSS 為淺／深雙主題 Liquid Glass 卡片風格（含 `inset` 頂部亮邊與 `prefers-reduced-transparency` / `prefers-reduced-motion` 降級）。 |
+| `App/Sources/lmux-apptest/P2Tests.swift` | 新增正式 App 的 Liquid Glass tokens、拖曳 `isResizing` 降級／失焦恢復與 `MarkdownHTML` 樣式檢查。 |
+| `preview-mockup.html`、`App/scripts/liquid-glass-mockup-check*.swift` | 保留作為 **UI 原型** 對照與 `WKWebView` 驗證腳本。 |

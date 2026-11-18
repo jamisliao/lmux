@@ -1,9 +1,8 @@
 name: preview-liquid-glass
 created: 2026-11-17
-phase: verify
-verification: { status: passed, critical: 0, date: 2026-11-18 }
+phase: design
 pipeline:
   proposal: { status: done }
   gherkin: { status: done }
   design: { status: done }
-  tasks: { status: done }
+  tasks: { status: pending }
