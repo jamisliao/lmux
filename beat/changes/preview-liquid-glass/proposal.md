@@ -43,4 +43,4 @@
   4. 執行記錄分頁的 `.activity-bash`（`:2770`）沒有對應的 CSS 樣式（CSS 只寫了 `.activity-read`、`.activity-edit`、`.activity-run`）。
   5. 即時預覽位址列的重新整理鈕 `↻`（`:2320`, `:2597`）呼叫 `switchPreviewFile('html')` 時沒傳按鈕元素，切到 `README.md` 或 `GlassTokens.swift` 後按 `↻`，畫面回到 HTML 但上方的 `.preview-file-chip.active` 還停在舊檔案鈕（`:2489-2493`）。
   6. 即時預覽卡片與模擬訊息寫 `blur(36px)` / `36px blur`（`:2285`, `:2365`, `:2520`, `:2642`），與實際 `--glass-blur: blur(40px)` 不一致。
-- **測試**：在 `/beat:plan` 與 `/beat:apply` 新增 `App/scripts/liquid-glass-mockup-check.swift`（比照 `App/scripts/preview-webkit-check.swift`，用 macOS `WKWebView` 載入 `preview-mockup.html` 檢查 DOM 互動、計算樣式與上述 6 項修正）。
+- **測試**：於 `App/scripts/liquid-glass-mockup-check*.swift`（6 支聚焦模組）與 `beat/changes/preview-liquid-glass/dev.sh` 建立不依賴 Node/npm 的 macOS `WKWebView` Swift 檢查腳本（比照 `App/scripts/preview-webkit-check.swift` 模式），驗證主題切換、鍵盤快捷鍵、Inspector 分頁切換、Inbox 未讀數連動與 `.is-resizing` 樣式行為，並涵蓋上述 6 項修正。

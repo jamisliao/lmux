@@ -1116,7 +1116,7 @@ git commit -m "fix(preview-liquid-glass): 修正預覽重新整理鈕 chip 亮�
 **Interfaces:**
 - Consumes: 已完成的 `App/scripts/liquid-glass-mockup-check*.swift`
 
-- [ ] **Step 1: 為 `.feature` 的 13 個場景加上 `# @covered-by:` 標註**
+- [x] **Step 1: 為 `.feature` 的 13 個場景加上 `# @covered-by:` 標註**
 
 依 `testing-conventions.md` 規範，在每個場景的標籤列與 `場景:` / `場景大綱:` 之間補上對應腳本路徑：
 - 雙主題場景 → `# @covered-by: App/scripts/liquid-glass-mockup-check.swift`
@@ -1126,7 +1126,7 @@ git commit -m "fix(preview-liquid-glass): 修正預覽重新整理鈕 chip 亮�
 - Workspace 與 `通知 bar` 連動 3 個場景 → `# @covered-by: App/scripts/liquid-glass-mockup-check-inbox.swift`
 - 右側 Inspector 與底部狀態列 2 個場景 → `# @covered-by: App/scripts/liquid-glass-mockup-check-inspector.swift`
 
-- [ ] **Step 2: 執行全套 `WKWebView` 檢查與檔案影響檢查**
+- [x] **Step 2: 執行全套 `WKWebView` 檢查與檔案影響檢查**
 
 Run:
 ```bash
@@ -1141,11 +1141,11 @@ Expected:
 
 - [ ] **Step 3: 人工開啟原型快速目視確認（Visual & Accessibility Sanity Check）**
 
-在 Safari 或 lmux **預覽 tab** 開啟 `preview-mockup.html`（只做目視確認，不擴大範圍改寫元件架構）：
+在 Safari 或 lmux **預覽 tab** 開啟 `preview-mockup.html`（只做目視確認，不擴大範圍改寫元件架構；CLI 代理人無 GUI 目視環境，留待使用者於 Safari / lmux 實際目視確認）：
 - 確認淺色／深色雙主題對比度與按鈕 hover 觀感、實體鍵盤 `⌘B`／`⌥⌘B` 反應、拖曳游標與流暢度。
 - 若方便切換 macOS「系統設定 → 輔助使用 → 顯示 → 減少透明度 / 減少動態效果」，確認頁面即時移除毛玻璃與動畫延遲。
 
-- [ ] **Step 4: 同步更新 `design.md` 與 `proposal.md` 的腳本清單並 Commit**
+- [x] **Step 4: 同步更新 `design.md` 與 `proposal.md` 的腳本清單並 Commit**
 
 將 `design.md`（`:89`, `:124`）與 `proposal.md`（`:46`）列的測試檔名更新為 `App/scripts/liquid-glass-mockup-check*.swift`（共 6 支聚焦模組）與 `beat/changes/preview-liquid-glass/dev.sh`，並更新 `design.md` 行號基準。
 ```bash
