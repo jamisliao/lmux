@@ -54,7 +54,7 @@ If the main assertion is `toHaveBeenCalledWith`, rewrite to assert on the functi
   - `enum LiquidGlassMockupCheck` (`@main`, `static var failures: Int`, `static func check(_ name: String, _ ok: Bool, _ detail: String = "")`, `static func js(_ web: WKWebView, _ code: String) async -> Any?`, `static func jsString(_ web: WKWebView, _ code: String) async -> String?`, `static func jsBool(_ web: WKWebView, _ code: String) async -> Bool`, `static func waitJS(_ web: WKWebView, _ code: String, _ seconds: Double = 6, where pred: (Any?) -> Bool) async -> Bool`, `static func loadMockup(_ web: WKWebView, in win: NSWindow) async -> Bool`, `static func makeWebView() -> (WKWebView, NSWindow)`, `static func themeChecks() async`)
   - Calls `themeChecks()` directly in `main()`, leaving extension hooks for Tasks 2–6.
 
-- [ ] **Step 1: 建立 `beat/changes/preview-liquid-glass/dev.sh`**
+- [x] **Step 1: 建立 `beat/changes/preview-liquid-glass/dev.sh`**
 
 ```bash
 #!/bin/bash
@@ -82,7 +82,7 @@ esac
 chmod +x beat/changes/preview-liquid-glass/dev.sh
 ```
 
-- [ ] **Step 2: 建立 `App/scripts/liquid-glass-mockup-check.swift` 與雙主題測試**
+- [x] **Step 2: 建立 `App/scripts/liquid-glass-mockup-check.swift` 與雙主題測試**
 
 ```swift
 // @feature: liquid-glass-redesign-mockup.feature
@@ -201,12 +201,12 @@ enum LiquidGlassMockupCheck {
 }
 ```
 
-- [ ] **Step 3: 執行檢查腳本確認編譯與主題檢查通過**
+- [x] **Step 3: 執行檢查腳本確認編譯與主題檢查通過**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `PASS  載入 preview-mockup.html 完成`, 3 個主題 PASS, 最後一行 `MOCKUP CHECK: ok`。
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add beat/changes/preview-liquid-glass/dev.sh App/scripts/liquid-glass-mockup-check.swift
