@@ -205,7 +205,7 @@ git commit -m "feat(core): extract token_count telemetry from Codex rollout file
   - `public struct ToolCallStream: Sendable, Equatable`（`entries: [ToolCallEntry]`, `cap = 50`, `turnCount: Int`, `mutating func record(_ event: HookEvent)`）
   - `PaneAgent` 新增 `public private(set) var toolStream = ToolCallStream()` 及 `public mutating func recordToolEvent(_ event: HookEvent)`（給不走 `PaneAgent.handle` 的 Codex report 模式呼叫），並在 `handle(_:focused:)` 同步呼叫 `toolStream.record(e)`。
 
-- [ ] **Step 1: 撰寫 `ToolCallStreamTests.swift` 失敗測試**
+- [x] **Step 1: 撰寫 `ToolCallStreamTests.swift` 失敗測試**
 
 ```swift
 // @feature: liquid-glass-app.feature
@@ -262,21 +262,21 @@ final class ToolCallStreamTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: 執行測試確認失敗**
+- [x] **Step 2: 執行測試確認失敗**
 
 Run: `swift test --package-path Core --filter ToolCallStreamTests`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `ToolCallStream.swift` 並整合進 `AgentState.swift`**
+- [x] **Step 3: 實作 `ToolCallStream.swift` 並整合進 `AgentState.swift`**
 
 實作工具分類（`Read`/`View`→`.read`、`Edit`/`Write`/`MultiEdit`/`NotebookEdit`→`.edit`、`Bash`/`Run`→`.bash`、`Grep`/`Glob`/`Search`→`.search`、其餘 `.other`）、時間戳取用 `event.sentAtNanos ?? event.receivedAtNanos ?? DispatchTime.now().uptimeNanoseconds`、`toolUseID` 或 `toolName` 末尾 `.running` 條目比對、`cap = 50` 淘汰最舊紀錄；並暴露 `recordToolEvent(_:)` 供 Codex report 模式共用。
 
-- [ ] **Step 4: 執行全套 `Core` 單元測試**
+- [x] **Step 4: 執行全套 `Core` 單元測試**
 
 Run: `swift test --package-path Core`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 3**
+- [x] **Step 5: 提交 Task 3**
 
 ```bash
 git add Core/Sources/LmuxHooks/ToolCallStream.swift Core/Sources/LmuxHooks/AgentState.swift Core/Tests/LmuxHooksTests/ToolCallStreamTests.swift

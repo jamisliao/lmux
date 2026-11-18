@@ -90,8 +90,13 @@ public struct PaneAgent: Sendable, Equatable {
     /// lmux 標成 running 的壓縮正在進行（`/compact` 或閒置時的自動壓縮）。結束、被打斷後是 false；
     /// 回合中的自動壓縮不算（本來就是 running）。App 的 Esc 偵測靠它：這時按 Esc 一定是在取消壓縮。
     public var isCompacting: Bool { stateBeforeCompaction != nil }
+    public private(set) var toolStream = ToolCallStream()
 
     public init() {}
+
+    public mutating func recordToolEvent(_ event: HookEvent) {
+        toolStream.record(event)
+    }
 
     /// The session's last turn had ended (done) when lmux quit, as the relaunch shows it.
     public static var restoredDone: PaneAgent {
@@ -102,6 +107,7 @@ public struct PaneAgent: Sendable, Equatable {
 
     @discardableResult
     public mutating func handle(_ e: HookEvent, focused: Bool) -> AgentTransition {
+        toolStream.record(e)
         let from = state
         var alert: AgentAlert?
         let agent = e.agentID ?? ""
