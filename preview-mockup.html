@@ -2713,48 +2713,80 @@
       }
     }
 
+    /**
+     * Shared drag-to-resize lifecycle with primary-button guard, window listeners,
+     * and pointercancel / lostpointercapture / blur cleanup so blur states never stick.
+     */
+    function bindDragResize(handle, { rowResize = false, getStartState, onMove }) {
+      let isDragging = false;
+      let activePointerId = null;
+      let startState = null;
+
+      const handleMove = (e) => {
+        if (!isDragging) return;
+        if (e.pointerId !== undefined && e.pointerId !== activePointerId) return;
+        onMove(e, startState);
+      };
+
+      const stopDrag = (e) => {
+        if (!isDragging) return;
+        if (e && e.pointerId !== undefined && e.pointerId !== activePointerId) return;
+        isDragging = false;
+        activePointerId = null;
+        startState = null;
+        window.removeEventListener('pointermove', handleMove);
+        window.removeEventListener('pointerup', stopDrag);
+        window.removeEventListener('pointercancel', stopDrag);
+        window.removeEventListener('blur', stopDrag);
+        handle.removeEventListener('lostpointercapture', stopDrag);
+        handle.classList.remove('active');
+        document.body.classList.remove('is-resizing');
+        if (rowResize) {
+          document.body.classList.remove('resizing-row');
+        }
+      };
+
+      handle.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0 || isDragging) return;
+        isDragging = true;
+        activePointerId = e.pointerId;
+        startState = getStartState(e);
+        window.addEventListener('pointermove', handleMove);
+        window.addEventListener('pointerup', stopDrag);
+        window.addEventListener('pointercancel', stopDrag);
+        window.addEventListener('blur', stopDrag);
+        handle.addEventListener('lostpointercapture', stopDrag);
+        try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+        handle.classList.add('active');
+        document.body.classList.add('is-resizing');
+        if (rowResize) {
+          document.body.classList.add('resizing-row');
+        }
+      });
+    }
+
     // Direct Manipulation: 1:1 Drag-to-Resize on Sidebars
     function setupResize(handleId, sidebarId, isLeft) {
       const handle = document.getElementById(handleId);
       const sidebar = document.getElementById(sidebarId);
-      let isDragging = false;
-      let startX = 0;
-      let startWidth = 0;
+      if (!handle || !sidebar) return;
+      const minW = isLeft ? 180 : 240;
+      const maxW = isLeft ? 400 : 500;
+      const cssVar = isLeft ? '--sidebar-left-width' : '--sidebar-right-width';
 
-      handle.addEventListener('pointerdown', (e) => {
-        isDragging = true;
-        startX = e.clientX;
-        startWidth = sidebar.getBoundingClientRect().width;
-        try { handle.setPointerCapture(e.pointerId); } catch (_) {}
-        handle.classList.add('active');
-        document.body.classList.add('is-resizing');
-      });
-
-      handle.addEventListener('pointermove', (e) => {
-        if (!isDragging) return;
-        const delta = e.clientX - startX;
-        let newWidth = isLeft ? startWidth + delta : startWidth - delta;
-        const minW = isLeft ? 180 : 240;
-        const maxW = isLeft ? 400 : 500;
-        newWidth = Math.max(minW, Math.min(maxW, newWidth));
-        sidebar.style.width = newWidth + 'px';
-        if (isLeft) {
-          document.documentElement.style.setProperty('--sidebar-left-width', newWidth + 'px');
-        } else {
-          document.documentElement.style.setProperty('--sidebar-right-width', newWidth + 'px');
+      bindDragResize(handle, {
+        getStartState: (e) => ({
+          startX: e.clientX,
+          startWidth: sidebar.getBoundingClientRect().width
+        }),
+        onMove: (e, state) => {
+          const delta = e.clientX - state.startX;
+          let newWidth = isLeft ? state.startWidth + delta : state.startWidth - delta;
+          newWidth = Math.max(minW, Math.min(maxW, newWidth));
+          sidebar.style.width = newWidth + 'px';
+          document.documentElement.style.setProperty(cssVar, newWidth + 'px');
         }
       });
-
-      const stopDrag = (e) => {
-        if (!isDragging) return;
-        isDragging = false;
-        handle.classList.remove('active');
-        document.body.classList.remove('is-resizing');
-        document.body.classList.remove('resizing-row');
-      };
-
-      handle.addEventListener('pointerup', stopDrag);
-      handle.addEventListener('pointercancel', stopDrag);
     }
 
     setupResize('handle-left', 'sidebar-left', true);
@@ -2765,44 +2797,22 @@
       const handle = document.getElementById('handle-inbox');
       const inbox = document.getElementById('sidebar-inbox');
       if (!handle || !inbox) return;
-      let isDragging = false;
-      let startY = 0;
-      let startHeight = 0;
 
-      handle.addEventListener('pointerdown', (e) => {
-        isDragging = true;
-        startY = e.clientY;
-        startHeight = inbox.getBoundingClientRect().height;
-        try { handle.setPointerCapture(e.pointerId); } catch (_) {}
-        handle.classList.add('active');
-        document.body.classList.add('is-resizing');
-        document.body.classList.add('resizing-row');
-      });
-
-      handle.addEventListener('pointermove', (e) => {
-        if (!isDragging) return;
-        // Dragging up (negative delta) increases height
-        const delta = e.clientY - startY;
-        let newHeight = Math.max(38, Math.min(340, startHeight - delta));
-        inbox.style.setProperty('--inbox-height', newHeight + 'px');
-        inbox.style.height = newHeight + 'px';
-        if (newHeight <= 42) {
-          inbox.classList.add('collapsed');
-        } else {
-          inbox.classList.remove('collapsed');
+      bindDragResize(handle, {
+        rowResize: true,
+        getStartState: (e) => ({
+          startY: e.clientY,
+          startHeight: inbox.getBoundingClientRect().height
+        }),
+        onMove: (e, state) => {
+          // Dragging up (negative delta) increases height
+          const delta = e.clientY - state.startY;
+          const newHeight = Math.max(38, Math.min(340, state.startHeight - delta));
+          inbox.style.setProperty('--inbox-height', newHeight + 'px');
+          inbox.style.height = newHeight + 'px';
+          inbox.classList.toggle('collapsed', newHeight <= 42);
         }
       });
-
-      const stopDrag = (e) => {
-        if (!isDragging) return;
-        isDragging = false;
-        handle.classList.remove('active');
-        document.body.classList.remove('is-resizing');
-        document.body.classList.remove('resizing-row');
-      };
-
-      handle.addEventListener('pointerup', stopDrag);
-      handle.addEventListener('pointercancel', stopDrag);
 
       // Double-click to toggle collapse / default height
       handle.addEventListener('dblclick', () => {

@@ -76,32 +76,40 @@ extension LiquidGlassMockupCheck {
             return required.every(s => sel.includes(s));
           });
           if (!disableRule) return false;
-          const disablesBoth = disableRule.style.getPropertyValue('backdrop-filter') === 'none' &&
-            ((disableRule.cssText || '').includes('-webkit-backdrop-filter: none') ||
-             disableRule.style.getPropertyValue('-webkit-backdrop-filter') === 'none');
+          const disablesBoth =
+            disableRule.style.getPropertyValue('backdrop-filter') === 'none' &&
+            disableRule.style.getPropertyPriority('backdrop-filter') === 'important' &&
+            ((disableRule.style.getPropertyValue('-webkit-backdrop-filter') === 'none' &&
+              disableRule.style.getPropertyPriority('-webkit-backdrop-filter') === 'important') ||
+             /-webkit-backdrop-filter:\\s*none\\s*!important/i.test(disableRule.cssText || ''));
 
           const resetRule = inner.find(r => (r.selectorText || '').includes(':root') && (r.selectorText || '').includes('[data-theme="light"]'));
           const resetsTokens = !!(resetRule &&
-            resetRule.style.getPropertyValue('--glass-blur').trim() === 'none' &&
-            resetRule.style.getPropertyValue('--glass-blur-subtle').trim() === 'none' &&
-            resetRule.style.getPropertyValue('--glass-blur-card').trim() === 'none');
+            ['--glass-blur', '--glass-blur-subtle', '--glass-blur-card'].every(prop =>
+              resetRule.style.getPropertyValue(prop).trim() === 'none' &&
+              resetRule.style.getPropertyPriority(prop) === 'important'
+            ));
 
           const darkSolid = inner.some(r =>
             r.selectorText && !r.selectorText.includes('[data-theme="light"]') &&
             r.selectorText.includes('.sidebar-left') && r.selectorText.includes('.sidebar-right') &&
-            r.style && r.style.backgroundColor !== ''
+            r.style &&
+            r.style.backgroundColor === 'rgb(20, 24, 34)' &&
+            r.style.getPropertyPriority('background-color') === 'important'
           );
           const lightSolid = inner.some(r =>
             r.selectorText && r.selectorText.includes('[data-theme="light"] .sidebar-left') &&
             r.selectorText.includes('[data-theme="light"] .sidebar-right') &&
-            r.style && r.style.backgroundColor !== ''
+            r.style &&
+            r.style.backgroundColor === 'rgb(243, 245, 249)' &&
+            r.style.getPropertyPriority('background-color') === 'important'
           );
           return disablesBoth && resetsTokens && darkSolid && lightSolid;
         })()
         """)
-        check("prefers-reduced-transparency 完整涵蓋 11 個玻璃元件、雙屬性 none、變數歸零與深淺色實底", reducedTransOK)
+        check("prefers-reduced-transparency 完整涵蓋 11 個玻璃元件、雙屬性 none !important、變數歸零與深淺色精確 !important 實底", reducedTransOK)
 
-        // 4. 檢查 @media (prefers-reduced-motion: reduce) 針對 * / *::before / *::after 設定雙重 0.01ms
+        // 4. 檢查 @media (prefers-reduced-motion: reduce) 針對 * / *::before / *::after 設定雙重 0.01ms !important
         let reducedMotionOK = await jsBool(web, """
         (() => {
           const rules = Array.from(document.styleSheets[0]?.cssRules || []);
@@ -110,11 +118,15 @@ extension LiquidGlassMockupCheck {
           return Array.from(media.cssRules).some(r => {
             const sel = r.selectorText || '';
             return sel.includes('*') && sel.includes('::before') && sel.includes('::after') &&
-              r.style && r.style.animationDuration === '0.01ms' && r.style.transitionDuration === '0.01ms';
+              r.style &&
+              r.style.animationDuration === '0.01ms' &&
+              r.style.getPropertyPriority('animation-duration') === 'important' &&
+              r.style.transitionDuration === '0.01ms' &&
+              r.style.getPropertyPriority('transition-duration') === 'important';
           });
         })()
         """)
-        check("prefers-reduced-motion 針對全域元素將動畫與過渡壓縮至 0.01ms", reducedMotionOK)
+        check("prefers-reduced-motion 針對全域元素將動畫與過渡壓縮至 0.01ms !important", reducedMotionOK)
 
         // 5. 檢查 .activity-bash 具備有效樣式（對應缺陷 #4）
         let bashStyleOK = await jsBool(web, """
