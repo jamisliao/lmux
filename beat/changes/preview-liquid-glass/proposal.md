@@ -20,7 +20,7 @@
 4. **右側 Inspector、視窗底部狀態列與通知互動**
    - **右側 Inspector** 可在「即時預覽」、「變更 (Diff)」與「執行記錄」三個分頁間切換。「即時預覽」分頁可切換 HTML、Markdown（`README.md`）與 Swift（`GlassTokens.swift`）三份示意內容；點重新整理鈕 `↻` 會切回 HTML 並讓 HTML 檔案鈕亮起，點 `↗` 則在新分頁開啟目前頁面。
    - **視窗底部狀態列** 顯示目前 agent 模型、最近工具呼叫、Context Window 用量與 Git 變更統計；點各區塊會展開已收合的 **右側 Inspector** 並切到對應分頁。
-   - 點 sidebar 的 **workspace** 列可切換選取狀態；點 **通知 bar** 裡的未讀 **通知卡片** 會改成已讀、扣減未讀數（歸零時隱藏未讀徽章與鈴鐺紅點），並選取對應的 **workspace** 列。
+   - 點 sidebar 的 **workspace** 列可切換選取狀態；點 **通知 bar** 裡的未讀 **通知卡片** 會改成已讀、扣減未讀數（歸零時隱藏未讀徽章與鈴鐺提示點），並選取對應的 **workspace** 列。
 
 ## 不變
 

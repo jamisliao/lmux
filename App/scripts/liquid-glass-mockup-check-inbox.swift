@@ -29,7 +29,7 @@ extension LiquidGlassMockupCheck {
         // 切回第一個 workspace 再測 Inbox 連動
         _ = await js(web, "document.querySelectorAll('.ws-row')[0].click(); true")
 
-        // 2. 點擊第 1 張未讀通知卡片（web-client-auth）：變已讀、徽章 2 -> 1、紅點仍顯示、選取 web-client-auth
+        // 2. 點擊第 1 張未讀通知卡片（web-client-auth）：變已讀、徽章 2 -> 1、提示點仍顯示、選取 web-client-auth
         let initialBadge = await jsString(web, "document.getElementById('inbox-badge').textContent") ?? ""
         check("初始未讀徽章數字為 2", initialBadge == "2", "badge=\(initialBadge)")
 
@@ -61,7 +61,7 @@ extension LiquidGlassMockupCheck {
         """)
         check("點擊已讀卡片不重複扣減未讀數，仍選取 lmux-glass-design", afterReadCard)
 
-        // 4. 點擊第 2 張未讀卡片（api-gateway）：未讀歸零並隱藏徽章與紅點
+        // 4. 點擊第 2 張未讀卡片（api-gateway）：未讀歸零並隱藏徽章與提示點
         _ = await js(web, "document.getElementById('inbox-card-2').click(); true")
         let afterAllRead = await jsBool(web, """
         (() => {
@@ -74,6 +74,6 @@ extension LiquidGlassMockupCheck {
                  selectedTitle === 'api-gateway';
         })()
         """)
-        check("點擊最後一張未讀卡片後全部已讀、徽章與紅點隱藏且選取 api-gateway", afterAllRead)
+        check("點擊最後一張未讀卡片後全部已讀、徽章與提示點隱藏且選取 api-gateway", afterAllRead)
     }
 }
