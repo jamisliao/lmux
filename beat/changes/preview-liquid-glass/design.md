@@ -119,7 +119,7 @@ body[data-theme="light" | "dark"]
 
 | 檔案 | 改動 |
 |---|---|
-| `preview-mockup.html` | 原型主體；已修正第 5 節 6 項 CSS／JS／文案缺陷，並補齊 `Option+Cmd+B` `e.code` 辨識、`body.is-resizing` 游標覆蓋及 `setPointerCapture` 防護。 |
+| `preview-mockup.html` | 原型主體；已修正第 5 節 6 項 CSS／JS／文案缺陷，整合共用拖曳縮放 helper（左鍵防護、`window` 指標監聽與 `pointercancel` / `lostpointercapture` / `blur` 清理），並補齊 `Option+Cmd+B` `e.code` 辨識與 `body.is-resizing` 游標覆蓋。 |
 | `GLOSSARY.md` | 新增 **UI 原型**、**右側 Inspector**、**視窗底部狀態列** 定義，並說明與 sidebar、**預覽 tab**、**通知 bar** 的區別。 |
 | `App/scripts/liquid-glass-mockup-check*.swift` | 新增 6 支 `WKWebView` 自動化檢查模組（主程式、樣式、面板收合、拖曳縮放、通知 bar、Inspector），覆蓋本規格全部 13 個 `@e2e` 與 `@behavior` 場景。 |
 | `beat/changes/preview-liquid-glass/dev.sh` | 編譯並執行 `liquid-glass-mockup-check*.swift` 的輔助腳本。 |

@@ -17,17 +17,18 @@ extension LiquidGlassMockupCheck {
 
         // 在 WebKit 中透過 PointerEvent 驅動 setupResize / setupInboxResize 驗證真實計算樣式與寬高變化。
         let helpersJS = """
-        window.__testDragStart = (id, x, y) => {
+        window.__testDragStart = (id, x, y, button = 0) => {
           const el = document.getElementById(id);
-          el.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, clientX: x, clientY: y, bubbles: true }));
+          el.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, button, clientX: x, clientY: y, bubbles: true }));
         };
-        window.__testDragMove = (id, x, y) => {
-          const el = document.getElementById(id);
-          el.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: x, clientY: y, bubbles: true }));
+        window.__testDragMove = (_id, x, y) => {
+          window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: x, clientY: y, bubbles: true }));
         };
-        window.__testDragEnd = (id, x, y) => {
-          const el = document.getElementById(id);
-          el.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: x, clientY: y, bubbles: true }));
+        window.__testDragEnd = (_id, x, y) => {
+          window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientX: x, clientY: y, bubbles: true }));
+        };
+        window.__testDragCancel = (x = 0, y = 0) => {
+          window.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, clientX: x, clientY: y, bubbles: true }));
         };
         window.__isRGBA = (color, er, eg, eb, minA, maxA) => {
           const m = color.match(/^rgba?\\(\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)(?:,\\s*([\\d.]+))?\\s*\\)$/);
@@ -129,22 +130,109 @@ extension LiquidGlassMockupCheck {
         let rightMin = (await js(web, "parseFloat(document.getElementById('sidebar-right').style.width)") as? NSNumber)?.doubleValue ?? 0
         check("右側 Inspector 往右超過下限時夾緊於 240px", rightMin == 240, "width=\(rightMin)")
 
-        // 3. 通知 bar 垂直拖曳：游標 row-resize、往上增高夾緊 340px、往下拖至 <= 42px 自動收合並清除 resizing-row
+        // 3. 通知 bar 垂直拖曳：游標 row-resize、全圖層雙重 backdrop-filter 為 none、中間值、夾緊上限 340px、43px vs 42px 邊界、從 collapsed 向上展開與恢復模糊
         _ = await js(web, "window.__testDragStart('handle-inbox', 100, 600); window.__testDragMove('handle-inbox', 100, 200); true")
         let inboxMaxOK = await jsBool(web, """
         document.body.classList.contains('is-resizing') &&
         document.body.classList.contains('resizing-row') &&
         getComputedStyle(document.body).cursor === 'row-resize' &&
-        parseFloat(document.getElementById('sidebar-inbox').style.height) === 340
+        parseFloat(document.getElementById('sidebar-inbox').style.height) === 340 &&
+        window.__allBothBackdropNone([
+          '.mockup-controls', '.lmux-window', '.titlebar', '.sidebar-left',
+          '.sidebar-right', '#sidebar-inbox', '.window-footer', '.terminal-pane',
+          '.preview-browser-card', '.preview-viewport-card'
+        ])
         """)
-        check("通知 bar 向上拖曳游標為 row-resize 且高度夾緊於 340px 上限", inboxMaxOK)
+        check("通知 bar 向上拖曳游標為 row-resize、高度夾緊 340px 且停用全部 10 個玻璃圖層模糊", inboxMaxOK)
 
-        _ = await js(web, "window.__testDragMove('handle-inbox', 100, 950); window.__testDragEnd('handle-inbox', 100, 950); true")
-        let inboxAutoCollapsed = await jsBool(web, """
-        document.getElementById('sidebar-inbox').classList.contains('collapsed') &&
-        !document.body.classList.contains('is-resizing') &&
-        !document.body.classList.contains('resizing-row')
+        // 從初始 175px、startY=600 移至 500（newHeight=275）測未夾緊中間高度
+        _ = await js(web, "window.__testDragMove('handle-inbox', 100, 500); true")
+        let inboxMidOK = await jsBool(web, """
+        parseFloat(document.getElementById('sidebar-inbox').style.height) === 275 &&
+        !document.getElementById('sidebar-inbox').classList.contains('collapsed')
         """)
-        check("通知 bar 拖曳至 <= 42px 自動收合且清除 resizing-row 並恢復模糊", inboxAutoCollapsed)
+        check("通知 bar 拖曳至中間高度 275px（未夾緊且未收合）", inboxMidOK)
+
+        // 精確邊界：732 -> 43px（> 42 不收合）vs 733 -> 42px（<= 42 自動收合）
+        _ = await js(web, "window.__testDragMove('handle-inbox', 100, 732); true")
+        let boundary43OK = await jsBool(web, """
+        parseFloat(document.getElementById('sidebar-inbox').style.height) === 43 &&
+        !document.getElementById('sidebar-inbox').classList.contains('collapsed')
+        """)
+        check("通知 bar 拖曳至 43px（> 42px 門檻）維持展開未收合", boundary43OK)
+
+        _ = await js(web, "window.__testDragMove('handle-inbox', 100, 733); window.__testDragEnd('handle-inbox', 100, 733); true")
+        let inboxCollapseInfo = await jsString(web, """
+        (() => {
+          const inbox = document.getElementById('sidebar-inbox');
+          const hasAllBlur = ['.titlebar', '#sidebar-left', '#sidebar-right', '.window-footer', '.terminal-pane'].every(sel => {
+            const cs = getComputedStyle(document.querySelector(sel));
+            return (cs.backdropFilter && cs.backdropFilter !== 'none') ||
+                   (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none');
+          });
+          const ok = parseFloat(inbox.style.height) === 42 &&
+                 inbox.classList.contains('collapsed') &&
+                 !document.body.classList.contains('is-resizing') &&
+                 !document.body.classList.contains('resizing-row') &&
+                 getComputedStyle(document.body).cursor !== 'row-resize' &&
+                 hasAllBlur;
+          return ok ? 'OK' : `height=${inbox.style.height} collapsed=${inbox.classList.contains('collapsed')} blur=${hasAllBlur}`;
+        })()
+        """) ?? ""
+        check("通知 bar 拖曳至 42px（<= 42px）自動收合、清除 resizing-row 與游標並實質恢復模糊", inboxCollapseInfo == "OK", inboxCollapseInfo)
+
+        // 從 .collapsed 狀態向上拖曳 100px，應移除 .collapsed 並展開至對應高度
+        let collapsedRectH = (await js(web, "document.getElementById('sidebar-inbox').getBoundingClientRect().height") as? NSNumber)?.doubleValue ?? 0
+        _ = await js(web, "window.__testDragStart('handle-inbox', 100, 700); window.__testDragMove('handle-inbox', 100, 600); window.__testDragEnd('handle-inbox', 100, 600); true")
+        let expandInfo = await jsString(web, """
+        (() => {
+          const inbox = document.getElementById('sidebar-inbox');
+          return `${parseFloat(inbox.style.height)}:${inbox.classList.contains('collapsed')}`;
+        })()
+        """) ?? ""
+        let expectedExpand = min(340, collapsedRectH + 100)
+        let expandParts = expandInfo.split(separator: ":")
+        let expandedH = Double(expandParts.first ?? "") ?? -1
+        let stillCollapsed = expandParts.last == "true"
+        check("通知 bar 從收合狀態向上拖曳可展開至對應高度並移除 .collapsed", abs(expandedH - expectedExpand) <= 1 && !stillCollapsed, "start=\(collapsedRectH) actual=\(expandInfo)")
+
+        // 4. F1 拖曳穩健性：非左鍵忽略、pointercancel / lostpointercapture / window.blur 清理
+        _ = await js(web, "window.__testDragStart('handle-left', 260, 200, 2); window.__testDragStart('handle-inbox', 100, 600, 2); true")
+        let secondaryIgnored = await jsBool(web, """
+        !document.body.classList.contains('is-resizing') &&
+        !document.body.classList.contains('resizing-row') &&
+        !document.getElementById('handle-left').classList.contains('active') &&
+        !document.getElementById('handle-inbox').classList.contains('active')
+        """)
+        check("次要滑鼠按鍵（button=2）觸發 pointerdown 不得進入拖曳狀態", secondaryIgnored)
+
+        _ = await js(web, "window.__testDragStart('handle-inbox', 100, 600, 0); window.__testDragCancel(100, 580); true")
+        let cancelCleared = await jsBool(web, """
+        (() => {
+          const cs = getComputedStyle(document.getElementById('sidebar-left'));
+          const hasBlur = (cs.backdropFilter && cs.backdropFilter !== 'none') ||
+                          (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none');
+          return !document.body.classList.contains('is-resizing') &&
+                 !document.body.classList.contains('resizing-row') &&
+                 !document.getElementById('handle-inbox').classList.contains('active') &&
+                 hasBlur;
+        })()
+        """)
+        check("window pointercancel 可清除 is-resizing / resizing-row / active 並恢復模糊", cancelCleared)
+
+        _ = await js(web, "window.__testDragStart('handle-left', 260, 200, 0); document.getElementById('handle-left').dispatchEvent(new Event('lostpointercapture')); true")
+        let lostCaptureCleared = await jsBool(web, """
+        !document.body.classList.contains('is-resizing') &&
+        !document.getElementById('handle-left').classList.contains('active')
+        """)
+        check("lostpointercapture 可清除 is-resizing 與手把 .active", lostCaptureCleared)
+
+        _ = await js(web, "window.__testDragStart('handle-inbox', 100, 600, 0); window.dispatchEvent(new Event('blur')); true")
+        let blurCleared = await jsBool(web, """
+        !document.body.classList.contains('is-resizing') &&
+        !document.body.classList.contains('resizing-row') &&
+        !document.getElementById('handle-inbox').classList.contains('active')
+        """)
+        check("window blur 可清除 is-resizing / resizing-row 與手把 .active", blurCleared)
     }
 }
