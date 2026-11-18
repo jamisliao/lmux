@@ -134,13 +134,13 @@
   @e2e @happy-path
   # @covered-by: App/scripts/liquid-glass-mockup-check-inbox.swift
   場景: 點未讀通知卡片標記已讀並選取對應 workspace
-    假設 **通知 bar** 有 2 張未讀的 **通知卡片**，**摘要列** 的未讀徽章顯示 2 且鈴鐺紅點可見
+    假設 **通知 bar** 有 2 張未讀的 **通知卡片**，**摘要列** 的未讀徽章顯示 2 且鈴鐺提示點可見
     當 使用者點來自 "web-client-auth" 的未讀通知卡片
     那麼 這張通知卡片變成已讀樣式
-    而且 未讀徽章減為 1，鈴鐺紅點維持可見
+    而且 未讀徽章減為 1，鈴鐺提示點維持可見
     而且 sidebar 的 "web-client-auth" **workspace** 列變成選取狀態
     當 使用者再點另一張未讀通知卡片
-    那麼 所有通知卡片皆為已讀，未讀徽章與鈴鐺紅點隱藏
+    那麼 所有通知卡片皆為已讀，未讀徽章與鈴鐺提示點隱藏
 
   @e2e @edge-case
   # @covered-by: App/scripts/liquid-glass-mockup-check-inbox.swift

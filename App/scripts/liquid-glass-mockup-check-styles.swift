@@ -14,10 +14,10 @@ extension LiquidGlassMockupCheck {
             return
         }
 
-        // 1. 檢查 <style> 大括號平衡與 .ctrl-pill-btn:hover 無重複規則（對應缺陷 #1）
+        // 1. 檢查 <style> 剝除註解後的大括號平衡與 .ctrl-pill-btn:hover 無重複規則（對應缺陷 #1）
         let braceBalanceOK = await jsBool(web, """
         (() => {
-          const css = document.querySelector('style')?.textContent || '';
+          const css = (document.querySelector('style')?.textContent || '').replace(/\\/\\*[\\s\\S]*?\\*\\//g, '');
           let depth = 0;
           for (const ch of css) {
             if (ch === '{') depth++;

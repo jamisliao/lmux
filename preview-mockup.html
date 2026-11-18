@@ -2321,72 +2321,8 @@
           </div>
         </div>
 
-        <!-- Right Sidebar Content Body: Dedicated Live Preview & Document Viewport -->
-        <div class="sidebar-right-body" id="tab-content-context">
-          
-          <!-- Live Preview Browser Card (Mini WKWebView Chrome) -->
-          <div class="preview-browser-card">
-            <div class="preview-address-bar-row">
-              <div class="preview-nav-btns">
-                <button class="preview-icon-btn" title="上一頁">‹</button>
-                <button class="preview-icon-btn" title="下一頁">›</button>
-                <button class="preview-icon-btn" title="重新整理預覽" onclick="switchPreviewFile('html')">↻</button>
-              </div>
-              <div class="preview-url-box">
-                <svg class="icon" style="width: 12px; height: 12px; color: var(--accent-green);" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                <span class="preview-current-file" id="preview-url-text">preview-mockup.html</span>
-                <span class="preview-live-tag">LIVE</span>
-              </div>
-              <button class="preview-icon-btn" title="在系統預設瀏覽器中開啟" onclick="window.open(window.location.href, '_blank')">↗</button>
-            </div>
-
-            <!-- Preview File Switcher Strip -->
-            <div class="preview-file-strip">
-              <button class="preview-file-chip active" onclick="switchPreviewFile('html', this)">
-                <span>🌐 HTML / Web UI</span>
-              </button>
-              <button class="preview-file-chip" onclick="switchPreviewFile('markdown', this)">
-                <span>📝 README.md</span>
-              </button>
-              <button class="preview-file-chip" onclick="switchPreviewFile('swift', this)">
-                <span>⚛️ GlassTokens.swift</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Live Preview Render Viewport -->
-          <div class="preview-viewport-card" id="preview-viewport-content">
-            <div style="background: var(--glass-card); border-radius: 10px; padding: 14px; border: 1px solid var(--glass-sidebar-border);">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
-                  <span>🍎</span> Apple Liquid Glass UI
-                </div>
-                <span class="badge-subtle" style="color: var(--accent-green); font-size: 10px;">WKWebView 60fps</span>
-              </div>
-              <p style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
-                正在即時渲染 <code>preview-mockup.html</code>。macOS Sequoia & visionOS 規格次表面液態磨砂效果，Metal GPU 即時合成。
-              </p>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
-                <button style="padding: 5px 12px; border-radius: 6px; background: var(--accent-blue); color: #fff; border: none; font-size: 11px; cursor: pointer; box-shadow: 0 2px 8px rgba(10, 132, 255, 0.35);">
-                  ✦ 互動元件測試
-                </button>
-                <button style="padding: 5px 12px; border-radius: 6px; background: var(--glass-card); color: var(--text-primary); border: 1px solid var(--glass-sidebar-border); font-size: 11px; cursor: pointer;">
-                  次表面高光
-                </button>
-              </div>
-              <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-tertiary); background: var(--glass-surface-recessed); padding: 8px; border-radius: 6px; border: 1px solid var(--glass-sidebar-border);">
-                blur(40px) saturate(240%) · Hot-reload Active
-              </div>
-            </div>
-          </div>
-
-          <!-- Preview Status Bar -->
-          <div class="preview-status-bar">
-            <span>WKWebView Pipeline (Metal)</span>
-            <span style="color: var(--accent-green);">● Auto-reload on save</span>
-          </div>
-
-        </div>
+        <!-- Right Sidebar Content Body: Dedicated Live Preview & Document Viewport (由 switchRightTab('preview') 初始化) -->
+        <div class="sidebar-right-body" id="tab-content-context"></div>
       </aside>
 
     </main>
@@ -2501,7 +2437,7 @@
 
     // Switch Previewed File inside Live Preview Viewport
     function switchPreviewFile(type, el) {
-      const targetChip = el || document.querySelector(`.preview-file-chip[onclick*="'${type}'"]`);
+      const targetChip = el || document.querySelector(`.preview-file-chip[data-file="${type}"]`);
       if (targetChip) {
         document.querySelectorAll('.preview-file-chip').forEach(c => c.classList.remove('active'));
         targetChip.classList.add('active');
@@ -2621,43 +2557,20 @@
 
             <!-- Preview File Switcher Strip -->
             <div class="preview-file-strip">
-              <button class="preview-file-chip active" onclick="switchPreviewFile('html', this)">
+              <button class="preview-file-chip active" data-file="html" onclick="switchPreviewFile('html', this)">
                 <span>🌐 HTML / Web UI</span>
               </button>
-              <button class="preview-file-chip" onclick="switchPreviewFile('markdown', this)">
+              <button class="preview-file-chip" data-file="markdown" onclick="switchPreviewFile('markdown', this)">
                 <span>📝 README.md</span>
               </button>
-              <button class="preview-file-chip" onclick="switchPreviewFile('swift', this)">
+              <button class="preview-file-chip" data-file="swift" onclick="switchPreviewFile('swift', this)">
                 <span>⚛️ GlassTokens.swift</span>
               </button>
             </div>
           </div>
 
           <!-- Live Preview Render Viewport -->
-          <div class="preview-viewport-card" id="preview-viewport-content">
-            <div style="background: var(--glass-card); border-radius: 10px; padding: 14px; border: 1px solid var(--glass-sidebar-border);">
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                <div style="font-weight: 600; font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
-                  <span>🍎</span> Apple Liquid Glass UI
-                </div>
-                <span class="badge-subtle" style="color: var(--accent-green); font-size: 10px;">WKWebView 60fps</span>
-              </div>
-              <p style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;">
-                正在即時渲染 <code>preview-mockup.html</code>。macOS Sequoia & visionOS 規格次表面液態磨砂效果，Metal GPU 即時合成。
-              </p>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
-                <button style="padding: 5px 12px; border-radius: 6px; background: var(--accent-blue); color: #fff; border: none; font-size: 11px; cursor: pointer; box-shadow: 0 2px 8px rgba(10, 132, 255, 0.35);">
-                  ✦ 互動元件測試
-                </button>
-                <button style="padding: 5px 12px; border-radius: 6px; background: var(--glass-card); color: var(--text-primary); border: 1px solid var(--glass-sidebar-border); font-size: 11px; cursor: pointer;">
-                  次表面高光
-                </button>
-              </div>
-              <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-tertiary); background: var(--glass-surface-recessed); padding: 8px; border-radius: 6px; border: 1px solid var(--glass-sidebar-border);">
-                blur(40px) saturate(240%) · Hot-reload Active
-              </div>
-            </div>
-          </div>
+          <div class="preview-viewport-card" id="preview-viewport-content"></div>
 
           <!-- Preview Status Bar -->
           <div class="preview-status-bar">
@@ -2665,6 +2578,7 @@
             <span style="color: var(--accent-green);">● Auto-reload on save</span>
           </div>
         `;
+        switchPreviewFile('html');
       } else if (tabName === 'diff') {
         body.innerHTML = `
           <div class="inspector-card">
@@ -2919,7 +2833,7 @@
       // Highlight the workspace in the list
       document.querySelectorAll('.ws-row').forEach(row => {
         const titleEl = row.querySelector('.ws-title');
-        if (titleEl && titleEl.textContent.trim().includes(workspaceName)) {
+        if (titleEl && titleEl.textContent.trim() === workspaceName) {
           selectWorkspace(row);
         }
       });
@@ -2939,6 +2853,7 @@
     }
 
     setupInboxResize();
+    switchRightTab('preview');
   </script>
 </body>
 </html>

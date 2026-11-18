@@ -18,7 +18,12 @@ enum LiquidGlassMockupCheck {
     }
 
     @MainActor static func js(_ web: WKWebView, _ code: String) async -> Any? {
-        try? await web.evaluateJavaScript(code)
+        do {
+            return try await web.evaluateJavaScript(code)
+        } catch {
+            fputs("JS ERROR: \(error)\nCODE: \(code)\n", stderr)
+            return nil
+        }
     }
 
     @MainActor static func jsString(_ web: WKWebView, _ code: String) async -> String? {
@@ -68,6 +73,10 @@ enum LiquidGlassMockupCheck {
     @MainActor static func loadMockup(_ web: WKWebView, in win: NSWindow) async -> Bool {
         _ = win
         let url = mockupURL
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            fputs("MOCKUP FILE NOT FOUND: \(url.path)\n", stderr)
+            return false
+        }
         web.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         return await waitJS(web, "document.readyState === 'complete' && !!document.getElementById('window-frame')") {
             ($0 as? Bool) == true || ($0 as? NSNumber)?.boolValue == true

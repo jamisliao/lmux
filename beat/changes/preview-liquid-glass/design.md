@@ -38,7 +38,7 @@ body[data-theme="light" | "dark"]
 | 卡片底色 `--glass-card` | `rgba(255, 255, 255, 0.045)` | `rgba(255, 255, 255, 0.32)` | `.inspector-card`、`.preview-*-card`、`.diff-file-card` |
 | 主模糊 `--glass-blur` | `blur(40px) saturate(210%) contrast(104%)` | `blur(40px) saturate(240%) contrast(105%) brightness(103%)` | `.lmux-window`、`.sidebar-left`、`.sidebar-right` |
 | 次模糊 `--glass-blur-subtle` | `blur(24px) saturate(180%)` | `blur(24px) saturate(200%) brightness(102%)` | `.mockup-controls`、`.titlebar`、`.terminal-pane`、`.window-footer` |
-| 內層卡片模糊 `--glass-blur-card` | `blur(16px)`（目前寫死，待抽成變數） | `blur(16px)`（目前寫死，待抽成變數） | `.inspector-card`（`:1590`）、`.preview-browser-card`（`:1727`）、`.preview-viewport-card`（`:1845`） |
+| 內層卡片模糊 `--glass-blur-card` | `blur(16px)` | `blur(16px)` | `.inspector-card`、`.preview-browser-card`、`.preview-viewport-card` |
 
 - **預設主題**：`<body data-theme="light">`（`:1936`）。`setTheme('light' | 'dark')`（`:2436`）改 `document.body` 的 `data-theme`，並切換 `#btn-theme-light` 與 `#btn-theme-dark` 的 `.active`。
 - **亮邊與字距**：`.lmux-window::before`（`:343-357`）與 `.window-footer::before`（`:1341-1355`）畫頂部 1px 漸層亮邊；標題類文字（`:186-192`）設 `font-optical-sizing: auto; letter-spacing: -0.015em`。
@@ -49,8 +49,8 @@ body[data-theme="light" | "dark"]
 |---|---|---|
 | 收合／展開 sidebar | `toggleSidebar('left')`（`:2443`） | 入口：標題列 `#tb-toggle-left`（`:1976`）、頂部控制列「左側欄」鈕（`:1951`）、快捷鍵 `⌘B`（`:2459-2463`）。切換 `#sidebar-left.collapsed` 並同步 `#tb-toggle-left.active`。 |
 | 收合／展開 **右側 Inspector** | `toggleSidebar('right')`（`:2449`） | 入口：標題列 `#tb-toggle-right`（`:2020`）、頂部控制列「右側欄 (Inspector)」鈕（`:1954`）、**視窗底部狀態列** 最右側 `⌥⌘B` 鈕（`:2425`）、快捷鍵 `⌥⌘B`（`:2465-2468`）。切換 `#sidebar-right.collapsed` 並同步 `#tb-toggle-right.active`。 |
-| 切換 **右側 Inspector** 分頁 | `switchRightTab(tabName, el)`（`:2574-2785`） | `tabName` 為 `'preview'`、`'diff'`、`'trace'`（也接受 `'context'`），更新 `.segment-btn.active` 並重繪 `#tab-content-context`。 |
-| 切換即時預覽示意檔 | `switchPreviewFile(type, el)`（`:2489-2571`） | `type` 為 `'html'`（`preview-mockup.html`）、`'markdown'`（`README.md`）、`'swift'`（`App/Sources/LmuxUI/GlassTokens.swift`），更新 `#preview-url-text`、`#preview-viewport-content` 與 `.preview-file-chip.active`。位址列 `↻`（`:2320`、`:2597`）呼叫 `switchPreviewFile('html')` 重置回 HTML；`↗`（`:2327`、`:2604`）呼叫 `window.open`。 |
+| 切換 **右側 Inspector** 分頁 | `switchRightTab(tabName, el)` | `tabName` 為 `'preview'`、`'diff'`、`'trace'`（也接受 `'context'`），更新 `.segment-btn.active` 並重繪 `#tab-content-context`（頁面載入時初始化為 `'preview'`，且 `'preview'` 內呼叫 `switchPreviewFile('html')` 渲染，避免重複三份 HTML）。 |
+| 切換即時預覽示意檔 | `switchPreviewFile(type, el)` | `type` 為 `'html'`（`preview-mockup.html`）、`'markdown'`（`README.md`）、`'swift'`（`App/Sources/LmuxUI/GlassTokens.swift`），依 `el` 或 `.preview-file-chip[data-file]` 更新 `#preview-url-text`、`#preview-viewport-content` 與 `.preview-file-chip.active`。位址列 `↻` 呼叫 `switchPreviewFile('html')`；`↗` 呼叫 `window.open`。 |
 | 點 **視窗底部狀態列** 各區 | `openRightPanel(tabName)`（`:2478-2486`） | 若 `#sidebar-right` 是 `.collapsed`，先展開並讓 `#tb-toggle-right` 亮起，再呼叫 `switchRightTab(tabName)`（agent 徽章、最近工具呼叫、Context 用量 → `'trace'`；Git 統計 → `'diff'`；即時預覽鈕 → `'preview'`）。 |
 
 ### 3. 通知 bar 與 Workspace 選取
@@ -59,7 +59,7 @@ body[data-theme="light" | "dark"]
 - **調整與收合通知 bar**：
   - `setupInboxResize()`（`:2835-2882`）把 `#sidebar-inbox` 高度限制在 `38px`–`340px`（往上拖變高）。高度 `<= 42px` 時加上 `.collapsed`（CSS 鎖定 `height: 38px !important`，`:878-880`），大於 `42px` 時移除。
   - 點 `.inbox-summary-row`（`:2122`）、雙擊 `#handle-inbox`（`:2879`）或點頂部控制列「Inbox 收合」鈕（`:1957`）都呼叫 `toggleInboxCollapse()`（`:2885-2893`）；從收合展開時高度重設回 `175px`。
-- **點擊通知卡片**：`openInboxNotification(id, workspaceName)`（`:2896-2911`）把未讀卡片 `#inbox-card-<id>` 的 `.unread` 換成 `.read`，呼叫 `updateUnreadBadge()`（`:2913-2924`）重算 `.inbox-card.unread` 數量（歸零時把 `#inbox-badge` 與 `#inbox-dot-indicator` 設成 `display: none`），再找出 `.ws-title` 含 `workspaceName` 的 `.ws-row` 呼叫 `selectWorkspace(row)`。已讀卡片被點時不改未讀數，照常選取對應的 **workspace**。
+- **點擊通知卡片**：`openInboxNotification(id, workspaceName)` 把未讀卡片 `#inbox-card-<id>` 的 `.unread` 換成 `.read`，呼叫 `updateUnreadBadge()` 重算 `.inbox-card.unread` 數量（歸零時把 `#inbox-badge` 與 `#inbox-dot-indicator` 設成 `display: none`），再比對 `.ws-title` 文字完全相符（`===`）的 `.ws-row` 呼叫 `selectWorkspace(row)`。已讀卡片被點時不改未讀數，照常選取對應的 **workspace**。
 
 ### 4. 拖曳效能守護（`.is-resizing`）與無障礙降級
 
@@ -69,20 +69,20 @@ body[data-theme="light" | "dark"]
   - `@media (prefers-reduced-transparency: reduce)`（`:195-217`）：將 `--glass-blur`、`--glass-blur-subtle`、`--glass-blur-card` 設為 `none !important`，停用全部玻璃圖層的 `backdrop-filter` / `-webkit-backdrop-filter`，並把 `#sidebar-left` 與 `#sidebar-right` 底色改為 `#141822`（深色）與 `#F3F5F9`（淺色）。
   - `@media (prefers-reduced-motion: reduce)`（`:219-225`）：將動畫與 transition 時間設為 `0.01ms !important`。
 
-### 5. 現有 `preview-mockup.html` 待修正的 6 個問題（對照 commit `9d15b95`）
+### 5. 已修正的初版 6 個問題（對照 commit `9d15b95`）
 
-以下 6 處現況與本規格不一致，留在 `/beat:plan` 拆成任務、於 `/beat:apply` 修正：
+以下 6 處初版問題已於實作階段修正並由自動化腳本驗證：
 
-1. **孤立的無效 CSS 與重複規則（`:289-298`）**：`[data-theme="dark"] .ctrl-pill-btn:hover` 右括號後面多出一段沒有 selector 的 `background: rgba(0, 0, 0, 0.05); border: 1px solid rgba(0, 0, 0, 0.08); }` 與重複的 `.ctrl-pill-btn:hover`，應刪除。
-2. **模糊停用清單 selector 寫錯與缺漏（`:165-173`, `:200-208`, `:335`, `:372`, `:527`, `:1516`, `:1590`, `:1727`, `:1845`）**：
-   - `:167` 與 `:203` 寫了不存在的 `.inbox-accessory-panel`，實際 DOM class 是 `.sidebar-inbox-accessory`（`:2117`）。
-   - `body.is-resizing` 漏了 `.mockup-controls`、`.window-footer`、`.terminal-pane`、`.inspector-card`、`.preview-browser-card`、`.preview-viewport-card`；`prefers-reduced-transparency` 也漏了後五個。
-   - `.inspector-card`（`:1590`）、`.preview-browser-card`（`:1727`）、`.preview-viewport-card`（`:1845`）寫死 `blur(16px)`，應抽成 `--glass-blur-card: blur(16px)`。
-   - `.lmux-window`（`:335`）、`.titlebar`（`:372`）、`.sidebar-left`（`:527`）、`.sidebar-right`（`:1516`）只寫了 `backdrop-filter`，應補齊 `-webkit-backdrop-filter`。
-3. **淺色主題拖曳底色 selector 多了空白（`:180-183`）**：`[data-theme="light"] body.is-resizing` 把 `[data-theme="light"]` 當成 `body` 的上層元素，但 `data-theme="light"` 就掛在 `<body>` 本身（`:1936`），導致淺色模式拖曳時吃不到淺色底而閃成深色底。應改為 `body[data-theme="light"].is-resizing .sidebar-left, body[data-theme="light"].is-resizing .sidebar-right`。
-4. **`.activity-bash` 缺 CSS 樣式（`:2770` vs `:1686-1688`）**：`switchRightTab('trace')` 的第三筆工具呼叫用 `.activity-bash`，但 CSS 只定義 `.activity-read`、`.activity-edit`、`.activity-run`。應補上 `.activity-bash` 樣式。
-5. **重新整理鈕 `↻` 未同步檔案按鈕亮起狀態（`:2320`, `:2489-2493`, `:2597`）**：`switchPreviewFile(type, el)` 只在有傳 `el` 時更新 `.preview-file-chip.active`；點 `↻` 呼叫 `switchPreviewFile('html')` 沒傳 `el`，導致從 `README.md` 或 `GlassTokens.swift` 按 `↻` 重置回 HTML 時，上方亮起的還是舊檔案鈕。應在未傳 `el` 時自動依 `type` 找到對應的 `.preview-file-chip` 設為 `.active`。
-6. **畫面文字寫 `36px` 與實際 `40px` 變數不一致（`:2285`, `:2365`, `:2520`, `:2642`）**：預覽卡片與模擬輸出的文字寫 `blur(36px)` / `36px blur`，應改為與 `--glass-blur` 一致的 `blur(40px)` / `40px blur`。
+1. **孤立的無效 CSS 與重複規則（原 `:290-298`）**：已清除 `[data-theme="dark"] .ctrl-pill-btn:hover` 後方無 selector 的殘留片段與重複的 `.ctrl-pill-btn:hover`。
+2. **模糊停用清單 selector 寫錯與缺漏（原 `:165-173`, `:200-208`, `:335`, `:372`, `:527`, `:1516`, `:1590`, `:1727`, `:1845`）**：
+   - 已將 `.inbox-accessory-panel` 修正為 `.sidebar-inbox-accessory`。
+   - `body.is-resizing` 與 `prefers-reduced-transparency` 皆已涵蓋全部 11 個玻璃圖層（含 `.mockup-controls`、`.window-footer`、`.terminal-pane`、`.inspector-card`、`.preview-browser-card`、`.preview-viewport-card`）。
+   - 三張內層卡片已抽為 `--glass-blur-card: blur(16px)`。
+   - `.lmux-window`、`.titlebar`、`.sidebar-left`、`.sidebar-right` 已補齊 `-webkit-backdrop-filter`。
+3. **淺色主題拖曳底色 selector 多了空白（原 `:180-183`）**：已改為 `body[data-theme="light"].is-resizing .sidebar-left, body[data-theme="light"].is-resizing .sidebar-right`，並補齊 `body.is-resizing` 與 `body.is-resizing.resizing-row` 對 `body` 本身的游標覆蓋。
+4. **`.activity-bash` 缺 CSS 樣式（原 `:2770`）**：已補上 `.activity-bash` 與 `.activity-run` 共用的綠色徽章樣式。
+5. **重新整理鈕 `↻` 未同步檔案按鈕亮起狀態（原 `:2320`, `:2489-2493`, `:2597`）**：`switchPreviewFile(type, el)` 已改為未傳 `el` 時自動依 `.preview-file-chip[data-file="${type}"]` 同步 `.active`。
+6. **畫面文字寫 `36px` 與實際 `40px` 變數不一致（原 `:2285`, `:2365`, `:2520`, `:2642`, `:2558`）**：預覽卡片、模擬輸出與 `GlassTokens.swift` 示意碼已統一為 `40px`／`40.0`。
 
 ### 6. 測試設計
 
