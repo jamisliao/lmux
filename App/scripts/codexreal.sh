@@ -12,6 +12,7 @@
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
+source "$APP_DIR/scripts/swift-sdk.sh"
 CODEX="$(command -v codex)" || { echo "codexreal.sh: codex not on PATH" >&2; exit 2; }
 cd "$APP_DIR"
 swift build --product lmux-apptest >/dev/null

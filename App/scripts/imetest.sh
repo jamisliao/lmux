@@ -12,6 +12,7 @@
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
+source "$APP_DIR/scripts/swift-sdk.sh"
 cd "$APP_DIR"
 swift build --product lmux-imetest >/dev/null
 BIN="$(swift build --show-bin-path)/lmux-imetest"

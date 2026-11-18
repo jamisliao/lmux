@@ -8,6 +8,7 @@ CONFIG="${1:-release}"
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 GHOSTTY="$APP_DIR/../vendor/ghostty"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
+source "$APP_DIR/scripts/swift-sdk.sh"
 
 cd "$APP_DIR"
 # vendor/ghostty must carry scripts/ghostty.patch (idle GPU release). Checked only on a git checkout

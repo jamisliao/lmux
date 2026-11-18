@@ -20,6 +20,7 @@ if [ "${1:-}" = "--real-window" ] && [ "${GITHUB_ACTIONS:-}" != "true" ]; then
 fi
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
+source "$APP_DIR/scripts/swift-sdk.sh"
 cd "$APP_DIR"
 swift build --product lmux-apptest >/dev/null
 swift build --product lmux-cli >/dev/null

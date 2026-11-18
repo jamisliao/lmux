@@ -18,6 +18,7 @@
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
+source "$APP_DIR/scripts/swift-sdk.sh"
 cd "$APP_DIR"
 
 # The claude binary itself (a version manager's shim would need the real HOME).

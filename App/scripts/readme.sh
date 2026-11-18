@@ -13,6 +13,7 @@ set -euo pipefail
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ROOT="$(cd "$APP_DIR/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
+source "$APP_DIR/scripts/swift-sdk.sh"
 cd "$APP_DIR"
 # Release build, so light.gif's numbers are the optimized app's (the harness needs @testable).
 CFG=(-c release -Xswiftc -enable-testing)
