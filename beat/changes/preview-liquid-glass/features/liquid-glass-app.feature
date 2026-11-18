@@ -95,6 +95,7 @@
   # ===========================================================================
 
   @behavior @happy-path
+  # @covered-by: Core/Tests/LmuxTranscriptTests/AgentTelemetryTests.swift
   場景: 增量解析 Claude 與 Codex 對話紀錄取得模型、Turn 與 Token 用量
     假設 一個對話紀錄檔包含多輪對話、模型名稱、輸入／快取／輸出 token 統計或 context 上限資訊
     當 `Core` 遙測解析器讀取初始內容與後續新增行
@@ -102,6 +103,7 @@
     而且 後續增量追加對話行時應只處理新增資料並更新最新指標
 
   @behavior @edge-case
+  # @covered-by: Core/Tests/LmuxTranscriptTests/AgentTelemetryTests.swift
   場景: 對話紀錄缺少用量欄位或格式損毀行時安全降級不拋錯
     假設 對話紀錄檔包含尚未產生 usage 的初始訊息或單行不完整 JSON
     當 遙測解析器處理該檔案
