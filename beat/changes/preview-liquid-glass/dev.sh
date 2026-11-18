@@ -10,8 +10,14 @@ mkdir -p "$OUT"
 
 case "${1:-}" in
   check)
-    swiftc -parse-as-library -o "$OUT/liquid-glass-mockup-check" \
-      App/scripts/liquid-glass-mockup-check*.swift \
+    swiftc -parse-as-library -o "$OUT/liquid-glass-app-check" \
+      App/Sources/LmuxTokens/Tokens.swift \
+      App/Sources/LmuxUI/PreviewTarget.swift \
+      App/Sources/LmuxUI/MarkdownHTML.swift \
+      App/scripts/liquid-glass-app-check.swift \
+      && "$OUT/liquid-glass-app-check" \
+      && swiftc -parse-as-library -o "$OUT/liquid-glass-mockup-check" \
+        App/scripts/liquid-glass-mockup-check*.swift \
       && "$OUT/liquid-glass-mockup-check" ;;
   *)
     sed -n 2,3p "$0"; exit 2 ;;
