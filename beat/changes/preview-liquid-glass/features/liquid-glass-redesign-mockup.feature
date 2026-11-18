@@ -153,6 +153,7 @@
   # --- 右側 Inspector 與視窗底部狀態列連動 ---
 
   @e2e @happy-path
+  # @covered-by: App/scripts/liquid-glass-mockup-check-inspector.swift
   場景: 在右側 Inspector 切換三個分頁、切換預覽範例檔與重新整理
     假設 **右側 Inspector** 目前停在「即時預覽」分頁
     當 使用者點即時預覽分頁裡的 Markdown 範例鈕
@@ -167,6 +168,7 @@
     那麼 右側 Inspector 顯示 Context Window 用量條與最近執行的工具呼叫清單
 
   @e2e @happy-path
+  # @covered-by: App/scripts/liquid-glass-mockup-check-inspector.swift
   場景大綱: 點視窗底部狀態列各區塊自動展開右側 Inspector 並切到對應分頁
     假設 **右側 Inspector** 目前是收合狀態
     當 使用者點 **視窗底部狀態列** 的 <觸發區塊>
