@@ -226,7 +226,7 @@ git commit -m "test(preview-liquid-glass): 建立 WKWebView 原型檢查基座�
 - Consumes: `LiquidGlassMockupCheck.makeWebView()`, `loadMockup(_:in:)`, `jsString(_:_:)`, `jsBool(_:_:)`, `check(_:_:_:)`
 - Produces: `LiquidGlassMockupCheck.styleChecks()`
 
-- [ ] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-styles.swift` 並掛入 `main()`**
+- [x] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-styles.swift` 並掛入 `main()`**
 
 新增 `App/scripts/liquid-glass-mockup-check-styles.swift`：
 ```swift
@@ -380,12 +380,12 @@ extension LiquidGlassMockupCheck {
         }
 ```
 
-- [ ] **Step 2: 執行檢查確認這 6 項新檢查先失敗（紅燈）**
+- [x] **Step 2: 執行檢查確認這 6 項新檢查先失敗（紅燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `FAIL` 出現於大括號平衡／重複 hover 規則、`-webkit-backdrop-filter` 前綴、`prefers-reduced-transparency`、`.activity-bash`、以及 `36px` 殘留；最後輸出 `MOCKUP CHECK: FAILED (...)`。
 
-- [ ] **Step 3: 修正 `preview-mockup.html` 的靜態樣式、token 與文案缺陷（缺陷 #1, #2 部分, #4, #6）**
+- [x] **Step 3: 修正 `preview-mockup.html` 的靜態樣式、token 與文案缺陷（缺陷 #1, #2 部分, #4, #6）**
 
 1. 在 `:root`（`:33-36`）與 `[data-theme="light"]`（`:87-90`）新增 `--glass-blur-card`：
 ```css
@@ -468,12 +468,12 @@ Expected: `FAIL` 出現於大括號平衡／重複 hover 規則、`-webkit-backd
 
 7. 將 `:2285`、`:2365`、`:2520`、`:2642` 的 `36px blur`／`blur(36px)` 統一改為 `40px blur`／`blur(40px)`，並將 `:2558` 的 `blurRadius: CGFloat = 36.0` 更新為 `40.0`。
 
-- [ ] **Step 4: 執行檢查確認全部通過（綠燈）**
+- [x] **Step 4: 執行檢查確認全部通過（綠燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `themeChecks` 與 `styleChecks` 全數 `PASS`，最後一行 `MOCKUP CHECK: ok`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add preview-mockup.html App/scripts/liquid-glass-mockup-check.swift App/scripts/liquid-glass-mockup-check-styles.swift

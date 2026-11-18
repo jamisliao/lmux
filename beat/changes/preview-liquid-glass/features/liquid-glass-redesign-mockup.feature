@@ -49,12 +49,14 @@
     那麼 UI 原型恢復套用淺色玻璃主題
 
   @behavior @edge-case
+  # @covered-by: App/scripts/liquid-glass-mockup-check-styles.swift
   場景: 系統開啟減少透明度時停用全部毛玻璃模糊
     假設 使用者的系統偏好設定開啟「減少透明度」
     那麼 **UI 原型** 的頂部控制列、視窗外框、標題列、sidebar、**通知 bar**、**視窗底部狀態列**、終端機窗格與 **右側 Inspector** 內層卡片皆停用毛玻璃模糊濾鏡
     而且 sidebar 與右側 Inspector 改用不透明實心底色
 
   @behavior @edge-case
+  # @covered-by: App/scripts/liquid-glass-mockup-check-styles.swift
   場景: 系統開啟減少動態效果時縮短動畫與過渡時間
     假設 使用者的系統偏好設定開啟「減少動態效果」
     那麼 **UI 原型** 的動畫與過渡轉場時間皆縮短為近乎即時完成

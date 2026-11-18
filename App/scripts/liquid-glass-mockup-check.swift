@@ -80,6 +80,7 @@ enum LiquidGlassMockupCheck {
         app.setActivationPolicy(.prohibited)
         Task { @MainActor in
             await themeChecks()
+            await styleChecks()
             print(failures == 0 ? "MOCKUP CHECK: ok" : "MOCKUP CHECK: FAILED (\(failures))")
             exit(failures == 0 ? 0 : 1)
         }
