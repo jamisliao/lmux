@@ -137,6 +137,7 @@
     那麼 系統應透過現有外部連結保護規則嘗試開啟該資源
 
   @behavior @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlassTelemetryTests.swift
   場景: Git Diff 服務讀取工作區變更統計與檔案 hunks，非 Git 目錄呈現空狀態
     假設 一個 Git 工作目錄有已修改檔案與加減行變更
     當 Git Diff 服務完成背景查詢

@@ -157,6 +157,15 @@ if [ "${1:-}" = "--liquid-glass" ]; then
   run_liquid_glass_suite
   exit $status
 fi
+run_liquid_glass_telemetry_suite() {
+  mkdir -p "$T/liquid-glass-telemetry"
+  LMUX_STATE_DIR="$T/liquid-glass-telemetry" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+    "$BIN/lmux-apptest" --liquid-glass-telemetry 2>/dev/null | filter || status=1
+}
+if [ "${1:-}" = "--liquid-glass-telemetry" ]; then
+  run_liquid_glass_telemetry_suite
+  exit $status
+fi
 LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"
