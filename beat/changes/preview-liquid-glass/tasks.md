@@ -632,7 +632,7 @@ git commit -m "fix(preview-liquid-glass): 修正 macOS Option+Cmd+B 按鍵辨識
 - Consumes: `LiquidGlassMockupCheck.makeWebView()`, `loadMockup(_:in:)`, `js(_:_:)`, `jsBool(_:_:)`, `jsString(_:_:)`, `check(_:_:_:)`
 - Produces: `LiquidGlassMockupCheck.resizeChecks()`
 
-- [ ] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-resize.swift` 並掛入 `main()`**
+- [x] **Step 1: 建立 `App/scripts/liquid-glass-mockup-check-resize.swift` 並掛入 `main()`**
 
 新增 `App/scripts/liquid-glass-mockup-check-resize.swift`（先在 `preview-mockup.html` 未修正前跑這個測試，驗證紅燈）：
 ```swift
@@ -790,12 +790,12 @@ extension LiquidGlassMockupCheck {
 
 在 `App/scripts/liquid-glass-mockup-check.swift` 的 `main()` 補上 `await resizeChecks()`。
 
-- [ ] **Step 2: 執行檢查確認在修復前失敗（紅燈）**
+- [x] **Step 2: 執行檢查確認在修復前失敗（紅燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `FAIL`（在未防禦的 `setPointerCapture` 會使合成 `PointerEvent` 中止，或於 `backdrop-filter` / 淺色實底 `rgba(18, 22, 30, 0.98)` 檢查失敗）。
 
-- [ ] **Step 3: 修正 `preview-mockup.html` 的 `.is-resizing`、淺色底色 selector 與 `setPointerCapture`（缺陷 #2, #3）**
+- [x] **Step 3: 修正 `preview-mockup.html` 的 `.is-resizing`、淺色底色 selector 與 `setPointerCapture`（缺陷 #2, #3）**
 
 1. 修改 `preview-mockup.html:165-183`：
 ```css
@@ -831,12 +831,12 @@ Expected: `FAIL`（在未防禦的 `setPointerCapture` 會使合成 `PointerEven
         try { handle.setPointerCapture(e.pointerId); } catch (_) {}
 ```
 
-- [ ] **Step 4: 執行檢查確認全部通過（綠燈）**
+- [x] **Step 4: 執行檢查確認全部通過（綠燈）**
 
 Run: `beat/changes/preview-liquid-glass/dev.sh check`
 Expected: `resizeChecks` 全數 `PASS`，最後一行 `MOCKUP CHECK: ok`。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add preview-mockup.html App/scripts/liquid-glass-mockup-check.swift App/scripts/liquid-glass-mockup-check-resize.swift

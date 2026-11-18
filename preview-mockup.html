@@ -154,21 +154,29 @@
        Zero-GPU Drag Performance Optimization (Apple Performance Standard)
        Eliminates GPU convolution redraw & backdrop-filter thrashing during resize
        ========================================================================== */
+    body.is-resizing,
     body.is-resizing * {
       user-select: none !important;
       -webkit-user-select: none !important;
       cursor: col-resize !important;
     }
 
+    body.is-resizing.resizing-row,
     body.is-resizing.resizing-row * {
       cursor: row-resize !important;
     }
 
     body.is-resizing .sidebar-left,
     body.is-resizing .sidebar-right,
-    body.is-resizing .inbox-accessory-panel,
+    body.is-resizing .sidebar-inbox-accessory,
     body.is-resizing .lmux-window,
-    body.is-resizing .titlebar {
+    body.is-resizing .titlebar,
+    body.is-resizing .mockup-controls,
+    body.is-resizing .window-footer,
+    body.is-resizing .terminal-pane,
+    body.is-resizing .inspector-card,
+    body.is-resizing .preview-browser-card,
+    body.is-resizing .preview-viewport-card {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
       transition: none !important;
@@ -179,8 +187,8 @@
       background: var(--bg-resizing-fallback, rgba(18, 22, 30, 0.98)) !important;
     }
 
-    [data-theme="light"] body.is-resizing .sidebar-left,
-    [data-theme="light"] body.is-resizing .sidebar-right {
+    body[data-theme="light"].is-resizing .sidebar-left,
+    body[data-theme="light"].is-resizing .sidebar-right {
       background: rgba(245, 247, 252, 0.98) !important;
     }
 
@@ -2802,7 +2810,7 @@
         isDragging = true;
         startX = e.clientX;
         startWidth = sidebar.getBoundingClientRect().width;
-        handle.setPointerCapture(e.pointerId);
+        try { handle.setPointerCapture(e.pointerId); } catch (_) {}
         handle.classList.add('active');
         document.body.classList.add('is-resizing');
       });
@@ -2850,7 +2858,7 @@
         isDragging = true;
         startY = e.clientY;
         startHeight = inbox.getBoundingClientRect().height;
-        handle.setPointerCapture(e.pointerId);
+        try { handle.setPointerCapture(e.pointerId); } catch (_) {}
         handle.classList.add('active');
         document.body.classList.add('is-resizing');
         document.body.classList.add('resizing-row');

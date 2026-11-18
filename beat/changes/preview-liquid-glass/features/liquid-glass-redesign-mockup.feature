@@ -82,6 +82,7 @@
       | 右側 Inspector | 快捷鍵 ⌥⌘B                | 標題列右側欄鈕 |
 
   @e2e @happy-path
+  # @covered-by: App/scripts/liquid-glass-mockup-check-resize.swift
   場景: 拖曳調整面板寬度時停用全部毛玻璃模糊並在放開後恢復
     當 使用者按住並水平拖曳 sidebar 的調整手把
     那麼 **UI 原型** 進入調整尺寸狀態，包含 **右側 Inspector**、**通知 bar** 與 **視窗底部狀態列** 在內的全部毛玻璃面板與卡片皆暫停模糊濾鏡與過渡動畫
@@ -91,6 +92,7 @@
     那麼 UI 原型離開調整尺寸狀態並恢復毛玻璃模糊濾鏡
 
   @e2e @edge-case
+  # @covered-by: App/scripts/liquid-glass-mockup-check-resize.swift
   場景: 水平拖曳調寬受最小與最大寬度限制
     當 使用者把 sidebar 往左拖超過最小寬度限制
     那麼 sidebar 寬度停在最小寬度下限
@@ -98,6 +100,7 @@
     那麼 右側 Inspector 寬度停在最大寬度上限
 
   @e2e @happy-path
+  # @covered-by: App/scripts/liquid-glass-mockup-check-resize.swift
   場景: 垂直拖曳調整通知 bar 高度並在拉到過低時自動收合
     當 使用者按住並往上拖曳 **通知 bar** 頂部的調整手把
     那麼 **UI 原型** 進入垂直調整尺寸狀態並停用毛玻璃模糊濾鏡
