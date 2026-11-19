@@ -600,19 +600,19 @@ git commit -m "feat(ui): restyle History search capsule and result rows for Liqu
   - `PaneView`: 啟用 `wantsLayer = true`、圓角 `T.Layout.paneCornerRadius`（`10pt`），依 `isFocused` 與 `effectiveAppearance` 套用 `activePaneRing` 藍色聚焦邊光 vs 非聚焦 `glassBorder` 細框；`RingView`（未讀通知 / `needsInput`）改以醒目琥珀色 `stateNeedsInput` 光環繪製，確保與藍色 `active-ring` 視覺不衝突。
   - `SplitContainerView`: 保留 `isDragging`、`viewWillMove(toWindow: nil)` 保護與 `SplitDivider` `±3pt` 拖曳命中區，並支援分塊間 `paneGap` 玻璃間距且於 `Snapshot.swift` 正確裁切終端 `IOSurface` 圓角。
 
-- [ ] **Step 1: 在 `LiquidGlass.swift` 補入聚焦與非聚焦 `PaneView` 邊框/光環顏色區隔測試（焦點藍光 `activePaneRing` vs 非焦點 `needsInput` `RingView` 琥珀色）並確認 RED**
+- [x] **Step 1: 在 `LiquidGlass.swift` 補入聚焦與非聚焦 `PaneView` 邊框/光環顏色區隔測試（焦點藍光 `activePaneRing` vs 非焦點 `needsInput` `RingView` 琥珀色）並確認 RED**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass`
 Expected: FAIL
 
-- [ ] **Step 2: 實作 `PaneViews.swift`、`Snapshot.swift` 與 `Controller.swift` `PaneView.isFocused` 同步**
+- [x] **Step 2: 實作 `PaneViews.swift`、`Snapshot.swift` 與 `Controller.swift` `PaneView.isFocused` 同步**
 
-- [ ] **Step 3: 執行 `--liquid-glass`、`--zoom-clear-reorder` 與 `--snapshot` 驗證 PASS**
+- [x] **Step 3: 執行 `--liquid-glass`、`--zoom-clear-reorder` 與 `--snapshot` 驗證 PASS**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass --zoom-clear-reorder`
 Expected: ALL PASS
 
-- [ ] **Step 4: 提交 Task 9a**
+- [x] **Step 4: 提交 Task 9a**
 
 ```bash
 git add App/Sources/LmuxUI/PaneViews.swift App/Sources/LmuxUI/Snapshot.swift App/Sources/LmuxUI/Controller.swift App/Sources/lmux-apptest/LiquidGlass.swift

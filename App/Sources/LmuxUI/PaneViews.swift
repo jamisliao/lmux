@@ -25,20 +25,22 @@ public class FlippedView: NSView {
 }
 
 /// The 1.5pt notification ring drawn over an unfocused pane that needs input.
-final class RingView: NSView {
+public final class RingView: NSView {
+    public static let strokeColor: LmuxTokens.DynamicColor = T.Colors.stateNeedsInput
+
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
         alphaValue = 0
     }
     required init?(coder: NSCoder) { fatalError() }
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    override func draw(_ dirtyRect: NSRect) {
+    public override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    public override func draw(_ dirtyRect: NSRect) {
         let w = T.Layout.ringWidth
         let r = bounds.insetBy(dx: T.Layout.ringInset + w / 2, dy: T.Layout.ringInset + w / 2)
-        let path = NSBezierPath(roundedRect: r, xRadius: T.Radius.pane, yRadius: T.Radius.pane)
+        let path = NSBezierPath(roundedRect: r, xRadius: T.Layout.paneCornerRadius, yRadius: T.Layout.paneCornerRadius)
         path.lineWidth = w
-        T.Colors.notificationRing.nsColor.setStroke()
+        Self.strokeColor.nsColor.setStroke()
         path.stroke()
     }
 
@@ -147,6 +149,35 @@ public final class PaneView: FlippedView {
     /// The workspace is split; the header shows only if the pane also has a title.
     var showsHeader = false { didSet { updateHeaderVisibility() } }
 
+    public var isFocused: Bool = false {
+        didSet {
+            if isFocused != oldValue {
+                updateBorder()
+            }
+        }
+    }
+
+    public static func borderColor(isFocused: Bool) -> LmuxTokens.DynamicColor {
+        isFocused ? T.Colors.activePaneRing : T.Colors.glassBorder
+    }
+
+    public static func borderWidth(isFocused: Bool) -> CGFloat {
+        isFocused ? 1.5 : 0.5
+    }
+
+    public func updateBorder() {
+        guard let layer else { return }
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer.borderWidth = Self.borderWidth(isFocused: self.isFocused)
+            layer.borderColor = Self.borderColor(isFocused: self.isFocused).nsColor.cgColor
+        }
+    }
+
+    public override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        updateBorder()
+    }
+
     /// Set the header text; an empty title collapses the header (no empty bar).
     func setHeaderTitle(_ t: String) {
         if header.label.stringValue != t { header.label.stringValue = t }
@@ -175,6 +206,10 @@ public final class PaneView: FlippedView {
         self.pane = pane
         scroller = pane.surface.map { SurfaceScroller(surface: $0) }
         super.init(frame: NSRect(x: 0, y: 0, width: 400, height: 300))
+        wantsLayer = true
+        layer?.cornerRadius = T.Layout.paneCornerRadius
+        layer?.masksToBounds = true
+        updateBorder()
         header.isHidden = true
         addSubview(header)
         switch pane.content {

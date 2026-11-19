@@ -1131,6 +1131,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
                 if p.isFocused != focused { p.isFocused = focused }
                 if focused && active && p.unread > 0 { p.unread = 0 }
                 if ws === sel {
+                    p.view.isFocused = focused
                     p.view.ring.setShown(p.showsRing && settings.unreadRing)
                     p.view.header.focused = focused
                     p.view.header.needsInput = p.needsInput
