@@ -567,6 +567,7 @@ struct TitlebarCluster: View {
 struct IconButton: View {
     let symbol: String
     let help: String
+    var active: Bool = false
     let action: () -> Void
     @State private var hover = false
 
@@ -575,9 +576,9 @@ struct IconButton: View {
             Image(systemName: symbol)
                 .font(.system(size: 15, weight: .regular))
                 .frame(width: T.Layout.titlebarButtonSize, height: T.Layout.titlebarButtonSize)
-                .foregroundStyle((hover ? T.Colors.titlebarIconHover : T.Colors.titlebarIcon).color)
+                .foregroundStyle((active ? T.Colors.activePaneRing : (hover ? T.Colors.titlebarIconHover : T.Colors.titlebarIcon)).color)
                 .background(RoundedRectangle(cornerRadius: T.Radius.control)
-                    .fill(hover ? T.Colors.controlHover.color : .clear))
+                    .fill(active ? T.Colors.glassCardSelected.color : (hover ? T.Colors.controlHover.color : .clear)))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -503,21 +503,21 @@ git commit -m "feat(ui): wire Cmd+B, Ctrl+Cmd+S, and Opt+Cmd+B inspector/sidebar
   - `struct TitlebarRightCluster: View`（向右分割 `⌘D`、向下分割 `⇧⌘D`、分隔線、`⌥⌘B` 切換 **右側 Inspector** 高亮狀態鈕）
   - 全部按鈕均由 `SidebarHostingView` 承載並供 `RootView` 直接掛載於 AppKit `titlebarHost`（與拖曳空區互不干擾）。
 
-- [ ] **Step 1: 在 `LiquidGlass.swift` 補入 `TitlebarCenterChip.computeChipLayout` 窄窗不重疊驗證與 `TitlebarRightCluster` 動作測試（RED）**
+- [x] **Step 1: 在 `LiquidGlass.swift` 補入 `TitlebarCenterChip.computeChipLayout` 窄窗不重疊驗證與 `TitlebarRightCluster` 動作測試（RED）**
 
-- [ ] **Step 2: 編譯並執行 `--liquid-glass` 確認 RED**
+- [x] **Step 2: 編譯並執行 `--liquid-glass` 確認 RED**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass`
 Expected: FAIL
 
-- [ ] **Step 3: 建立 `TitlebarView.swift`（<= 220 行）與共用的 `TitlebarCluster` 樣式**
+- [x] **Step 3: 建立 `TitlebarView.swift`（<= 220 行）與共用的 `TitlebarCluster` 樣式**
 
-- [ ] **Step 4: 執行 `--liquid-glass` 與 `--titlebar` 確認通過 GREEN**
+- [x] **Step 4: 執行 `--liquid-glass` 與 `--titlebar` 確認通過 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass --titlebar`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 7b**
+- [x] **Step 5: 提交 Task 7b**
 
 ```bash
 git add App/Sources/LmuxUI/TitlebarView.swift App/Sources/LmuxUI/Sidebar.swift App/Sources/lmux-apptest/LiquidGlass.swift

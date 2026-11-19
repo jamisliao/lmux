@@ -205,6 +205,14 @@ if [ "${1:-}" = "--newuser" ]; then
   run_newuser_suite
   exit $status
 fi
+run_titlebar_suite() {
+  mkdir -p "$T/titlebar"
+  LMUX_STATE_DIR="$T/titlebar" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --titlebar 2>/dev/null | filter || status=1
+}
+if [ "${1:-}" = "--titlebar" ]; then
+  run_titlebar_suite
+  exit $status
+fi
 LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"

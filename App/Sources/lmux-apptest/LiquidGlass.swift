@@ -208,5 +208,47 @@ func runLiquidGlass() async -> Int32 {
     dummyTextView.removeFromSuperview()
     c.focusCurrent()
 
+    // 6. TitlebarBackdrop, TitlebarCenterChip layout and TitlebarRightCluster actions
+    let tb = TitlebarBackdrop(frame: NSRect(x: 0, y: 0, width: 800, height: 44))
+    tb.layout()
+    if !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+        r.check("TitlebarBackdrop: translucent material and specular edge shown when idle",
+                !tb.isOpaqueFallback && !tb.material.isHidden && !tb.specular.isHidden && tb.specular.frame.height == 1)
+    }
+    tb.forceOpaque = true
+    r.check("TitlebarBackdrop: forceOpaque hides material and specular edge",
+            tb.isOpaqueFallback && tb.material.isHidden && tb.specular.isHidden)
+    tb.forceOpaque = false
+    tb.isResizing = true
+    r.check("TitlebarBackdrop: isResizing engages opaque fallback",
+            tb.isOpaqueFallback && tb.material.isHidden && tb.specular.isHidden)
+    r.check("TitlebarBackdrop: hitTest returns nil to allow window drag",
+            tb.hitTest(NSPoint(x: 100, y: 20)) == nil)
+
+    // TitlebarCenterChip layout computation
+    let wide = TitlebarCenterChip.computeChipLayout(availableWidth: 500, title: "lmux", branch: "main", path: "~/src/lmux")
+    r.check("computeChipLayout: wide window shows title, branch, and path",
+            wide.showBranch && wide.showPath && wide.chipWidth <= 500)
+
+    let med = TitlebarCenterChip.computeChipLayout(availableWidth: 280, title: "lmux", branch: "feat/preview", path: "~/src/lmux")
+    r.check("computeChipLayout: medium window shows branch and hides path",
+            med.showBranch && !med.showPath && med.chipWidth <= 280)
+
+    let narrow = TitlebarCenterChip.computeChipLayout(availableWidth: 150, title: "lmux-long-title", branch: "feat/preview", path: "~/src/lmux")
+    r.check("computeChipLayout: narrow window hides branch and path to prevent overlap",
+            !narrow.showBranch && !narrow.showPath && narrow.chipWidth <= 150)
+
+    // TitlebarRightCluster actions
+    let prevPanes = c.model.selected?.panes.count ?? 1
+    TitlebarRightCluster.actionSplitRight(controller: c)
+    r.check("TitlebarRightCluster.actionSplitRight splits right",
+            (c.model.selected?.panes.count ?? 0) == prevPanes + 1)
+
+    let prevInsp2 = c.model.inspectorVisible
+    TitlebarRightCluster.actionToggleInspector(controller: c)
+    r.check("TitlebarRightCluster.actionToggleInspector toggles inspector",
+            c.model.inspectorVisible == !prevInsp2)
+    TitlebarRightCluster.actionToggleInspector(controller: c) // restore
+
     return finish(r, c)
 }
