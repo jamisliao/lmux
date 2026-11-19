@@ -467,21 +467,21 @@ git commit -m "feat(ui): connect TranscriptCache and Hook events (Claude + Codex
   - `LmuxWindow.performKeyEquivalent`: 在 `super.performKeyEquivalent(with: event)` 與 `asciiEquivalent` 未被 menu / Ghostty `SurfaceView` / `NSText` / `WKWebView` 消耗時，若為 unmodified `⌘B`（且未自訂覆寫 `toggleSidebar`），觸發 `controller?.toggleSidebar()` 並回傳 `true`（支援非拉丁鍵盤配置 `asciiEquivalent`）。
   - `Controller`: `public func toggleInspector()`（切換 `model.inspectorVisible`；若隱藏或離開目前 `.preview` firstResponder，呼叫 `focusCurrent()`）。
 
-- [ ] **Step 1: 在 `LiquidGlass.swift` 加入 `⌥⌘B`、`⌘B`、`⌃⌘S` 經 `window.performKeyEquivalent` 切換左右欄及 `NSText` 不被搶鍵測試**
+- [x] **Step 1: 在 `LiquidGlass.swift` 加入 `⌥⌘B`、`⌘B`、`⌃⌘S` 經 `window.performKeyEquivalent` 切換左右欄及 `NSText` 不被搶鍵測試**
 
-- [ ] **Step 2: 執行 `--liquid-glass` 確認 RED**
+- [x] **Step 2: 執行 `--liquid-glass` 確認 RED**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `Menu.swift` 與 `Controller.swift` 雙綁與 `toggleInspector()`**
+- [x] **Step 3: 實作 `Menu.swift` 與 `Controller.swift` 雙綁與 `toggleInspector()`**
 
-- [ ] **Step 4: 執行 `--liquid-glass` 與 `--newuser` 驗證 `⌘B`、`⌃⌘S`、`⌥⌘B`、`⇧⌘H` 全部通過**
+- [x] **Step 4: 執行 `--liquid-glass` 與 `--newuser` 驗證 `⌘B`、`⌃⌘S`、`⌥⌘B`、`⇧⌘H` 全部通過**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass --newuser`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 7a**
+- [x] **Step 5: 提交 Task 7a**
 
 ```bash
 git add App/Sources/LmuxUI/Menu.swift App/Sources/LmuxUI/Controller.swift App/Sources/lmux-apptest/LiquidGlass.swift
