@@ -126,12 +126,40 @@ public enum LmuxTokens {
         /// Field and popover outlines. Polish: hairline-weight, used at 0.5–1px only.
         public static let border = DynamicColor(light: Nord.nord0, dark: Nord.nord6, lightAlpha: 0.14, darkAlpha: 0.10)
         /// Liquid Glass top 1pt specular edge on the sidebar and notification bar.
-        public static let specularHighlight = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.65, darkAlpha: 0.12)
+        public static let specularHighlight = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.70, darkAlpha: 0.14)
         /// Subtle translucent border on selected workspace pills, highlighted notification cards, and the History search field.
         public static let glassBorder = DynamicColor(light: Nord.nord0, dark: 0xFFFFFF, lightAlpha: 0.09, darkAlpha: 0.11)
+        public static let glassHighlightBorder = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.78, darkAlpha: 0.14)
         /// Center capsule indicator on the notification bar's resize handle (idle vs hover/dragging).
         public static let dragHandlePill = DynamicColor(light: Nord.nord0, dark: Nord.nord6, lightAlpha: 0.22, darkAlpha: 0.24)
         public static let dragHandlePillActive = DynamicColor(light: 0x46658E, dark: Nord.nord8, lightAlpha: 0.70, darkAlpha: 0.75)
+
+        // Liquid Glass Surfaces & Chrome
+        public static let windowBackgroundTint = DynamicColor(light: 0xFFFFFF, dark: 0x141822, lightAlpha: 0.40, darkAlpha: 0.85)
+        public static let titlebarBackground = DynamicColor(light: 0xFFFFFF, dark: 0x121620, lightAlpha: 0.45, darkAlpha: 0.86)
+        public static let rightSidebarTint = DynamicColor(light: 0xFFFFFF, dark: 0x141822, lightAlpha: 0.36, darkAlpha: 0.84)
+        public static let footerBackground = DynamicColor(light: 0xFFFFFF, dark: 0x121620, lightAlpha: 0.42, darkAlpha: 0.88)
+        public static let glassCard = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.36, darkAlpha: 0.05)
+        public static let glassCardHover = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.54, darkAlpha: 0.09)
+        public static let glassCardSelected = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.75, darkAlpha: 0.14)
+        public static let glassSurfaceRecessed = DynamicColor(light: 0xFFFFFF, dark: 0x0B0E14, lightAlpha: 0.48, darkAlpha: 0.94)
+        public static let activePaneRing = DynamicColor(light: 0x0A84FF, dark: 0x0A84FF)
+
+        // Status Pills and Text (WCAG AA >= 4.5:1)
+        public static let statusRunningPill = DynamicColor(light: 0x007AFF, dark: 0x0A84FF, lightAlpha: 0.12, darkAlpha: 0.14)
+        public static let statusRunningText = DynamicColor(light: 0x00479E, dark: 0x94D0FF)
+        public static let statusNeedsInputPill = DynamicColor(light: 0xFF9500, dark: 0xFF9F0A, lightAlpha: 0.14, darkAlpha: 0.14)
+        public static let statusNeedsInputText = DynamicColor(light: 0x6E3B00, dark: 0xFFE58F)
+        public static let statusDonePill = DynamicColor(light: 0x34C759, dark: 0x30D158, lightAlpha: 0.14, darkAlpha: 0.14)
+        public static let statusDoneText = DynamicColor(light: 0x126E2E, dark: 0xA3F3B7)
+        public static let statusIdlePill = DynamicColor(light: 0x8E8E93, dark: 0x8E8E93, lightAlpha: 0.12, darkAlpha: 0.14)
+        public static let statusIdleText = DynamicColor(light: 0x48484A, dark: 0xD1D1D6)
+
+        // Diff Highlighting (WCAG AA >= 4.5:1)
+        public static let diffAddedBg = DynamicColor(light: 0x34C759, dark: 0x30D158, lightAlpha: 0.14, darkAlpha: 0.16)
+        public static let diffAddedFg = DynamicColor(light: 0x126E2E, dark: 0x88EEA4)
+        public static let diffRemovedBg = DynamicColor(light: 0xFF3B30, dark: 0xFF453A, lightAlpha: 0.14, darkAlpha: 0.16)
+        public static let diffRemovedFg = DynamicColor(light: 0x9E1B15, dark: 0xFF857E)
 
         // Sidebar rows
         /// Polish: hover and selection are neutral tints of the text color (Linear/Finder style).
@@ -297,16 +325,15 @@ public enum LmuxTokens {
     // MARK: - Layout
 
     public enum Layout {
-        /// Polish: 40 so the strip's midline (20) matches the traffic lights' center on macOS 26.
-        /// Still center the cluster on the close button's measured midY at runtime (see POLISH.md 1).
-        public static let titlebarHeight: CGFloat = 40
+        /// Unified 44pt Glass Titlebar
+        public static let titlebarHeight: CGFloat = 44
         /// Traffic lights occupy x 0..<trafficLightsInset; never place content there (full screen hides
         /// them until the pointer reveals the titlebar: the titlebar buttons use that space meanwhile).
         public static let trafficLightsInset: CGFloat = 78
 
-        public static let sidebarWidthDefault: CGFloat = 248
+        public static let sidebarWidthDefault: CGFloat = 260
         public static let sidebarWidthMin: CGFloat = 180
-        public static let sidebarWidthMax: CGFloat = 360
+        public static let sidebarWidthMax: CGFloat = 400
 
         /// Horizontal inset of the row pill from the sidebar edges.
         public static let rowInsetX: CGFloat = 8
@@ -363,6 +390,16 @@ public enum LmuxTokens {
         public static let sheetWidth: CGFloat = 460
         public static let dragHandlePillWidth: CGFloat = 24
         public static let dragHandlePillHeight: CGFloat = 2.5
+
+        // Liquid Glass Layout Dimensions
+        public static let footerHeight: CGFloat = 32
+        public static let rightInspectorWidthDefault: CGFloat = 320
+        public static let rightInspectorWidthMin: CGFloat = 240
+        public static let rightInspectorWidthMax: CGFloat = 500
+        public static let paneCornerRadius: CGFloat = 10
+        public static let paneGap: CGFloat = 8
+        public static let paneTabStripHeight: CGFloat = 30
+        public static let workspaceFilterHeaderHeight: CGFloat = 30
     }
 
     // MARK: - Motion (minimal: ring fade, spinner, toast, hover)

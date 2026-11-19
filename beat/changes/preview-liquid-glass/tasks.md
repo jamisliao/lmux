@@ -348,25 +348,25 @@ git commit -m "feat(ui): add hardened background GitDiffService and wire --liqui
   - `Colors`：新增 `windowBackgroundTint`、`titlebarBackground`、`rightSidebarTint`、`footerBackground`、`glassHighlightBorder`（Shallow White Crystal `0xFFFFFF @ 0.78` / Dark `0xFFFFFF @ 0.14`，同時保留既有 `glassBorder` hairline `lightAlpha: 0.09` 相容不破）、`glassCard`、`glassCardHover`、`glassCardSelected`、`glassSurfaceRecessed`、`activePaneRing`（`0x0A84FF`）、`statusRunningPill`/`Text`、`statusNeedsInputPill`/`Text`、`statusDonePill`/`Text`、`statusIdlePill`/`Text`、`diffAddedBg`/`Fg`、`diffRemovedBg`/`Fg`；調整 `sidebarTint`、`specularHighlight`。
   - `Layout`：`titlebarHeight = 44`、`footerHeight = 32`、`sidebarWidthDefault = 260`（`180...400`）、`rightInspectorWidthDefault = 320`（`240...500`）、`paneCornerRadius = 10`、`paneGap = 8`、`paneTabStripHeight = 30`、`workspaceFilterHeaderHeight = 30`。
 
-- [ ] **Step 1: 更新 `App/scripts/liquid-glass-app-check.swift`（同步清除過時 `// @scenario:` 標頭並改用正確場景名）**
+- [x] **Step 1: 更新 `App/scripts/liquid-glass-app-check.swift`（同步清除過時 `// @scenario:` 標頭並改用正確場景名）**
 
 新增驗證：
 1. Light（High-Key Crystal）與 Dark（Obsidian Midnight）主題下 `titlebarBackground`、`rightSidebarTint`、`footerBackground`、`glassCard`、`glassHighlightBorder`、`activePaneRing` 與尺寸常數（`44/32/260/320/10/30`）皆解析無誤。
 2. 選取卡片、`statusRunningText` / `statusNeedsInputText` / `statusDoneText` 疊合於實際 pill 與玻璃底色後的 WCAG AA 對比度（>= `4.5:1`），以及 `diffAddedFg`/`Bg`、`diffRemovedFg`/`Bg` 與 **底部狀態列** 文字對比皆 >= `4.5:1`。
 
-- [ ] **Step 2: 執行 `swift App/scripts/liquid-glass-app-check.swift` 確認 RED**
+- [x] **Step 2: 執行 `swift App/scripts/liquid-glass-app-check.swift` 確認 RED**
 
 Run: `swift App/scripts/liquid-glass-app-check.swift`
 Expected: FAIL（新 Token 與常數尚未新增）
 
-- [ ] **Step 3: 實作 `App/Sources/LmuxTokens/Tokens.swift`（精準對調淺／深雙主題玻璃色彩並維持現有 Nord WCAG AA 相容檢查）**
+- [x] **Step 3: 實作 `App/Sources/LmuxTokens/Tokens.swift`（精準對調淺／深雙主題玻璃色彩並維持現有 Nord WCAG AA 相容檢查）**
 
-- [ ] **Step 4: 驗證 Token 腳本與現有 WCAG / Contrast 測試皆通過 GREEN**
+- [x] **Step 4: 驗證 Token 腳本與現有 WCAG / Contrast 測試皆通過 GREEN**
 
 Run: `swift App/scripts/liquid-glass-app-check.swift && PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --contrast --liquid-glass`
 Expected: `APP TOKEN CHECK: ok`，`--contrast` 與 `--liquid-glass` PASS
 
-- [ ] **Step 5: 提交 Task 5**
+- [x] **Step 5: 提交 Task 5**
 
 ```bash
 git add App/Sources/LmuxTokens/Tokens.swift App/scripts/liquid-glass-app-check.swift

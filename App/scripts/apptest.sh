@@ -156,7 +156,16 @@ if [ "${1:-}" = "--sidebar-tabs" ]; then
   exit $status
 fi
 run_liquid_glass_suite() {
+  local swift_tokens="$APP_DIR/Sources/LmuxTokens"
+  local swift_ui="$APP_DIR/Sources/LmuxUI"
   mkdir -p "$T/liquid-glass"
+  if PATH="/usr/bin:$PATH" xcrun swiftc -parse-as-library -o "$T/bin/liquid-glass-app-check" \
+      "$swift_tokens/Tokens.swift" "$swift_ui/PreviewTarget.swift" "$swift_ui/MarkdownHTML.swift" \
+      "$APP_DIR/scripts/liquid-glass-app-check.swift"; then
+    "$T/bin/liquid-glass-app-check" | filter || { echo "FAIL  [liquid-glass] liquid-glass-app-check.swift"; status=1; }
+  else
+    echo "FAIL  [liquid-glass] swiftc liquid-glass-app-check.swift failed"; status=1
+  fi
   LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
     "$BIN/lmux-apptest" --liquid-glass 2>/dev/null | filter || phase_failed $?
 }
@@ -171,6 +180,19 @@ run_liquid_glass_telemetry_suite() {
 }
 if [ "${1:-}" = "--liquid-glass-telemetry" ]; then
   run_liquid_glass_telemetry_suite
+  exit $status
+fi
+run_contrast_suite() {
+  mkdir -p "$T/contrast"
+  LMUX_STATE_DIR="$T/contrast" LMUX_CONTRAST_DIR="$APP_DIR/scripts/contrast" LMUX_PANE_COMMAND="$T/sink.sh" \
+    LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/contrast/lmux-config" \
+    "$BIN/lmux-apptest" --contrast 2>/dev/null | filter || phase_failed $?
+}
+if [ "${1:-}" = "--contrast" ]; then
+  run_contrast_suite
+  if [ "${2:-}" = "--liquid-glass" ]; then
+    run_liquid_glass_suite
+  fi
   exit $status
 fi
 LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || phase_failed $?
