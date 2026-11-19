@@ -46,6 +46,7 @@
   # ===========================================================================
 
   @behavior @happy-path
+  # @covered-by: App/scripts/liquid-glass-app-check.swift
   場景: 淺色與深色外觀具備 1:1 液態玻璃設計 Token 與無障礙對比
     當 系統外觀分別切換為淺色 High-Key Crystal 與深色 Obsidian Midnight 模式
     那麼 視窗背景、標題列、雙側邊欄、玻璃卡片邊框、高光亮邊與 **Pane Tab Strip** 皆應解析出對應主題色彩

@@ -1,6 +1,5 @@
 // @feature: liquid-glass-app.feature
-// @scenario: 淺色與深色外觀下提供具備頂部高光與無障礙對比的玻璃視覺設定
-// @scenario: 預覽 tab 渲染 Markdown 檔案時套用雙主題玻璃卡片樣式與減少透明度降級規則
+// @scenario: 淺色與深色外觀具備 1:1 液態玻璃設計 Token 與無障礙對比
 
 import AppKit
 import Foundation
@@ -38,44 +37,94 @@ enum LiquidGlassAppCheck {
         typealias C = LmuxTokens.Colors
         typealias L = LmuxTokens.Layout
 
-        // 1. Liquid Glass 新增語意色與尺寸常數檢查
+        // 1. Liquid Glass 尺寸常數檢查
         check(
-            "LmuxTokens 具備 specularHighlight 雙主題高光設定",
-            C.specularHighlight.light == 0xFFFFFF && C.specularHighlight.dark == 0xFFFFFF &&
-            C.specularHighlight.lightAlpha > C.specularHighlight.darkAlpha && C.specularHighlight.darkAlpha > 0
-        )
-        check(
-            "LmuxTokens 具備 glassBorder 微透立體邊框設定",
-            C.glassBorder.lightAlpha > 0 && C.glassBorder.lightAlpha <= 0.2 &&
-            C.glassBorder.darkAlpha > 0 && C.glassBorder.darkAlpha <= 0.2
-        )
-        check(
-            "LmuxTokens 具備 dragHandlePill 與 dragHandlePillActive 及膠囊尺寸",
-            C.dragHandlePillActive.lightAlpha > C.dragHandlePill.lightAlpha &&
-            C.dragHandlePillActive.darkAlpha > C.dragHandlePill.darkAlpha &&
-            L.dragHandlePillWidth == 24 && L.dragHandlePillHeight == 2.5
+            "LmuxTokens Layout 尺寸常數符合 44/32/260/320/10/30 規格",
+            L.titlebarHeight == 44 &&
+            L.footerHeight == 32 &&
+            L.sidebarWidthDefault == 260 &&
+            L.rightInspectorWidthDefault == 320 &&
+            L.paneCornerRadius == 10 &&
+            L.paneTabStripHeight == 30 &&
+            L.paneGap == 8 &&
+            L.workspaceFilterHeaderHeight == 30
         )
 
-        // 2. WCAG AA 對比度：選取中的 workspace 列與搜尋結果列上的主要文字、次要文字及狀態文字
+        // 2. Liquid Glass 新增語意色彩 Token 檢查
+        check(
+            "LmuxTokens 具備 specularHighlight 與 glassHighlightBorder 雙主題高光設定",
+            C.specularHighlight.light == 0xFFFFFF && C.specularHighlight.dark == 0xFFFFFF &&
+            C.glassHighlightBorder.light == 0xFFFFFF && C.glassHighlightBorder.dark == 0xFFFFFF &&
+            C.glassHighlightBorder.lightAlpha >= 0.70 && C.glassHighlightBorder.darkAlpha >= 0.10 &&
+            C.glassBorder.lightAlpha > 0 && C.glassBorder.darkAlpha > 0
+        )
+
+        check(
+            "LmuxTokens 具備 activePaneRing 聚焦環藍色設定",
+            C.activePaneRing.light == 0x0A84FF && C.activePaneRing.dark == 0x0A84FF
+        )
+
+        check(
+            "LmuxTokens 具備 titlebarBackground、rightSidebarTint 與 footerBackground",
+            C.titlebarBackground.lightAlpha > 0 && C.titlebarBackground.darkAlpha > 0 &&
+            C.rightSidebarTint.lightAlpha > 0 && C.rightSidebarTint.darkAlpha > 0 &&
+            C.footerBackground.lightAlpha > 0 && C.footerBackground.darkAlpha > 0
+        )
+
+        // 3. WCAG AA 對比度：選取卡片、狀態藥丸、Diff 與底部狀態列文字皆 >= 4.5:1
         for (name, dark) in [("light", false), ("dark", true)] {
             func v(_ d: LmuxTokens.DynamicColor) -> UInt32 { dark ? d.dark : d.light }
+            func a(_ d: LmuxTokens.DynamicColor) -> Double { Double(dark ? d.darkAlpha : d.lightAlpha) }
+
             let sidebar = v(C.sidebarBackground)
-            let pill = blend(v(C.rowSelected), over: sidebar, Double(dark ? C.rowSelected.darkAlpha : C.rowSelected.lightAlpha))
-            let rPrimary = ratio(v(C.textPrimary), pill)
-            let rSecondary = ratio(v(C.textSecondary), pill)
-            let rTertiary = ratio(v(C.textTertiary), pill)
-            let rNeedsInput = ratio(v(C.stateNeedsInput), pill)
-            let searchHighlight = blend(v(C.accent), over: pill, 0.24)
-            let rSearchPrimary = ratio(v(C.textPrimary), searchHighlight)
+            let cardBg = blend(v(C.glassCardSelected), over: sidebar, a(C.glassCardSelected))
+
+            // 狀態藥丸
+            let runPill = blend(v(C.statusRunningPill), over: cardBg, a(C.statusRunningPill))
+            let rRun = ratio(v(C.statusRunningText), runPill)
+
+            let needsPill = blend(v(C.statusNeedsInputPill), over: cardBg, a(C.statusNeedsInputPill))
+            let rNeeds = ratio(v(C.statusNeedsInputText), needsPill)
+
+            let donePill = blend(v(C.statusDonePill), over: cardBg, a(C.statusDonePill))
+            let rDone = ratio(v(C.statusDoneText), donePill)
+
+            let idlePill = blend(v(C.statusIdlePill), over: cardBg, a(C.statusIdlePill))
+            let rIdle = ratio(v(C.statusIdleText), idlePill)
+
             check(
-                "\(name) 模式選取膠囊與搜尋結果列的主要、次要及狀態文字對比符合 WCAG AA",
-                rPrimary >= 9.0 && rSecondary >= 4.5 && rTertiary >= 4.5 && rNeedsInput >= 4.5 && rSearchPrimary >= 4.5,
-                String(format: "primary=%.1f secondary=%.1f tertiary=%.1f needsInput=%.1f search=%.1f",
-                       rPrimary, rSecondary, rTertiary, rNeedsInput, rSearchPrimary)
+                "\(name) 模式狀態藥丸文字在 pill 底色上符合 WCAG AA (>= 4.5:1)",
+                rRun >= 4.5 && rNeeds >= 4.5 && rDone >= 4.5 && rIdle >= 4.5,
+                String(format: "run=%.1f needs=%.1f done=%.1f idle=%.1f", rRun, rNeeds, rDone, rIdle)
+            )
+
+            // Diff 高亮
+            let diffAddBg = blend(v(C.diffAddedBg), over: v(C.windowBackground), a(C.diffAddedBg))
+            let rDiffAdd = ratio(v(C.diffAddedFg), diffAddBg)
+
+            let diffDelBg = blend(v(C.diffRemovedBg), over: v(C.windowBackground), a(C.diffRemovedBg))
+            let rDiffDel = ratio(v(C.diffRemovedFg), diffDelBg)
+
+            check(
+                "\(name) 模式 Diff 增刪文字在對應背景上符合 WCAG AA (>= 4.5:1)",
+                rDiffAdd >= 4.5 && rDiffDel >= 4.5,
+                String(format: "add=%.1f del=%.1f", rDiffAdd, rDiffDel)
+            )
+
+            // 底部狀態列文字
+            let footerBg = blend(v(C.footerBackground), over: v(C.windowBackground), a(C.footerBackground))
+            let rFooterPrimary = ratio(v(C.textPrimary), footerBg)
+            let rFooterSecondary = ratio(v(C.textSecondary), footerBg)
+            let rFooterTertiary = ratio(v(C.textTertiary), footerBg)
+
+            check(
+                "\(name) 模式底部狀態列主要、次要與補充文字符合 WCAG AA (>= 4.5:1)",
+                rFooterPrimary >= 4.5 && rFooterSecondary >= 4.5 && rFooterTertiary >= 4.5,
+                String(format: "primary=%.1f secondary=%.1f tertiary=%.1f", rFooterPrimary, rFooterSecondary, rFooterTertiary)
             )
         }
 
-        // 3. MarkdownHTML 預覽頁雙主題 Liquid Glass 樣式與無障礙降級檢查
+        // 4. MarkdownHTML 預覽頁雙主題 Liquid Glass 樣式與無障礙降級檢查
         let html = MarkdownHTML.page("> [!NOTE]\n> Glass callout\n\n```swift\nlet x = 1\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |\n", title: "Spec")
         check(
             "MarkdownHTML 保留嚴格 CSP 與淺深雙主題 --bg/--fg 相容色碼",
