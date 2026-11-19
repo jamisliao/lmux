@@ -2,6 +2,9 @@ import AppKit
 import CoreImage
 import IOSurface
 import LmuxTerminal
+import LmuxTokens
+
+private typealias T = LmuxTokens
 
 extension LmuxController {
     /// Render the whole window to a PNG without showing it: AppKit/SwiftUI
@@ -42,7 +45,13 @@ extension LmuxController {
             let img = CIImage(ioSurface: surf)
             guard let cg = ci.createCGImage(img, from: img.extent) else { continue }
             let r = s.convert(s.bounds, to: nil)
+            ctx.saveGState()
+            let corner = T.Layout.paneCornerRadius
+            let clipPath = CGPath(roundedRect: r, cornerWidth: corner, cornerHeight: corner, transform: nil)
+            ctx.addPath(clipPath)
+            ctx.clip()
             ctx.draw(cg, in: r)
+            ctx.restoreGState()
         }
         // In-pane overlays (hover actions, input label, cards, toasts) over the terminals.
         for pane in model.selected?.panes ?? [] where !pane.view.overlay.isEmpty {

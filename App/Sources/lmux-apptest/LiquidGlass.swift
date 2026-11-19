@@ -312,6 +312,23 @@ func runLiquidGlass() async -> Int32 {
     r.check("HistoryRow shows glassBorder only when selected",
             HistoryRow.showsGlassBorder(selected: true) && !HistoryRow.showsGlassBorder(selected: false))
 
+    // 9. PaneView 10pt rounded cards & activePaneRing vs RingView amber ring
+    let testPane = wsIdle.panes[0]
+    let paneView = testPane.view
+    r.check("PaneView cornerRadius is 10pt (paneCornerRadius)",
+            paneView.layer?.cornerRadius == LmuxTokens.Layout.paneCornerRadius)
+    paneView.isFocused = true
+    r.check("PaneView focused has activePaneRing border (1.5pt)",
+            PaneView.borderColor(isFocused: true) == LmuxTokens.Colors.activePaneRing &&
+            PaneView.borderWidth(isFocused: true) == 1.5)
+    paneView.isFocused = false
+    r.check("PaneView unfocused has glassBorder (0.5pt)",
+            PaneView.borderColor(isFocused: false) == LmuxTokens.Colors.glassBorder &&
+            PaneView.borderWidth(isFocused: false) == 0.5)
+    r.check("RingView uses amber stateNeedsInput color (distinct from blue activePaneRing)",
+            RingView.strokeColor == LmuxTokens.Colors.stateNeedsInput &&
+            RingView.strokeColor != LmuxTokens.Colors.activePaneRing)
+
     c.closeWorkspace(wsRun)
 
     return finish(r, c)
