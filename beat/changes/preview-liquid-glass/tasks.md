@@ -692,16 +692,16 @@ git commit -m "feat(ui): implement RightInspectorView shell, backdrop material, 
 - Produces (`LmuxUI`):
   - `struct InspectorDiffView: View`（頂部 Working Tree 卡片含分支、檔案數、`+added -deleted`；逐檔 Diff 卡片與紅/綠等寬列；非 Git 目錄顯示清楚提示 `"非 Git 版本控制目錄"`；乾淨無變更顯示 `"工作樹乾淨無變更"`；點擊可預覽檔名時須經 `PreviewTarget.resolve` 檢查後才呼叫 `onOpenPreview(url)`，<= 200 行）
 
-- [ ] **Step 1: 在 `LiquidGlassTelemetryTests.swift` 加入 `InspectorDiffView.displayState(for:)` 狀態判斷測試（非 Git、乾淨、含多檔與 symlink 阻擋路徑判斷，RED）**
+- [x] **Step 1: 在 `LiquidGlassTelemetryTests.swift` 加入 `InspectorDiffView.displayState(for:)` 狀態判斷測試（非 Git、乾淨、含多檔與 symlink 阻擋路徑判斷，RED）**
 
-- [ ] **Step 2: 實作 `InspectorDiffView.swift`**
+- [x] **Step 2: 實作 `InspectorDiffView.swift`**
 
-- [ ] **Step 3: 執行 `--liquid-glass-telemetry` 驗證 GREEN**
+- [x] **Step 3: 執行 `--liquid-glass-telemetry` 驗證 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass-telemetry`
 Expected: ALL PASS
 
-- [ ] **Step 4: 提交 Task 10a-2**
+- [x] **Step 4: 提交 Task 10a-2**
 
 ```bash
 git add App/Sources/LmuxUI/InspectorDiffView.swift App/Sources/lmux-apptest/LiquidGlassTelemetryTests.swift
