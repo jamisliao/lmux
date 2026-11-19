@@ -304,4 +304,100 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
             .compactMap { $0["id"] as? String }
         r.check("lmux list 不列出預覽 tab，仍列出終端機 tab", !ids.contains(p.id) && ids.contains(a.id), "\(ids)")
     }
+
+    // MARK: WorkspacePreviewCoordinator（Task 10b-2）
+    // @feature: liquid-glass-app.feature
+    // @scenario: WorkspacePreviewCoordinator 生命週期隔離與安全外部連結開啟
+    do {
+        r.section = "preview-coordinator"
+        var prompts: [UntrustedURLPrompt] = []
+        UntrustedURLAlert.testHook = { prompts.append($0); return false }
+        defer { UntrustedURLAlert.testHook = nil }
+
+        let ws1 = c.newWorkspace(cwd: fx.root.path)
+        let ws2 = c.newWorkspace(cwd: fx.root.path)
+
+        let coord = WorkspacePreviewCoordinator(window: c.window)
+
+        // 1. 載入合法檔案
+        coord.load(url: design, workspaceID: ws1.id)
+        r.check("Coordinator 載入檔案後 workspaceID 與 currentURL 正確",
+                coord.workspaceID == ws1.id && coord.currentURL == design && coord.previewView != nil)
+        let pv1 = coord.previewView
+
+        // 2. 測試 ↗ 外開：若是合法 Markdown 檔，交給 GhosttyRuntime.openTerminalURL
+        prompts.removeAll()
+        coord.openCurrentExternally()
+        r.check("合法 Markdown 點 ↗ 外開：不觸發拒絕 prompt", prompts.isEmpty)
+
+        // 3. 測試 ↗ 與 openExternal 安全防護：.sh 腳本
+        let shScript = fx.root.appendingPathComponent("evil.sh")
+        try? "#!/bin/sh\necho hi\n".write(to: shScript, atomically: true, encoding: .utf8)
+        coord.openExternalTarget(shScript)
+        r.check("openExternal 遇 .sh 腳本被 UntrustedURLAlert 阻擋",
+                prompts.contains { prompt in
+                    if case .block(let reason, _) = prompt { return reason == .unsafeFile }
+                    return false
+                },
+                "\(prompts)")
+
+        // 4. 拒絕 /dev/zero 與 unsafe scalars
+        prompts.removeAll()
+        coord.openExternalTarget(URL(fileURLWithPath: "/dev/zero"))
+        r.check("openExternal 遇 /dev/zero 被 UntrustedURLAlert 阻擋",
+                prompts.contains { prompt in
+                    if case .block(let reason, _) = prompt { return reason == .inaccessibleFile }
+                    return false
+                },
+                "\(prompts)")
+
+        prompts.removeAll()
+        let unsafeScalarURL = URL(fileURLWithPath: "/tmp/evil\u{202E}txt.md")
+        coord.openExternalTarget(unsafeScalarURL)
+        r.check("openExternal 遇含 unsafe scalar (U+202E) 路徑被 UntrustedURLAlert 阻擋",
+                prompts.contains { prompt in
+                    if case .block(let reason, _) = prompt { return reason == .unsafeCharacters }
+                    return false
+                },
+                "\(prompts)")
+
+        coord.load(url: unsafeScalarURL, workspaceID: ws1.id)
+        r.check("Coordinator 拒絕載入含 unsafe scalar 的檔案", coord.currentURL == design)
+
+        // 5. 切換 workspace 後 backForwardList 清空且舊 PreviewWatcher 停止 (pv1.isClosed == true)
+        let page2 = docs.appendingPathComponent("page2.md")
+        try? "# Page 2\n".write(to: page2, atomically: true, encoding: .utf8)
+        coord.load(url: page2, workspaceID: ws2.id)
+        r.check("切換 workspace 後舊 PreviewView 已關閉 (isClosed == true 且 watcher 停止)",
+                pv1?.isClosed == true, "pv1.isClosed=\(pv1?.isClosed ?? false)")
+        r.check("切換 workspace 後新的 PreviewView backForwardList 為空",
+                coord.previewView !== pv1 && coord.previewView?.webView.backForwardList.backList.isEmpty == true)
+        r.check("切換 workspace 後 coordinator 狀態更新為新 workspace",
+                coord.workspaceID == ws2.id && coord.currentURL == page2)
+
+        // 6. ensureFocus() 允許在 inspectorPreview 時保留 WKWebView 焦點
+        c.select(ws1)
+        c.model.inspectorVisible = true
+        c.model.inspectorTab = .preview
+        c.openInInspectorPreview(design, workspace: ws1)
+        if let pv = c.previewCoordinator.previewView {
+            c.window!.contentView?.addSubview(pv)
+            c.window!.makeFirstResponder(pv.webView)
+            c.ensureFocus()
+            r.check("ensureFocus() 在 inspectorPreview 焦點位於 WKWebView 時保留焦點",
+                    c.window!.firstResponder === pv.webView || (c.window!.firstResponder as? NSView)?.isDescendant(of: pv.webView) == true,
+                    "firstResponder=\(String(describing: c.window!.firstResponder))")
+
+            // 切換分頁離開 .preview：ensureFocus() 應將焦點交還給終端機 pane
+            c.model.inspectorTab = .diff
+            c.ensureFocus()
+            r.check("切離 inspectorPreview 後 ensureFocus() 焦點回到終端機 pane",
+                    c.window!.firstResponder === ws1.panes[0].surface)
+            pv.removeFromSuperview()
+        }
+
+        coord.closeCurrent()
+        c.closeWorkspace(ws1)
+        c.closeWorkspace(ws2)
+    }
 }

@@ -52,6 +52,7 @@ extension LmuxController {
         let ws = workspace ?? model.selected
         if let wsID = ws?.id {
             model.inspectorPreviewURLByWorkspace[wsID] = file
+            previewCoordinator.load(url: file, workspaceID: wsID)
         }
         model.inspectorTab = .preview
         model.inspectorVisible = true
