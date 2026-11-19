@@ -721,16 +721,16 @@ git commit -m "feat(ui): build InspectorDiffView working tree card, hunk view, a
 - Produces (`LmuxUI`):
   - `struct InspectorTraceView: View`（Card 1「Context Window (Token 負載)」含 `%` 徽章、藍紫進度條、已用／上限與 2×2 真實 API 明細：`輸入 Input`、`輸出 Output`、`快取命中 Cache`、`估計費用`；Card 2「最近執行的工具 (Tool Calls)」含分類圖示色塊、工具名、參數摘要、耗時／執行中標記；無作用中 Agent 時呈現 `"— / 尚無作用中的 Agent"` 空狀態，<= 200 行）
 
-- [ ] **Step 1: 在 `LiquidGlassTelemetryTests.swift` 新增 `InspectorTraceView.presentation(for:)` 空狀態／使用率格式／Tool 分類測試（RED）**
+- [x] **Step 1: 在 `LiquidGlassTelemetryTests.swift` 新增 `InspectorTraceView.presentation(for:)` 空狀態／使用率格式／Tool 分類測試（RED）**
 
-- [ ] **Step 2: 實作 `InspectorTraceView.swift`**
+- [x] **Step 2: 實作 `InspectorTraceView.swift`**
 
-- [ ] **Step 3: 執行 `--liquid-glass-telemetry` 驗證 GREEN**
+- [x] **Step 3: 執行 `--liquid-glass-telemetry` 驗證 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass-telemetry`
 Expected: ALL PASS
 
-- [ ] **Step 4: 提交 Task 10a-3**
+- [x] **Step 4: 提交 Task 10a-3**
 
 ```bash
 git add App/Sources/LmuxUI/InspectorTraceView.swift App/Sources/lmux-apptest/LiquidGlassTelemetryTests.swift

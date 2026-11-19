@@ -279,6 +279,38 @@ func runLiquidGlassTelemetry() async -> Int32 {
     r.check("InspectorDiffView.resolvePreviewURL rejects unsafe control characters",
             InspectorDiffView.resolvePreviewURL(file: "test\u{202E}file.txt", cwd: "/tmp") == nil)
 
+    // 8. InspectorTraceView.presentation(for:)
+    let emptyDisplay = PaneTelemetryDisplay()
+    let emptyPres = InspectorTraceView.presentation(for: emptyDisplay)
+    r.check("InspectorTraceView empty display state",
+            !emptyPres.hasActiveAgent && emptyPres.modelName == "—" && emptyPres.costText == "—")
+
+    let activeDisplay = PaneTelemetryDisplay(
+        model: "claude-3-7-sonnet",
+        turnCount: 5,
+        contextUsedTokens: 45_000,
+        contextLimitTokens: 200_000,
+        inputTokens: 30_000,
+        outputTokens: 5_000,
+        cacheReadTokens: 10_000,
+        estimatedCostUSD: 0.1234,
+        contextPercent: 0.225,
+        toolCalls: [
+            ToolCallEntry(id: "1", name: "Bash", category: .bash, argument: "ls -la", status: .succeeded, startedAtNanos: 0, durationMs: 42),
+            ToolCallEntry(id: "2", name: "Read", category: .read, argument: "file.txt", status: .running, startedAtNanos: 0)
+        ],
+        isActiveAgent: true
+    )
+    let activePres = InspectorTraceView.presentation(for: activeDisplay)
+    r.check("InspectorTraceView active presentation formatting",
+            activePres.hasActiveAgent && activePres.modelName == "claude-3-7-sonnet"
+            && activePres.contextPercentText == "22.5%"
+            && activePres.contextTokensText == "45.0k / 200.0k"
+            && activePres.costText == "$0.1234"
+            && activePres.toolCalls.count == 2
+            && activePres.toolCalls[0].category == .bash
+            && activePres.toolCalls[1].category == .read)
+
     print("\nRESULT: \(r.failed == 0 ? "PASS" : "FAIL") (\(r.passed)/\(r.passed + r.failed) checks passed)\n")
     return r.failed == 0 ? 0 : 1
 }
