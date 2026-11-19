@@ -112,6 +112,7 @@
 
   @behavior @happy-path
   # @covered-by: Core/Tests/LmuxHooksTests/ToolCallStreamTests.swift
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlassTelemetryTests.swift
   場景: Hook 即時工具事件與終止事件更新即時 Tool Call 串流與狀態
     假設 一個 **終端機 tab** 正在執行編碼代理人
     當 依序收到 `PreToolUse` 與 `PostToolUse`（或 `PostToolUseFailure`）事件

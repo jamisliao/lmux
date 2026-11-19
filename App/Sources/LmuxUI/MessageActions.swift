@@ -63,6 +63,7 @@ final class TranscriptCache: @unchecked Sendable {
         let aiTitle: String?
         let bytesParsed: Int
         let fullReads: Int
+        let telemetry: AgentTelemetrySnapshot
     }
 
     let queue = DispatchQueue(label: "lmux.transcripts", qos: .userInitiated)
@@ -93,7 +94,8 @@ final class TranscriptCache: @unchecked Sendable {
                 let stamp = FileStamp.of(path)
                 guard (try? autoreleasepool { try idx.update() }) != nil else { c.resume(returning: nil); return }
                 c.resume(returning: Snapshot(turns: idx.turns, stamp: stamp, customTitle: idx.customTitle,
-                                             aiTitle: idx.aiTitle, bytesParsed: idx.bytesParsed, fullReads: idx.fullReads))
+                                             aiTitle: idx.aiTitle, bytesParsed: idx.bytesParsed, fullReads: idx.fullReads,
+                                             telemetry: idx.telemetry))
             }
         }
     }
@@ -111,7 +113,8 @@ final class TranscriptCache: @unchecked Sendable {
                     title = CodexThreadNames.name(of: id, in: CodexThreadNames.file(codexHome: home))
                 }
                 c.resume(returning: Snapshot(turns: r.turns, stamp: stamp, customTitle: nil, aiTitle: title,
-                                             bytesParsed: r.bytesParsed, fullReads: r.fullReads))
+                                             bytesParsed: r.bytesParsed, fullReads: r.fullReads,
+                                             telemetry: r.telemetry))
             }
         }
     }
@@ -296,6 +299,7 @@ extension LmuxController {
         pane.hover.stamp = snap.stamp
         pane.hover.loadedPath = path
         transcriptReads[pane.id] = (snap.bytesParsed, snap.fullReads)
+        model.telemetryStore?.recordSnapshot(snap.telemetry, for: pane.id)
     }
 
     /// Fresh turns, awaited (used by actions, not by hover).
