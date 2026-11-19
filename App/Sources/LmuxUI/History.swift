@@ -438,7 +438,7 @@ struct HistorySection: View {
 
     private func panel(_ items: [HistoryModel.Item]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Rectangle().fill(T.Colors.separator.color).frame(height: 1)
+            Rectangle().fill(T.Colors.glassBorder.color).frame(height: 0.5)
             HStack {
                 Text("History").font(T.Typography.sectionHeader.font)
                 Spacer()
@@ -520,15 +520,23 @@ struct HistorySection: View {
         }
         .padding(.horizontal, T.Layout.rowPaddingX)
         .frame(height: T.Layout.historySearchHeight)
-        .background(RoundedRectangle(cornerRadius: T.Radius.field, style: .continuous)
-            .fill(focused ? T.Colors.elevatedBackground.color : (hoverField ? T.Colors.rowSelected.color : T.Colors.rowHover.color)))
-        .overlay(RoundedRectangle(cornerRadius: T.Radius.field, style: .continuous)
-            .strokeBorder(focused ? T.Colors.border.color : T.Colors.glassBorder.color, lineWidth: focused ? 1 : 0.5))
-        .overlay(RoundedRectangle(cornerRadius: T.Radius.field + 2.5, style: .continuous)
-            .stroke(T.Colors.focusRing.color, lineWidth: 2.5).padding(-2.5).opacity(focused ? 1 : 0))
+        .background(Capsule()
+            .fill(Self.searchFieldFillColor(focused: focused, hover: hoverField).color))
+        .overlay(Capsule()
+            .strokeBorder(Self.searchFieldBorderColor(focused: focused).color, lineWidth: focused ? 1 : 0.5))
+        .overlay(Capsule()
+            .stroke(T.Colors.focusRing.color, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0))
         .contentShape(Rectangle())
         .onHover { hoverField = $0 }
         .onTapGesture { searchFocused = true }
+    }
+
+    public static func searchFieldBorderColor(focused: Bool) -> LmuxTokens.DynamicColor {
+        focused ? T.Colors.focusRing : T.Colors.glassBorder
+    }
+
+    public static func searchFieldFillColor(focused: Bool, hover: Bool) -> LmuxTokens.DynamicColor {
+        focused ? T.Colors.glassSurfaceRecessed : (hover ? T.Colors.glassCardHover : T.Colors.glassSurfaceRecessed)
     }
 }
 
@@ -578,7 +586,7 @@ struct HistoryRow: View {
         .frame(maxWidth: .infinity, minHeight: rowHeight, maxHeight: rowHeight, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
-                .fill(selected ? T.Colors.rowSelected.color : (hover ? T.Colors.rowHover.color : .clear))
+                .fill(selected ? T.Colors.glassCardSelected.color : (hover ? T.Colors.glassCardHover.color : .clear))
                 .overlay(
                     RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
                         .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)

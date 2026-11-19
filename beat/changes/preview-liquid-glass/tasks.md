@@ -572,14 +572,14 @@ git commit -m "feat(ui): upgrade workspace rows to glass cards with accent strip
 **Interfaces:**
 - Produces (`LmuxUI`): 更新 `HistorySection` 與 `HistoryRow` 採用 `preview-mockup.html` 膠囊玻璃搜尋欄（`glassSurfaceRecessed`、`glassBorder`、`focusRing`）與玻璃搜尋結果列（確保位於 `Workspace` 清單底端與 `NotificationBar` 上方且結果清單向上展開不遮蔽下方配件）。
 
-- [ ] **Step 1: 更新 `History.swift` 搜尋膠囊與玻璃結果列樣式，並於 `LiquidGlass.swift` 檢查選取／未選取玻璃邊框與聚焦樣式**
+- [x] **Step 1: 更新 `History.swift` 搜尋膠囊與玻璃結果列樣式，並於 `LiquidGlass.swift` 檢查選取／未選取玻璃邊框與聚焦樣式**
 
-- [ ] **Step 2: 執行 `--liquid-glass` 與 `--history` / `--newuser` 驗證通過**
+- [x] **Step 2: 執行 `--liquid-glass` 與 `--history` / `--newuser` 驗證通過**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass --newuser`
 Expected: ALL PASS
 
-- [ ] **Step 3: 提交 Task 8b**
+- [x] **Step 3: 提交 Task 8b**
 
 ```bash
 git add App/Sources/LmuxUI/History.swift App/Sources/lmux-apptest/LiquidGlass.swift

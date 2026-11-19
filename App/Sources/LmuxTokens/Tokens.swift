@@ -37,7 +37,7 @@ public enum LmuxTokens {
 
     /// A light/dark pair. Use `.nsColor` in AppKit and `.color` in SwiftUI;
     /// both resolve against the view's effective appearance at draw time.
-    public struct DynamicColor: Sendable {
+    public struct DynamicColor: Sendable, Equatable {
         public let light: UInt32
         public let dark: UInt32
         public let lightAlpha: CGFloat

@@ -303,6 +303,15 @@ func runLiquidGlass() async -> Int32 {
             WorkspaceStatusPill.statusText(for: .needsInput(nil)) == "🔔 需要確認" &&
             WorkspaceStatusPill.statusText(for: .done(nil)) == "✓ 測試通過")
 
+    // 8. History search capsule & result row styling
+    r.check("HistorySection search field uses glassSurfaceRecessed, glassBorder, and focusRing",
+            HistorySection.searchFieldFillColor(focused: true, hover: false) == LmuxTokens.Colors.glassSurfaceRecessed &&
+            HistorySection.searchFieldFillColor(focused: false, hover: true) == LmuxTokens.Colors.glassCardHover &&
+            HistorySection.searchFieldBorderColor(focused: true) == LmuxTokens.Colors.focusRing &&
+            HistorySection.searchFieldBorderColor(focused: false) == LmuxTokens.Colors.glassBorder)
+    r.check("HistoryRow shows glassBorder only when selected",
+            HistoryRow.showsGlassBorder(selected: true) && !HistoryRow.showsGlassBorder(selected: false))
+
     c.closeWorkspace(wsRun)
 
     return finish(r, c)
