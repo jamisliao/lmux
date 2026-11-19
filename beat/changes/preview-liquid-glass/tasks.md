@@ -783,16 +783,16 @@ git commit -m "feat(ui): add Right Inspector Live Preview as primary OpenMenu ch
   - `@MainActor final class WorkspacePreviewCoordinator`：依目前 `workspaceID` 與載入檔案管理受控 `PreviewView`；**每次切換 `workspaceID` 或載入不同來源檔案時明確呼叫舊 `PreviewView.close()` 並建立新實例**（防止 `WKWebView.backForwardList`、`visitedHTMLRoots` 與 `PreviewWatcher` 跨工作區殘留！）；設定 `previewView.openExternal` 一律轉交 `GhosttyRuntime.openTerminalURL(..., kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN, window: controller?.window)`。
   - `struct InspectorPreviewPane: View`：Browser 位址列（`‹` `›` `↻` 按鈕含 `canGoBack`/`canGoForward`/`fileURL != nil` 停用控制、目前檔名、`LIVE` 徽章、`↗` 經 `GhosttyRuntime.openTerminalURL` 安全觸發外開）+ 快速檔案 chips（來自 `GitDiffSnapshot.previewCandidates`）+ 無開啟檔案時顯示快速檔案／空狀態提示 + 嵌入式 `PreviewView` 與 `WKWebView Pipeline (Metal)` 底列。
 
-- [ ] **Step 1: 在 `PreviewInteractions.swift` 新增 `WorkspacePreviewCoordinator` 測試（驗證 `↗` 與 `openExternal` 透過 `UntrustedURLAlert.testHook` 阻擋 `.sh`/unsafe symlink、拒絕 `/dev/zero` 與 unsafe scalars、切換 workspace 後 `backForwardList` 清空且舊 `PreviewWatcher` 停止，RED）**
+- [x] **Step 1: 在 `PreviewInteractions.swift` 新增 `WorkspacePreviewCoordinator` 測試（驗證 `↗` 與 `openExternal` 透過 `UntrustedURLAlert.testHook` 阻擋 `.sh`/unsafe symlink、拒絕 `/dev/zero` 與 unsafe scalars、切換 workspace 後 `backForwardList` 清空且舊 `PreviewWatcher` 停止，RED）**
 
-- [ ] **Step 2: 實作 `InspectorPreviewPane.swift`（<= 220 行）與 `Controller.ensureFocus()` 允許 Inspector `.preview` `WKWebView` 保留焦點**
+- [x] **Step 2: 實作 `InspectorPreviewPane.swift`（<= 220 行）與 `Controller.ensureFocus()` 允許 Inspector `.preview` `WKWebView` 保留焦點**
 
-- [ ] **Step 3: 執行 `--preview` 驗證 GREEN**
+- [x] **Step 3: 執行 `--preview` 驗證 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --preview`
 Expected: PASS
 
-- [ ] **Step 4: 提交 Task 10b-2**
+- [x] **Step 4: 提交 Task 10b-2**
 
 ```bash
 git add App/Sources/LmuxUI/InspectorPreviewPane.swift App/Sources/LmuxUI/Controller.swift App/Sources/lmux-apptest/PreviewInteractions.swift

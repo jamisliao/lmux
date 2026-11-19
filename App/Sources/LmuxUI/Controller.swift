@@ -19,6 +19,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     public let headless: Bool
     public private(set) var window: LmuxWindow!
     public let notifier: Notifier
+    public let previewCoordinator = WorkspacePreviewCoordinator()
     var root: RootView!
 
     /// Tests: treat the app as active/key (headless never is).
@@ -316,6 +317,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         // Offscreen (headless) there is no desktop behind the window to blend: opaque sidebar.
         root.sidebarBackdrop.forceOpaque = headless
         window = w
+        previewCoordinator.window = w
         if headless {
             // Off screen before it is ever ordered in (LmuxWindow keeps AppKit from pulling a titled
             // window onto a display), so no display shows it even for a frame.
@@ -739,6 +741,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             // Switching workspace any other way (⌘1, jump to unread, …) ends a multi-selection.
             model.selection = []
             model.selectionAnchorID = ws.id
+            if let targetURL = model.inspectorPreviewURLByWorkspace[ws.id] {
+                previewCoordinator.load(url: targetURL, workspaceID: ws.id)
+            } else {
+                previewCoordinator.switchWorkspace(to: ws.id)
+            }
         }
         model.selectedID = ws.id
         rebuildContent()
@@ -764,6 +771,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         for p in ws.panes { discard(p) }
         model.workspaces.remove(at: i)
         model.selection.remove(ws.id)
+        model.inspectorPreviewURLByWorkspace.removeValue(forKey: ws.id)
+        if ws.id == previewCoordinator.workspaceID {
+            previewCoordinator.reset()
+        }
         if model.selection.count < 2 { model.selection = [] }
         if model.hoveredRowID == ws.id { model.hoveredRowID = nil }
         if model.workspaces.isEmpty {
@@ -1079,6 +1090,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if fr is NSText { return }
         if let s = fr as? SurfaceView, ws.visiblePanes.contains(where: { $0.surface === s }) { return }
         if let v = fr as? NSView, ws.visiblePanes.contains(where: { $0.preview.map { v.isDescendant(of: $0) } == true }) { return }
+        if let v = fr as? NSView, model.inspectorVisible && model.inspectorTab == .preview,
+           let inspectorPreview = previewCoordinator.previewView, v.isDescendant(of: inspectorPreview) {
+            return
+        }
         if let s = pane.surface {
             window.makeFirstResponder(s)
         } else if let preview = pane.preview {
