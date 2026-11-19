@@ -1,5 +1,6 @@
 // @feature: liquid-glass-app.feature
 // @scenario: Git Diff 服務讀取工作區變更統計與檔案 hunks，非 Git 目錄呈現空狀態
+// @scenario: Hook 即時工具事件與終止事件更新即時 Tool Call 串流與狀態
 
 import Foundation
 import AppKit

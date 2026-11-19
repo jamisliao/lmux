@@ -93,6 +93,7 @@
   # --- 選單項目 ---
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 選「在右側欄即時預覽」載入檔案至右側 Inspector
     假設 一個 **workspace** 的 **終端機 tab** A 跳出了 "docs/design.md" 的 **開啟選單**
     而且 **右側 Inspector** 目前處於收合或顯示其他分頁的狀態
@@ -112,6 +113,7 @@
     而且 這個預覽 tab 成為 **focused tab**
 
   @e2e @edge-case
+  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 按住 ⌃⌘ 點擊可預覽檔案直接開成預覽 tab
     假設 一個 **workspace** 的 **終端機 tab** A 的目前目錄裡有 "docs/design.md"
     當 使用者同時按住 ⌃ 與 ⌘ 點擊 "docs/design.md"

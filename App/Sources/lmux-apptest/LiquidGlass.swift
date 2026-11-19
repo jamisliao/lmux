@@ -1,8 +1,8 @@
 // @feature: liquid-glass-app.feature
-// @scenario: Sidebar 背景在一般狀態顯示毛玻璃與頂部亮邊，並在系統開啟減少透明度時改用不透明實底
-// @scenario: 拖曳調整面板或分割窗格期間暫停毛玻璃並在放開後恢復
-// @scenario: 拖曳途中視窗失去焦點時自動解除拖曳降級並恢復毛玻璃
-// @scenario: 選取中的 workspace 列、反白通知卡片與通知 bar 調整手把呈現立體玻璃細節
+// @scenario: 標題列置中顯示目前 workspace 資訊膠囊與快速操作按鈕
+// @scenario: 左側 workspace 卡片顯示彩色識別條與狀態藥丸並保留多選與排序
+// @scenario: 中央終端窗格顯示圓角卡片、焦點光環與 Pane Tab Strip
+// @scenario: 透過快捷鍵與標題列／狀態列控制右側 Inspector 展開、收合與分頁切換
 
 import AppKit
 import LmuxTokens

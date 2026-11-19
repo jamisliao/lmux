@@ -204,6 +204,8 @@ extension LmuxController {
             pane.agent = agent
         }
         apply(t, to: pane, focused: focused)
+        pane.agent.recordToolEvent(e)
+        model.telemetryStore?.noteHookUpdate(for: pane)
     }
 
     /// Badge, row detail, bell list and the one notification for a state transition.
