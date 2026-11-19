@@ -173,6 +173,20 @@ if [ "${1:-}" = "--liquid-glass" ]; then
   run_liquid_glass_suite
   exit $status
 fi
+run_pane_tabs_suite() {
+  mkdir -p "$T/tabs"
+  for phase in --pane-tabs --pane-tabs-restore; do
+    LMUX_STATE_DIR="$T/tabs" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" $phase 2>/dev/null | filter || status=1
+  done
+}
+if [ "${1:-}" = "--pane-tabs" ]; then
+  run_pane_tabs_suite
+  for arg in "$@"; do
+    if [ "$arg" = "--preview" ]; then run_preview_suite; fi
+    if [ "$arg" = "--liquid-glass" ]; then run_liquid_glass_suite; fi
+  done
+  exit $status
+fi
 run_liquid_glass_telemetry_suite() {
   mkdir -p "$T/liquid-glass-telemetry"
   LMUX_STATE_DIR="$T/liquid-glass-telemetry" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \

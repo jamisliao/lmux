@@ -593,6 +593,11 @@ public final class TabStripView: NSView {
         return NSRect(x: x, y: 0, width: items.indices.contains(i) ? items[i].width : 0, height: bounds.height)
     }
 
+    public var newTabRect: NSRect {
+        let x = (items.last.map { _ in tabRect(items.count - 1).maxX } ?? 0) + 4
+        return NSRect(x: x, y: (bounds.height - 20) / 2, width: 20, height: 20)
+    }
+
     func closeRect(_ i: Int) -> NSRect {
         let r = tabRect(i)
         return NSRect(x: r.maxX - Self.padX - Self.slot, y: (r.height - Self.slot) / 2, width: Self.slot, height: Self.slot)
@@ -605,10 +610,10 @@ public final class TabStripView: NSView {
         return NSRect(x: c.minX - 2 - Self.slot, y: c.minY, width: Self.slot, height: Self.slot)
     }
 
-    /// The buttons on the right: 0 new tab, 1 split right, 2 split down.
-    func buttonRect(_ b: Int) -> NSRect {
+    /// The buttons on the right: 0 split right, 1 split down, 2 close pane.
+    public func buttonRect(_ b: Int) -> NSRect {
         let x = bounds.width - Self.laneWidth + 6 + CGFloat(b) * (Self.buttonWidth + Self.buttonGap)
-        return NSRect(x: x, y: 0, width: Self.buttonWidth, height: bounds.height)
+        return NSRect(x: x, y: (bounds.height - Self.buttonWidth) / 2, width: Self.buttonWidth, height: Self.buttonWidth)
     }
 
     func index(at p: NSPoint) -> Int? {
@@ -616,7 +621,10 @@ public final class TabStripView: NSView {
         return items.indices.first { tabRect($0).minX <= p.x && p.x < tabRect($0).maxX }
     }
 
-    func button(at p: NSPoint) -> Int? { (0..<3).first { buttonRect($0).contains(p) } }
+    func button(at p: NSPoint) -> Int? {
+        if newTabRect.contains(p) { return 100 }
+        return (0..<3).first { buttonRect($0).contains(p) }
+    }
 
     /// Where a tab dropped at `x` goes: before the tab whose middle is right of `x`.
     func insertionIndex(at x: CGFloat) -> Int {
@@ -671,7 +679,6 @@ public final class TabStripView: NSView {
     public override func draw(_ dirtyRect: NSRect) {
         background.setFill()
         bounds.fill()
-        let separator = shade(isLight ? 0.12 : 0.16, alpha: isLight ? 0.26 : 0.36)
         let active = T.Colors.textPrimary.nsColor, inactive = T.Colors.textSecondary.nsColor
         NSGraphicsContext.saveGraphicsState()
         NSRect(x: 0, y: 0, width: tabsWidth, height: bounds.height).clip()
@@ -679,20 +686,27 @@ public final class TabStripView: NSView {
             let r = tabRect(i)
             guard r.maxX > 0, r.minX < tabsWidth, r.intersects(dirtyRect) else { continue }
             let sel = i == selected
+            let pillRect = r.insetBy(dx: 2, dy: 3.5)
+            let path = NSBezierPath(roundedRect: pillRect, xRadius: 4, yRadius: 4)
             if sel {
-                shade(isLight ? 0.065 : 0.12).setFill()
-                r.fill()
+                T.Colors.glassSurfaceRecessed.nsColor.setFill()
+                path.fill()
+                T.Colors.glassBorder.nsColor.setStroke()
+                path.lineWidth = 0.5
+                path.stroke()
             } else if i == hovered {
-                shade(isLight ? 0.03 : 0.07, alpha: 0.78).setFill()
-                r.fill()
+                T.Colors.glassCardHover.nsColor.setFill()
+                path.fill()
             }
-            separator.setFill()
-            NSRect(x: r.maxX - 1, y: 0, width: 1, height: r.height - (i + 1 == selected ? 1 : 0)).fill()
             let color = sel ? active : inactive
-            symbol(item.agent ? "sparkle" : (item.preview ? "doc.text" : "terminal"), 10, color,
-                   in: NSRect(x: r.minX + Self.padX, y: (r.height - Self.iconSize) / 2, width: Self.iconSize, height: Self.iconSize),
-                   weight: .medium)
-            let tx = r.minX + Self.padX + Self.iconSize + Self.spacing
+
+            // Status dot
+            let dotRect = NSRect(x: pillRect.minX + 6, y: pillRect.midY - 2.5, width: 5, height: 5)
+            let dotColor: NSColor = sel ? T.Colors.activePaneRing.nsColor : (item.badge ? T.Colors.stateNeedsInput.nsColor : T.Colors.textTertiary.nsColor)
+            dotColor.setFill()
+            NSBezierPath(ovalIn: dotRect).fill()
+
+            let tx = dotRect.maxX + 6
             let right = (zoomRect(i)?.minX ?? closeRect(i).minX) - 2
             let para = NSMutableParagraphStyle()
             para.lineBreakMode = .byTruncatingTail
@@ -705,30 +719,33 @@ public final class TabStripView: NSView {
                 symbol("xmark", 9, inactive, in: c)
             } else if item.pinned && (sel || i == hovered || !item.badge) {
                 symbol("pin.fill", 9, inactive, in: c)
-            } else if item.badge {
-                NSColor.systemBlue.setFill()
-                NSBezierPath(ovalIn: NSRect(x: c.midX - 3, y: c.midY - 3, width: 6, height: 6)).fill()
             }
         }
-        // The bottom rule, open under the shown tab; the accent line on its top edge.
-        separator.setFill()
-        let y = bounds.height - 1
-        let sr = items.indices.contains(selected) ? tabRect(selected) : .zero
-        NSRect(x: 0, y: y, width: max(0, sr.minX), height: 1).fill()
-        NSRect(x: sr.maxX, y: y, width: max(0, tabsWidth - sr.maxX), height: 1).fill()
-        if items.indices.contains(selected) {
-            (focused ? NSColor.controlAccentColor : NSColor.systemGray).setFill()
-            NSRect(x: sr.minX, y: 0, width: max(0, sr.width - 1), height: Self.indicator).fill()
+        if newTabRect.maxX <= tabsWidth && newTabRect.intersects(dirtyRect) {
+            let ntr = newTabRect
+            if hoveredButton == 100 {
+                T.Colors.glassCardHover.nsColor.setFill()
+                NSBezierPath(roundedRect: ntr, xRadius: 4, yRadius: 4).fill()
+            }
+            symbol("plus", 11, hoveredButton == 100 ? active : inactive, in: ntr, weight: .regular)
         }
         NSGraphicsContext.restoreGraphicsState()
-        separator.setFill()
-        NSRect(x: tabsWidth, y: y, width: max(0, bounds.width - tabsWidth), height: 1).fill()
+
+        // 0.5pt glass bottom border
+        T.Colors.glassBorder.nsColor.setFill()
+        NSRect(x: 0, y: bounds.height - 0.5, width: bounds.width, height: 0.5).fill()
+
         if let b = modeBadge {
             let sz = ModeBadge.size(b)
             ModeBadge.draw(b, in: NSRect(x: tabsWidth + 4, y: (bounds.height - sz.height) / 2, width: sz.width, height: sz.height))
         }
-        for (b, name) in ["terminal", "square.split.2x1", "square.split.1x2"].enumerated() {
-            symbol(name, 12, b == hoveredButton ? active : inactive, in: buttonRect(b), weight: .regular)
+        for (b, name) in ["square.split.2x1", "square.split.1x2", "xmark"].enumerated() {
+            let br = buttonRect(b)
+            if b == hoveredButton {
+                T.Colors.glassCardHover.nsColor.setFill()
+                NSBezierPath(roundedRect: br, xRadius: 4, yRadius: 4).fill()
+            }
+            symbol(name, 11, b == hoveredButton ? active : inactive, in: br, weight: .regular)
         }
     }
 
@@ -790,9 +807,11 @@ public final class TabStripView: NSView {
     func pressButton(_ b: Int) {
         guard let shown = node?.shownTab, let c = controller else { return }
         switch b {
-        case 0: c.newTab(shown)
-        case 1: c.split(shown, .right)
-        default: c.split(shown, .down)
+        case 100: c.newTab(shown)
+        case 0: c.split(shown, .right)
+        case 1: c.split(shown, .down)
+        case 2: c.requestClosePane(shown)
+        default: break
         }
     }
 
