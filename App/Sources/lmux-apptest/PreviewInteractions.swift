@@ -58,8 +58,8 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
                 menu.items.first?.title == design.path && menu.items.first?.isEnabled == false
                     && menu.items.first?.toolTip == design.path,
                 "\(menu.items.first?.title ?? "nil") tip=\(menu.items.first?.toolTip ?? "nil")")
-        r.check("選單項目依序是 在新 tab 預覽、用預設 app 開、在 Finder 顯示、複製路徑",
-                menu.items.dropFirst(2).map(\.title) == ["在新 tab 預覽", "用預設 app 開", "在 Finder 顯示", "複製路徑"],
+        r.check("選單項目依序是 在右側欄即時預覽、在新 tab 預覽、用預設 app 開、在 Finder 顯示、複製路徑",
+                menu.items.dropFirst(2).map(\.title) == ["在右側欄即時預覽", "在新 tab 預覽", "用預設 app 開", "在 Finder 顯示", "複製路徑"],
                 "\(menu.items.map(\.title))")
         let longPath = "/" + String(repeating: "abcdefgh/", count: 15) + "design.md"
         let longMenu = LmuxController.makeOpenMenu(URL(fileURLWithPath: longPath), target: nil)
@@ -122,6 +122,14 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         click("docs/design.md")
         r.check("複製路徑：剪貼簿是完整路徑", GhosttyRuntime.standardPasteboard.string(forType: .string) == design.path,
                 GhosttyRuntime.standardPasteboard.string(forType: .string) ?? "nil")
+        answer = .inspectorPreview
+        c.model.inspectorVisible = false
+        c.model.inspectorTab = .diff
+        click("docs/design.md")
+        r.check("在右側欄即時預覽：設定 inspectorTab == .preview 且 inspectorVisible == true 不更動分割數",
+                c.model.inspectorVisible && c.model.inspectorTab == .preview
+                && c.model.inspectorPreviewURLByWorkspace[ws.id] == design
+                && ws.panes.count == 2)
         r.check("其他項目都不開出預覽 tab", ws.panes.count == 2, "\(ws.panes.count)")
         answer = .preview
         click("docs/design.md")
@@ -130,6 +138,21 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         r.check("在新 tab 預覽：插在 A 與 B 之間", leaf?.tabs.map(\.id) == [a.id, p?.id ?? "-", b.id],
                 "\(leaf?.tabs.map(\.id) ?? [])")
         r.check("在新 tab 預覽：成為 focused tab", p != nil && ws.focusedPane === p)
+
+        // ⌃⌘-click 直接開新 tab 預覽，不彈出選單
+        asked.removeAll()
+        c.clickModifiersOverride = [.control, .command]
+        click("docs/design.md")
+        r.check("⌃⌘-click 略過選單直接在新 tab 預覽", asked.isEmpty && ws.panes.count == 4)
+        c.clickModifiersOverride = nil
+        let beforePaneCount = ws.panes.count
+        let staleWS2 = c.newWorkspace(cwd: fx.root.path)
+        let stalePane2 = staleWS2.panes[0]
+        c.closeWorkspace(staleWS2)
+        c.clickModifiersOverride = [.control, .command]
+        c.openTerminalLink("docs/design.md", kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN, pane: stalePane2, view: nil)
+        r.check("已關閉 pane 在 ⌃⌘-click 下不觸發預覽", staleWS2.panes.count == 1 && ws.panes.count == beforePaneCount)
+        c.clickModifiersOverride = nil
     }
 
     // MARK: Ghostty 的 OPEN_URL 走開啟選單（Task 23）

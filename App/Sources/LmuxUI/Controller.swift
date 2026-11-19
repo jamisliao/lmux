@@ -23,6 +23,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     /// Tests: treat the app as active/key (headless never is).
     public var assumeAppActive = false
+    /// Tests: simulated click modifier flags for testing URL/link click actions.
+    public var clickModifiersOverride: NSEvent.ModifierFlags?
     /// Tests: a headless window with the real titled chrome (toolbar, traffic lights, the titlebar
     /// view the buttons live in), ordered in off screen like the borderless one (never on a display).
     static var headlessTitled = false

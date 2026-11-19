@@ -6,11 +6,12 @@ import LmuxTerminal
 extension LmuxController {
     /// 開啟選單的項目。
     public enum OpenChoice: Equatable {
-        case preview, defaultApp, finder, copyPath
+        case inspectorPreview, preview, defaultApp, finder, copyPath
     }
 
     /// 選單的項目與順序（第 1 列的完整路徑不在這裡）。
     static let openMenuItems: [(title: String, choice: OpenChoice)] = [
+        ("在右側欄即時預覽", .inspectorPreview),
         ("在新 tab 預覽", .preview),
         ("用預設 app 開", .defaultApp),
         ("在 Finder 顯示", .finder),
@@ -28,6 +29,12 @@ extension LmuxController {
         let textOrFileLink = kind == GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN
             || (kind == GHOSTTY_ACTION_OPEN_URL_KIND_OSC8 && value.lowercased().hasPrefix("file://"))
         if textOrFileLink, let pane, let file = PreviewTarget.resolve(value, cwd: pane.cwd) {
+            guard isLivePane(pane) else { return }
+            let mods = clickModifiersOverride ?? NSEvent.modifierFlags
+            if mods.contains([.control, .command]) || (clickModifiersOverride != nil && mods.contains(.control)) {
+                newPreviewTab(file, after: pane)
+                return
+            }
             showOpenMenu(file, pane: pane, view: view)
             return
         }
@@ -39,6 +46,15 @@ extension LmuxController {
     private func isLivePane(_ pane: Pane) -> Bool {
         guard let ws = pane.workspace else { return false }
         return model.workspaces.contains { $0 === ws }
+    }
+
+    public func openInInspectorPreview(_ file: URL, workspace: Workspace? = nil) {
+        let ws = workspace ?? model.selected
+        if let wsID = ws?.id {
+            model.inspectorPreviewURLByWorkspace[wsID] = file
+        }
+        model.inspectorTab = .preview
+        model.inspectorVisible = true
     }
 
     /// 跳出開啟選單，執行使用者選的項目。
@@ -64,6 +80,9 @@ extension LmuxController {
             return
         }
         switch choice {
+        case .inspectorPreview:
+            openInInspectorPreview(file, workspace: pane.workspace)
+            focusCurrent()
         case .preview:
             newPreviewTab(file, after: pane)
         case .defaultApp:
