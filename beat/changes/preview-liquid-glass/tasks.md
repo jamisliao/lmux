@@ -752,16 +752,16 @@ git commit -m "feat(ui): build InspectorTraceView context gauge and live Tool Ca
   - `openTerminalLink`: 當驗證為可預覽本機檔案後，先檢查 `guard isLivePane(pane)`，若同時按住 `.control` + `.command`（或 `clickModifiersOverride` 包含 `.control`），略過選單直接 `newPreviewTab(file, after: pane)`；否則顯示 5 項 **開啟選單**。
   - `LmuxController.openInInspectorPreview(_ file: URL, workspace: Workspace? = nil)`：將目標記錄於該 workspace 的 `inspectorPreviewURLByWorkspace`，設定 `model.inspectorTab = .preview` 與 `model.inspectorVisible = true`。
 
-- [ ] **Step 1: 更新 `PreviewInteractions.swift`（驗證 5 項選單順序、「在右側欄即時預覽」選後設定 `inspectorTab == .preview`／`inspectorVisible == true` 不更動分割數、`⌃⌘`-click 直開預覽 tab 且 stale pane 不觸發，RED）**
+- [x] **Step 1: 更新 `PreviewInteractions.swift`（驗證 5 項選單順序、「在右側欄即時預覽」選後設定 `inspectorTab == .preview`／`inspectorVisible == true` 不更動分割數、`⌃⌘`-click 直開預覽 tab 且 stale pane 不觸發，RED）**
 
-- [ ] **Step 2: 實作 `OpenMenu.swift` 與 `Controller.swift` `openInInspectorPreview` / `clickModifiersOverride`**
+- [x] **Step 2: 實作 `OpenMenu.swift` 與 `Controller.swift` `openInInspectorPreview` / `clickModifiersOverride`**
 
-- [ ] **Step 3: 執行 `--preview` 驗證既有與新版 `open-menu` 檢查全數 PASS**
+- [x] **Step 3: 執行 `--preview` 驗證既有與新版 `open-menu` 檢查全數 PASS**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --preview`
 Expected: PASS
 
-- [ ] **Step 4: 提交 Task 10b-1**
+- [x] **Step 4: 提交 Task 10b-1**
 
 ```bash
 git add App/Sources/LmuxUI/OpenMenu.swift App/Sources/LmuxUI/Controller.swift App/Sources/lmux-apptest/PreviewInteractions.swift
