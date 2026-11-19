@@ -177,3 +177,45 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
         .accessibilityLabel(label)
     }
 }
+
+// MARK: - Inspector Container View
+
+public struct InspectorContainerView: View {
+    @Bindable var model: AppModel
+    let controller: LmuxController
+
+    public init(model: AppModel, controller: LmuxController) {
+        self.model = model
+        self.controller = controller
+    }
+
+    public var body: some View {
+        RightInspectorView(
+            model: model,
+            onLeavePreview: { [weak controller] in
+                controller?.previewCoordinator.onLeavePreview()
+            },
+            previewContent: {
+                InspectorPreviewPane(
+                    coordinator: controller.previewCoordinator
+                )
+            },
+            diffContent: {
+                InspectorDiffView(
+                    snapshot: controller.model.gitDiffService.snapshot,
+                    onOpenPreview: { [weak controller] url in
+                        if let sel = controller?.model.selected {
+                            controller?.previewCoordinator.load(url: url, workspaceID: sel.id)
+                            controller?.model.inspectorTab = .preview
+                        }
+                    }
+                )
+            },
+            traceContent: {
+                let disp = controller.model.telemetryStore?.display(for: model.selected?.focusedPane)
+                    ?? PaneTelemetryDisplay(model: nil, turnCount: 0, contextUsedTokens: 0, contextLimitTokens: 200_000, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, estimatedCostUSD: nil, contextPercent: 0, toolCalls: [], isActiveAgent: false)
+                InspectorTraceView(display: disp)
+            }
+        )
+    }
+}

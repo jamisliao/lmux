@@ -143,6 +143,9 @@ extension LmuxController {
         default:
             break
         }
+        if [.postToolUse, .postToolUseFailure, .stop].contains(e.kind), let cwd = pane.cwd {
+            model.gitDiffService.refresh(cwd: cwd)
+        }
         if pane.workspace === model.selected { scheduleOverlayRefresh(pane, delay: 0.25) }
 
         // Observed properties are set only when they change: an equal write still redraws the sidebar.
