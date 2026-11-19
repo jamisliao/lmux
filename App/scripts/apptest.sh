@@ -168,7 +168,23 @@ run_liquid_glass_suite() {
   fi
   LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
     "$BIN/lmux-apptest" --liquid-glass 2>/dev/null | filter || phase_failed $?
+  LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+    "$BIN/lmux-apptest" --liquid-glass-workbench 2>/dev/null | filter || phase_failed $?
+  LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+    "$BIN/lmux-apptest" --liquid-glass-restore 2>/dev/null | filter || phase_failed $?
 }
+if [ "${1:-}" = "--liquid-glass-workbench" ]; then
+  mkdir -p "$T/liquid-glass"
+  LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+    "$BIN/lmux-apptest" --liquid-glass-workbench 2>/dev/null | filter || phase_failed $?
+  exit $status
+fi
+if [ "${1:-}" = "--liquid-glass-restore" ]; then
+  mkdir -p "$T/liquid-glass"
+  LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+    "$BIN/lmux-apptest" --liquid-glass-restore 2>/dev/null | filter || phase_failed $?
+  exit $status
+fi
 if [ "${1:-}" = "--liquid-glass" ]; then
   run_liquid_glass_suite
   for arg in "$@"; do

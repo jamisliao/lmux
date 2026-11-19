@@ -876,16 +876,16 @@ git commit -m "feat(ui): assemble 3-column RootView, titlebarHost chrome, narrow
   - `BarLayout`: 新增 `var isCollapsed: Bool = false` 與 `static let collapseDragThreshold: CGFloat = 42`；向下拖曳至總高度 `<= 42` 時收合並記錄原本展開 `extra`，從收合狀態向上拖曳立即展開；點擊摘要列切換 `isCollapsed`（收合後僅顯示把手＋摘要列高度，並透過 `controller.setSidebarResizing(_:)` 驅動全域 backdrop 降級）。
   - 摘要列顯示鈴鐺圖示（有未讀時右上方顯示紅點）、`Inbox` 標題與藍色未讀膠囊；`NotificationCard` 改為圓角玻璃卡片 + 未讀左側 `6pt` 藍點 + 由 `sourcePane(entry, in: controller.model)?.branch` 顯示分支資訊，同時完整遵守 `notification-cards.feature`（無任務名稱／第一二行重複不重複顯示等規則）。
 
-- [ ] **Step 1: 在 `LiquidGlass.swift` 加入 `BarLayout` 點擊摘要列收合/展開與拖曳過低閾值自動收合測試（RED）**
+- [x] **Step 1: 在 `LiquidGlass.swift` 加入 `BarLayout` 點擊摘要列收合/展開與拖曳過低閾值自動收合測試（RED）**
 
-- [ ] **Step 2: 實作 `NotificationBar.swift` 與 `NotificationCard.swift`**
+- [x] **Step 2: 實作 `NotificationBar.swift` 與 `NotificationCard.swift`**
 
-- [ ] **Step 3: 執行 `--liquid-glass` 與 `--bell` 驗證所有通知 bar 互動與既有 `notification-cards` 場景全數 PASS**
+- [x] **Step 3: 執行 `--liquid-glass` 與 `--bell` 驗證所有通知 bar 互動與既有 `notification-cards` 場景全數 PASS**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass --bell`
 Expected: ALL PASS
 
-- [ ] **Step 4: 提交 Task 11b**
+- [x] **Step 4: 提交 Task 11b**
 
 ```bash
 git add App/Sources/LmuxNotificationBar/NotificationBar.swift App/Sources/LmuxNotificationBar/NotificationCard.swift App/Sources/lmux-apptest/LiquidGlass.swift
@@ -908,7 +908,7 @@ git commit -m "feat(notification-bar): add collapse toggle, drag-threshold colla
 **Interfaces:**
 - Produces (`lmux-apptest`): `runLiquidGlassWorkbench()` 與重啟驗證 `--liquid-glass-restore`（驗證 `inspectorVisible`、`inspectorWidth`、`inspectorTab` 與 `BarLayout.isCollapsed` / `extra` 持久化還原）。
 
-- [ ] **Step 1: 建立 `LiquidGlassWorkbenchTests.swift` 完整覆蓋剩餘 `@e2e` 與 `@error-handling` 場景**
+- [x] **Step 1: 建立 `LiquidGlassWorkbenchTests.swift` 完整覆蓋剩餘 `@e2e` 與 `@error-handling` 場景**
 
 包含真實環境端到端測試（標註對應 `// @feature:` 與 `// @scenario:`）：
 1. **全域毛玻璃 & Reduce Transparency（4 個面板 × Light/Dark）**：檢查 `SidebarBackdrop`、`TitlebarBackdrop`、`RightInspectorBackdrop`、`FooterBackdrop` 在一般模式開啟模糊＋亮邊，在 `accessibilityDisplayShouldReduceTransparency` / `forceOpaque` 時全數切換為主題不透明實底。
@@ -917,9 +917,9 @@ git commit -m "feat(notification-bar): add collapse toggle, drag-threshold colla
 4. **即時 Socket Hook → Footer & Inspector 執行記錄串流 + 切換 Workspace 上下文同步**：送入 `sendHook`（`UserPromptSubmit` → `PreToolUse` → `PostToolUse` → `PostToolUseFailure`）確認 Footer 與 Inspector 同步更新，切換至另一目錄／Git 分支 Workspace 時 Titlebar、Diff、Preview 列表、Footer 同步刷新（或正確進入空狀態），並在重開（`--liquid-glass-restore`）還原 `inspectorVisible`、`inspectorWidth`、`inspectorTab`。
 5. **Inspector 即時預覽完整瀏覽**：驗證快速切換 chips → `‹`（Back）→ `›`（Forward）→ `↻`（Reload）、`LIVE` 狀態與 `WindowFooterView` 各區點擊跳轉。
 
-- [ ] **Step 2: 補齊 `liquid-glass-app.feature` 與 `open-menu.feature` 所有場景的 `@covered-by:` 標註（同時檢查所有 `@behavior` 與 `@e2e` 測試檔皆有 `// @feature:` 與 `// @scenario:`）**
+- [x] **Step 2: 補齊 `liquid-glass-app.feature` 與 `open-menu.feature` 所有場景的 `@covered-by:` 標註（同時檢查所有 `@behavior` 與 `@e2e` 測試檔皆有 `// @feature:` 與 `// @scenario:`）**
 
-- [ ] **Step 3: 執行完整自動化測試矩陣（含 `--restore` 等非 `--quick` 檢查）**
+- [x] **Step 3: 執行完整自動化測試矩陣（含 `--restore` 等非 `--quick` 檢查）**
 
 Run:
 1. `swift test --package-path Core`
@@ -928,11 +928,11 @@ Run:
 4. `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/bundle.sh`
 Expected: 100% PASS（zero skipped/failed cases），產出 clean release `App/build/lmux.app`（`sdk 27.2`）。
 
-- [ ] **Step 4: 雙主題實機啟動／截圖 1:1 對照驗收並紀錄於 `manual-verification.md`**
+- [x] **Step 4: 雙主題實機啟動／截圖 1:1 對照驗收並紀錄於 `manual-verification.md`**
 
 分別以淺色（`LMUX_APPEARANCE=light`）與深色（`LMUX_APPEARANCE=dark`）啟動 `App/build/lmux.app`（使用隔離 `LMUX_STATE_DIR`），逐項比對 `preview-mockup.html`（44pt Titlebar 置中膠囊、左側玻璃卡片＋藥丸＋搜尋＋通知 bar、中央圓角終端＋Pane Tab Strip＋active-ring、右側 Inspector 三分頁、32pt Footer、所有拖曳降級）並於 `beat/changes/preview-liquid-glass/manual-verification.md` 紀錄檢核結果，同時於背景保持最新版前景 app 供使用者立即實測。
 
-- [ ] **Step 5: 提交 Task 12**
+- [x] **Step 5: 提交 Task 12**
 
 ```bash
 git add App/Sources/lmux-apptest/ App/scripts/apptest.sh beat/changes/preview-liquid-glass/features/ beat/changes/preview-liquid-glass/manual-verification.md

@@ -85,6 +85,10 @@ final class Delegate: NSObject, NSApplicationDelegate {
                 code = await runGpuIdle()
             } else if args.contains("--liquid-glass-telemetry") {
                 code = await runLiquidGlassTelemetry()
+            } else if args.contains("--liquid-glass-workbench") {
+                code = await runLiquidGlassWorkbench()
+            } else if args.contains("--liquid-glass-restore") {
+                code = await runLiquidGlassRestore()
             } else if args.contains("--liquid-glass") {
                 code = await runLiquidGlass()
             } else if args.contains("--codex-real-restore") {

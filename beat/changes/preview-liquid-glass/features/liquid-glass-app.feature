@@ -53,6 +53,7 @@
     而且 **workspace** 選取卡片、狀態藥丸、搜尋列與 **底部狀態列** 文字對比度皆應符合無障礙閱讀標準
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlassWorkbenchTests.swift
   場景: 玻璃背景顯示毛玻璃與高光邊緣，開啟減少透明度時切換為不透明實底
     假設 系統目前未開啟「減少透明度」且未設定跟隨終端機底色
     那麼 左側邊欄與 **右側 Inspector** 背景應啟用系統毛玻璃材質並顯示物理高光邊緣
@@ -60,6 +61,7 @@
     那麼 所有玻璃邊欄應停用即時毛玻璃混合並切換為對應主題的不透明實底
 
   @e2e @edge-case
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlassWorkbenchTests.swift
   場景: 系統開啟減少動態效果時縮短過渡並停止呼吸動畫
     當 系統開啟「減少動態效果」
     那麼 側邊欄展開收合、卡片交互與注意力指示器的動態過渡時間應自動歸零或停用
@@ -87,6 +89,7 @@
     而且 **通知 bar** 應顯示未讀藍點、調整手把膠囊與圓角玻璃 **通知卡片**
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlass.swift
   場景: 中央終端窗格顯示圓角卡片、焦點光環與 Pane Tab Strip
     假設 目前 **workspace** 包含分割窗格與多個分頁
     當 使用者在分割窗格間切換焦點
@@ -134,6 +137,8 @@
     那麼 **右側 Inspector** 應自動展開並直接切換至「執行記錄」或「變更 (Diff)」分頁
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlassWorkbenchTests.swift
+  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
   場景: 右側 Inspector 即時預覽支援檔案切換、重整與雙軌開啟
     假設 目前 **workspace** 目錄內包含多種 **可預覽檔案**
     當 使用者在 **右側 Inspector** 的「即時預覽」點擊快速切換檔案、上一頁／下一頁或重新整理
@@ -151,6 +156,7 @@
     那麼 **右側 Inspector**「變更 (Diff)」與「執行記錄」以及 **底部狀態列** 應顯示清晰的空狀態而非過時資料
 
   @e2e @edge-case
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlassWorkbenchTests.swift
   場景: 切換不同 workspace 時右側 Inspector 與底部狀態列同步切換上下文
     假設 使用者建立了兩個指向不同目錄與 Git 分支的 **workspace**
     當 使用者在左側欄切換選取的 **workspace**
@@ -161,6 +167,7 @@
   # ===========================================================================
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlassWorkbenchTests.swift
   場景大綱: 拖曳調整左右側邊欄、分割線、通知 bar 或視窗縮放期間啟動拖曳降級
     當 使用者開始拖曳 <調整目標>
     那麼 所有玻璃背景應立即進入 **拖曳降級** 狀態，並在最小／最大範圍限制內更新尺寸
@@ -176,6 +183,7 @@
       | 視窗邊緣縮放           |
 
   @e2e @error-handling
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlassWorkbenchTests.swift
   場景: 拖曳途中視窗或應用程式失去焦點時自動清除拖曳降級
     假設 使用者正在拖曳 **右側 Inspector** 或 **通知 bar** 的調整手把並處於 **拖曳降級** 狀態
     當 視窗失去焦點、應用程式轉入背景或拖曳手把從視圖樹移除

@@ -18,6 +18,8 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
     // @scenario: 不是存在的可預覽檔案時，照原本流程
     // @scenario: shell 沒回報目前目錄時，相對路徑照原本流程
     // @scenario: 選「在新 tab 預覽」開出預覽 tab
+    // @scenario: 選「在右側欄即時預覽」載入檔案至右側 Inspector
+    // @scenario: 按住 ⌃⌘ 點擊可預覽檔案直接開成預覽 tab
     // @scenario: 選單的其他項目
     // @scenario: 不選任何項目就關掉選單
     do {
@@ -307,7 +309,7 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
 
     // MARK: WorkspacePreviewCoordinator（Task 10b-2）
     // @feature: liquid-glass-app.feature
-    // @scenario: WorkspacePreviewCoordinator 生命週期隔離與安全外部連結開啟
+    // @scenario: 右側 Inspector 即時預覽支援檔案切換、重整與雙軌開啟
     do {
         r.section = "preview-coordinator"
         var prompts: [UntrustedURLPrompt] = []
