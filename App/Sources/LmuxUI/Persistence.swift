@@ -11,6 +11,9 @@ public struct LayoutFile: Codable, Equatable {
     public var selected: String?
     public var sidebarVisible = true
     public var sidebarWidth: Double = Double(LmuxTokens.Layout.sidebarWidthDefault)
+    public var inspectorVisible = true
+    public var inspectorWidth: Double = Double(LmuxTokens.Layout.rightInspectorWidthDefault)
+    public var inspectorTab: InspectorTab = .preview
 
     public init() {}
 
@@ -23,7 +26,12 @@ public struct LayoutFile: Codable, Equatable {
         workspaces = try c.decodeIfPresent([WorkspaceState].self, forKey: .workspaces) ?? []
         selected = try c.decodeIfPresent(String.self, forKey: .selected)
         sidebarVisible = try c.decodeIfPresent(Bool.self, forKey: .sidebarVisible) ?? true
-        sidebarWidth = try c.decodeIfPresent(Double.self, forKey: .sidebarWidth) ?? Double(LmuxTokens.Layout.sidebarWidthDefault)
+        let rawSidebarWidth = try c.decodeIfPresent(Double.self, forKey: .sidebarWidth) ?? Double(LmuxTokens.Layout.sidebarWidthDefault)
+        sidebarWidth = min(max(rawSidebarWidth, Double(LmuxTokens.Layout.sidebarWidthMin)), Double(LmuxTokens.Layout.sidebarWidthMax))
+        inspectorVisible = try c.decodeIfPresent(Bool.self, forKey: .inspectorVisible) ?? true
+        let rawInspectorWidth = try c.decodeIfPresent(Double.self, forKey: .inspectorWidth) ?? Double(LmuxTokens.Layout.rightInspectorWidthDefault)
+        inspectorWidth = min(max(rawInspectorWidth, Double(LmuxTokens.Layout.rightInspectorWidthMin)), Double(LmuxTokens.Layout.rightInspectorWidthMax))
+        inspectorTab = try c.decodeIfPresent(InspectorTab.self, forKey: .inspectorTab) ?? .preview
     }
 
     public struct WorkspaceState: Codable, Equatable {
@@ -170,6 +178,9 @@ extension LmuxController {
         f.selected = f.workspaces.contains { $0.id == model.selectedID } ? model.selectedID : f.workspaces.first?.id
         f.sidebarVisible = model.sidebarVisible
         f.sidebarWidth = Double(model.sidebarWidth)
+        f.inspectorVisible = model.inspectorVisible
+        f.inspectorWidth = Double(model.inspectorWidth)
+        f.inspectorTab = model.inspectorTab
         return f
     }
 
@@ -250,6 +261,10 @@ extension LmuxController {
         model.sidebarVisible = file.sidebarVisible
         model.sidebarWidth = min(max(CGFloat(file.sidebarWidth), LmuxTokens.Layout.sidebarWidthMin),
                                  LmuxTokens.Layout.sidebarWidthMax)
+        model.inspectorVisible = file.inspectorVisible
+        model.inspectorWidth = min(max(CGFloat(file.inspectorWidth), LmuxTokens.Layout.rightInspectorWidthMin),
+                                   LmuxTokens.Layout.rightInspectorWidthMax)
+        model.inspectorTab = file.inspectorTab
 
         var dropped = false
         defer { if dropped { keepAside() } }

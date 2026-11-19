@@ -188,6 +188,15 @@ if [ "${1:-}" = "--contrast" ]; then
   fi
   exit $status
 fi
+run_compat_suite() {
+  mkdir -p "$T/compat"
+  LMUX_COMPAT_TERMINFO="$APP_DIR/../vendor/ghostty/zig-out/share/terminfo" LMUX_STATE_DIR="$T/compat" "$BIN/lmux-apptest" --compat 2>/dev/null \
+    | filter || status=1
+}
+if [ "${1:-}" = "--compat" ]; then
+  run_compat_suite
+  exit $status
+fi
 LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"

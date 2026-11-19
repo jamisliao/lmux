@@ -3,6 +3,7 @@
 
 import Foundation
 import AppKit
+import LmuxTokens
 @testable import LmuxUI
 
 @MainActor
@@ -130,6 +131,69 @@ func runLiquidGlassTelemetry() async -> Int32 {
     _ = await waitFor(3) { !svc.isLoading && svc.snapshot.cwd == targetDir.path }
     r.check("rapid directory switch keeps the final directory result",
             svc.snapshot.cwd == targetDir.path && svc.snapshot.isGitRepo && svc.snapshot.branch == "target-branch")
+
+    // 6. LayoutFile backwards-compatible decoding & out-of-bounds clamping
+    let legacyJSON = """
+    {
+      "version": 1,
+      "workspaces": [],
+      "sidebarVisible": true,
+      "sidebarWidth": 260.0
+    }
+    """
+    if let legacyLayout = try? JSONDecoder().decode(LayoutFile.self, from: Data(legacyJSON.utf8)) {
+        r.check("legacy layout.json decodes with default inspectorVisible == true", legacyLayout.inspectorVisible == true)
+        r.check("legacy layout.json decodes with default inspectorWidth == 320", legacyLayout.inspectorWidth == Double(LmuxTokens.Layout.rightInspectorWidthDefault))
+        r.check("legacy layout.json decodes with default inspectorTab == .preview", legacyLayout.inspectorTab == .preview)
+    } else {
+        r.check("legacy layout.json decodes with default inspectorVisible == true", false)
+        r.check("legacy layout.json decodes with default inspectorWidth == 320", false)
+        r.check("legacy layout.json decodes with default inspectorTab == .preview", false)
+    }
+
+    let outOfBoundsJSON = """
+    {
+      "version": 1,
+      "workspaces": [],
+      "sidebarVisible": true,
+      "sidebarWidth": 260.0,
+      "inspectorVisible": false,
+      "inspectorWidth": 999.0,
+      "inspectorTab": "diff"
+    }
+    """
+    if let clampedLayout = try? JSONDecoder().decode(LayoutFile.self, from: Data(outOfBoundsJSON.utf8)) {
+        r.check("out-of-bounds inspectorWidth 999 is clamped to 500", clampedLayout.inspectorWidth == Double(LmuxTokens.Layout.rightInspectorWidthMax))
+        r.check("inspectorVisible is restored as false", clampedLayout.inspectorVisible == false)
+        r.check("inspectorTab is restored as diff", clampedLayout.inspectorTab == .diff)
+    } else {
+        r.check("out-of-bounds inspectorWidth 999 is clamped to 500", false)
+        r.check("inspectorVisible is restored as false", false)
+        r.check("inspectorTab is restored as diff", false)
+    }
+
+    // 7. AppModel inspector & workspaceFilter defaults and roundtrip
+    let model = AppModel()
+    r.check("AppModel default inspectorVisible is true", model.inspectorVisible == true)
+    r.check("AppModel default inspectorWidth is 320", model.inspectorWidth == LmuxTokens.Layout.rightInspectorWidthDefault)
+    r.check("AppModel default inspectorTab is .preview", model.inspectorTab == .preview)
+    r.check("AppModel default workspaceFilter is .all", model.workspaceFilter == .all)
+    r.check("AppModel reduceMotionOverride initially nil", model.reduceMotionOverride == nil)
+
+    let testWorkspaceURL = URL(fileURLWithPath: "/tmp/sample-preview.html")
+    model.inspectorPreviewURLByWorkspace["ws-1"] = testWorkspaceURL
+    r.check("inspectorPreviewURLByWorkspace remembers preview url",
+            model.inspectorPreviewURLByWorkspace["ws-1"] == testWorkspaceURL)
+
+    // Snapshot layout roundtrip
+    let c = makeController()
+    c.model.inspectorVisible = false
+    c.model.inspectorWidth = 360
+    c.model.inspectorTab = .trace
+    let snap = c.snapshotLayout()
+    r.check("snapshotLayout includes inspectorVisible false", snap.inspectorVisible == false)
+    r.check("snapshotLayout includes inspectorWidth 360", snap.inspectorWidth == 360)
+    r.check("snapshotLayout includes inspectorTab .trace", snap.inspectorTab == .trace)
 
     print("\nRESULT: \(r.failed == 0 ? "PASS" : "FAIL") (\(r.passed)/\(r.passed + r.failed) checks passed)\n")
     return r.failed == 0 ? 0 : 1
