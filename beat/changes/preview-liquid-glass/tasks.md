@@ -663,16 +663,16 @@ git commit -m "feat(ui): upgrade Pane Tab Strip with pill tabs, status dots, and
   - `@MainActor final class RightInspectorResizeHandle: NSView`（追蹤 `isDragging`、`viewWillMove(toWindow: nil)` 重置並回呼 `onDrag`/`onDragStateChange`）
   - `struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceContent: View>: View`（頂部 3 段式 Segmented Control：`即時預覽` / `變更 (Diff)` / `執行記錄`；切換離開 `.preview` 時觸發 `onLeavePreview()` 歸還鍵盤焦點，<= 200 行）
 
-- [ ] **Step 1: 在 `LiquidGlass.swift` 新增 `RightInspectorBackdrop`（正常毛玻璃＋亮邊 vs `forceOpaque`/Reduce Transparency 實底）與 `RightInspectorResizeHandle` 移除自動清除 `isDragging` 測試（RED）**
+- [x] **Step 1: 在 `LiquidGlass.swift` 新增 `RightInspectorBackdrop`（正常毛玻璃＋亮邊 vs `forceOpaque`/Reduce Transparency 實底）與 `RightInspectorResizeHandle` 移除自動清除 `isDragging` 測試（RED）**
 
-- [ ] **Step 2: 實作 `RightInspectorView.swift`**
+- [x] **Step 2: 實作 `RightInspectorView.swift`**
 
-- [ ] **Step 3: 執行 `--liquid-glass` 驗證 GREEN**
+- [x] **Step 3: 執行 `--liquid-glass` 驗證 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass`
 Expected: ALL PASS
 
-- [ ] **Step 4: 提交 Task 10a-1**
+- [x] **Step 4: 提交 Task 10a-1**
 
 ```bash
 git add App/Sources/LmuxUI/RightInspectorView.swift App/Sources/lmux-apptest/LiquidGlass.swift
