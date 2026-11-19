@@ -1,4 +1,5 @@
 import AppKit
+import LmuxTokens
 
 // plugin 掛載點：讓 LmuxUI 以外的 module 在 sidebar 最底部放一條橫列。
 // RootView 與 `root` 都是 internal，所以由這裡對外開一個 public 入口。
@@ -20,7 +21,14 @@ extension LmuxController {
     /// 以目前的視窗大小，bar 最高可以到多高（超過的部分 RootView 排版時也會截掉）。
     public var sidebarAccessoryMaxHeight: CGFloat {
         guard let root else { return 0 }
-        return max(0, root.bounds.height - root.titlebarHeight - 32 - 30 - RootView.sidebarListMinHeight)
+        return max(
+            0,
+            root.bounds.height
+                - root.titlebarHeight
+                - LmuxTokens.Layout.footerHeight
+                - LmuxTokens.Layout.workspaceFilterHeaderHeight
+                - RootView.sidebarListMinHeight
+        )
     }
 
     /// 設定或查詢 sidebar 與全域 backdrop 是否正處於拖曳調整大小狀態（拖曳時暫停毛玻璃模糊，放開後恢復）。

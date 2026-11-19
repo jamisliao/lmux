@@ -56,6 +56,20 @@ _Avoid_: agent stats, token metrics
 在拖曳調整邊欄寬度、**通知 bar** 高度、窗格分割線或縮放視窗期間，暫時停用背景毛玻璃模糊混合以確保 60fps 流暢度的保護機制。
 _Avoid_: blur-off, opaque fallback mode
 
+**UI 原型**:
+位於根目錄的單檔互動式 HTML 原型（`preview-mockup.html`），用來對照驗證雙主題液態玻璃外觀與工作台互動；原型裡的 **視窗底部狀態列** 即對應正式 App 的 **底部狀態列**。
+_Avoid_: mockup HTML
+
+**摘要列**:
+**通知 bar** 最上方顯示鈴鐺與未讀數、支援點擊收合通知清單的固定列。
+_Avoid_: notification header
+
+**High-Key Crystal / Obsidian Midnight**:
+lmux 雙主題 Apple Liquid Glass 視覺模式：淺色高透 **High-Key Crystal** 與深色沉穩 **Obsidian Midnight**。
+
+**active-ring**:
+目前擁有鍵盤焦點之中央分割格周圍顯示的 `1.5pt` 藍色聚焦邊框光環（與未讀待輸入的琥珀色光環區隔）。
+
 ## Relationships
 
 - 每個 **workspace** 擁有一棵分割樹，每個葉節點（分割格）上方有一個 **Pane Tab Strip**，管理一個以上的 **終端機 tab** 或 **預覽 tab**

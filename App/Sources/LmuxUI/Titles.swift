@@ -84,6 +84,21 @@ extension LmuxController {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
+    /// Debounced incremental telemetry refresh from the active transcript/rollout via `TranscriptCache`.
+    func scheduleTelemetryRefresh(_ pane: Pane, delay: TimeInterval = 0.2) {
+        guard pane.transcriptPath != nil else { return }
+        telemetryWork[pane.id]?.cancel()
+        let work = DispatchWorkItem { [weak self, weak pane] in
+            MainActor.assumeIsolated {
+                guard let self, let pane else { return }
+                self.telemetryWork[pane.id] = nil
+                self.refreshTurns(pane)
+            }
+        }
+        telemetryWork[pane.id] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
     /// Adopt Claude's `custom-title` / `ai-title` from the transcript (appended bytes only).
     func refreshTitleFromClaude(_ pane: Pane) {
         guard let path = pane.transcriptPath else { return }
@@ -95,6 +110,7 @@ extension LmuxController {
             let snap = codex ? await self.transcripts.codexSnapshot(pane: pane.id, path: path, withTitle: true)
                              : await self.transcripts.snapshot(pane: pane.id, path: path)
             guard let snap else { return }
+            self.model.telemetryStore?.recordSnapshot(snap.telemetry, for: pane.id)
             var s = state
             s.apply(customTitle: snap.customTitle, aiTitle: snap.aiTitle)
             // A rename (or another session) while the file was read wins.

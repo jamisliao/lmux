@@ -37,23 +37,23 @@ func runLiquidGlassTelemetry() async -> Int32 {
     +New Line 1
     +New Line 2
      End
-    diff --git a/Sources/App.swift b/Sources/App.swift
+    diff --git a/my notes.md b/my notes.md
     index 1111111..2222222 100644
-    --- a/Sources/App.swift
-    +++ b/Sources/App.swift
+    --- a/my notes.md
+    +++ b/my notes.md
     @@ -10,3 +10,2 @@
-     func run() {
+     old line
     -    old()
     +    new()
-     }
+     end
     """
     let filesDiff = GitDiffService.parseUnifiedDiff(sampleDiff, maxLines: 2)
-    r.check("parseUnifiedDiff parses multiple files with maxLines truncation",
+    r.check("parseUnifiedDiff parses multiple files including spaces with maxLines truncation",
             filesDiff.count == 2
             && filesDiff[0].path == "README.md"
             && filesDiff[0].lines.count <= 2
             && filesDiff[0].truncated == true
-            && filesDiff[1].path == "Sources/App.swift")
+            && filesDiff[1].path == "my notes.md")
 
     // 2. Malicious git config diff.external test
     let fm = FileManager.default
@@ -68,21 +68,24 @@ func runLiquidGlassTelemetry() async -> Int32 {
     // Configure malicious diff.external
     _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "config", "diff.external", "touch \(pwnedPath)"])
     let testFile = repoA.appendingPathComponent("test.txt")
-    try? "hello\n".write(to: testFile, atomically: true, encoding: .utf8)
+    try? "line1\nline2\n".write(to: testFile, atomically: true, encoding: .utf8)
     _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "add", "test.txt"])
     _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "-c", "user.name=test", "-c", "user.email=t@e.com", "commit", "-m", "init"])
-    try? "hello\nworld\n".write(to: testFile, atomically: true, encoding: .utf8)
+    try? "line1\nline2-edited\nline3\n".write(to: testFile, atomically: true, encoding: .utf8)
 
     let svc = GitDiffService()
     svc.refresh(cwd: repoA.path, immediate: true)
     let refreshed = await waitFor(3) { !svc.isLoading && svc.snapshot.isGitRepo }
+    let testDiff = svc.snapshot.files.first(where: { $0.path == "test.txt" })
     r.check("refresh on git repo finishes without loading", refreshed)
     r.check("malicious diff.external is never executed", !fm.fileExists(atPath: pwnedPath))
-    r.check("snapshot has correct branch and stats",
+    r.check("snapshot has real unified diff hunks, exact added/deleted counts, and branch",
             svc.snapshot.isGitRepo
             && svc.snapshot.branch == "main"
-            && svc.snapshot.totalAdded >= 1
-            && svc.snapshot.files.contains(where: { $0.path == "test.txt" }))
+            && svc.snapshot.totalAdded == 2
+            && svc.snapshot.totalDeleted == 1
+            && (testDiff?.lines.contains(where: { $0.kind == .hunkHeader && $0.text.hasPrefix("@@") }) == true),
+            "added=\(svc.snapshot.totalAdded) deleted=\(svc.snapshot.totalDeleted) lines=\(testDiff?.lines.count ?? 0)")
 
     // 3. Unborn HEAD repository
     let unbornRepo = fm.temporaryDirectory.appendingPathComponent("unborn-\(UUID().uuidString)")

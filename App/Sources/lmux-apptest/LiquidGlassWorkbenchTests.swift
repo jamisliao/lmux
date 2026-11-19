@@ -97,6 +97,19 @@ func runLiquidGlassWorkbench() async -> Int32 {
     c.setSidebarResizing(false)
     r.check("通知 bar 放開後 4 個 Backdrop 恢復", !sb.isResizing)
 
+    // (c2) 中央窗格分割線 SplitContainerView 拖曳
+    let splitBase = c.model.selected!.focusedPane!
+    if let splitP2 = c.split(splitBase, .right), let splitNode = c.model.selected!.root.find(splitBase)?.parent,
+       let splitContainer = c.splitView(for: splitNode) {
+        splitContainer.mouseDown(with: NSEvent.mouseEvent(with: .leftMouseDown, location: NSPoint(x: splitContainer.bounds.midX, y: splitContainer.bounds.midY), modifierFlags: [], timestamp: 0, windowNumber: w.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1)!)
+        r.check("中央窗格分割線拖曳時 4 個 Backdrop 同時 isResizing",
+                sb.isResizing && tb.isResizing && rb.isResizing && fb.isResizing)
+        splitContainer.mouseUp(with: NSEvent.mouseEvent(with: .leftMouseUp, location: NSPoint(x: splitContainer.bounds.midX, y: splitContainer.bounds.midY), modifierFlags: [], timestamp: 0, windowNumber: w.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 0)!)
+        r.check("中央窗格分割線放開後 4 個 Backdrop 恢復",
+                !sb.isResizing && !tb.isResizing && !rb.isResizing && !fb.isResizing)
+        c.closePane(splitP2)
+    }
+
     // (d) 視窗縮放 live resize
     NotificationCenter.default.post(name: NSWindow.willStartLiveResizeNotification, object: w)
     r.check("視窗開始縮放時 4 個 Backdrop 同時 isResizing",
@@ -147,6 +160,16 @@ func runLiquidGlassWorkbench() async -> Int32 {
         c.handleHook(postTool)
     }
 
+    if let preTool2 = try? HookEvent(paneID: p1.id, payload: [
+        "hook_event_name": "PreToolUse",
+        "session_id": "wb-s1",
+        "tool_name": "Edit",
+        "tool_input": ["file_path": "Tokens.swift"],
+        "tool_use_id": "call_wb_2"
+    ]) {
+        c.handleHook(preTool2)
+    }
+
     if let failTool = try? HookEvent(paneID: p1.id, payload: [
         "hook_event_name": "PostToolUseFailure",
         "session_id": "wb-s1",
@@ -158,12 +181,17 @@ func runLiquidGlassWorkbench() async -> Int32 {
     }
 
     let d1 = store.display(for: p1)
-    r.check("Hook 事件記錄入 ToolCallStream", d1.toolCalls.count >= 2)
+    r.check("Hook 事件單次精確記錄入 ToolCallStream (無重複)",
+            d1.turnCount == 1
+            && d1.toolCalls.count == 2
+            && d1.toolCalls[0].status == .succeeded
+            && d1.toolCalls[1].status == .failed,
+            "turns=\(d1.turnCount) calls=\(d1.toolCalls.map { "\($0.id):\($0.status)" })")
 
     let git1 = GitDiffSnapshot(cwd: "/tmp", isGitRepo: true, branch: "feat/workbench", totalAdded: 4, totalDeleted: 1)
     let pres1 = WindowFooterView.presentation(telemetry: d1, git: git1)
-    r.check("WindowFooterView presentation 包含模型、Tool 與 Git 統計",
-            pres1.gitBranchText == "feat/workbench" && pres1.gitChangesText == "+4 -1")
+    r.check("WindowFooterView presentation 包含模型、最新 Tool 與 Git 統計",
+            pres1.gitBranchText == "feat/workbench" && pres1.gitChangesText == "+4 -1" && pres1.latestToolText == "✕ Edit")
 
     // 切換至 Workspace 2（非 Git 空狀態或乾淨上下文）
     let ws2 = c.newWorkspace(select: true)
@@ -175,7 +203,7 @@ func runLiquidGlassWorkbench() async -> Int32 {
     let git2 = GitDiffSnapshot(cwd: "/tmp", isGitRepo: false)
     let pres2 = WindowFooterView.presentation(telemetry: d2, git: git2)
     r.check("切換 Workspace 2 後 Footer presentation 進入乾淨/空狀態",
-            pres2.gitBranchText == "—" && pres2.gitChangesText == "—")
+            pres2.gitBranchText == "—" && pres2.gitChangesText == "—" && pres2.latestToolText == nil)
 
     // 切回 Workspace 1，驗證狀態復原
     c.select(ws1)
@@ -199,7 +227,8 @@ func runLiquidGlassWorkbench() async -> Int32 {
     c.model.inspectorTab = .diff
     c.saveNow()
 
-    let barLayout = NotificationBarPlugin.install(on: c, defaults: .standard)
+    let wbDefaults = UserDefaults(suiteName: "dev.lmux.apptest.lg-workbench")!
+    let barLayout = NotificationBarPlugin.install(on: c, defaults: wbDefaults)
     barLayout.extra = 45
     barLayout.isCollapsed = true
     barLayout.save()
@@ -218,10 +247,13 @@ func runLiquidGlassRestore() async -> Int32 {
             "actual=\(c.model.inspectorWidth)")
     r.check("重開驗證：inspectorTab 還原為 .diff", c.model.inspectorTab == .diff)
 
-    let barLayout = NotificationBarPlugin.install(on: c, defaults: .standard)
+    let suiteName = "dev.lmux.apptest.lg-workbench"
+    let wbDefaults = UserDefaults(suiteName: suiteName)!
+    let barLayout = NotificationBarPlugin.install(on: c, defaults: wbDefaults)
     r.check("重開驗證：BarLayout.isCollapsed 正確還原", barLayout.isCollapsed == true)
     r.check("重開驗證：BarLayout.extra 還原為 45pt", abs(barLayout.extra - 45) < 0.5,
             "actual=\(barLayout.extra)")
+    wbDefaults.removePersistentDomain(forName: suiteName)
 
     return finish(r, c)
 }

@@ -14,6 +14,7 @@ public final class FooterBackdrop: NSView {
 
     public var forceOpaque = false { didSet { update() } }
     public var isResizing = false { didSet { if isResizing != oldValue { update() } } }
+    private var accessibilityObserver: NSObjectProtocol?
 
     public var isOpaqueFallback: Bool {
         forceOpaque || isResizing || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
@@ -27,11 +28,17 @@ public final class FooterBackdrop: NSView {
         addSubview(material)
         addSubview(tint)
         addSubview(specular)
-        NSWorkspace.shared.notificationCenter.addObserver(
+        accessibilityObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.update() }
         }
         update()
+    }
+
+    deinit {
+        if let accessibilityObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(accessibilityObserver)
+        }
     }
 
     public required init?(coder: NSCoder) { fatalError() }
@@ -42,7 +49,7 @@ public final class FooterBackdrop: NSView {
         let opaque = isOpaqueFallback
         material.isHidden = opaque
         specular.isHidden = opaque
-        tint.color = (opaque ? T.Colors.sidebarBackground : T.Colors.rightSidebarTint).nsColor
+        tint.color = (opaque ? T.Colors.sidebarBackground : T.Colors.footerBackground).nsColor
         specular.color = T.Colors.specularHighlight.nsColor
     }
 
@@ -58,6 +65,7 @@ public final class FooterBackdrop: NSView {
 
 public struct FooterPresentation: Equatable {
     public let modelText: String
+    public let latestToolText: String?
     public let turnsText: String
     public let rendererText: String
     public let contextPercentText: String
@@ -67,6 +75,7 @@ public struct FooterPresentation: Equatable {
 
     public init(
         modelText: String,
+        latestToolText: String? = nil,
         turnsText: String,
         rendererText: String,
         contextPercentText: String,
@@ -75,6 +84,7 @@ public struct FooterPresentation: Equatable {
         gitChangesText: String
     ) {
         self.modelText = modelText
+        self.latestToolText = latestToolText
         self.turnsText = turnsText
         self.rendererText = rendererText
         self.contextPercentText = contextPercentText
@@ -109,6 +119,13 @@ public struct WindowFooterView: View {
 
     public static func presentation(telemetry: PaneTelemetryDisplay?, git: GitDiffSnapshot?) -> FooterPresentation {
         let model = telemetry?.model ?? "—"
+        let latestToolText: String?
+        if let lastTool = telemetry?.toolCalls.last {
+            let prefix = lastTool.status == .running ? "▶" : (lastTool.status == .failed ? "✕" : "✓")
+            latestToolText = "\(prefix) \(lastTool.name)"
+        } else {
+            latestToolText = nil
+        }
         let turns: String
         if let t = telemetry, t.turnCount > 0 {
             turns = "Turn \(t.turnCount)"
@@ -119,8 +136,9 @@ public struct WindowFooterView: View {
         let percentText: String
         let ratio: Double?
         if let t = telemetry, t.contextLimitTokens > 0 {
-            percentText = "\(Int(t.contextPercent))%"
-            ratio = Double(t.contextPercent) / 100.0
+            let clamped = min(max(t.contextPercent, 0), 1)
+            percentText = "\(Int((clamped * 100).rounded()))%"
+            ratio = clamped
         } else {
             percentText = "—"
             ratio = nil
@@ -130,6 +148,7 @@ public struct WindowFooterView: View {
 
         return FooterPresentation(
             modelText: model,
+            latestToolText: latestToolText,
             turnsText: turns,
             rendererText: renderer,
             contextPercentText: percentText,
@@ -144,7 +163,7 @@ public struct WindowFooterView: View {
         let g = git ?? model.gitDiffService.snapshot
         let pres = Self.presentation(telemetry: telem, git: g)
         HStack(spacing: 8) {
-            // Left: Agent + Renderer
+            // Left: Agent + Tool + Renderer
             HStack(spacing: 6) {
                 Button {
                     onInspectTab?(.trace)
@@ -154,6 +173,12 @@ public struct WindowFooterView: View {
                             .font(.system(size: 10))
                         Text(pres.modelText)
                             .font(.system(size: 10, weight: .medium))
+                        if let tool = pres.latestToolText {
+                            Text("· \(tool)")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(T.Colors.textSecondary.color)
+                                .lineLimit(1)
+                        }
                         if pres.turnsText != "—" {
                             Text(pres.turnsText)
                                 .font(.system(size: 9))

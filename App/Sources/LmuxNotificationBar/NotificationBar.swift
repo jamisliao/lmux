@@ -162,8 +162,8 @@ public final class BarLayout {
         let newExtra = start - translationHeight
         let totalHeight = NotificationBarPlugin.minHeight(pluginRows: pluginRows) + newExtra
         if totalHeight <= Self.collapseDragThreshold {
-            if !isCollapsed {
-                savedExtraBeforeCollapse = max(0, start)
+            if !isCollapsed && start > 0 {
+                savedExtraBeforeCollapse = start
             }
             isCollapsed = true
             extra = 0
@@ -200,7 +200,7 @@ struct NotificationBar: View {
     var body: some View {
         let pluginRows = host?.rows ?? []
         VStack(spacing: 0) {
-            BarResizeHandle(layout: layout, controller: controller) {
+            BarResizeHandle(layout: layout, controller: controller, pluginRowCount: pluginRows.count) {
                 controller.sidebarAccessoryMaxHeight - NotificationBarPlugin.minHeight(pluginRows: pluginRows.count)
             }
             if let host, !pluginRows.isEmpty {
@@ -220,6 +220,7 @@ struct NotificationBar: View {
 struct BarResizeHandle: View {
     let layout: BarLayout
     let controller: LmuxController
+    let pluginRowCount: Int
     /// 以目前的視窗大小，`extra` 最多可以到多少。
     let maxExtra: () -> CGFloat
     @State private var hover = false
@@ -252,7 +253,7 @@ struct BarResizeHandle: View {
         .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
             .updating($isGestureDragging) { _, state, _ in state = true }
             .onChanged { value in
-                layout.updateDrag(translationHeight: value.translation.height, maxExtra: maxExtra(), on: controller)
+                layout.updateDrag(translationHeight: value.translation.height, maxExtra: maxExtra(), on: controller, pluginRows: pluginRowCount)
             }
             .onEnded { _ in
                 layout.endDrag(on: controller)

@@ -43,6 +43,7 @@ public struct PaneTelemetryDisplay: Equatable {
 @MainActor @Observable
 public final class AgentTelemetryStore {
     private var snapshotsByPane: [String: AgentTelemetrySnapshot] = [:]
+    @ObservationIgnored var onRefreshTranscript: (@MainActor (Pane) -> Void)?
 
     public init() {}
 
@@ -74,25 +75,34 @@ public final class AgentTelemetryStore {
     }
 
     public func noteHookUpdate(for pane: Pane) {
-        // Can be refreshed when hook delivers tool events
+        guard pane.transcriptPath != nil else { return }
+        onRefreshTranscript?(pane)
     }
 
     public func refreshTranscriptTelemetry(for pane: Pane) {
+        if let onRefreshTranscript {
+            onRefreshTranscript(pane)
+            return
+        }
         guard let path = pane.transcriptPath else { return }
+        let paneID = pane.id
         Task { [weak self] in
-            if CodexRollout.isRollout(path) {
-                let rollout = CodexRollout(url: URL(fileURLWithPath: path))
-                _ = try? rollout.update()
-                await MainActor.run {
-                    self?.recordSnapshot(rollout.telemetry, for: pane.id)
-                }
-            } else {
-                let index = TranscriptIndex(url: URL(fileURLWithPath: path))
-                _ = try? index.update()
-                await MainActor.run {
-                    self?.recordSnapshot(index.telemetry, for: pane.id)
-                }
-            }
+            let telemetry = await Task.detached(priority: .utility) {
+                Self.readTelemetry(at: path)
+            }.value
+            self?.recordSnapshot(telemetry, for: paneID)
+        }
+    }
+
+    private nonisolated static func readTelemetry(at path: String) -> AgentTelemetrySnapshot {
+        if CodexRollout.isRollout(path) {
+            let rollout = CodexRollout(url: URL(fileURLWithPath: path))
+            _ = try? rollout.update()
+            return rollout.telemetry
+        } else {
+            let index = TranscriptIndex(url: URL(fileURLWithPath: path))
+            _ = try? index.update()
+            return index.telemetry
         }
     }
 

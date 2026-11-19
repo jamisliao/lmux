@@ -11,8 +11,10 @@ final class AgentTelemetryTests: XCTestCase {
         let u1 = #"{"type":"user","uuid":"u1","parentUuid":null,"turnOrigin":"human","message":{"role":"user","content":"hi"}}"#
         let aNoUsage = #"{"type":"assistant","uuid":"a0","parentUuid":"u1","message":{"id":"m0","role":"assistant","model":"claude-sonnet-4-20250514","content":[{"type":"text","text":"..."}]}}"#
         let a1 = #"{"type":"assistant","uuid":"a1","parentUuid":"a0","message":{"id":"m1","role":"assistant","model":"claude-sonnet-4-20250514","usage":{"input_tokens":1000,"cache_creation_input_tokens":500,"cache_read_input_tokens":2000,"output_tokens":300},"content":[{"type":"text","text":"hello"}]}}"#
+        let a1SecondBlock = #"{"type":"assistant","uuid":"a1b","parentUuid":"a1","message":{"id":"m1","role":"assistant","model":"claude-sonnet-4-20250514","usage":{"input_tokens":1000,"cache_creation_input_tokens":500,"cache_read_input_tokens":2000,"output_tokens":300},"content":[{"type":"tool_use","id":"t1","name":"Read","input":{}}]}}"#
+        let aSidechain = #"{"type":"assistant","uuid":"as1","parentUuid":"a1b","isSidechain":true,"message":{"id":"ms1","role":"assistant","model":"claude-haiku-3-5","usage":{"input_tokens":9000,"output_tokens":999},"content":[{"type":"text","text":"side"}]}}"#
         let badLine = #"{"type":"assistant","corrupt": "#
-        try (u1 + "\n" + aNoUsage + "\n" + a1 + "\n" + badLine + "\n").write(to: tmp, atomically: true, encoding: .utf8)
+        try (u1 + "\n" + aNoUsage + "\n" + a1 + "\n" + a1SecondBlock + "\n" + aSidechain + "\n" + badLine + "\n").write(to: tmp, atomically: true, encoding: .utf8)
 
         let idx = TranscriptIndex(url: tmp)
         _ = try idx.update()
@@ -24,6 +26,7 @@ final class AgentTelemetryTests: XCTestCase {
         XCTAssertEqual(idx.telemetry.outputTokens, 300)
         XCTAssertEqual(idx.telemetry.contextLimitTokens, 200_000)
         XCTAssertNotNil(idx.telemetry.estimatedCostUSD)
+        XCTAssertEqual(idx.telemetry.estimatedCostUSD ?? -1, 0.009975, accuracy: 0.000001)
 
         let firstParsed = idx.bytesParsed
         let u2 = #"{"type":"user","uuid":"u2","parentUuid":"a1","turnOrigin":"human","message":{"role":"user","content":"next"}}"#
@@ -60,6 +63,7 @@ final class AgentTelemetryTests: XCTestCase {
         XCTAssertEqual(rollout.telemetry.contextUsedTokens, 12000)
         XCTAssertEqual(rollout.telemetry.cacheReadTokens, 8000)
         XCTAssertEqual(rollout.telemetry.contextLimitTokens, 272_000)
+        XCTAssertEqual(rollout.telemetry.estimatedCostUSD ?? -1, 0.03675, accuracy: 0.000001)
 
         let firstBytes = rollout.bytesParsed
         let ctx = #"{"timestamp":"2026-11-18T00:00:03Z","type":"turn_context","payload":{"model":"o3"}}"#

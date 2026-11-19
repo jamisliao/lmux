@@ -413,7 +413,10 @@ func runLiquidGlass() async -> Int32 {
         turnCount: 3,
         contextUsedTokens: 65_000,
         contextLimitTokens: 100_000,
-        contextPercent: 65,
+        contextPercent: 0.65,
+        toolCalls: [
+            ToolCallEntry(id: "t1", name: "Bash", category: .bash, argument: "swift test", status: .succeeded, startedAtNanos: 0)
+        ],
         isActiveAgent: true
     )
     let dummyGit = GitDiffSnapshot(
@@ -424,8 +427,9 @@ func runLiquidGlass() async -> Int32 {
         totalDeleted: 10
     )
     let activePres = WindowFooterView.presentation(telemetry: dummyTelem, git: dummyGit)
-    r.check("WindowFooterView: active presentation shows model, turns, context percent, git branch and diff stats",
-            activePres.modelText == "gpt-5-4" && activePres.turnsText == "Turn 3" && activePres.rendererText == "Metal" &&
+    r.check("WindowFooterView: active presentation shows model, latest tool, turns, 0.0...1.0 context percent, git branch and diff stats",
+            activePres.modelText == "gpt-5-4" && activePres.latestToolText == "✓ Bash" &&
+            activePres.turnsText == "Turn 3" && activePres.rendererText == "Metal" &&
             activePres.contextPercentText == "65%" && activePres.contextRatio == 0.65 &&
             activePres.gitBranchText == "feat/preview" && activePres.gitChangesText == "+42 -10")
 

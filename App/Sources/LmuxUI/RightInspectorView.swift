@@ -14,6 +14,7 @@ public final class RightInspectorBackdrop: NSView {
 
     public var forceOpaque = false { didSet { update() } }
     public var isResizing = false { didSet { if isResizing != oldValue { update() } } }
+    private var accessibilityObserver: NSObjectProtocol?
 
     public var isOpaqueFallback: Bool {
         forceOpaque || isResizing || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
@@ -27,11 +28,17 @@ public final class RightInspectorBackdrop: NSView {
         addSubview(material)
         addSubview(tint)
         addSubview(specular)
-        NSWorkspace.shared.notificationCenter.addObserver(
+        accessibilityObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.update() }
         }
         update()
+    }
+
+    deinit {
+        if let accessibilityObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(accessibilityObserver)
+        }
     }
 
     public required init?(coder: NSCoder) { fatalError() }
@@ -149,10 +156,11 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
     private func tabButton(_ tab: InspectorTab, label: String, icon: String) -> some View {
         let isSelected = model.inspectorTab == tab
         Button {
-            if model.inspectorTab == .preview && tab != .preview {
+            let wasPreview = model.inspectorTab == .preview
+            model.inspectorTab = tab
+            if wasPreview && tab != .preview {
                 onLeavePreview?()
             }
-            model.inspectorTab = tab
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: icon)
@@ -194,25 +202,31 @@ public struct InspectorContainerView: View {
             model: model,
             onLeavePreview: { [weak controller] in
                 controller?.previewCoordinator.onLeavePreview()
+                controller?.focusCurrent()
             },
-            previewContent: {
-                InspectorPreviewPane(
-                    coordinator: controller.previewCoordinator
-                )
+            previewContent: { [weak controller] in
+                if let controller {
+                    InspectorPreviewPane(
+                        coordinator: controller.previewCoordinator,
+                        candidates: model.gitDiffService.snapshot.previewCandidates,
+                        onSelectCandidate: { [weak controller] url in
+                            controller?.openInInspectorPreview(url)
+                        }
+                    )
+                }
             },
-            diffContent: {
+            diffContent: { [weak controller] in
                 InspectorDiffView(
-                    snapshot: controller.model.gitDiffService.snapshot,
+                    snapshot: model.gitDiffService.snapshot,
                     onOpenPreview: { [weak controller] url in
                         if let sel = controller?.model.selected {
-                            controller?.previewCoordinator.load(url: url, workspaceID: sel.id)
-                            controller?.model.inspectorTab = .preview
+                            controller?.openInInspectorPreview(url, workspace: sel)
                         }
                     }
                 )
             },
-            traceContent: {
-                let disp = controller.model.telemetryStore?.display(for: model.selected?.focusedPane)
+            traceContent: { [weak controller] in
+                let disp = controller?.model.telemetryStore?.display(for: model.selected?.focusedPane)
                     ?? PaneTelemetryDisplay(model: nil, turnCount: 0, contextUsedTokens: 0, contextLimitTokens: 200_000, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, estimatedCostUSD: nil, contextPercent: 0, toolCalls: [], isActiveAgent: false)
                 InspectorTraceView(display: disp)
             }

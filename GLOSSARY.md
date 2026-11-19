@@ -30,12 +30,12 @@ _Avoid_: disclosure triangle、折疊鈕、下拉箭頭
 sidebar 展開 workspace 後，縮排顯示在該 workspace 下方的個別 **tab** 項目列。
 _Avoid_: tab row、子項目、分頁列
 
-**tab 列**:
-終端機區域上方橫向排列同一格裡各個 **tab** 的那一列。
-_Avoid_: tab bar、tab strip、分頁列、水平分頁列
+**Pane Tab Strip**（原稱 **tab 列**）:
+終端機區域上方橫向排列同一格裡各個 **tab** 與右側分割／關閉操作按鈕的那一列。
+_Avoid_: tab bar、分頁列、水平分頁列
 
 **釘選的 tab**:
-固定在 **tab 列** 最前面、不能用關閉按鈕或 ⌘W 關閉的 **tab**。
+固定在 **Pane Tab Strip**（**tab 列**）最前面、不能用關閉按鈕或 ⌘W 關閉的 **tab**。
 _Avoid_: pinned tab、固定分頁
 
 ### 預覽
@@ -119,11 +119,11 @@ _Avoid_: session 名稱、標題、tab 名稱
 _Avoid_: 正式介面、mockup 網頁、preview 頁面
 
 **右側 Inspector**:
-**UI 原型** 視窗右側可收合與調寬的輔助面板，提供「即時預覽」、「變更 (Diff)」與「執行記錄」三個分頁。
+視窗右側可收合與調寬（`⌥⌘B`）的輔助面板，提供「即時預覽」、「變更 (Diff)」與「執行記錄」三個分頁（最早見於 **UI 原型**，現已實作於正式 macOS App）。
 _Avoid_: 右側欄、預覽面板、預覽 tab
 
-**視窗底部狀態列**:
-**UI 原型** 橫跨視窗最底部的常駐狀態列，用來顯示目前 agent、工具活動、context 負載與 Git 變更並快速展開 **右側 Inspector**。
+**底部狀態列**（原型稱 **視窗底部狀態列**）:
+橫跨視窗最底部的常駐狀態列，用來顯示目前 agent、工具活動、context 負載與 Git 變更並快速展開 **右側 Inspector**（現已實作於正式 macOS App）。
 _Avoid_: 底部 bar（這是指左側 **通知 bar**）、footer、狀態 bar
 
 ## Relationships

@@ -15,12 +15,15 @@ public final class WorkspacePreviewCoordinator {
     public weak var window: NSWindow?
     public private(set) var workspaceID: String?
     public private(set) var currentURL: URL?
-    @ObservationIgnored
     public private(set) var previewView: PreviewView?
+    public private(set) var canGoBack = false
+    public private(set) var canGoForward = false
     public var onFileChange: ((URL) -> Void)?
 
-    public var canGoBack: Bool { previewView?.webView.canGoBack ?? false }
-    public var canGoForward: Bool { previewView?.webView.canGoForward ?? false }
+    @ObservationIgnored
+    private var backObserver: NSKeyValueObservation?
+    @ObservationIgnored
+    private var forwardObserver: NSKeyValueObservation?
 
     public init(window: NSWindow? = nil) {
         self.window = window
@@ -42,6 +45,12 @@ public final class WorkspacePreviewCoordinator {
             self?.currentURL = newURL
             self?.onFileChange?(newURL)
         }
+        backObserver = pv.webView.observe(\.canGoBack, options: [.initial, .new]) { [weak self] wv, _ in
+            MainActor.assumeIsolated { self?.canGoBack = wv.canGoBack }
+        }
+        forwardObserver = pv.webView.observe(\.canGoForward, options: [.initial, .new]) { [weak self] wv, _ in
+            MainActor.assumeIsolated { self?.canGoForward = wv.canGoForward }
+        }
         self.previewView = pv
     }
 
@@ -62,6 +71,12 @@ public final class WorkspacePreviewCoordinator {
     }
 
     public func closeCurrent() {
+        backObserver?.invalidate()
+        backObserver = nil
+        forwardObserver?.invalidate()
+        forwardObserver = nil
+        canGoBack = false
+        canGoForward = false
         previewView?.close()
         previewView = nil
     }
@@ -137,6 +152,7 @@ public struct InspectorPreviewPane: View {
 
             if let pv = coordinator.previewView {
                 PreviewRepresentable(previewView: pv)
+                    .id(ObjectIdentifier(pv))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 emptyState

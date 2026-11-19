@@ -602,7 +602,7 @@ public final class TabStripView: NSView {
     }
 
     func button(at p: NSPoint) -> Int? {
-        if newTabRect.contains(p) { return 100 }
+        if newTabRect.maxX <= tabsWidth && newTabRect.contains(p) { return 100 }
         return (0..<3).first { buttonRect($0).contains(p) }
     }
 

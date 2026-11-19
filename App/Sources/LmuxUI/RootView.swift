@@ -28,6 +28,8 @@ final class RootView: FlippedView {
     let sidebarEdge = ColorView(T.Colors.separator.nsColor)
     let resizeHandle = SidebarResizeHandle()
     private var resizeObservers: [NSObjectProtocol] = []
+    private var titlebarHostObserver: NSObjectProtocol?
+    let chipState: TitlebarChipState
     let cluster: SidebarHostingView<TitlebarCluster>
     let centerChipHost: SidebarHostingView<TitlebarCenterChip>
     let rightClusterHost: SidebarHostingView<TitlebarRightCluster>
@@ -41,7 +43,6 @@ final class RootView: FlippedView {
     /// Full-width 32pt footer
     let footerBackdrop = FooterBackdrop()
     let footerHost: SidebarHostingView<WindowFooterView>
-    var currentChipAvailableWidth: CGFloat = 400
 
     /// plugin 掛在 sidebar 最底部的橫列（`installSidebarAccessory`）；nil 表示沒有。
     var sidebarAccessory: (view: NSView, height: CGFloat)? {
@@ -60,10 +61,11 @@ final class RootView: FlippedView {
         self.model = model
         self.controller = controller
         self.titlebarHeight = titlebarHeight
+        self.chipState = TitlebarChipState(workspace: model.selected, availableWidth: 400)
         sidebarHost = SidebarHostingView(rootView: SidebarView(model: model, controller: controller))
         workspaceFilterHeaderHost = SidebarHostingView(rootView: WorkspaceFilterHeader(model: model, controller: controller))
         cluster = SidebarHostingView(rootView: TitlebarCluster(model: model, controller: controller))
-        centerChipHost = SidebarHostingView(rootView: TitlebarCenterChip(model: model, workspace: model.selected, availableWidth: 400))
+        centerChipHost = SidebarHostingView(rootView: TitlebarCenterChip(model: model, state: chipState))
         rightClusterHost = SidebarHostingView(rootView: TitlebarRightCluster(model: model, controller: controller))
         rightInspectorHost = SidebarHostingView(rootView: InspectorContainerView(model: model, controller: controller))
         footerHost = SidebarHostingView(rootView: WindowFooterView(model: model, onInspectTab: { [weak controller] tab in
@@ -149,6 +151,9 @@ final class RootView: FlippedView {
 
     deinit {
         resizeObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        if let titlebarHostObserver {
+            NotificationCenter.default.removeObserver(titlebarHostObserver)
+        }
     }
 
     func setAllBackdropsResizing(_ active: Bool) {
@@ -179,13 +184,17 @@ final class RootView: FlippedView {
 
     /// Move the titlebar buttons into the window's titlebar view (see `titlebarHost`).
     func attachTitlebar(_ host: NSView) {
+        if let titlebarHostObserver {
+            NotificationCenter.default.removeObserver(titlebarHostObserver)
+            self.titlebarHostObserver = nil
+        }
         titlebarHost = host
         for v in [cluster, centerChipHost, rightClusterHost] as [NSView] {
             v.removeFromSuperview()
             host.addSubview(v)
         }
         host.postsFrameChangedNotifications = true
-        NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: host, queue: .main) { [weak self] _ in
+        titlebarHostObserver = NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: host, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.needsLayout = true }
         }
         needsLayout = true
@@ -232,7 +241,9 @@ final class RootView: FlippedView {
         lightsObservers.forEach(NotificationCenter.default.removeObserver)
         lightsObservers = []
         guard on, let w = window, let close = w.standardWindowButton(.closeButton) else { return }
-        let relayout: () -> Void = { DispatchQueue.main.async { [weak self] in self?.needsLayout = true } }
+        let relayout: () -> Void = { [weak self] in
+            DispatchQueue.main.async { [weak self] in self?.needsLayout = true }
+        }
         var v: NSView? = close
         while let x = v {
             lightsObservations += [x.observe(\.isHidden) { _, _ in relayout() }, x.observe(\.alphaValue) { _, _ in relayout() },
@@ -306,7 +317,7 @@ final class RootView: FlippedView {
         let inset = fullScreen && !trafficLightsVisible ? T.Layout.rowInsetX
             : lights.map { max(T.Layout.trafficLightsInset, $0.maxX + 12) } ?? T.Layout.trafficLightsInset
         let clusterX = inset
-        let rightClusterX = max(clusterX + cw + 16, W - rw - rcw - 8)
+        let rightClusterX = max(clusterX + cw + 16, W - rcw - 8)
 
         if let host = titlebarHost, let lights {
             let midLeft = host.convert(NSPoint(x: clusterX, y: lights.midY), from: nil)
@@ -325,8 +336,8 @@ final class RootView: FlippedView {
         let maxChipW = max(60, rightBound - leftBound)
         let chipW = min(400, maxChipW)
         let chipX = max(leftBound, min(rightBound - chipW, (W - chipW) / 2))
-        currentChipAvailableWidth = chipW
-        centerChipHost.rootView = TitlebarCenterChip(model: model, workspace: model.selected, availableWidth: chipW)
+        if abs(chipState.availableWidth - chipW) > 0.5 { chipState.availableWidth = chipW }
+        if chipState.workspace !== model.selected { chipState.workspace = model.selected }
 
         if let host = titlebarHost, let lights {
             let midCenter = host.convert(NSPoint(x: chipX, y: lights.midY), from: nil)
@@ -364,6 +375,9 @@ final class RootView: FlippedView {
 
     func updateAllBackdropAppearances() {
         updateClusterAppearance()
+        let app = window?.effectiveAppearance ?? NSApp.effectiveAppearance
+        rightInspectorHost.appearance = app
+        footerHost.appearance = app
     }
 
     /// Content header (POLISH.md 5): chip · title · `⎇ branch · ~/path`, without repeats.
@@ -381,7 +395,7 @@ final class RootView: FlippedView {
         // On the terminal's background: its text takes the appearance that reads there.
         header.adoptAppearance(on: bg)
         updateClusterAppearance()
-        centerChipHost.rootView = TitlebarCenterChip(model: model, workspace: ws, availableWidth: currentChipAvailableWidth)
+        if chipState.workspace !== ws { chipState.workspace = ws }
         let (branch, path) = ws.headerMeta
         // Same texts (most calls: a hook event, a focus refresh): no layout or redraw.
         var changed = false
@@ -535,11 +549,11 @@ final class ContentHeaderView: TitlebarDragView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         title.font = T.Typography.windowTitle.nsFont
-        title.textColor = T.Colors.textPrimary.nsColor
+        title.textColor = .clear
         title.lineBreakMode = .byTruncatingTail
         for l in [branch, subtitle] {
             l.font = .systemFont(ofSize: 11.5)
-            l.textColor = T.Colors.textTertiary.nsColor
+            l.textColor = .clear
         }
         branch.lineBreakMode = .byTruncatingTail
         subtitle.lineBreakMode = .byTruncatingMiddle
@@ -551,7 +565,8 @@ final class ContentHeaderView: TitlebarDragView {
         }
         zoomIcon.image = NSImage(systemSymbolName: "arrow.up.left.and.arrow.down.right",
                                  accessibilityDescription: "Zoomed")?.withSymbolConfiguration(.init(pointSize: 9.5, weight: .regular))
-        zoomIcon.contentTintColor = T.Colors.textTertiary.nsColor
+        zoomIcon.contentTintColor = .clear
+        zoomIcon.alphaValue = 0
         zoomIcon.isHidden = true
         addSubview(zoomIcon)
     }
@@ -620,24 +635,8 @@ final class ContentHeaderView: TitlebarDragView {
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        background.setFill()
-        bounds.fill()
         T.Colors.separator.nsColor.setFill()
         NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: 1).fill()
-        dotColor.setFill()
-        let midY = (bounds.height - 1) / 2
-        NSBezierPath(roundedRect: NSRect(x: padX, y: midY - chip / 2, width: chip, height: chip), xRadius: 2.5, yRadius: 2.5).fill()
-        let meta = T.Colors.textTertiary.nsColor
-        if let gx = branchGlyphX, let img = Self.branchGlyph {
-            let tinted = NSImage(size: img.size, flipped: false) { r in img.draw(in: r); meta.set(); r.fill(using: .sourceAtop); return true }
-            tinted.draw(in: NSRect(x: gx, y: midY - img.size.height / 2 + 0.5, width: img.size.width, height: img.size.height))
-        }
-        if let b = modeBadge, let r = badgeRect { ModeBadge.draw(b, in: r) }
-        if let sx = separatorX {
-            let a: [NSAttributedString.Key: Any] = [.font: subtitle.font!, .foregroundColor: meta]
-            let sz = ("·" as NSString).size(withAttributes: a)
-            ("·" as NSString).draw(at: NSPoint(x: sx + (14 - sz.width) / 2, y: subtitle.frame.minY + 1), withAttributes: a)
-        }
     }
 }
 
@@ -645,17 +644,28 @@ final class ContentHeaderView: TitlebarDragView {
 final class SidebarResizeHandle: NSView {
     var onDrag: ((CGFloat) -> Void)?
     var onDragStateChange: ((Bool) -> Void)?
+    private(set) var isDragging = false
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override var mouseDownCanMoveWindow: Bool { false }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeLeftRight) }
     override func mouseDown(with event: NSEvent) {
+        isDragging = true
         onDragStateChange?(true)
     }
     override func mouseDragged(with event: NSEvent) {
-        guard let sv = superview else { return }
+        guard isDragging, let sv = superview else { return }
         onDrag?(sv.convert(event.locationInWindow, from: nil).x)
     }
     override func mouseUp(with event: NSEvent) {
+        isDragging = false
         onDragStateChange?(false)
+    }
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        super.viewWillMove(toWindow: newWindow)
+        if newWindow == nil && isDragging {
+            isDragging = false
+            onDragStateChange?(false)
+        }
     }
 }

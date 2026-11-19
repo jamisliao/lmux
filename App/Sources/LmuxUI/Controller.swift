@@ -105,6 +105,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     /// Hook runner pid -> whether it is Codex's shared app-server (`codex app-server …`).
     var sharedCodexServers: [Int32: Bool] = [:]
     var overlayWork: [String: DispatchWorkItem] = [:]
+    var telemetryWork: [String: DispatchWorkItem] = [:]
     /// Per pane: the pending look at the transcript after Esc / Ctrl+C (`interruptKeyPressed`).
     var interruptChecks: [String: UUID] = [:]
     /// `lmux wait` calls in progress (Wait.swift), looked at once per runloop turn a state changed in.
@@ -170,7 +171,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     /// Seconds until it fires, as last scheduled (tests).
     var attentionDelay: TimeInterval?
     var attentionClock: (() -> Date)?
-    var reduceMotionOverride: Bool?
+    var reduceMotionOverride: Bool? {
+        get { model.reduceMotionOverride }
+        set { model.reduceMotionOverride = newValue }
+    }
     var settingsModel: SettingsModel?
     /// The cmux import sheet's model (headless: built, never shown) and the window frame it applied.
     var cmuxImportModel: CmuxImportModel?
@@ -189,6 +193,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         super.init()
         if model.telemetryStore == nil {
             model.telemetryStore = AgentTelemetryStore()
+        }
+        model.telemetryStore?.onRefreshTranscript = { [weak self] pane in
+            self?.scheduleTelemetryRefresh(pane)
         }
         history = HistoryModel(paths: paths, controller: self)
         notifier.onActivate = { [weak self] paneID in
@@ -759,6 +766,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         }
         model.selectedID = ws.id
         model.gitDiffService.refresh(cwd: ws.focusedPane?.cwd ?? ws.panes.first?.cwd)
+        if let activePane = ws.focusedPane ?? ws.panes.first, activePane.transcriptPath != nil {
+            scheduleTelemetryRefresh(activePane, delay: 0.02)
+        }
         rebuildContent()
         focusCurrent()
         scheduleSave()
@@ -834,12 +844,16 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     }
 
     public func showInspectorTab(_ tab: InspectorTab) {
+        let wasPreview = model.inspectorTab == .preview
         model.inspectorTab = tab
         if !model.inspectorVisible {
             model.inspectorVisible = true
         }
         root.needsLayout = true
         scheduleSave()
+        if wasPreview && tab != .preview {
+            focusCurrent()
+        }
     }
 
     // MARK: - Splits
@@ -1068,6 +1082,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     public func focus(_ pane: Pane) {
         guard let ws = pane.workspace else { return }
         model.gitDiffService.refresh(cwd: pane.cwd)
+        if pane.transcriptPath != nil { scheduleTelemetryRefresh(pane, delay: 0.02) }
         // A tab behind another one is brought to the front first (⇧⌘J, a notification, unread).
         let switched = ws.root.find(pane).map { showTab(pane, in: $0, ws) } ?? false
         if switched { scheduleSave() }
@@ -1534,7 +1549,8 @@ public final class LmuxWindow: NSWindow {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let chars = (event.charactersIgnoringModifiers ?? "").lowercased()
         let asciiChars = Self.asciiEquivalent(event)?.charactersIgnoringModifiers?.lowercased() ?? chars
-        if flags == .command && (chars == "b" || asciiChars == "b") {
+        if flags == .command && (chars == "b" || asciiChars == "b"),
+           controller?.settings.shortcuts["toggleSidebar"] == nil {
             if !(firstResponder is NSText) {
                 controller?.toggleSidebar()
                 return true
