@@ -69,6 +69,7 @@
   # ===========================================================================
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlass.swift
   場景: 標題列置中顯示目前 workspace 資訊膠囊與快速操作按鈕
     假設 目前選取的 **workspace** 名稱為 "lmux-app" 且位於 Git 分支與工作目錄
     當 視窗完成排版與外觀更新
