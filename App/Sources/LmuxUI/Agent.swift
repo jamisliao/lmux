@@ -165,6 +165,7 @@ extension LmuxController {
         // A codex that reports its own state (OSC 7501) has it from there: hooks only bring the
         // text of its alerts (and a late one fills in the row's detail, without a second alert).
         if e.agent == .codex, pane.codexReport != nil {
+            pane.agent.recordToolEvent(e)
             switch e.kind {
             case .stop where !e.isSubagent:
                 pane.codexTurnReply = e.lastAssistantMessage
@@ -183,6 +184,7 @@ extension LmuxController {
                 break
             }
             schedulePaneChrome(pane)
+            model.telemetryStore?.noteHookUpdate(for: pane)
             return
         }
 
@@ -280,6 +282,7 @@ extension LmuxController {
     /// is a shell again: no agent state, no input label, and its title goes back to the shell's
     /// (the session's auto title lives on in History). A title the user set stays.
     func resetAfterClaude(_ pane: Pane) {
+        model.telemetryStore?.clear(paneID: pane.id)
         forgetCodexReport(pane)
         pane.claudeSessionID = nil
         pane.lastReply = nil
@@ -361,6 +364,7 @@ extension LmuxController {
     /// missed (cmux #1027/#2576): the agent process is untouched, and the next hook event updates
     /// the pane normally again.
     public func clearStatus(_ pane: Pane) {
+        model.telemetryStore?.clear(paneID: pane.id)
         pane.agent = PaneAgent()
         pane.failed = false
         pane.alertDetail = nil

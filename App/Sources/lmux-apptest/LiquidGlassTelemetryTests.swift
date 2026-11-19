@@ -3,7 +3,9 @@
 
 import Foundation
 import AppKit
+import LmuxHooks
 import LmuxTokens
+import LmuxTranscript
 @testable import LmuxUI
 
 @MainActor
@@ -194,6 +196,67 @@ func runLiquidGlassTelemetry() async -> Int32 {
     r.check("snapshotLayout includes inspectorVisible false", snap.inspectorVisible == false)
     r.check("snapshotLayout includes inspectorWidth 360", snap.inspectorWidth == 360)
     r.check("snapshotLayout includes inspectorTab .trace", snap.inspectorTab == .trace)
+
+    // 8. AgentTelemetryStore, Codex codexReport tool streaming, and sessionEnd cleanup
+    let ws = c.model.workspaces.first!
+    let pane = ws.panes.first!
+    let store = c.model.telemetryStore ?? AgentTelemetryStore()
+    c.model.telemetryStore = store
+
+    let initialDisplay = store.display(for: pane)
+    r.check("initial telemetry has 0 turns and inactive",
+            initialDisplay.turnCount == 0 && !initialDisplay.isActiveAgent)
+
+    let fakeTelemetry = AgentTelemetrySnapshot(
+        model: "claude-sonnet-4.5",
+        turnCount: 2,
+        contextUsedTokens: 15_000,
+        contextLimitTokens: 200_000,
+        inputTokens: 10_000,
+        outputTokens: 500,
+        cacheReadTokens: 4_500,
+        estimatedCostUSD: 0.05
+    )
+    store.recordSnapshot(fakeTelemetry, for: pane.id)
+    var d = store.display(for: pane)
+    r.check("recordSnapshot updates display model and tokens",
+            d.model == "claude-sonnet-4.5" && d.turnCount == 2 && d.contextUsedTokens == 15_000)
+
+    // Verify turnCount takes max(jsonl.turnCount, toolStream.turnCount)
+    var promptEvent = HookEvent(paneID: pane.id, name: "UserPromptSubmit")
+    promptEvent.agent = .claude
+    pane.agent.recordToolEvent(promptEvent)
+    pane.agent.recordToolEvent(promptEvent)
+    pane.agent.recordToolEvent(promptEvent) // toolStream.turnCount = 3 > 2
+    d = store.display(for: pane)
+    r.check("display turnCount uses max of jsonl and toolStream", d.turnCount == 3)
+
+    // Verify Codex in codexReport mode still captures tool events via HookEvent
+    pane.codexReport = .working
+    pane.agentKind = .codex
+    var toolEvent = try! HookEvent(paneID: pane.id, payload: [
+        "hook_event_name": "PreToolUse",
+        "session_id": "codex-1",
+        "tool_name": "Bash",
+        "tool_input": ["command": "make test"],
+        "tool_use_id": "call_cdx_1"
+    ])
+    toolEvent.agent = .codex
+    c.handleHook(toolEvent)
+    d = store.display(for: pane)
+    r.check("codexReport mode records tool events into ToolCallStream",
+            d.toolCalls.contains(where: { $0.id == "call_cdx_1" && $0.name == "Bash" && $0.category == .bash }))
+
+    // Verify sessionEnd clears telemetry snapshot
+    var endEvent = try! HookEvent(paneID: pane.id, payload: [
+        "hook_event_name": "SessionEnd",
+        "session_id": "codex-1"
+    ])
+    endEvent.agent = .codex
+    c.handleHook(endEvent)
+    d = store.display(for: pane)
+    r.check("sessionEnd clears telemetry snapshot in AgentTelemetryStore",
+            d.contextUsedTokens == 0)
 
     print("\nRESULT: \(r.failed == 0 ? "PASS" : "FAIL") (\(r.passed)/\(r.passed + r.failed) checks passed)\n")
     return r.failed == 0 ? 0 : 1

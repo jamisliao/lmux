@@ -429,23 +429,23 @@ git commit -m "feat(ui): extend AppModel & backward-compatible LayoutFile with I
   - `@MainActor @Observable public final class AgentTelemetryStore`（`public func display(for pane: Pane?) -> PaneTelemetryDisplay`、`public func noteHookUpdate(for pane: Pane)`、`public func refreshTranscriptTelemetry(for pane: Pane)`、`public func clear(paneID: String)`；`turnCount` 取 `max(jsonl.turnCount, toolStream.turnCount)`）
   - `TranscriptCache.Snapshot` 新增 `let telemetry: AgentTelemetrySnapshot`。
 
-- [ ] **Step 1: 在 `LiquidGlassTelemetryTests.swift` 新增 `AgentTelemetryStore` 與 Codex `codexReport` 模式下仍能記錄 `ToolCallStream` 及切分頁／`SessionEnd` 清除測試**
+- [x] **Step 1: 在 `LiquidGlassTelemetryTests.swift` 新增 `AgentTelemetryStore` 與 Codex `codexReport` 模式下仍能記錄 `ToolCallStream` 及切分頁／`SessionEnd` 清除測試**
 
-- [ ] **Step 2: 執行 `--liquid-glass-telemetry` 確認 RED**
+- [x] **Step 2: 執行 `--liquid-glass-telemetry` 確認 RED**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass-telemetry`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `AgentTelemetryStore.swift`，更新 `TranscriptCache.Snapshot` 暴露 `telemetry`，並修正 `Agent.swift` 在 Codex early-return 與 Hook 完成處同步更新 `recordToolEvent` 與 `telemetryStore`**
+- [x] **Step 3: 實作 `AgentTelemetryStore.swift`，更新 `TranscriptCache.Snapshot` 暴露 `telemetry`，並修正 `Agent.swift` 在 Codex early-return 與 Hook 完成處同步更新 `recordToolEvent` 與 `telemetryStore`**
 
 注意：檢視 `Agent.swift` 中 `resetAfterClaude` 與 `sessionEnd` 處，僅在對話結束/重開時明確 reset 遙測而非在無關事件抹除進行中統計。
 
-- [ ] **Step 4: 執行 `--liquid-glass-telemetry` 與 `--agent-state` 相關測試驗證 GREEN**
+- [x] **Step 4: 執行 `--liquid-glass-telemetry` 與 `--agent-state` 相關測試驗證 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass-telemetry`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 6b**
+- [x] **Step 5: 提交 Task 6b**
 
 ```bash
 git add App/Sources/LmuxUI/AgentTelemetryStore.swift App/Sources/LmuxUI/MessageActions.swift App/Sources/LmuxUI/Agent.swift App/Sources/lmux-apptest/LiquidGlassTelemetryTests.swift
