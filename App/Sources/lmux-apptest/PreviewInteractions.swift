@@ -419,6 +419,10 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
             pv.removeFromSuperview()
         }
 
+        coord.switchWorkspace(to: ws2.id, targetURL: nil)
+        r.check("switchWorkspace(to:) 未指定 targetURL 時同步清空 currentURL 與 previewView",
+                coord.currentURL == nil && coord.previewView == nil && !coord.canGoBack && !coord.canGoForward)
+
         coord.closeCurrent()
         c.closeWorkspace(ws1)
         c.closeWorkspace(ws2)

@@ -147,7 +147,7 @@ _Avoid_: 底部 bar（這是指左側 **通知 bar**）、footer、狀態 bar
 
 - 「tab」：使用者說的 tab 等於 lmux 程式碼的 `Pane`（`App/Sources/LmuxUI/Tabs.swift:7-9`：每個 tab 都是一個 Pane）。規格一律用 **tab**。加入預覽後，`Pane` 不一定有終端機；只講其中一種時用 **終端機 tab** 或 **預覽 tab**。
 - 「預覽」：可能指 macOS 的 Quick Look、Settings 裡的主題預覽，或 lmux 裡的 **預覽 tab**。正式規格中「預覽」只指 **預覽 tab**；在 **UI 原型** 裡位於右側面板的預覽分頁一律寫為 **右側 Inspector** 的「即時預覽分頁」，不與 **預覽 tab** 混稱。
-- 「sidebar」與「右側 Inspector」：正式 lmux 只有左邊一個 sidebar；在 **UI 原型** 裡，左邊裝 **workspace** 清單與 **通知 bar** 的那一欄照舊叫 sidebar（畫面上的控制鈕文字寫「左側欄」），右邊的面板一律叫 **右側 Inspector**（畫面上的控制鈕文字寫「右側欄 (Inspector)」），規格內文不把 **右側 Inspector** 簡稱為「右側欄」。
+- 「sidebar」與「右側 Inspector」：正式 lmux 左側為 sidebar（畫面上的控制鈕文字寫「左側欄」），右側為 **右側 Inspector**（畫面上的控制鈕文字寫「右側欄 (Inspector)」），規格內文不把 **右側 Inspector** 簡稱為「右側欄」。
 - 「底部 bar」與「狀態列」：sidebar 底部的通知區塊一律叫 **通知 bar**（在 **UI 原型** 畫面標題標示為 Inbox）；橫跨整個 **UI 原型** 視窗最底部的那一列叫 **視窗底部狀態列**。
 - 「點一下路徑」：使用者原話是「用滑鼠點一下」。lmux 沿用 Ghostty 的規則：按住 ⌘ 再點才開連結（`vendor/ghostty/src/config/Config.zig:4089`、`vendor/ghostty/src/Surface.zig:4490`）。不按 ⌘ 的點擊會選取文字，所以規格用 ⌘-click。
 - 「文字檔」：可能指任何文字內容的檔案（含 Markdown、HTML），也可能只指不渲染、直接顯示原文的檔案。規格中後者叫 **純文字檔**；Markdown 與 HTML 雖然 macOS 也判斷為文字，不算純文字檔。系統判斷不是文字的副檔名（例如被認成影片的 `.ts`、沒有對應類型的 `.env`）也不算，即使內容是文字（2026-11-16 本機實測）。

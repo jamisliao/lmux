@@ -8,6 +8,10 @@ lmux 是一款面向 Claude Code 與 Codex CLI 工作流的原生 macOS 多工�
 代表一組獨立的工作區，內含多個分割視圖與分頁、工作目錄及關聯的執行紀錄。
 _Avoid_: project, session group, space
 
+**tab**:
+位於中央分割格內的單一分頁（可能是 **終端機 tab** 或 **預覽 tab**），對應程式中的 `Pane`。
+_Avoid_: window tab, pane session
+
 **終端機 tab**:
 位於中央分割格內、由 `libghostty` 驅動的終端機分頁。
 _Avoid_: terminal pane, shell session

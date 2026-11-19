@@ -77,6 +77,7 @@ public final class WorkspacePreviewCoordinator {
         forwardObserver = nil
         canGoBack = false
         canGoForward = false
+        currentURL = nil
         previewView?.close()
         previewView = nil
     }
@@ -240,19 +241,24 @@ public struct InspectorPreviewPane: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 4) {
                 ForEach(candidates, id: \.self) { candidate in
+                    let isSelected = candidate.standardizedFileURL == coordinator.currentURL?.standardizedFileURL
                     Button {
                         onSelectCandidate?(candidate)
                     } label: {
                         Text(candidate.lastPathComponent)
-                            .font(.system(size: 10, weight: .regular))
+                            .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
                             .lineLimit(1)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(
                                 RoundedRectangle(cornerRadius: 4)
-                                    .fill(T.Colors.glassSurfaceRecessed.color)
+                                    .fill(isSelected ? T.Colors.glassCardSelected.color : T.Colors.glassSurfaceRecessed.color)
                             )
-                            .foregroundColor(T.Colors.textSecondary.color)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(isSelected ? T.Colors.glassBorder.color : Color.clear, lineWidth: 0.5)
+                            )
+                            .foregroundColor(isSelected ? T.Colors.textPrimary.color : T.Colors.textSecondary.color)
                     }
                     .buttonStyle(.plain)
                 }

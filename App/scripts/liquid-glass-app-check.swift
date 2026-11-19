@@ -60,8 +60,9 @@ enum LiquidGlassAppCheck {
         )
 
         check(
-            "LmuxTokens 具備 activePaneRing 聚焦環藍色設定",
-            C.activePaneRing.light == 0x0A84FF && C.activePaneRing.dark == 0x0A84FF
+            "LmuxTokens 具備 activePaneRing (藍) 與 needsInputRing (琥珀) 獨立色彩設定",
+            C.activePaneRing.light == 0x0A84FF && C.activePaneRing.dark == 0x0A84FF &&
+            C.needsInputRing != C.activePaneRing
         )
 
         check(
@@ -78,6 +79,23 @@ enum LiquidGlassAppCheck {
 
             let sidebar = v(C.sidebarBackground)
             let cardBg = blend(v(C.glassCardSelected), over: sidebar, a(C.glassCardSelected))
+
+            let rCardPrimary = ratio(v(C.textPrimary), cardBg)
+            let rCardSecondary = ratio(v(C.textSecondary), cardBg)
+            check(
+                "\(name) 模式選中 Workspace 卡片主要/次要文字符合 WCAG AA (>= 4.5:1)",
+                rCardPrimary >= 4.5 && rCardSecondary >= 4.5,
+                String(format: "primary=%.1f secondary=%.1f", rCardPrimary, rCardSecondary)
+            )
+
+            let recessedBg = blend(v(C.glassSurfaceRecessed), over: sidebar, a(C.glassSurfaceRecessed))
+            let rSearchPrimary = ratio(v(C.textPrimary), recessedBg)
+            let rSearchSecondary = ratio(v(C.textSecondary), recessedBg)
+            check(
+                "\(name) 模式 History 搜尋欄文字符合 WCAG AA (>= 4.5:1)",
+                rSearchPrimary >= 4.5 && rSearchSecondary >= 4.5,
+                String(format: "primary=%.1f secondary=%.1f", rSearchPrimary, rSearchSecondary)
+            )
 
             // 狀態藥丸
             let runPill = blend(v(C.statusRunningPill), over: cardBg, a(C.statusRunningPill))

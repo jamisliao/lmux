@@ -26,7 +26,7 @@ public class FlippedView: NSView {
 
 /// The 1.5pt notification ring drawn over an unfocused pane that needs input.
 public final class RingView: NSView {
-    public static let strokeColor: LmuxTokens.DynamicColor = T.Colors.stateNeedsInput
+    public static let strokeColor: LmuxTokens.DynamicColor = T.Colors.needsInputRing
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -253,7 +253,7 @@ final class SplitContainerView: FlippedView {
     var onRatioChange: (() -> Void)?
     var onDragStateChange: ((Bool) -> Void)?
     private var isDragging = false
-    private let grab: CGFloat = 3  // extra hit area on each side of the divider
+    private let grab: CGFloat = max(4, T.Layout.paneGap / 2)  // extra hit area covering the pane gap around the divider
 
     init(node: SplitNode, axis: SplitAxis, first: NSView, second: NSView) {
         self.node = node
@@ -271,17 +271,19 @@ final class SplitContainerView: FlippedView {
 
     override func layout() {
         super.layout()
+        let gap = T.Layout.paneGap
         let d = T.Layout.splitDividerWidth
-        let avail = max(0, length - d)
+        let avail = max(0, length - gap)
         let a = (avail * node.ratio).rounded()
+        let dividerOffset = ((gap - d) / 2).rounded()
         if axis == .horizontal {
             first.frame = NSRect(x: 0, y: 0, width: a, height: bounds.height)
-            divider.frame = NSRect(x: a, y: 0, width: d, height: bounds.height)
-            second.frame = NSRect(x: a + d, y: 0, width: avail - a, height: bounds.height)
+            divider.frame = NSRect(x: a + dividerOffset, y: 0, width: d, height: bounds.height)
+            second.frame = NSRect(x: a + gap, y: 0, width: avail - a, height: bounds.height)
         } else {
             first.frame = NSRect(x: 0, y: 0, width: bounds.width, height: a)
-            divider.frame = NSRect(x: 0, y: a, width: bounds.width, height: d)
-            second.frame = NSRect(x: 0, y: a + d, width: bounds.width, height: avail - a)
+            divider.frame = NSRect(x: 0, y: a + dividerOffset, width: bounds.width, height: d)
+            second.frame = NSRect(x: 0, y: a + gap, width: bounds.width, height: avail - a)
         }
     }
 
@@ -330,8 +332,10 @@ final class SplitContainerView: FlippedView {
     /// neither side gets smaller than ~2 cells.
     func setRatio(forPosition pos: CGFloat) {
         let minSide: CGFloat = 60
-        let avail = max(1, length - T.Layout.splitDividerWidth)
-        let clamped = min(max(pos, minSide), max(minSide, avail - minSide))
+        let gap = T.Layout.paneGap
+        let avail = max(1, length - gap)
+        let target = pos - gap / 2
+        let clamped = min(max(target, minSide), max(minSide, avail - minSide))
         node.ratio = clamped / avail
         needsLayout = true
         window?.invalidateCursorRects(for: self)

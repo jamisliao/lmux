@@ -356,8 +356,8 @@ func runLiquidGlass() async -> Int32 {
     r.check("PaneView unfocused has glassBorder (0.5pt)",
             PaneView.borderColor(isFocused: false) == LmuxTokens.Colors.glassBorder &&
             PaneView.borderWidth(isFocused: false) == 0.5)
-    r.check("RingView uses amber stateNeedsInput color (distinct from blue activePaneRing)",
-            RingView.strokeColor == LmuxTokens.Colors.stateNeedsInput &&
+    r.check("RingView uses amber needsInputRing color (distinct from blue activePaneRing)",
+            RingView.strokeColor == LmuxTokens.Colors.needsInputRing &&
             RingView.strokeColor != LmuxTokens.Colors.activePaneRing)
 
     // 10a-1. RightInspectorBackdrop & RightInspectorResizeHandle

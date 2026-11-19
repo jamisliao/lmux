@@ -123,13 +123,14 @@ func runLiquidGlassTelemetry() async -> Int32 {
         try? fm.removeItem(at: targetDir)
     }
     try? fm.createDirectory(at: nonGitDir, withIntermediateDirectories: true)
+    try? "# Non-Git Preview\n".write(to: nonGitDir.appendingPathComponent("README.md"), atomically: true, encoding: .utf8)
     try? fm.createDirectory(at: targetDir, withIntermediateDirectories: true)
     _ = await runProcess("/usr/bin/git", ["init", "-b", "target-branch"], env: ["GIT_DIR": targetDir.appendingPathComponent(".git").path])
 
     svc.refresh(cwd: nonGitDir.path, immediate: true)
-    _ = await waitFor(3) { !svc.isLoading }
-    r.check("non-git directory sets isGitRepo = false and empty files",
-            !svc.snapshot.isGitRepo && svc.snapshot.files.isEmpty)
+    _ = await waitFor(3) { !svc.isLoading && svc.snapshot.cwd == nonGitDir.path }
+    r.check("non-git directory sets isGitRepo = false, empty files, and scans previewCandidates",
+            !svc.snapshot.isGitRepo && svc.snapshot.files.isEmpty && svc.snapshot.previewCandidates.first?.lastPathComponent == "README.md")
 
     // Rapid switch (cancellation)
     svc.refresh(cwd: nonGitDir.path)

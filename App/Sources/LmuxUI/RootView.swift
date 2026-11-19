@@ -157,6 +157,10 @@ final class RootView: FlippedView {
     }
 
     func setAllBackdropsResizing(_ active: Bool) {
+        if !active {
+            resizeHandle.cancelDragIfNeeded()
+            rightInspectorHandle.cancelDragIfNeeded()
+        }
         sidebarBackdrop.isResizing = active
         titlebarBackdrop.isResizing = active
         rightInspectorBackdrop.isResizing = active
@@ -396,6 +400,7 @@ final class RootView: FlippedView {
         header.adoptAppearance(on: bg)
         updateClusterAppearance()
         if chipState.workspace !== ws { chipState.workspace = ws }
+        if chipState.modeBadge != header.modeBadge { chipState.modeBadge = header.modeBadge }
         let (branch, path) = ws.headerMeta
         // Same texts (most calls: a hook event, a focus refresh): no layout or redraw.
         var changed = false
@@ -423,57 +428,29 @@ extension NSView {
 /// `sidebarTint` layer on top, so the sidebar stays Nord and lets a little of the desktop through.
 /// Opaque `sidebarBackground` under Reduce Transparency, and in headless / offscreen snapshots
 /// (a material has nothing behind it to blend there).
-final class SidebarBackdrop: NSView {
-    let material = NSVisualEffectView()
-    let tint = ColorView(T.Colors.sidebarTint.nsColor)
-    let specular = ColorView(T.Colors.specularHighlight.nsColor)
-    /// Forced opaque (headless snapshots, tests).
-    var forceOpaque = false { didSet { update() } }
-    /// Set while dragging a resize handle / split divider or during window live resize to pause blur recomputation.
-    var isResizing = false { didSet { if isResizing != oldValue { update() } } }
+final class SidebarBackdrop: GlassBackdropView {
     /// The terminal's background when the sidebar matches it (setting), else nil (translucent Nord).
     var matchColor: NSColor? { didSet { update() } }
 
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        material.material = .sidebar
-        material.blendingMode = .behindWindow
-        material.state = .followsWindowActiveState
-        addSubview(material)
-        addSubview(tint)
-        addSubview(specular)
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.update() }
-        }
-        update()
+    init(frame: NSRect = .zero) {
+        super.init(
+            frame: frame,
+            materialStyle: .sidebar,
+            translucentTint: T.Colors.sidebarTint,
+            opaqueTint: T.Colors.sidebarBackground
+        )
     }
+
     required init?(coder: NSCoder) { fatalError() }
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
-    var isOpaqueFallback: Bool {
-        forceOpaque || isResizing || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
-    }
-
-    private func update() {
+    override func update() {
         if let c = matchColor {
             material.isHidden = true
             specular.isHidden = true
             tint.color = c
             return
         }
-        let opaque = isOpaqueFallback
-        material.isHidden = opaque
-        specular.isHidden = opaque
-        tint.color = (opaque ? T.Colors.sidebarBackground : T.Colors.sidebarTint).nsColor
-        specular.color = T.Colors.specularHighlight.nsColor
-    }
-
-    override func layout() {
-        super.layout()
-        material.frame = bounds
-        tint.frame = bounds
-        specular.frame = NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: min(1, bounds.height))
+        super.update()
     }
 }
 
@@ -663,7 +640,10 @@ final class SidebarResizeHandle: NSView {
     }
     override func viewWillMove(toWindow newWindow: NSWindow?) {
         super.viewWillMove(toWindow: newWindow)
-        if newWindow == nil && isDragging {
+        if newWindow == nil { cancelDragIfNeeded() }
+    }
+    func cancelDragIfNeeded() {
+        if isDragging {
             isDragging = false
             onDragStateChange?(false)
         }
