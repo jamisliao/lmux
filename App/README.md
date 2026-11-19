@@ -1,8 +1,6 @@
 # lmux App
 
-One window: a SwiftUI sidebar of workspaces, each workspace a split tree of libghostty
-surfaces (AppKit). SwiftUI is only in the sidebar and titlebar buttons, never in the
-terminal path; `WKWebView` is used only for `.md` / `.html` / plain-text preview tabs (`PreviewView`, non-persistent data store); a spare WebKit process starts when the open menu pops up (no page, no network) so the tab opens fast.
+One window: a SwiftUI sidebar of workspaces, a unified 44pt glass titlebar, an optional Right Inspector (`即時預覽` / `變更 (Diff)` / `執行記錄`), and a 32pt full-width Window Footer, surrounding a split tree of libghostty surfaces (AppKit). SwiftUI renders chrome and inspector panels (never in the terminal path); `WKWebView` powers both `.md` / `.html` / plain-text preview tabs (`PreviewView`, non-persistent data store) and the Right Inspector's Live Preview pane (`WorkspacePreviewCoordinator`); a spare WebKit process starts when the open menu pops up (no page, no network) so previews open fast.
 
 **Build from source**: `App/Frameworks/GhosttyKit.xcframework` links into `vendor/ghostty`, which a fresh
 checkout doesn't have. `scripts/bootstrap.sh` clones Ghostty at the commit in `GHOSTTY_COMMIT`, fetches Zig
@@ -52,7 +50,7 @@ App/scripts/readme.sh hero       # site hero video (2000 px, H.264 CRF 21 / VP9 
 |---|---|
 | `LmuxTerminal` | libghostty runtime + `SurfaceView` (adapted from Ghostty, MIT) |
 | `LmuxTokens` | design tokens (`design/Tokens.swift` is a symlink to it) |
-| `LmuxUI` | window, sidebar, workspaces/splits, optional-`surface` panes (`Pane.Content`: terminal or Markdown/HTML/plain-text `PreviewView`), `⌘`-click open menu, agent awareness, persistence, CLI socket, hooks onboarding |
+| `LmuxUI` | window, unified glass titlebar, sidebar, workspaces/splits (`Pane Tab Strip`), Right Inspector (`InspectorPreviewPane` / `InspectorDiffView` / `InspectorTraceView`), Window Footer, optional-`surface` panes (`Pane.Content`: terminal or Markdown/HTML/plain-text `PreviewView`), dual-track `⌘`-click open menu, `AgentTelemetryStore`, `GitDiffService`, persistence, CLI socket, hooks onboarding |
 | `lmux` | the app (`main.swift` only) |
 | `lmux-cli` | the `lmux` command, bundled as `Contents/Resources/bin/lmux` (on PATH inside panes) |
 | `lmux-apptest`, `lmux-imetest` | headless harnesses |
@@ -67,7 +65,7 @@ App/scripts/readme.sh hero       # site hero video (2000 px, H.264 CRF 21 / VP9 
   Ghostty's `toggle_split_zoom`: the focused pane fills the workspace and the others stop rendering; closing or
   splitting while zoomed unzooms first; each workspace's zoom is saved in `layout.json` and comes back on relaunch).
   lmux's own: **⇧⌘J next pane that needs input** (cycles; Ghostty's default ⇧⌘J binding is unbound unless your
-  config binds it), ⇧⌘U latest unread (= bell), ⌃⌘S sidebar,
+  config binds it), ⇧⌘U latest unread (= bell), ⌘B / ⌃⌘S sidebar, ⌥⌘B Right Inspector, ⇧⌘H History search,
   ⌥⌘C copy Claude's last reply as markdown, ⌘Z undo send (while the toast is up; Ghostty's `undo` routes here).
   Ghostty's own: ⌘F find in scrollback (⌘G / ⇧⌘G next / previous, esc closes), Secure Keyboard Entry (app menu).
   With a non-Latin input source (Korean 2-Set: ⌃⌘S arrives as ㄴ), a ⌘/⌃ key the menus miss is retried as the

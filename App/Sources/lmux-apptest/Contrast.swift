@@ -178,7 +178,11 @@ final class ContrastBench {
         GhosttyRuntime.standardPasteboard = NSPasteboard(name: NSPasteboard.Name("dev.lmux.contrast.\(getpid())"))
         c = LmuxController(runtime: runtime, paths: paths, headless: true)
         // Two Claude screens of 100 columns side by side: about 205 x 52 cells at 13pt.
-        c.start(windowFrame: NSRect(x: 0, y: 0, width: 2000, height: 1000))
+        // Hide the right inspector so the terminal keeps ~205 columns and >= 52 rows.
+        c.model.inspectorVisible = false
+        c.start(windowFrame: NSRect(x: 0, y: 0, width: 2000, height: 1050))
+        c.model.inspectorVisible = false
+        c.root.layoutSubtreeIfNeeded()
     }
 
     func load(_ names: [String]) async -> Bool {

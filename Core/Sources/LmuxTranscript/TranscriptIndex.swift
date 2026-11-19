@@ -87,6 +87,7 @@ public final class TranscriptIndex: @unchecked Sendable {
     private var indexedBytes = 0
     private var inode = 0
     private var tailFP = Data()
+    private var usageByMessageID: [String: (output: Int, cost: Double)] = [:]
 
     public init(url: URL) { self.url = url }
 
@@ -146,6 +147,7 @@ public final class TranscriptIndex: @unchecked Sendable {
         tailFP = Data()
         turns = []
         telemetry = AgentTelemetrySnapshot()
+        usageByMessageID = [:]
     }
 
     // MARK: - Parsing
@@ -190,13 +192,15 @@ public final class TranscriptIndex: @unchecked Sendable {
             let p = Self.promptText(message)
             n.prompt = p.count > Self.promptCap ? String(p.prefix(Self.promptCap)) : p
             n.promptTruncated = p.count > Self.promptCap
-            telemetry.turnCount += 1
+            if !n.isSidechain {
+                telemetry.turnCount += 1
+            }
         }
         if type == "user", let r = o["toolUseResult"] as? [String: Any], r["type"] as? String == "create",
            let f = r["filePath"] as? String {
             n.createdFiles.append(f)
         }
-        if n.isAssistant {
+        if n.isAssistant && !n.isSidechain {
             if let m = message?["model"] as? String {
                 telemetry.model = m
                 telemetry.contextLimitTokens = ModelPricing.contextLimit(for: m)
@@ -210,14 +214,24 @@ public final class TranscriptIndex: @unchecked Sendable {
                 telemetry.inputTokens = input
                 telemetry.cacheCreationTokens = cacheCreation
                 telemetry.cacheReadTokens = cacheRead
-                telemetry.outputTokens += output
-                if let cost = ModelPricing.estimateCostUSD(
+                let cost = ModelPricing.estimateCostUSD(
                     model: telemetry.model,
                     input: input,
                     cacheCreation: cacheCreation,
                     cacheRead: cacheRead,
                     output: output
-                ) {
+                )
+                if let msgID = message?["id"] as? String {
+                    if let prev = usageByMessageID[msgID] {
+                        telemetry.outputTokens = max(0, telemetry.outputTokens - prev.output)
+                        if let existingCost = telemetry.estimatedCostUSD {
+                            telemetry.estimatedCostUSD = max(0.0, existingCost - prev.cost)
+                        }
+                    }
+                    usageByMessageID[msgID] = (output, cost ?? 0.0)
+                }
+                telemetry.outputTokens += output
+                if let cost {
                     telemetry.estimatedCostUSD = (telemetry.estimatedCostUSD ?? 0.0) + cost
                 }
                 telemetry.updatedAt = Date()

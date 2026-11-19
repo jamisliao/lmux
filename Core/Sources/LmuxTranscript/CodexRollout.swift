@@ -315,7 +315,7 @@ public final class CodexRollout: @unchecked Sendable {
                     telemetry.outputTokens += output
                     if let stepCost = ModelPricing.estimateCostUSD(
                         model: telemetry.model,
-                        input: input,
+                        input: telemetry.inputTokens,
                         cacheCreation: 0,
                         cacheRead: cached,
                         output: output

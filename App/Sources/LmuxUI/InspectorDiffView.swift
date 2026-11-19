@@ -25,7 +25,11 @@ public struct InspectorDiffView: View {
     }
 
     public static func resolvePreviewURL(file: String, cwd: String?) -> URL? {
-        PreviewTarget.resolve(file, cwd: cwd)
+        guard let url = PreviewTarget.resolve(file, cwd: cwd) else { return nil }
+        if let cwd, !cwd.isEmpty {
+            guard GitDiffService.isPathContained(url, inDirectory: cwd) else { return nil }
+        }
+        return url
     }
 
     public var body: some View {
@@ -107,7 +111,7 @@ public struct InspectorDiffView: View {
             Divider().overlay(T.Colors.glassBorder.color.opacity(0.5))
             diffLines(file.lines)
             if file.truncated {
-                Text("已截斷顯示前 200 行…")
+                Text("已截斷顯示前 \(GitDiffService.maxDiffLinesPerFile) 行…")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(T.Colors.textTertiary.color)
                     .padding(6)

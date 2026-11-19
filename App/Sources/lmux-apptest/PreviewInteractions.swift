@@ -377,7 +377,29 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         r.check("切換 workspace 後 coordinator 狀態更新為新 workspace",
                 coord.workspaceID == ws2.id && coord.currentURL == page2)
 
-        // 6. ensureFocus() 允許在 inspectorPreview 時保留 WKWebView 焦點
+        // 6. 導覽歷程：連結跳轉、‹ (goBack)、› (goForward) 與 ↻ (reload)
+        let navA = docs.appendingPathComponent("nav-a.md")
+        let navB = docs.appendingPathComponent("nav-b.md")
+        try? "# Page A\n[Go to B](nav-b.md)\n".write(to: navA, atomically: true, encoding: .utf8)
+        try? "# Page B\n".write(to: navB, atomically: true, encoding: .utf8)
+        coord.load(url: navA, workspaceID: ws1.id)
+        _ = await waitFor(3) { coord.previewView?.fileURL == navA && coord.previewView?.webView.isLoading == false }
+        if let pvNav = coord.previewView {
+            pvNav.noteUserClick()
+            _ = try? await pvNav.webView.evaluateJavaScript("document.querySelector('a[href=\"nav-b.md\"]').click()")
+            _ = await waitFor(5) { coord.currentURL == navB && coord.canGoBack }
+            r.check("WorkspacePreviewCoordinator 支援連結跳轉後 canGoBack 響應式啟用", coord.canGoBack && coord.currentURL == navB)
+            coord.goBack()
+            r.check("WorkspacePreviewCoordinator goBack() 退回上一頁並啟用 canGoForward",
+                    await waitFor(5) { coord.currentURL == navA && coord.canGoForward })
+            coord.goForward()
+            r.check("WorkspacePreviewCoordinator goForward() 前進下一頁",
+                    await waitFor(5) { coord.currentURL == navB })
+            coord.reload()
+            r.check("WorkspacePreviewCoordinator reload() 不改變 currentURL 且可重載", coord.currentURL == navB)
+        }
+
+        // 7. ensureFocus() 與 showInspectorTab() 切換分頁離開 .preview 時歸還焦點
         c.select(ws1)
         c.model.inspectorVisible = true
         c.model.inspectorTab = .preview
@@ -390,10 +412,9 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
                     c.window!.firstResponder === pv.webView || (c.window!.firstResponder as? NSView)?.isDescendant(of: pv.webView) == true,
                     "firstResponder=\(String(describing: c.window!.firstResponder))")
 
-            // 切換分頁離開 .preview：ensureFocus() 應將焦點交還給終端機 pane
-            c.model.inspectorTab = .diff
-            c.ensureFocus()
-            r.check("切離 inspectorPreview 後 ensureFocus() 焦點回到終端機 pane",
+            // 透過 controller.showInspectorTab(.diff) 離開 .preview：自動歸還焦點至終端機 pane
+            c.showInspectorTab(.diff)
+            r.check("showInspectorTab(.diff) 切離 inspectorPreview 後自動將焦點交還給終端機 pane",
                     c.window!.firstResponder === ws1.panes[0].surface)
             pv.removeFromSuperview()
         }

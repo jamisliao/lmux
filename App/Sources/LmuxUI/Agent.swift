@@ -146,6 +146,9 @@ extension LmuxController {
         if [.postToolUse, .postToolUseFailure, .stop].contains(e.kind), let cwd = pane.cwd {
             model.gitDiffService.refresh(cwd: cwd)
         }
+        if [.sessionStart, .userPromptSubmit, .postToolUse, .postToolUseFailure, .stop].contains(e.kind) {
+            scheduleTelemetryRefresh(pane, delay: e.kind == .stop ? 0.05 : 0.2)
+        }
         if pane.workspace === model.selected { scheduleOverlayRefresh(pane, delay: 0.25) }
 
         // Observed properties are set only when they change: an equal write still redraws the sidebar.
@@ -204,7 +207,7 @@ extension LmuxController {
             pane.agent = agent
         }
         apply(t, to: pane, focused: focused)
-        pane.agent.recordToolEvent(e)
+        if resumed { pane.agent.recordToolEvent(e) }
         model.telemetryStore?.noteHookUpdate(for: pane)
     }
 

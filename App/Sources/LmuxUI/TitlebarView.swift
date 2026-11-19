@@ -14,6 +14,7 @@ final class TitlebarBackdrop: NSView {
 
     var forceOpaque = false { didSet { update() } }
     var isResizing = false { didSet { if isResizing != oldValue { update() } } }
+    private var accessibilityObserver: NSObjectProtocol?
 
     var isOpaqueFallback: Bool {
         forceOpaque || isResizing || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
@@ -27,11 +28,17 @@ final class TitlebarBackdrop: NSView {
         addSubview(material)
         addSubview(tint)
         addSubview(specular)
-        NSWorkspace.shared.notificationCenter.addObserver(
+        accessibilityObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.update() }
         }
         update()
+    }
+
+    deinit {
+        if let accessibilityObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(accessibilityObserver)
+        }
     }
 
     required init?(coder: NSCoder) { fatalError() }
@@ -42,7 +49,7 @@ final class TitlebarBackdrop: NSView {
         let opaque = isOpaqueFallback
         material.isHidden = opaque
         specular.isHidden = opaque
-        tint.color = T.Colors.titlebarBackground.nsColor
+        tint.color = (opaque ? T.Colors.sidebarBackground : T.Colors.titlebarBackground).nsColor
         specular.color = T.Colors.specularHighlight.nsColor
     }
 
@@ -56,10 +63,31 @@ final class TitlebarBackdrop: NSView {
 
 // MARK: - Titlebar Center Chip
 
+@MainActor
+@Observable
+public final class TitlebarChipState {
+    public var availableWidth: CGFloat
+    public var workspace: Workspace?
+
+    public init(workspace: Workspace? = nil, availableWidth: CGFloat = 400) {
+        self.workspace = workspace
+        self.availableWidth = availableWidth
+    }
+}
+
 public struct TitlebarCenterChip: View {
     let model: AppModel
-    let workspace: Workspace?
-    var availableWidth: CGFloat = 400
+    @Bindable var state: TitlebarChipState
+
+    public init(model: AppModel, state: TitlebarChipState) {
+        self.model = model
+        self.state = state
+    }
+
+    public init(model: AppModel, workspace: Workspace?, availableWidth: CGFloat = 400) {
+        self.model = model
+        self.state = TitlebarChipState(workspace: workspace, availableWidth: availableWidth)
+    }
 
     public static func computeChipLayout(
         availableWidth: CGFloat,
@@ -83,10 +111,11 @@ public struct TitlebarCenterChip: View {
     }
 
     public var body: some View {
+        let workspace = state.workspace
         let title = workspace?.title ?? "lmux"
         let branch = workspace?.focusedPane?.branch
         let cwd = workspace?.focusedPane?.cwd
-        let layout = Self.computeChipLayout(availableWidth: availableWidth, title: title, branch: branch, path: cwd)
+        let layout = Self.computeChipLayout(availableWidth: state.availableWidth, title: title, branch: branch, path: cwd)
 
         HStack(spacing: 6) {
             // State Dot
@@ -143,7 +172,7 @@ public struct TitlebarCenterChip: View {
     }
 
     private var dotColor: Color {
-        guard let p = workspace?.focusedPane else { return T.Colors.statusIdlePill.color }
+        guard let p = state.workspace?.focusedPane else { return T.Colors.statusIdlePill.color }
         switch p.agent.state {
         case .running:
             return T.Colors.statusRunningText.color

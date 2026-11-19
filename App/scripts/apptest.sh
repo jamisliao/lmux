@@ -155,6 +155,11 @@ if [ "${1:-}" = "--sidebar-tabs" ]; then
   run_sidebar_tabs_suite
   exit $status
 fi
+run_liquid_glass_telemetry_suite() {
+  mkdir -p "$T/liquid-glass-telemetry"
+  LMUX_STATE_DIR="$T/liquid-glass-telemetry" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+    "$BIN/lmux-apptest" --liquid-glass-telemetry 2>/dev/null | filter || status=1
+}
 run_liquid_glass_suite() {
   local swift_tokens="$APP_DIR/Sources/LmuxTokens"
   local swift_ui="$APP_DIR/Sources/LmuxUI"
@@ -172,6 +177,7 @@ run_liquid_glass_suite() {
     "$BIN/lmux-apptest" --liquid-glass-workbench 2>/dev/null | filter || phase_failed $?
   LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
     "$BIN/lmux-apptest" --liquid-glass-restore 2>/dev/null | filter || phase_failed $?
+  run_liquid_glass_telemetry_suite
 }
 if [ "${1:-}" = "--liquid-glass-workbench" ]; then
   mkdir -p "$T/liquid-glass"
@@ -214,11 +220,7 @@ if [ "${1:-}" = "--pane-tabs" ]; then
   done
   exit $status
 fi
-run_liquid_glass_telemetry_suite() {
-  mkdir -p "$T/liquid-glass-telemetry"
-  LMUX_STATE_DIR="$T/liquid-glass-telemetry" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
-    "$BIN/lmux-apptest" --liquid-glass-telemetry 2>/dev/null | filter || phase_failed $?
-}
+
 if [ "${1:-}" = "--liquid-glass-telemetry" ]; then
   run_liquid_glass_telemetry_suite
   exit $status
