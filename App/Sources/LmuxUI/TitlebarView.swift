@@ -7,58 +7,17 @@ private typealias T = LmuxTokens
 // MARK: - Titlebar Backdrop (1:1 Apple Liquid Glass)
 
 @MainActor
-final class TitlebarBackdrop: NSView {
-    let material = NSVisualEffectView()
-    let tint = ColorView(T.Colors.titlebarBackground.nsColor)
-    let specular = ColorView(T.Colors.specularHighlight.nsColor)
-
-    var forceOpaque = false { didSet { update() } }
-    var isResizing = false { didSet { if isResizing != oldValue { update() } } }
-    private var accessibilityObserver: NSObjectProtocol?
-
-    var isOpaqueFallback: Bool {
-        forceOpaque || isResizing || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
-    }
-
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        material.material = .titlebar
-        material.blendingMode = .behindWindow
-        material.state = .followsWindowActiveState
-        addSubview(material)
-        addSubview(tint)
-        addSubview(specular)
-        accessibilityObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.update() }
-        }
-        update()
-    }
-
-    deinit {
-        if let accessibilityObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(accessibilityObserver)
-        }
+final class TitlebarBackdrop: GlassBackdropView {
+    init(frame: NSRect = .zero) {
+        super.init(
+            frame: frame,
+            materialStyle: .titlebar,
+            translucentTint: T.Colors.titlebarBackground,
+            opaqueTint: T.Colors.sidebarBackground
+        )
     }
 
     required init?(coder: NSCoder) { fatalError() }
-
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-    private func update() {
-        let opaque = isOpaqueFallback
-        material.isHidden = opaque
-        specular.isHidden = opaque
-        tint.color = (opaque ? T.Colors.sidebarBackground : T.Colors.titlebarBackground).nsColor
-        specular.color = T.Colors.specularHighlight.nsColor
-    }
-
-    override func layout() {
-        super.layout()
-        material.frame = bounds
-        tint.frame = bounds
-        specular.frame = NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: min(1, bounds.height))
-    }
 }
 
 // MARK: - Titlebar Center Chip
@@ -68,24 +27,23 @@ final class TitlebarBackdrop: NSView {
 public final class TitlebarChipState {
     public var availableWidth: CGFloat
     public var workspace: Workspace?
+    public var modeBadge: String?
 
-    public init(workspace: Workspace? = nil, availableWidth: CGFloat = 400) {
+    public init(workspace: Workspace? = nil, availableWidth: CGFloat = 400, modeBadge: String? = nil) {
         self.workspace = workspace
         self.availableWidth = availableWidth
+        self.modeBadge = modeBadge
     }
 }
 
 public struct TitlebarCenterChip: View {
-    let model: AppModel
     @Bindable var state: TitlebarChipState
 
-    public init(model: AppModel, state: TitlebarChipState) {
-        self.model = model
+    public init(model _: AppModel, state: TitlebarChipState) {
         self.state = state
     }
 
-    public init(model: AppModel, workspace: Workspace?, availableWidth: CGFloat = 400) {
-        self.model = model
+    public init(model _: AppModel, workspace: Workspace?, availableWidth: CGFloat = 400) {
         self.state = TitlebarChipState(workspace: workspace, availableWidth: availableWidth)
     }
 
@@ -135,6 +93,19 @@ public struct TitlebarCenterChip: View {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(T.Colors.activePaneRing.color)
+            }
+
+            // Agent autonomy mode badge (when active pane has no tab strip)
+            if let badge = state.modeBadge, !badge.isEmpty {
+                Text(badge)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(T.Colors.textSecondary.color)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(
+                        Capsule()
+                            .strokeBorder(T.Colors.glassBorder.color, lineWidth: 1)
+                    )
             }
 
             // Git Branch

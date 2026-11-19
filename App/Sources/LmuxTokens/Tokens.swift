@@ -144,6 +144,8 @@ public enum LmuxTokens {
         public static let glassCardSelected = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.75, darkAlpha: 0.14)
         public static let glassSurfaceRecessed = DynamicColor(light: 0xFFFFFF, dark: 0x0B0E14, lightAlpha: 0.48, darkAlpha: 0.94)
         public static let activePaneRing = DynamicColor(light: 0x0A84FF, dark: 0x0A84FF)
+        /// Amber ring drawn over an unfocused pane that needs user input (distinct from blue `activePaneRing`).
+        public static let needsInputRing = DynamicColor(light: 0xB45309, dark: 0xFF9F0A)
 
         // Status Pills and Text (WCAG AA >= 4.5:1)
         public static let statusRunningPill = DynamicColor(light: 0x007AFF, dark: 0x0A84FF, lightAlpha: 0.12, darkAlpha: 0.14)

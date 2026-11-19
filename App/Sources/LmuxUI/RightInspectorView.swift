@@ -7,58 +7,17 @@ private typealias T = LmuxTokens
 // MARK: - Right Inspector Backdrop (1:1 Apple Liquid Glass)
 
 @MainActor
-public final class RightInspectorBackdrop: NSView {
-    let material = NSVisualEffectView()
-    let tint = ColorView(T.Colors.rightSidebarTint.nsColor)
-    let specular = ColorView(T.Colors.specularHighlight.nsColor)
-
-    public var forceOpaque = false { didSet { update() } }
-    public var isResizing = false { didSet { if isResizing != oldValue { update() } } }
-    private var accessibilityObserver: NSObjectProtocol?
-
-    public var isOpaqueFallback: Bool {
-        forceOpaque || isResizing || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
-    }
-
-    public override init(frame: NSRect) {
-        super.init(frame: frame)
-        material.material = .sidebar
-        material.blendingMode = .behindWindow
-        material.state = .followsWindowActiveState
-        addSubview(material)
-        addSubview(tint)
-        addSubview(specular)
-        accessibilityObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.update() }
-        }
-        update()
-    }
-
-    deinit {
-        if let accessibilityObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(accessibilityObserver)
-        }
+public final class RightInspectorBackdrop: GlassBackdropView {
+    public init(frame: NSRect = .zero) {
+        super.init(
+            frame: frame,
+            materialStyle: .sidebar,
+            translucentTint: T.Colors.rightSidebarTint,
+            opaqueTint: T.Colors.sidebarBackground
+        )
     }
 
     public required init?(coder: NSCoder) { fatalError() }
-
-    public override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-    private func update() {
-        let opaque = isOpaqueFallback
-        material.isHidden = opaque
-        specular.isHidden = opaque
-        tint.color = (opaque ? T.Colors.sidebarBackground : T.Colors.rightSidebarTint).nsColor
-        specular.color = T.Colors.specularHighlight.nsColor
-    }
-
-    public override func layout() {
-        super.layout()
-        material.frame = bounds
-        tint.frame = bounds
-        specular.frame = NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: min(1, bounds.height))
-    }
 }
 
 // MARK: - Right Inspector Resize Handle
@@ -90,7 +49,11 @@ public final class RightInspectorResizeHandle: NSView {
 
     public override func viewWillMove(toWindow newWindow: NSWindow?) {
         super.viewWillMove(toWindow: newWindow)
-        if newWindow == nil && isDragging {
+        if newWindow == nil { cancelDragIfNeeded() }
+    }
+
+    public func cancelDragIfNeeded() {
+        if isDragging {
             isDragging = false
             onDragStateChange?(false)
         }
@@ -101,6 +64,7 @@ public final class RightInspectorResizeHandle: NSView {
 
 public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceContent: View>: View {
     @Bindable var model: AppModel
+    var onSelectTab: ((InspectorTab) -> Void)?
     var onLeavePreview: (() -> Void)?
     @ViewBuilder let previewContent: () -> PreviewContent
     @ViewBuilder let diffContent: () -> DiffContent
@@ -108,12 +72,14 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
 
     public init(
         model: AppModel,
+        onSelectTab: ((InspectorTab) -> Void)? = nil,
         onLeavePreview: (() -> Void)? = nil,
         @ViewBuilder previewContent: @escaping () -> PreviewContent,
         @ViewBuilder diffContent: @escaping () -> DiffContent,
         @ViewBuilder traceContent: @escaping () -> TraceContent
     ) {
         self.model = model
+        self.onSelectTab = onSelectTab
         self.onLeavePreview = onLeavePreview
         self.previewContent = previewContent
         self.diffContent = diffContent
@@ -156,10 +122,14 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
     private func tabButton(_ tab: InspectorTab, label: String, icon: String) -> some View {
         let isSelected = model.inspectorTab == tab
         Button {
-            let wasPreview = model.inspectorTab == .preview
-            model.inspectorTab = tab
-            if wasPreview && tab != .preview {
-                onLeavePreview?()
+            if let onSelectTab {
+                onSelectTab(tab)
+            } else {
+                let wasPreview = model.inspectorTab == .preview
+                model.inspectorTab = tab
+                if wasPreview && tab != .preview {
+                    onLeavePreview?()
+                }
             }
         } label: {
             HStack(spacing: 4) {
@@ -200,6 +170,9 @@ public struct InspectorContainerView: View {
     public var body: some View {
         RightInspectorView(
             model: model,
+            onSelectTab: { [weak controller] tab in
+                controller?.showInspectorTab(tab)
+            },
             onLeavePreview: { [weak controller] in
                 controller?.previewCoordinator.onLeavePreview()
                 controller?.focusCurrent()

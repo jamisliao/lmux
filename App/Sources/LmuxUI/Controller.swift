@@ -283,6 +283,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         saveNow()
         hookServer?.stop()
         controlServer?.stop()
+        previewCoordinator.reset()
         retirePaneTokens(paneIDByToken.filter { pane(id: $0.value)?.ranCodex == true }.map { ($0.key, $0.value) })
         for p in model.workspaces.flatMap(\.panes) {
             let fg = p.foregroundPID
@@ -697,9 +698,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         paneIDByToken = paneIDByToken.filter { $0.value != pane.id }
         notifyGate[pane.id]?.work?.cancel()
         notifyGate[pane.id] = nil
-        // Pending title / overlay work would otherwise keep the closed pane alive and run on it.
+        // Pending title / overlay / telemetry work would otherwise keep the closed pane alive and run on it.
         titleWork.removeValue(forKey: pane.id)?.cancel()
         overlayWork.removeValue(forKey: pane.id)?.cancel()
+        telemetryWork.removeValue(forKey: pane.id)?.cancel()
+        model.telemetryStore?.clear(paneID: pane.id)
         interruptChecks[pane.id] = nil
         transcriptReads[pane.id] = nil
         pane.programExitWatch?.cancel()
@@ -855,6 +858,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         root.needsLayout = true
         scheduleSave()
         if wasPreview && tab != .preview {
+            previewCoordinator.onLeavePreview()
             focusCurrent()
         }
     }
@@ -972,7 +976,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             if case .split(let ax, _, _) = parent.content, ax == axis {
                 guard let view = splitView(for: parent) else { return }
                 let len = axis == .horizontal ? view.bounds.width : view.bounds.height
-                let pos = parent.ratio * (len - T.Layout.splitDividerWidth)
+                let gap = T.Layout.paneGap
+                let pos = parent.ratio * (len - gap) + gap / 2
                 let sign: CGFloat = (dir == GHOSTTY_RESIZE_SPLIT_LEFT || dir == GHOSTTY_RESIZE_SPLIT_UP) ? -1 : 1
                 view.setRatio(forPosition: pos + sign * amount)
                 return

@@ -34,7 +34,7 @@
   @e2e @happy-path
   # @covered-by: App/scripts/preview-check.swift
   # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
-  # @covered-by: beat/changes/archive/2026-11-16-md-html-preview/manual-verification.md
+  # @covered-by: beat/changes/preview-liquid-glass/manual-verification.md
   場景: ⌘-click 可預覽檔案的路徑跳出開啟選單
     假設 一個 **終端機 tab** 的目前目錄裡有 "docs/design.md"
     而且 終端機輸出了文字 "docs/design.md"
@@ -135,7 +135,7 @@
 
   @e2e @edge-case
   # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
-  # @covered-by: beat/changes/archive/2026-11-16-md-html-preview/manual-verification.md
+  # @covered-by: beat/changes/preview-liquid-glass/manual-verification.md
   場景: 不選任何項目就關掉選單
     假設 一個 **終端機 tab** 跳出了 "docs/design.md" 的 **開啟選單**
     當 使用者按 Esc 或點選單外面

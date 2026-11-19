@@ -7,58 +7,17 @@ private typealias T = LmuxTokens
 // MARK: - Footer Backdrop (1:1 Apple Liquid Glass)
 
 @MainActor
-public final class FooterBackdrop: NSView {
-    let material = NSVisualEffectView()
-    let tint = ColorView(T.Colors.sidebarBackground.nsColor)
-    let specular = ColorView(T.Colors.specularHighlight.nsColor)
-
-    public var forceOpaque = false { didSet { update() } }
-    public var isResizing = false { didSet { if isResizing != oldValue { update() } } }
-    private var accessibilityObserver: NSObjectProtocol?
-
-    public var isOpaqueFallback: Bool {
-        forceOpaque || isResizing || NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
-    }
-
-    public override init(frame: NSRect) {
-        super.init(frame: frame)
-        material.material = .sidebar
-        material.blendingMode = .behindWindow
-        material.state = .followsWindowActiveState
-        addSubview(material)
-        addSubview(tint)
-        addSubview(specular)
-        accessibilityObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.update() }
-        }
-        update()
-    }
-
-    deinit {
-        if let accessibilityObserver {
-            NSWorkspace.shared.notificationCenter.removeObserver(accessibilityObserver)
-        }
+public final class FooterBackdrop: GlassBackdropView {
+    public init(frame: NSRect = .zero) {
+        super.init(
+            frame: frame,
+            materialStyle: .sidebar,
+            translucentTint: T.Colors.footerBackground,
+            opaqueTint: T.Colors.sidebarBackground
+        )
     }
 
     public required init?(coder: NSCoder) { fatalError() }
-
-    public override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-    private func update() {
-        let opaque = isOpaqueFallback
-        material.isHidden = opaque
-        specular.isHidden = opaque
-        tint.color = (opaque ? T.Colors.sidebarBackground : T.Colors.footerBackground).nsColor
-        specular.color = T.Colors.specularHighlight.nsColor
-    }
-
-    public override func layout() {
-        super.layout()
-        material.frame = bounds
-        tint.frame = bounds
-        specular.frame = NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: min(1, bounds.height))
-    }
 }
 
 // MARK: - Footer Presentation Model
@@ -143,7 +102,7 @@ public struct WindowFooterView: View {
             percentText = "—"
             ratio = nil
         }
-        let branch = (git?.isGitRepo == true && git?.branch != nil) ? git!.branch! : "—"
+        let branch = (git?.isGitRepo == true ? git?.branch : nil) ?? "—"
         let changes = (git?.isGitRepo == true) ? "+\(git?.totalAdded ?? 0) -\(git?.totalDeleted ?? 0)" : "—"
 
         return FooterPresentation(
@@ -173,6 +132,7 @@ public struct WindowFooterView: View {
                             .font(.system(size: 10))
                         Text(pres.modelText)
                             .font(.system(size: 10, weight: .medium))
+                            .lineLimit(1)
                         if let tool = pres.latestToolText {
                             Text("· \(tool)")
                                 .font(.system(size: 9, weight: .medium))
@@ -280,6 +240,7 @@ public struct WindowFooterView: View {
                             .font(.system(size: 10))
                         Text("即時預覽")
                             .font(.system(size: 10, weight: .medium))
+                            .lineLimit(1)
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)

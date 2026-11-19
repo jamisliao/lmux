@@ -28,7 +28,9 @@ public final class GitDiffService {
         currentGeneration &+= 1
         let gen = currentGeneration
 
-        activeProcess?.terminate()
+        if let active = activeProcess, active.isRunning {
+            active.terminate()
+        }
         activeProcess = nil
 
         guard let cwd, !cwd.isEmpty, FileManager.default.fileExists(atPath: cwd) else {
@@ -49,7 +51,11 @@ public final class GitDiffService {
             guard self.currentGeneration == gen else { return }
 
             if check.status != 0 || check.stdout.trimmingCharacters(in: .whitespacesAndNewlines) != "true" {
-                self.snapshot = GitDiffSnapshot(cwd: cwd, isGitRepo: false)
+                let candidates = await Task.detached(priority: .utility) {
+                    Self.scanPreviewCandidates(in: cwd)
+                }.value
+                guard self.currentGeneration == gen else { return }
+                self.snapshot = GitDiffSnapshot(cwd: cwd, isGitRepo: false, previewCandidates: candidates)
                 self.isLoading = false
                 return
             }
@@ -105,7 +111,7 @@ public final class GitDiffService {
     ) -> GitDiffSnapshot {
         let numstatList = GitDiffParser.parseNumstat(numstatStdout)
         let parsedFiles = GitDiffParser.parseUnifiedDiff(diffStdout, maxLines: maxDiffLinesPerFile)
-        var filesByPath = Dictionary(uniqueKeysWithValues: parsedFiles.map { ($0.path, $0) })
+        var filesByPath = Dictionary(parsedFiles.map { ($0.path, $0) }, uniquingKeysWith: { _, latest in latest })
 
         for item in numstatList {
             if var f = filesByPath[item.path] {
@@ -130,16 +136,29 @@ public final class GitDiffService {
             guard !cleanPath.isEmpty, filesByPath[cleanPath] == nil else { continue }
 
             let st = code.trimmingCharacters(in: .whitespaces)
-            let fullURL = URL(fileURLWithPath: cwd).appendingPathComponent(cleanPath)
-            let (lines, totalCount, isTruncated) = readUntrackedLines(at: fullURL, cwd: cwd)
-            filesByPath[cleanPath] = GitDiffFile(
-                path: cleanPath,
-                status: st.isEmpty ? "?" : st,
-                added: totalCount,
-                deleted: 0,
-                lines: lines,
-                truncated: isTruncated
-            )
+            let isUntrackedOrAdded = st == "??" || st == "A" || st.hasPrefix("A")
+            if isUntrackedOrAdded {
+                let fullURL = URL(fileURLWithPath: cwd).appendingPathComponent(cleanPath)
+                let (lines, totalCount, isTruncated) = readUntrackedLines(at: fullURL, cwd: cwd)
+                filesByPath[cleanPath] = GitDiffFile(
+                    path: cleanPath,
+                    status: st,
+                    added: totalCount,
+                    deleted: 0,
+                    lines: lines,
+                    truncated: isTruncated
+                )
+            } else {
+                // Tracked file absent from unified diff (e.g. exceeded maxBytes cap): preserve status without faking full-file additions.
+                filesByPath[cleanPath] = GitDiffFile(
+                    path: cleanPath,
+                    status: st.isEmpty ? "M" : st,
+                    added: 0,
+                    deleted: 0,
+                    lines: [],
+                    truncated: true
+                )
+            }
         }
 
         let files = Array(filesByPath.values).sorted { $0.path < $1.path }
@@ -229,15 +248,9 @@ public final class GitDiffService {
                 let timer = DispatchSource.makeTimerSource(queue: .global())
                 timer.schedule(deadline: .now() + timeout)
                 timer.setEventHandler {
-                    p.terminate()
+                    if p.isRunning { p.terminate() }
                 }
                 timer.resume()
-
-                DispatchQueue.main.async {
-                    if let self, self.currentGeneration == gen {
-                        self.activeProcess = p
-                    }
-                }
 
                 do {
                     try p.run()
@@ -247,6 +260,19 @@ public final class GitDiffService {
                     try? outPipe.fileHandleForWriting.close()
                     continuation.resume(returning: (-1, ""))
                     return
+                }
+
+                // Register only after p.run() succeeds so Process.terminate() is never called on an unlaunched task.
+                DispatchQueue.main.async {
+                    guard let self else {
+                        if p.isRunning { p.terminate() }
+                        return
+                    }
+                    if self.currentGeneration == gen {
+                        self.activeProcess = p
+                    } else if p.isRunning {
+                        p.terminate()
+                    }
                 }
 
                 // Close parent copy of write end so reading hits EOF cleanly when git exits.
@@ -264,6 +290,12 @@ public final class GitDiffService {
                 try? reader.close()
                 p.waitUntilExit()
                 timer.cancel()
+
+                DispatchQueue.main.async {
+                    if self?.activeProcess === p {
+                        self?.activeProcess = nil
+                    }
+                }
 
                 let str = String(decoding: outData, as: UTF8.self)
                 continuation.resume(returning: (p.terminationStatus, str))

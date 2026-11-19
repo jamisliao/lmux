@@ -587,6 +587,8 @@ public final class TabStripView: NSView {
     private var tabsWidth: CGFloat { max(0, bounds.width - Self.laneWidth - badgeWidth) }
     private var badgeWidth: CGFloat { modeBadge.map { ModeBadge.size($0).width + 8 } ?? 0 }
     private var contentWidth: CGFloat { items.reduce(0) { $0 + $1.width } }
+    private var isOverflowing: Bool { !items.isEmpty && contentWidth + 24 > tabsWidth }
+    private var tabsClipWidth: CGFloat { isOverflowing ? max(0, tabsWidth - 24) : tabsWidth }
 
     func tabRect(_ i: Int) -> NSRect {
         let x = items.prefix(i).reduce(0) { $0 + $1.width } - scroll
@@ -594,7 +596,12 @@ public final class TabStripView: NSView {
     }
 
     public var newTabRect: NSRect {
-        let x = (items.last.map { _ in tabRect(items.count - 1).maxX } ?? 0) + 4
+        let x: CGFloat
+        if isOverflowing {
+            x = max(0, tabsWidth - 22)
+        } else {
+            x = (items.last.map { _ in tabRect(items.count - 1).maxX } ?? 0) + 4
+        }
         return NSRect(x: x, y: (bounds.height - 20) / 2, width: 20, height: 20)
     }
 
@@ -617,7 +624,7 @@ public final class TabStripView: NSView {
     }
 
     func index(at p: NSPoint) -> Int? {
-        guard p.x >= 0, p.x < tabsWidth else { return nil }
+        guard p.x >= 0, p.x < tabsClipWidth else { return nil }
         return items.indices.first { tabRect($0).minX <= p.x && p.x < tabRect($0).maxX }
     }
 
@@ -633,18 +640,18 @@ public final class TabStripView: NSView {
 
     func insertionX(_ i: Int) -> CGFloat {
         guard !items.isEmpty else { return 0 }
-        return i < items.count ? tabRect(i).minX : min(tabRect(items.count - 1).maxX, tabsWidth)
+        return i < items.count ? tabRect(i).minX : min(tabRect(items.count - 1).maxX, tabsClipWidth)
     }
 
     private func clampScroll() {
-        scroll = min(max(0, scroll), max(0, contentWidth - tabsWidth))
+        scroll = min(max(0, scroll), max(0, contentWidth - tabsClipWidth))
     }
 
     /// The shown tab scrolled into view.
     private func revealSelected() {
         guard items.indices.contains(selected) else { clampScroll(); return }
         let r = tabRect(selected)
-        if r.minX < 0 { scroll += r.minX } else if r.maxX > tabsWidth { scroll += r.maxX - tabsWidth }
+        if r.minX < 0 { scroll += r.minX } else if r.maxX > tabsClipWidth { scroll += r.maxX - tabsClipWidth }
         clampScroll()
     }
 
@@ -656,18 +663,6 @@ public final class TabStripView: NSView {
     private func showsClose(_ i: Int) -> Bool { !items[i].pinned && (i == selected || i == hovered) }
 
     // MARK: Drawing
-
-    private var isLight: Bool {
-        guard let c = background.usingColorSpace(.sRGB) else { return false }
-        return 0.2126 * c.redComponent + 0.7152 * c.greenComponent + 0.0722 * c.blueComponent > 0.5
-    }
-
-    private func shade(_ amount: CGFloat, alpha: CGFloat = 1) -> NSColor {
-        guard let c = background.usingColorSpace(.sRGB) else { return background }
-        let d = isLight ? -amount : amount
-        return NSColor(srgbRed: min(1, max(0, c.redComponent + d)), green: min(1, max(0, c.greenComponent + d)),
-                       blue: min(1, max(0, c.blueComponent + d)), alpha: alpha)
-    }
 
     private func symbol(_ name: String, _ size: CGFloat, _ color: NSColor, in r: NSRect, weight: NSFont.Weight = .semibold) {
         guard let img = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
@@ -681,10 +676,10 @@ public final class TabStripView: NSView {
         bounds.fill()
         let active = T.Colors.textPrimary.nsColor, inactive = T.Colors.textSecondary.nsColor
         NSGraphicsContext.saveGraphicsState()
-        NSRect(x: 0, y: 0, width: tabsWidth, height: bounds.height).clip()
+        NSRect(x: 0, y: 0, width: tabsClipWidth, height: bounds.height).clip()
         for (i, item) in items.enumerated() {
             let r = tabRect(i)
-            guard r.maxX > 0, r.minX < tabsWidth, r.intersects(dirtyRect) else { continue }
+            guard r.maxX > 0, r.minX < tabsClipWidth, r.intersects(dirtyRect) else { continue }
             let sel = i == selected
             let pillRect = r.insetBy(dx: 2, dy: 3.5)
             let path = NSBezierPath(roundedRect: pillRect, xRadius: 4, yRadius: 4)
@@ -721,6 +716,7 @@ public final class TabStripView: NSView {
                 symbol("pin.fill", 9, inactive, in: c)
             }
         }
+        NSGraphicsContext.restoreGraphicsState()
         if newTabRect.maxX <= tabsWidth && newTabRect.intersects(dirtyRect) {
             let ntr = newTabRect
             if hoveredButton == 100 {
@@ -729,7 +725,6 @@ public final class TabStripView: NSView {
             }
             symbol("plus", 11, hoveredButton == 100 ? active : inactive, in: ntr, weight: .regular)
         }
-        NSGraphicsContext.restoreGraphicsState()
 
         // 0.5pt glass bottom border
         T.Colors.glassBorder.nsColor.setFill()

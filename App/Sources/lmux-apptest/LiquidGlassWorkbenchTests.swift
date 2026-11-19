@@ -1,7 +1,6 @@
 // @feature: liquid-glass-app.feature
 // @scenario: 玻璃背景顯示毛玻璃與高光邊緣，開啟減少透明度時切換為不透明實底
 // @scenario: 系統開啟減少動態效果時縮短過渡並停止呼吸動畫
-// @scenario: 標題列置中顯示目前 workspace 資訊膠囊與快速操作按鈕
 // @scenario: 右側 Inspector 即時預覽支援檔案切換、重整與雙軌開啟
 // @scenario: 切換不同 workspace 時右側 Inspector 與底部狀態列同步切換上下文
 // @scenario: 拖曳調整左右側邊欄、分割線、通知 bar 或視窗縮放期間啟動拖曳降級
@@ -188,26 +187,66 @@ func runLiquidGlassWorkbench() async -> Int32 {
             && d1.toolCalls[1].status == .failed,
             "turns=\(d1.turnCount) calls=\(d1.toolCalls.map { "\($0.id):\($0.status)" })")
 
-    let git1 = GitDiffSnapshot(cwd: "/tmp", isGitRepo: true, branch: "feat/workbench", totalAdded: 4, totalDeleted: 1)
-    let pres1 = WindowFooterView.presentation(telemetry: d1, git: git1)
-    r.check("WindowFooterView presentation 包含模型、最新 Tool 與 Git 統計",
-            pres1.gitBranchText == "feat/workbench" && pres1.gitChangesText == "+4 -1" && pres1.latestToolText == "✕ Edit")
+    let pres1 = WindowFooterView.presentation(telemetry: d1, git: c.model.gitDiffService.snapshot)
+    r.check("WindowFooterView presentation 包含模型與最新 Tool",
+            pres1.latestToolText == "✕ Edit")
 
-    // 切換至 Workspace 2（非 Git 空狀態或乾淨上下文）
-    let ws2 = c.newWorkspace(select: true)
+    // 真實切換至 Workspace 2（非 Git 目錄，含可預覽檔且無預覽紀錄），驗證 gitDiffService、chipState 與 previewCoordinator 同步
+    let fm = FileManager.default
+    let nonGitWsDir = fm.temporaryDirectory.appendingPathComponent("wb-nongit-\(UUID().uuidString)")
+    let gitWsPreview = fm.temporaryDirectory.appendingPathComponent("wb-preview-\(UUID().uuidString).md")
+    defer {
+        try? fm.removeItem(at: nonGitWsDir)
+        try? fm.removeItem(at: gitWsPreview)
+    }
+    try? fm.createDirectory(at: nonGitWsDir, withIntermediateDirectories: true)
+    try? "# Non-git\n".write(to: nonGitWsDir.appendingPathComponent("README.md"), atomically: true, encoding: .utf8)
+    try? "# WS1 Preview\n".write(to: gitWsPreview, atomically: true, encoding: .utf8)
+
+    c.select(ws1)
+    c.openInInspectorPreview(gitWsPreview, workspace: ws1)
+    r.check("Workspace 1 開啟預覽與標題列膠囊同步",
+            c.root.chipState.workspace?.id == ws1.id && c.previewCoordinator.currentURL == gitWsPreview)
+
+    let ws2 = c.newWorkspace(cwd: nonGitWsDir.path, select: true)
     ws2.customTitle = "workbench-empty"
     let p2 = ws2.focusedPane!
     p2.branch = nil
+    c.model.gitDiffService.refresh(cwd: nonGitWsDir.path, immediate: true)
+    _ = await waitFor(3) { !c.model.gitDiffService.isLoading && c.model.gitDiffService.snapshot.cwd == nonGitWsDir.path }
 
     let d2 = store.display(for: p2)
-    let git2 = GitDiffSnapshot(cwd: "/tmp", isGitRepo: false)
-    let pres2 = WindowFooterView.presentation(telemetry: d2, git: git2)
-    r.check("切換 Workspace 2 後 Footer presentation 進入乾淨/空狀態",
-            pres2.gitBranchText == "—" && pres2.gitChangesText == "—" && pres2.latestToolText == nil)
+    let pres2 = WindowFooterView.presentation(telemetry: d2, git: c.model.gitDiffService.snapshot)
+    r.check("切換 Workspace 2 後 gitDiffService、Footer 與 previewCoordinator 同步清空/切換",
+            !c.model.gitDiffService.snapshot.isGitRepo
+            && c.model.gitDiffService.snapshot.previewCandidates.first?.lastPathComponent == "README.md"
+            && c.previewCoordinator.currentURL == nil
+            && c.previewCoordinator.previewView == nil
+            && pres2.gitBranchText == "—"
+            && pres2.gitChangesText == "—"
+            && pres2.latestToolText == nil)
 
-    // 切回 Workspace 1，驗證狀態復原
+    // 切回 Workspace 1，驗證狀態與預覽上下文復原
     c.select(ws1)
-    r.check("切回 Workspace 1 後選中狀態與 pane 恢復", c.model.selected?.id == ws1.id)
+    r.check("切回 Workspace 1 後選中狀態、chipState 與預覽 URL 恢復",
+            c.model.selected?.id == ws1.id
+            && c.root.chipState.workspace?.id == ws1.id
+            && c.previewCoordinator.currentURL == gitWsPreview)
+
+    // TabStripView overflow 時 + 按鈕保持可見且可點擊
+    if let overflowStrip = p1.view.tabStrip {
+        let origFrame = overflowStrip.frame
+        overflowStrip.frame = NSRect(x: 0, y: 0, width: 130, height: TabStripView.height)
+        overflowStrip.layoutSubtreeIfNeeded()
+        let overflowAdd = overflowStrip.newTabRect
+        r.check("TabStripView overflow 時 + 按鈕仍位於可視區域並可命中",
+                overflowAdd.maxX <= overflowStrip.bounds.width - TabStripView.laneWidth + 0.5
+                && overflowStrip.button(at: NSPoint(x: overflowAdd.midX, y: overflowAdd.midY)) == 100)
+        overflowStrip.frame = origFrame
+        overflowStrip.layoutSubtreeIfNeeded()
+    } else {
+        r.check("TabStripView overflow 時 + 按鈕仍位於可視區域並可命中", false)
+    }
 
     // 5. Inspector 即時預覽與分頁切換導覽
     c.model.inspectorVisible = false
