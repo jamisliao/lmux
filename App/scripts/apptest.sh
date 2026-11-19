@@ -29,7 +29,11 @@ BIN="$(swift build --show-bin-path)"
 
 # Short temp path: Unix socket paths are limited to ~104 bytes.
 T="$(mktemp -d /tmp/lmux-apptest.XXXXXX)"
-trap 'rm -rf "$T"' EXIT
+# #14: a run ended with exit 1 and no FAIL line. Name whatever fails: a command that trips set -e,
+# a failed cleanup, and the status the script really exits with. (Not under set +e, where a
+# non-zero wait is expected.)
+trap 'rc=$? ln=$LINENO cmd=$BASH_COMMAND; [[ $- == *e* ]] && echo "FAIL  [harness] apptest.sh line $ln: \"$cmd\" exited $rc"' ERR
+trap 'st=$?; rm -rf "$T" || echo "FAIL  [harness] cleanup: rm -rf $T exited $?"; [ "$st" = 0 ] || echo "INFO  [harness] apptest.sh exits $st"' EXIT
 mkdir -p "$T/bin" "$T/sink" "$T/state" "$T/tmp"
 # Panes that run a shell get an isolated zsh (temp ZDOTDIR and HISTFILE), never the user's.
 source "$APP_DIR/scripts/isolated-shell.sh"

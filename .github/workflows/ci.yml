@@ -72,7 +72,13 @@ jobs:
         run: .github/scripts/runner-display.sh 2>&1 | tee "$LOGS/runner-display.log"
       - name: apptest (headless)
         env: { LMUX_HEADLESS: '1' }
-        run: App/scripts/apptest.sh 2>&1 | tee "$LOGS/apptest.log"
+        # The exit codes of both sides of the pipe, for #14 (exit 1 with every check passing).
+        run: |
+          set +e
+          App/scripts/apptest.sh 2>&1 | tee "$LOGS/apptest.log"
+          st=("${PIPESTATUS[@]}")
+          echo "apptest.sh exited ${st[0]}, tee ${st[1]}"
+          [ "${st[0]}" = 0 ] && [ "${st[1]}" = 0 ]
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:

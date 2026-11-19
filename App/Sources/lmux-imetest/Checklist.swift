@@ -124,7 +124,7 @@ func runIMEChecks(_ r: Report, runtime: GhosttyRuntime, real: Bool) async {
     // backspace drops the preedit again, so nothing reaches the pty. Retry, then report setup.
     func attachIME(_ term: SinkTerminal) async {
         guard real, let ctx = term.view.inputContext else { return }
-        var composes = false
+        var composes = false, leaked = false
         for attempt in 0..<4 where !composes {
             if attempt > 0 { ctx.deactivate() }
             ctx.selectedKeyboardInputSource = koreanInputSourceID
@@ -133,9 +133,17 @@ func runIMEChecks(_ r: Report, runtime: GhosttyRuntime, real: Bool) async {
             await post(Key.latin("r"), to: term.window)
             for _ in 0..<20 where !term.view.hasMarkedText() { await sleepMs(50) }
             composes = term.view.hasMarkedText()
+            leaked = leaked || !composes
             await post([.backspace], to: term.window)
             for _ in 0..<20 where term.view.hasMarkedText() { await sleepMs(50) }
             await sleepMs(100)
+        }
+        // A try that didn't compose echoed "ㄱ^?" onto the screen: wipe it so checks that read the
+        // screen start clean. A terminal with a prelude (kitty flags) keeps it: reset would drop the
+        // flags, and those checks only read the pty bytes after mark().
+        if leaked, !term.hasPrelude {
+            term.view.performBindingAction("reset")
+            await sleepMs(200)
         }
         if !composes { r.check("(setup) the Korean 2-Set IME composes in \(term.window.title)", false) }
     }

@@ -123,6 +123,10 @@ func percentile(_ xs: [Double], _ p: Double) -> Double {
         var mixed = Array("garbage\n".utf8) + good("a") + Array("{\"pane\":\"x\"}\n\n".utf8)
         mixed += good("b").dropLast()
         #expect(HookClient.send(mixed, socketPath: path))
+        // "b" only arrives when the server sees that connection close, so after this it no longer
+        // counts against maxClients (64) and all 64 clients below get in. Without the wait, 65
+        // connections can overlap on a slow runner and the server rightly turns one away.
+        #expect(inbox.wait(count: 2 + 2))
 
         DispatchQueue.concurrentPerform(iterations: 64) { i in
             _ = HookClient.send(good("c\(i)"), socketPath: path)

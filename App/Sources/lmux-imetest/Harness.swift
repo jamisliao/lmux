@@ -63,11 +63,13 @@ final class SinkTerminal {
     let window: NSWindow
     let view: SurfaceView
     let sinkURL: URL
+    let hasPrelude: Bool
     private var offset: Int = 0
 
     init(runtime: GhosttyRuntime, view makeView: (ghostty_app_t, SurfaceOptions) -> SurfaceView,
          title: String, echo: Bool = true, frame: NSRect = NSRect(x: 200, y: 200, width: 640, height: 300),
          prelude: String = "", window makeWindow: ((NSRect, NSWindow.StyleMask) -> NSWindow)? = nil) {
+        hasPrelude = !prelude.isEmpty
         let dir = imetestTempDir
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let id = UUID().uuidString.prefix(8)
