@@ -356,6 +356,48 @@ func runLiquidGlass() async -> Int32 {
     r.check("RightInspectorResizeHandle: viewWillMove(toWindow: nil) resets isDragging",
             !inspectorHandle.isDragging && !dragNotified)
 
+    // 11a-1. FooterBackdrop & WindowFooterView presentation
+    let footerBackdrop = FooterBackdrop(frame: NSRect(x: 0, y: 0, width: 800, height: 32))
+    r.check("FooterBackdrop: translucent material and top border shown when idle",
+            !footerBackdrop.material.isHidden && !footerBackdrop.specular.isHidden)
+    footerBackdrop.forceOpaque = true
+    r.check("FooterBackdrop: forceOpaque engages opaque fallback",
+            footerBackdrop.material.isHidden && footerBackdrop.specular.isHidden && footerBackdrop.isOpaqueFallback)
+    footerBackdrop.forceOpaque = false
+    footerBackdrop.isResizing = true
+    r.check("FooterBackdrop: isResizing engages opaque fallback",
+            footerBackdrop.material.isHidden && footerBackdrop.specular.isHidden && footerBackdrop.isOpaqueFallback)
+    footerBackdrop.isResizing = false
+    r.check("FooterBackdrop: hitTest returns nil to allow interaction pass-through",
+            footerBackdrop.hitTest(NSPoint(x: 10, y: 10)) == nil)
+
+    let emptyPres = WindowFooterView.presentation(telemetry: nil, git: nil)
+    r.check("WindowFooterView: empty presentation has placeholders and honest Metal renderer",
+            emptyPres.modelText == "—" && emptyPres.turnsText == "—" && emptyPres.rendererText == "Metal" &&
+            emptyPres.contextPercentText == "—" && emptyPres.contextRatio == nil &&
+            emptyPres.gitBranchText == "—" && emptyPres.gitChangesText == "—")
+
+    let dummyTelem = PaneTelemetryDisplay(
+        model: "gpt-5-4",
+        turnCount: 3,
+        contextUsedTokens: 65_000,
+        contextLimitTokens: 100_000,
+        contextPercent: 65,
+        isActiveAgent: true
+    )
+    let dummyGit = GitDiffSnapshot(
+        cwd: "/tmp/repo",
+        isGitRepo: true,
+        branch: "feat/preview",
+        totalAdded: 42,
+        totalDeleted: 10
+    )
+    let activePres = WindowFooterView.presentation(telemetry: dummyTelem, git: dummyGit)
+    r.check("WindowFooterView: active presentation shows model, turns, context percent, git branch and diff stats",
+            activePres.modelText == "gpt-5-4" && activePres.turnsText == "Turn 3" && activePres.rendererText == "Metal" &&
+            activePres.contextPercentText == "65%" && activePres.contextRatio == 0.65 &&
+            activePres.gitBranchText == "feat/preview" && activePres.gitChangesText == "+42 -10")
+
     c.closeWorkspace(wsRun)
 
     return finish(r, c)

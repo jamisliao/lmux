@@ -813,16 +813,16 @@ git commit -m "feat(ui): build InspectorPreviewPane with isolated WorkspacePrevi
   - `@MainActor final class FooterBackdrop: NSView`（`NSVisualEffectView` + `tint` + 1pt 頂部邊線 + `isResizing` opaque fallback）
   - `struct WindowFooterView: View`（`32pt` 全寬列：左側 Agent 模型／最近 Tool Call／Turn 數／誠實渲染器標記 `"Metal"`（`reduceMotion` 下停止狀態點動畫）；中央 Context Window 進度條＋`%`；右側 Git 分支 `+adds -dels`、`"即時預覽"` 鈕、`⌥⌘B` 鈕；無作用中 agent / 非 Git 目錄顯示 `—`；於 `600pt` 窄窗自動優雅緊縮；全部可點擊徽章與按鈕均設無障礙 `accessibilityLabel` 並呼叫 `onInspectTab(tab)` 展開且切分頁）
 
-- [ ] **Step 1: 在 `LiquidGlass.swift` 補入 `WindowFooterView.presentation(telemetry:git:)` 空狀態、點擊切換對應 `InspectorTab` 與 `FooterBackdrop` opaque fallback 測試（RED）**
+- [x] **Step 1: 在 `LiquidGlass.swift` 補入 `WindowFooterView.presentation(telemetry:git:)` 空狀態、點擊切換對應 `InspectorTab` 與 `FooterBackdrop` opaque fallback 測試（RED）**
 
-- [ ] **Step 2: 實作 `WindowFooterView.swift`（<= 220 行）**
+- [x] **Step 2: 實作 `WindowFooterView.swift`（<= 220 行）**
 
-- [ ] **Step 3: 執行 `--liquid-glass` 驗證 GREEN**
+- [x] **Step 3: 執行 `--liquid-glass` 驗證 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass`
 Expected: ALL PASS
 
-- [ ] **Step 4: 提交 Task 11a-1**
+- [x] **Step 4: 提交 Task 11a-1**
 
 ```bash
 git add App/Sources/LmuxUI/WindowFooterView.swift App/Sources/lmux-apptest/LiquidGlass.swift
