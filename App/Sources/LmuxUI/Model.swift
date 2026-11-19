@@ -96,7 +96,12 @@ public final class Pane: Identifiable {
 
     // Agent awareness
     public var agent = PaneAgent() {
-        didSet { if agent.state != oldValue.state { agentStateChanged() } }
+        didSet {
+            if agent.state != oldValue.state { agentStateChanged() }
+            if agent != oldValue {
+                workspace?.model?.telemetryStore?.noteHookUpdate(for: self)
+            }
+        }
     }
     /// Last main-agent tool name while running.
     public var lastTool: String?
@@ -744,12 +749,32 @@ public struct NotificationEntry: Identifiable, Equatable {
     }
 }
 
+public enum InspectorTab: String, Codable, CaseIterable {
+    case preview
+    case diff
+    case trace
+}
+
+public enum WorkspaceFilter: String, CaseIterable {
+    case all
+    case active
+    case needsInput
+}
+
 @MainActor @Observable
 public final class AppModel {
     public var workspaces: [Workspace] = [] { didSet { for w in workspaces { w.model = self } } }
     public var selectedID: String?
     public var sidebarVisible = true
     public var sidebarWidth: CGFloat = LmuxTokens.Layout.sidebarWidthDefault
+    public var inspectorVisible: Bool = true
+    public var inspectorWidth: CGFloat = LmuxTokens.Layout.rightInspectorWidthDefault
+    public var inspectorTab: InspectorTab = .preview
+    public var workspaceFilter: WorkspaceFilter = .all
+    public var inspectorPreviewURLByWorkspace: [String: URL] = [:]
+    public var reduceMotionOverride: Bool?
+    @ObservationIgnored var telemetryStore: AgentTelemetryStore?
+    @ObservationIgnored public let gitDiffService = GitDiffService()
     /// What the sidebar's elapsed times are measured against: moved by a minute tick that
     /// only runs while a visible sidebar shows a Done / Failed row.
     public var clock = Date()

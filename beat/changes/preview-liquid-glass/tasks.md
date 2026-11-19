@@ -391,21 +391,21 @@ git commit -m "feat(tokens): add 1:1 High-Key Crystal & Obsidian Midnight Liquid
   - `Pane`: `didSet` 於 `agent != oldValue` 時同時更新 `workspace?.model?.telemetryStore?.noteHookUpdate(for: self)`（即使同為 `.running -> .running`）。
   - `LayoutFile`：以 `decodeIfPresent` 在 `init(from:)` 解碼 `inspectorVisible`、`inspectorWidth`（鉗製於 `240...500`）、`inspectorTab`，並在 `Controller.snapshotLayout()` / `restoreLayout()` 完整讀寫。
 
-- [ ] **Step 1: 在 `LiquidGlassTelemetryTests.swift` 加入舊版 `layout.json` 相容解碼、超界寬度鉗製（如 `999` → `500`）與 `snapshotLayout()` → `restoreLayout()` 往返測試**
+- [x] **Step 1: 在 `LiquidGlassTelemetryTests.swift` 加入舊版 `layout.json` 相容解碼、超界寬度鉗製（如 `999` → `500`）與 `snapshotLayout()` → `restoreLayout()` 往返測試**
 
-- [ ] **Step 2: 執行 `--liquid-glass-telemetry` 確認 RED**
+- [x] **Step 2: 執行 `--liquid-glass-telemetry` 確認 RED**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass-telemetry`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `Model.swift` 與 `Persistence.swift` 狀態及解碼／序列化更新**
+- [x] **Step 3: 實作 `Model.swift` 與 `Persistence.swift` 狀態及解碼／序列化更新**
 
-- [ ] **Step 4: 執行 `--liquid-glass-telemetry` 與 `--compat` 驗證 GREEN**
+- [x] **Step 4: 執行 `--liquid-glass-telemetry` 與 `--compat` 驗證 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass-telemetry --compat`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 6a**
+- [x] **Step 5: 提交 Task 6a**
 
 ```bash
 git add App/Sources/LmuxUI/Model.swift App/Sources/LmuxUI/Persistence.swift App/Sources/lmux-apptest/LiquidGlassTelemetryTests.swift
