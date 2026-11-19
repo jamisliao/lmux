@@ -100,6 +100,30 @@ func runLiquidGlass() async -> Int32 {
             !barLayout.isDragging && !c.isSidebarResizing && !bd.isResizing &&
             testDefaults.double(forKey: BarLayout.defaultsKey) == Double(savedExtra + 40))
 
+    // Task 11b: BarLayout collapse threshold, toggleCollapsed, auto-collapse on drag, and upward expand
+    r.check("BarLayout.collapseDragThreshold is 42", BarLayout.collapseDragThreshold == 42)
+    r.check("BarLayout initially not collapsed", !barLayout.isCollapsed)
+    barLayout.toggleCollapsed(on: c)
+    r.check("BarLayout toggleCollapsed collapses bar and writes isCollapsed defaults",
+            barLayout.isCollapsed && testDefaults.bool(forKey: BarLayout.collapsedDefaultsKey))
+    barLayout.toggleCollapsed(on: c)
+    r.check("BarLayout toggleCollapsed restores expanded state and original extra",
+            !barLayout.isCollapsed && barLayout.extra == savedExtra + 40 &&
+            !testDefaults.bool(forKey: BarLayout.collapsedDefaultsKey))
+
+    // Downward drag to total height <= 42 triggers auto-collapse
+    barLayout.updateDrag(translationHeight: 300, maxExtra: 200, on: c)
+    r.check("BarLayout dragging down past threshold triggers auto-collapse", barLayout.isCollapsed)
+    barLayout.endDrag(on: c)
+    r.check("BarLayout endDrag preserves collapsed state in defaults",
+            testDefaults.bool(forKey: BarLayout.collapsedDefaultsKey))
+
+    // Upward drag from collapsed state immediately expands
+    barLayout.updateDrag(translationHeight: -20, maxExtra: 200, on: c)
+    r.check("BarLayout dragging upward from collapsed state immediately un-collapses",
+            !barLayout.isCollapsed && barLayout.extra > 0)
+    barLayout.endDrag(on: c)
+
     // (d) 視窗邊緣縮放（willStartLiveResize -> didEndLiveResize）
     NotificationCenter.default.post(name: NSWindow.willStartLiveResizeNotification, object: w)
     r.check("Window willStartLiveResize pauses blur",
@@ -122,8 +146,15 @@ func runLiquidGlass() async -> Int32 {
 
     // 4. 選取中的 workspace 列、反白通知卡片與通知 bar 調整手把呈現立體玻璃細節
     if let ws = c.model.selected, let p0 = ws.focusedPane {
-        c.model.recordNotification(NotificationEntry(paneID: p0.id, workspaceID: ws.id, title: ws.title,
-                                                     message: "Glass check ready", kind: "done", read: false))
+        ws.customTitle = "lmux-app"
+        p0.branch = "feat/liquid-glass"
+        let entry = NotificationEntry(paneID: p0.id, workspaceID: ws.id, title: ws.title,
+                                      message: "Glass check ready", kind: "done", read: false)
+        c.model.recordNotification(entry)
+        let wsName = workspaceName(entry, in: c.model)
+        r.check("NotificationCard workspace line includes branch when present",
+                NotificationCard.cardWorkspaceText(entry, in: c.model) == "\(wsName) · feat/liquid-glass",
+                "actual=\(NotificationCard.cardWorkspaceText(entry, in: c.model)) expected=\(wsName) · feat/liquid-glass")
     }
     r.check("Notification recorded and WorkspaceRowContent & HistoryRow show glassBorder only when selected",
             !c.model.notifications.isEmpty &&

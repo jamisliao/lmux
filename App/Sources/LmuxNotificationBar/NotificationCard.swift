@@ -36,8 +36,18 @@ struct NotificationCard: View {
         + lineHeight(T.Typography.rowTitle.size) + lineHeight(T.Typography.rowMeta.size)
         + lineHeight(T.Typography.rowSubtitle.size) * 2 + T.Layout.rowLineGap * 3
 
+    @MainActor
+    static func cardWorkspaceText(_ entry: NotificationEntry, in model: AppModel) -> String {
+        let ws = workspaceName(entry, in: model)
+        if let b = sourcePane(entry, in: model)?.branch?.trimmingCharacters(in: .whitespacesAndNewlines), !b.isEmpty {
+            return "\(ws) · \(b)"
+        }
+        return ws
+    }
+
     var body: some View {
         let workspace = workspaceName(entry, in: model)
+        let wsText = Self.cardWorkspaceText(entry, in: model)
         let task = taskTitle(entry, in: model)
         let first = task ?? workspace
         HStack(alignment: .top, spacing: 6) {
@@ -57,8 +67,8 @@ struct NotificationCard: View {
                         .font(T.Typography.rowMeta.font.monospacedDigit())
                         .foregroundStyle(T.Colors.textTertiary.color)
                 }
-                if task != nil, workspace != first {
-                    Text(workspace)
+                if task != nil, wsText != first, workspace != first {
+                    Text(wsText)
                         .font(T.Typography.rowMeta.font)
                         .foregroundStyle(T.Colors.textTertiary.color)
                         .lineLimit(1)
@@ -95,8 +105,8 @@ struct NotificationCard: View {
 
     /// 反白：與 sidebar 選取列同色（視窗不在前景時用淡的那個）。反白時 hover 不改變底色。
     private var background: Color {
-        if highlighted { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.rowSelected).color }
-        return hover ? T.Colors.rowHover.color : .clear
+        if highlighted { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.glassCardSelected).color }
+        return hover ? T.Colors.glassCardHover.color : .clear
     }
 
     static func showsGlassBorder(highlighted: Bool, hover: Bool) -> Bool {

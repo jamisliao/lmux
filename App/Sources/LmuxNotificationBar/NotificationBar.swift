@@ -21,6 +21,11 @@ public enum NotificationBarPlugin {
         handleHeight + rowHeight * CGFloat(pluginRows) + (pluginRows > 0 ? 1 : 0) + rowHeight + NotificationCard.maxHeight
     }
 
+    /// 收合時的高度：拖曳帶 + 每個 plugin 一行（有 plugin 時加分隔線）+ 摘要列。
+    public static func collapsedHeight(pluginRows: Int) -> CGFloat {
+        handleHeight + rowHeight * CGFloat(pluginRows) + (pluginRows > 0 ? 1 : 0) + rowHeight
+    }
+
     /// 在 `controller.start()` 之後呼叫。
     @discardableResult
     public static func install(on controller: LmuxController, defaults: UserDefaults = .standard) -> BarLayout {
@@ -51,10 +56,17 @@ public enum NotificationBarPlugin {
     /// plugin 行數或拖出來的高度變了，就更新 bar 的高度（比照 RootView.trackSidebarState 的寫法）。
     private static func followHeight(_ host: PluginHost?, _ layout: BarLayout, _ view: NSView,
                                      _ controller: LmuxController, last: CGFloat) {
-        let height = minHeight(pluginRows: host?.rows.count ?? 0) + layout.extra
+        let pluginCount = host?.rows.count ?? 0
+        let height: CGFloat
+        if layout.isCollapsed {
+            height = collapsedHeight(pluginRows: pluginCount)
+        } else {
+            height = minHeight(pluginRows: pluginCount) + layout.extra
+        }
         withObservationTracking {
             _ = host?.rows.count
             _ = layout.extra
+            _ = layout.isCollapsed
         } onChange: {
             DispatchQueue.main.async {
                 MainActor.assumeIsolated { followHeight(host, layout, view, controller, last: height) }
@@ -67,17 +79,26 @@ public enum NotificationBarPlugin {
 /// 使用者拖出來、超過最小高度的部分（都給通知清單），存在 UserDefaults，重開 lmux 後維持。
 @MainActor @Observable
 public final class BarLayout {
-    static let defaultsKey = "sidebarBarExtraHeight"
-    var extra: CGFloat
+    public static let defaultsKey = "sidebarBarExtraHeight"
+    public static let collapsedDefaultsKey = "sidebarBarIsCollapsed"
+    public static let collapseDragThreshold: CGFloat = 42
+
+    public var extra: CGFloat
+    public var isCollapsed: Bool
+    var savedExtraBeforeCollapse: CGFloat
     private(set) var dragStart: CGFloat?
     private let defaults: UserDefaults
     @ObservationIgnored private nonisolated(unsafe) var focusObservers: [NSObjectProtocol] = []
 
-    var isDragging: Bool { dragStart != nil }
+    public var isDragging: Bool { dragStart != nil }
 
-    init(defaults: UserDefaults = .standard) {
+    public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        extra = max(0, CGFloat(defaults.double(forKey: Self.defaultsKey)))
+        let e = max(0, CGFloat(defaults.double(forKey: Self.defaultsKey)))
+        let c = defaults.bool(forKey: Self.collapsedDefaultsKey)
+        self.extra = e
+        self.savedExtraBeforeCollapse = e
+        self.isCollapsed = c
     }
 
     deinit {
@@ -102,28 +123,66 @@ public final class BarLayout {
         })
     }
 
-    func beginDrag(on controller: LmuxController) {
+    public func toggleCollapsed(on controller: LmuxController) {
+        controller.setSidebarResizing(true)
+        if isCollapsed {
+            isCollapsed = false
+            extra = max(0, savedExtraBeforeCollapse)
+        } else {
+            savedExtraBeforeCollapse = extra
+            isCollapsed = true
+        }
+        save()
+        DispatchQueue.main.async {
+            controller.setSidebarResizing(false)
+        }
+    }
+
+    public func beginDrag(on controller: LmuxController) {
         if dragStart == nil {
             dragStart = extra
         }
         controller.setSidebarResizing(true)
     }
 
-    func updateDrag(translationHeight: CGFloat, maxExtra: CGFloat, on controller: LmuxController) {
+    public func updateDrag(translationHeight: CGFloat, maxExtra: CGFloat, on controller: LmuxController, pluginRows: Int = 0) {
         beginDrag(on: controller)
         let start = dragStart ?? extra
-        // 往上拖（translation 為負）bar 變高。
-        extra = min(max(0, start - translationHeight), max(0, maxExtra))
+
+        if isCollapsed {
+            if translationHeight < 0 {
+                isCollapsed = false
+                let restored = max(0, savedExtraBeforeCollapse)
+                dragStart = restored
+                extra = min(max(0, restored - translationHeight), max(0, maxExtra))
+            }
+            return
+        }
+
+        let newExtra = start - translationHeight
+        let totalHeight = NotificationBarPlugin.minHeight(pluginRows: pluginRows) + newExtra
+        if totalHeight <= Self.collapseDragThreshold {
+            if !isCollapsed {
+                savedExtraBeforeCollapse = max(0, start)
+            }
+            isCollapsed = true
+            extra = 0
+        } else {
+            extra = min(max(0, newExtra), max(0, maxExtra))
+        }
     }
 
-    func endDrag(on controller: LmuxController) {
+    public func endDrag(on controller: LmuxController) {
         dragStart = nil
         controller.setSidebarResizing(false)
         save()
     }
 
-    /// 拖曳結束才寫入，拖曳過程中不必每一步都寫。
-    func save() { defaults.set(Double(extra), forKey: Self.defaultsKey) }
+    /// 拖曳結束或狀態變更時寫入 UserDefaults。
+    public func save() {
+        defaults.set(Double(extra), forKey: Self.defaultsKey)
+        defaults.set(isCollapsed, forKey: Self.collapsedDefaultsKey)
+    }
 }
 
 /// 比照 LmuxUI 的 SidebarHostingView：視窗不在前景時第一下點擊就有效，且不搶 terminal 的鍵盤焦點。
@@ -148,13 +207,16 @@ struct NotificationBar: View {
                 ForEach(pluginRows) { row in PluginRow(row: row, host: host) }
                 Rectangle().fill(T.Colors.separator.color).frame(height: 1)
             }
-            NotificationList(model: model, controller: controller, host: host)
+            NotificationSummaryRow(model: model, controller: controller, host: host, layout: layout)
+            if !layout.isCollapsed {
+                NotificationList(model: model, controller: controller, host: host)
+            }
         }
         .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
-/// bar 最上緣：往上拖變高、往下拖變矮（不會低於最小高度），雙擊恢復自動高度。
+/// bar 最上緣：往上拖變高、往下拖變矮（不會低於最小高度），雙擊切換收合。
 struct BarResizeHandle: View {
     let layout: BarLayout
     let controller: LmuxController
@@ -206,10 +268,9 @@ struct BarResizeHandle: View {
             }
         }
         .onTapGesture(count: 2) {
-            layout.extra = 0
-            layout.save()
+            layout.toggleCollapsed(on: controller)
         }
-        .help("Drag to resize, double-click to reset")
+        .help("Drag to resize, double-click to collapse/expand")
     }
 }
 
@@ -289,33 +350,30 @@ struct NotificationList: View {
         // 只反白 focused tab 的最新一則通知（notifications 由新到舊）。
         let focusedPaneID = model.selected?.focusedPane?.id
         let highlightedID = focusedPaneID == nil ? nil : model.notifications.first { $0.paneID == focusedPaneID }?.id
-        VStack(spacing: 0) {
-            NotificationSummaryRow(model: model, host: host)
-            ScrollViewReader { proxy in
-                ScrollView(.vertical) {
-                    VStack(spacing: 0) {
-                        if ordered.isEmpty {
-                            Text("No notifications")
-                                .font(.system(size: 12))
-                                .foregroundStyle(T.Colors.textTertiary.color)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.leading, 32)
-                                .frame(height: NotificationBarPlugin.rowHeight)
-                        }
-                        ForEach(ordered) { e in
-                            NotificationCard(entry: e, model: model, age: Self.age(e.date, now: now),
-                                             highlighted: e.id == highlightedID) {
-                                controller.openNotification(e)
-                            }
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                VStack(spacing: 0) {
+                    if ordered.isEmpty {
+                        Text("No notifications")
+                            .font(.system(size: 12))
+                            .foregroundStyle(T.Colors.textTertiary.color)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 32)
+                            .frame(height: NotificationBarPlugin.rowHeight)
+                    }
+                    ForEach(ordered) { e in
+                        NotificationCard(entry: e, model: model, age: Self.age(e.date, now: now),
+                                         highlighted: e.id == highlightedID) {
+                            controller.openNotification(e)
                         }
                     }
                 }
-                .scrollIndicators(.automatic)
-                .scrollBounceBehavior(.basedOnSize)
-                // 捲動過後來了新的未讀通知：捲回最上面，不必動滑鼠。
-                .onChange(of: ordered.first?.id) { _, id in
-                    if let id { proxy.scrollTo(id, anchor: .top) }
-                }
+            }
+            .scrollIndicators(.automatic)
+            .scrollBounceBehavior(.basedOnSize)
+            // 捲動過後來了新的未讀通知：捲回最上面，不必動滑鼠。
+            .onChange(of: ordered.first?.id) { _, id in
+                if let id { proxy.scrollTo(id, anchor: .top) }
             }
         }
     }
@@ -330,10 +388,13 @@ struct NotificationList: View {
     }
 }
 
-/// 清單最上面一列：鈴鐺與未讀數。第一則通知在下方用卡片顯示。
+/// 清單最上面一列：鈴鐺、Inbox 標題與未讀數。
 struct NotificationSummaryRow: View {
     let model: AppModel
+    let controller: LmuxController
     let host: PluginHost?
+    let layout: BarLayout
+    @State private var hover = false
 
     /// 這一次 build 的版號（Info.plist 的 CFBundleVersion，由 bundle.sh 用 git 寫入）。不是 .app（例如 `swift run`）時沒有。
     static let buildVersion: String? = Bundle.main.infoDictionary?["CFBundleVersion"] as? String
@@ -341,11 +402,24 @@ struct NotificationSummaryRow: View {
     var body: some View {
         let unread = model.unreadNotifications
         HStack(spacing: 6) {
-            Image(systemName: unread > 0 ? "bell.badge" : "bell")
-                .font(.system(size: 11))
-                .foregroundStyle((unread > 0 ? T.Colors.accent : T.Colors.textTertiary).color)
-                .frame(width: 14)
-            Spacer(minLength: 4)
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "bell")
+                    .font(.system(size: 11))
+                    .foregroundStyle((unread > 0 ? T.Colors.textPrimary : T.Colors.textTertiary).color)
+                    .frame(width: 14, height: 14)
+                if unread > 0 {
+                    Circle()
+                        .fill(T.Colors.stateFailed.color)
+                        .frame(width: 5, height: 5)
+                        .offset(x: 2, y: -2)
+                }
+            }
+            .frame(width: 14)
+
+            Text("Inbox")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(T.Colors.textPrimary.color)
+
             if let v = Self.buildVersion {
                 // 窄的時候先截斷版號，未讀數不受影響。
                 Text(v)
@@ -356,17 +430,37 @@ struct NotificationSummaryRow: View {
                     .layoutPriority(-1)
                     .help("lmux build \(v)")
             }
+
+            Spacer(minLength: 4)
+
             if unread > 0 {
                 Text("\(unread)")
-                    .font(.system(size: 11, weight: .medium).monospacedDigit())
-                    .foregroundStyle(T.Colors.accent.color)
+                    .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(Color.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(T.Colors.accent.color)
+                    )
             }
+
+            Image(systemName: layout.isCollapsed ? "chevron.up" : "chevron.down")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(T.Colors.textTertiary.color)
+                .frame(width: 12)
         }
         .padding(.horizontal, 12)
         .frame(height: NotificationBarPlugin.rowHeight)
+        .background(hover ? T.Colors.rowHover.color : .clear)
         .contentShape(Rectangle())
+        .onHover { hover = $0 }
+        .onTapGesture {
+            layout.toggleCollapsed(on: controller)
+        }
         .contextMenu { if let host { PluginMenuItems(host: host) } }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(unread > 0 ? "Notifications, \(unread) unread" : "Notifications")
+        .accessibilityLabel(unread > 0 ? "Inbox Notifications, \(unread) unread" : "Inbox Notifications")
+        .accessibilityAddTraits(.isButton)
     }
 }

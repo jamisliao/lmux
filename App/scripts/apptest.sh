@@ -171,6 +171,17 @@ run_liquid_glass_suite() {
 }
 if [ "${1:-}" = "--liquid-glass" ]; then
   run_liquid_glass_suite
+  for arg in "$@"; do
+    if [ "$arg" = "--bell" ]; then
+      mkdir -p "$T/bell"
+      LMUX_STATE_DIR="$T/bell" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --bell 2>/dev/null | filter || status=1
+    fi
+  done
+  exit $status
+fi
+if [ "${1:-}" = "--bell" ]; then
+  mkdir -p "$T/bell"
+  LMUX_STATE_DIR="$T/bell" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --bell 2>/dev/null | filter || status=1
   exit $status
 fi
 run_pane_tabs_suite() {
