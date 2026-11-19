@@ -258,6 +258,27 @@ func runLiquidGlassTelemetry() async -> Int32 {
     r.check("sessionEnd clears telemetry snapshot in AgentTelemetryStore",
             d.contextUsedTokens == 0)
 
+    // 7. InspectorDiffView.displayState(for:)
+    let nonGitSnap = GitDiffSnapshot(cwd: "/tmp", isGitRepo: false)
+    r.check("InspectorDiffView.displayState for non-git repo",
+            InspectorDiffView.displayState(for: nonGitSnap) == .notGitRepo)
+
+    let cleanSnap = GitDiffSnapshot(cwd: "/tmp", isGitRepo: true, branch: "main", files: [])
+    r.check("InspectorDiffView.displayState for clean git repo",
+            InspectorDiffView.displayState(for: cleanSnap) == .clean(branch: "main"))
+
+    let diffFile = GitDiffFile(path: "Sources/Main.swift", status: "M", added: 5, deleted: 2, lines: [
+        GitDiffLine(id: 0, kind: .added, text: "+let x = 1"),
+        GitDiffLine(id: 1, kind: .removed, text: "-let x = 0")
+    ])
+    let dirtySnap = GitDiffSnapshot(cwd: "/tmp", isGitRepo: true, branch: "feat", totalAdded: 5, totalDeleted: 2, files: [diffFile])
+    r.check("InspectorDiffView.displayState for dirty git repo",
+            InspectorDiffView.displayState(for: dirtySnap) == .diff(branch: "feat", fileCount: 1, added: 5, deleted: 2))
+
+    // symlink / unsafe preview check
+    r.check("InspectorDiffView.resolvePreviewURL rejects unsafe control characters",
+            InspectorDiffView.resolvePreviewURL(file: "test\u{202E}file.txt", cwd: "/tmp") == nil)
+
     print("\nRESULT: \(r.failed == 0 ? "PASS" : "FAIL") (\(r.passed)/\(r.passed + r.failed) checks passed)\n")
     return r.failed == 0 ? 0 : 1
 }
