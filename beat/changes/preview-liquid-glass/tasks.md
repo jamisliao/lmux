@@ -632,16 +632,16 @@ git commit -m "feat(ui): style terminal panes as rounded glass cards with distin
 - Produces (`LmuxUI`):
   - `TabStripView`：預設於每個分塊頂部顯示 `30pt` 玻璃 `Pane Tab Strip`（帶狀態色點之圓角分頁膠囊、`×` 關閉、分頁列末尾 `+` 開分頁鈕；右側操作道顯示 `[向右分割, 向下分割, 關閉分塊 ✕]`，其中關閉分塊呼叫 `controller?.requestClosePane(shown)` 受執行中程式確認框保護），完整保留拖曳排序、跨格分割、雙擊縮放／重新命名、右鍵選單與 `hitTest` 點擊隔離（不穿透至 `PreviewView`）。
 
-- [ ] **Step 1: 檢查並更新 `PaneTabs.swift` 與 `StatusExtras.swift` 中關於單頁 `tabStrip` 預設顯示、`background` token 與 `buttonRect` 按鈕配置的新期待（RED）**
+- [x] **Step 1: 檢查並更新 `PaneTabs.swift` 與 `StatusExtras.swift` 中關於單頁 `tabStrip` 預設顯示、`background` token 與 `buttonRect` 按鈕配置的新期待（RED）**
 
-- [ ] **Step 2: 實作 `Tabs.swift` 新版 `TabStripView` 膠囊繪製與 `[向右分割, 向下分割, 關閉分塊]` 按鈕道**
+- [x] **Step 2: 實作 `Tabs.swift` 新版 `TabStripView` 膠囊繪製與 `[向右分割, 向下分割, 關閉分塊]` 按鈕道**
 
-- [ ] **Step 3: 執行 `--pane-tabs`、`--preview`（特別檢查 `preview-click-hit`）與 `--status-extras` 驗證全數 PASS**
+- [x] **Step 3: 執行 `--pane-tabs`、`--preview`（特別檢查 `preview-click-hit`）與 `--status-extras` 驗證全數 PASS**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --pane-tabs --preview`
 Expected: ALL PASS
 
-- [ ] **Step 4: 提交 Task 9b**
+- [x] **Step 4: 提交 Task 9b**
 
 ```bash
 git add App/Sources/LmuxUI/Tabs.swift App/Sources/lmux-apptest/PaneTabs.swift App/Sources/lmux-apptest/StatusExtras.swift

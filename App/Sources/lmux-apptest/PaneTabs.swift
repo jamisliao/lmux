@@ -222,39 +222,42 @@ func runPaneTabs() async -> Int32 {
     _ = await sinks.waitReady(a.id)
     var sa = a.view.tabStrip!
     sa.layoutSubtreeIfNeeded()
-    let mid = { (b: Int) in NSPoint(x: sa.buttonRect(b).midX, y: sa.bounds.midY) }
-    await click(sa, at: mid(0))
+    let newTabMid = NSPoint(x: sa.newTabRect.midX, y: sa.bounds.midY)
+    await click(sa, at: newTabMid)
     let plus = sw.panes.last!
-    r.check("the strip's first button (New Terminal): a tab in this pane", sw.panes.count == 2 && sw.root.find(a)?.tabs.count == 2
+    r.check("the strip's new tab button (+): a tab in this pane", sw.panes.count == 2 && sw.root.find(a)?.tabs.count == 2
             && sw.focusedPane === plus && plus !== a)
     _ = await sinks.waitReady(plus.id)
     c.closePane(plus)
-    await click(sa, at: mid(1))
+    await click(sa, at: NSPoint(x: sa.buttonRect(0).midX, y: sa.bounds.midY))
     r.check("…Split Right", sw.isSplit && sw.visiblePanes.count == 2 && sw.visiblePanes.first === a)
     guard sw.visiblePanes.count == 2 else { return finish(r, c) }
     let r1 = sw.visiblePanes[1]
     _ = await sinks.waitReady(r1.id)
     let sr = r1.view.tabStrip!
     sr.layoutSubtreeIfNeeded()
-    await click(sr, at: NSPoint(x: sr.buttonRect(2).midX, y: sr.bounds.midY))
+    await click(sr, at: NSPoint(x: sr.buttonRect(1).midX, y: sr.bounds.midY))
     r.check("…Split Down (on the right pane's strip)", sw.visiblePanes.count == 3 && sw.focusedPane !== r1)
     guard sw.visiblePanes.count == 3 else { return finish(r, c) }
     let r2 = sw.visiblePanes[2]
     _ = await sinks.waitReady(r2.id)
+    r.check("…Close button exists on strip action lane", sr.buttonRect(2).width > 0)
     r.check("…every pane of the split has its own strip", sw.visiblePanes.allSatisfy { $0.view.tabStrip != nil && $0.view.header.isHidden })
     sa = a.view.tabStrip!  // a split makes new leaves (and strips)
 
     // Double-clicks: on the empty part a new tab, on a tab a zoom.
     sa.layoutSubtreeIfNeeded()
-    let empty = NSPoint(x: sa.tabRect(sa.items.count - 1).maxX + 20, y: sa.bounds.midY)
+    let empty = NSPoint(x: sa.newTabRect.maxX + 20, y: sa.bounds.midY)
     await doubleClick(sa, at: empty)
     let aLeaf = sw.root.find(a)!
     r.check("double-click on the strip's empty part: a new tab there", aLeaf.tabs.count == 2 && aLeaf.shownTab !== a, "\(aLeaf.tabs.count)")
     let a2 = aLeaf.shownTab!
     _ = await sinks.waitReady(a2.id)
+    sa = a2.view.tabStrip!
     sa.layoutSubtreeIfNeeded()
     await doubleClick(sa, at: tabPoint(sa, 0))
     r.check("double-click on a tab: that tab, zoomed (cmux)", sw.zoomedPane === a && aLeaf.shownTab === a && isShown(a) && isHidden(r1))
+    sa = a.view.tabStrip!
     c.refreshTabStrips(sw)
     sa.layoutSubtreeIfNeeded()
     let zr = sa.zoomRect(0)
