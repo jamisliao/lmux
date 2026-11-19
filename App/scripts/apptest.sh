@@ -220,6 +220,27 @@ if [ "${1:-}" = "--titlebar" ]; then
   run_titlebar_suite
   exit $status
 fi
+run_sidebar_suite() {
+  mkdir -p "$T/sidebar"
+  LMUX_STATE_DIR="$T/sidebar" "$BIN/lmux-apptest" --sidebar 2>/dev/null | filter || phase_failed $?
+}
+run_zoom_clear_reorder_suite() {
+  mkdir -p "$T/zoomclear"
+  LMUX_STATE_DIR="$T/zoomclear" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --zoom-clear-reorder 2>/dev/null | filter || phase_failed $?
+}
+if [ "${1:-}" = "--sidebar" ]; then
+  run_sidebar_suite
+  for arg in "$@"; do
+    if [ "$arg" = "--sidebar-tabs" ]; then run_sidebar_tabs_suite; fi
+    if [ "$arg" = "--liquid-glass" ]; then run_liquid_glass_suite; fi
+    if [ "$arg" = "--zoom-clear-reorder" ]; then run_zoom_clear_reorder_suite; fi
+  done
+  exit $status
+fi
+if [ "${1:-}" = "--zoom-clear-reorder" ]; then
+  run_zoom_clear_reorder_suite
+  exit $status
+fi
 LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || phase_failed $?
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"
