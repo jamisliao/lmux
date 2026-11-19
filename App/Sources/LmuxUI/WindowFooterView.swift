@@ -140,7 +140,9 @@ public struct WindowFooterView: View {
     }
 
     public var body: some View {
-        let pres = Self.presentation(telemetry: telemetry, git: git)
+        let telem = telemetry ?? model.telemetryStore?.display(for: model.selected?.focusedPane)
+        let g = git ?? model.gitDiffService.snapshot
+        let pres = Self.presentation(telemetry: telem, git: g)
         HStack(spacing: 8) {
             // Left: Agent + Renderer
             HStack(spacing: 6) {

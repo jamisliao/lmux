@@ -187,6 +187,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if headless { GhosttyRuntime.headless = true }
         self.notifier = Notifier(postToSystem: !headless)
         super.init()
+        if model.telemetryStore == nil {
+            model.telemetryStore = AgentTelemetryStore()
+        }
         history = HistoryModel(paths: paths, controller: self)
         notifier.onActivate = { [weak self] paneID in
             guard let self, let p = self.panesByID[paneID] else { return }
@@ -314,8 +317,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         w.contentView = root
         // The theme frame clips a layer-backed content view to the window's rounded corners.
         root.wantsLayer = true
-        // Offscreen (headless) there is no desktop behind the window to blend: opaque sidebar.
+        // Offscreen (headless) there is no desktop behind the window to blend: opaque backdrops.
         root.sidebarBackdrop.forceOpaque = headless
+        root.titlebarBackdrop.forceOpaque = headless
+        root.rightInspectorBackdrop.forceOpaque = headless
+        root.footerBackdrop.forceOpaque = headless
         window = w
         previewCoordinator.window = w
         if headless {
@@ -531,7 +537,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             self.noticeCodexStarting(pane, title: clean)
             self.considerHooksHint(pane)
             // Titles change after each command: a cheap moment to notice `git checkout`.
-            if let c = pane.cwd { let b = GitBranch.read(cwd: c); if b != pane.branch { pane.branch = b } }
+            if let c = pane.cwd {
+                let b = GitBranch.read(cwd: c)
+                if b != pane.branch { pane.branch = b }
+                self.model.gitDiffService.refresh(cwd: c)
+            }
             // A hidden workspace's pane headers are refreshed when it is shown (rebuildContent).
             if pane.workspace === self.model.selected, let ws = pane.workspace {
                 self.refreshHeaders(ws)
@@ -748,6 +758,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             }
         }
         model.selectedID = ws.id
+        model.gitDiffService.refresh(cwd: ws.focusedPane?.cwd ?? ws.panes.first?.cwd)
         rebuildContent()
         focusCurrent()
         scheduleSave()
@@ -820,6 +831,15 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         root.needsLayout = true
         scheduleSave()
         focusCurrent()
+    }
+
+    public func showInspectorTab(_ tab: InspectorTab) {
+        model.inspectorTab = tab
+        if !model.inspectorVisible {
+            model.inspectorVisible = true
+        }
+        root.needsLayout = true
+        scheduleSave()
     }
 
     // MARK: - Splits
@@ -1047,6 +1067,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     public func focus(_ pane: Pane) {
         guard let ws = pane.workspace else { return }
+        model.gitDiffService.refresh(cwd: pane.cwd)
         // A tab behind another one is brought to the front first (⇧⌘J, a notification, unread).
         let switched = ws.root.find(pane).map { showTab(pane, in: $0, ws) } ?? false
         if switched { scheduleSave() }
@@ -1410,7 +1431,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         guard pane.cwd != dir else { return }
         pane.cwd = dir
         pane.branch = GitBranch.read(cwd: dir)
-        if pane.workspace === model.selected { root.updateHeader() }
+        if pane.workspace === model.selected {
+            root.updateHeader()
+            model.gitDiffService.refresh(cwd: dir)
+        }
         scheduleSave()
     }
 

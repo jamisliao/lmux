@@ -20,12 +20,12 @@ extension LmuxController {
     /// 以目前的視窗大小，bar 最高可以到多高（超過的部分 RootView 排版時也會截掉）。
     public var sidebarAccessoryMaxHeight: CGFloat {
         guard let root else { return 0 }
-        return max(0, root.bounds.height - root.titlebarHeight - RootView.sidebarListMinHeight)
+        return max(0, root.bounds.height - root.titlebarHeight - 32 - 30 - RootView.sidebarListMinHeight)
     }
 
-    /// 設定或查詢 sidebar 是否正處於拖曳調整大小狀態（拖曳時暫停毛玻璃模糊，放開後恢復）。
+    /// 設定或查詢 sidebar 與全域 backdrop 是否正處於拖曳調整大小狀態（拖曳時暫停毛玻璃模糊，放開後恢復）。
     public func setSidebarResizing(_ active: Bool) {
-        root?.sidebarBackdrop.isResizing = active
+        root?.setAllBackdropsResizing(active)
     }
 
     public var isSidebarResizing: Bool {

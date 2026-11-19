@@ -848,14 +848,14 @@ git commit -m "feat(ui): build full-width 32pt Glass WindowFooterView with click
   - `RootView.setAllBackdropsResizing(_ active: Bool)`：統一同步 `sidebarBackdrop`、`titlebarBackdrop`、`rightInspectorBackdrop`、`footerBackdrop` 的 `isResizing`；`SidebarAccessory.setSidebarResizing(_:)` 轉發至此；`sidebarAccessoryMaxHeight` 正確扣除 `footerHeight` + `workspaceFilterHeaderHeight`。
   - `Controller`：在 `select(_:)`、`focus(_:)`、`paneDidChangeDirectory`、`setTitle`、Hook `postToolUse`/`stop` 觸發 debounced `model.gitDiffService.refresh(cwd:)`，在 `applyAppearance()` 同步所有 Backdrop 外觀，並於切換 workspace 時通知 `WorkspacePreviewCoordinator` 乾淨重建預覽。
 
-- [ ] **Step 1: 實作 `RootView.swift`、`SidebarAccessory.swift` 與 `Controller.swift` 完整三欄整合、接線 `GitDiffService` 與 `setAllBackdropsResizing(_:)`**
+- [x] **Step 1: 實作 `RootView.swift`、`SidebarAccessory.swift` 與 `Controller.swift` 完整三欄整合、接線 `GitDiffService` 與 `setAllBackdropsResizing(_:)`**
 
-- [ ] **Step 2: 執行 `--titlebar`、`--contrast`、`--sidebar`、`--sidebar-tabs`、`--pane-tabs`、`--preview` 與 `--newuser` 確認現有與新 UI 整合後無回歸**
+- [x] **Step 2: 執行 `--titlebar`、`--contrast`、`--sidebar`、`--sidebar-tabs`、`--pane-tabs`、`--preview` 與 `--newuser` 確認現有與新 UI 整合後無回歸**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --titlebar --contrast --sidebar --sidebar-tabs --pane-tabs --preview --newuser`
 Expected: ALL PASS
 
-- [ ] **Step 3: 提交 Task 11a-2**
+- [x] **Step 3: 提交 Task 11a-2**
 
 ```bash
 git add App/Sources/LmuxUI/RootView.swift App/Sources/LmuxUI/SidebarAccessory.swift App/Sources/LmuxUI/Controller.swift

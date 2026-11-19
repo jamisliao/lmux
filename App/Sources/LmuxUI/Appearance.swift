@@ -154,6 +154,6 @@ extension LmuxController {
         root?.sidebarBackdrop.matchColor = match
         // Rows and the titlebar buttons on the terminal's color read like the content header.
         root?.sidebarHost.adoptAppearance(on: match)
-        root?.updateClusterAppearance()
+        root?.updateAllBackdropAppearances()
     }
 }

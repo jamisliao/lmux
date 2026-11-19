@@ -19,18 +19,30 @@ final class RootView: FlippedView {
     /// view's titlebar strip are drawn but never receive a click.
     private(set) weak var titlebarHost: NSView?
 
-    /// The sidebar's surface, full window height (titlebar included): translucent material + Nord tint.
+    /// Full 1:1 Apple Liquid Glass backdrops
+    let titlebarBackdrop = TitlebarBackdrop()
     let sidebarBackdrop = SidebarBackdrop()
-    /// Empty titlebar space over the sidebar: drags the window (paints nothing).
     let sidebarTitlebar = TitlebarDragView()
+    let workspaceFilterHeaderHost: SidebarHostingView<WorkspaceFilterHeader>
     let sidebarHost: SidebarHostingView<SidebarView>
     let sidebarEdge = ColorView(T.Colors.separator.nsColor)
     let resizeHandle = SidebarResizeHandle()
     private var resizeObservers: [NSObjectProtocol] = []
     let cluster: SidebarHostingView<TitlebarCluster>
+    let centerChipHost: SidebarHostingView<TitlebarCenterChip>
+    let rightClusterHost: SidebarHostingView<TitlebarRightCluster>
     let header = ContentHeaderView(frame: .zero)
     /// Holds the selected workspace's split tree.
     let content = FlippedView()
+    /// Right inspector column
+    let rightInspectorBackdrop = RightInspectorBackdrop()
+    let rightInspectorHost: SidebarHostingView<InspectorContainerView>
+    let rightInspectorHandle = RightInspectorResizeHandle()
+    /// Full-width 32pt footer
+    let footerBackdrop = FooterBackdrop()
+    let footerHost: SidebarHostingView<WindowFooterView>
+    var currentChipAvailableWidth: CGFloat = 400
+
     /// plugin 掛在 sidebar 最底部的橫列（`installSidebarAccessory`）；nil 表示沒有。
     var sidebarAccessory: (view: NSView, height: CGFloat)? {
         didSet {
@@ -49,17 +61,42 @@ final class RootView: FlippedView {
         self.controller = controller
         self.titlebarHeight = titlebarHeight
         sidebarHost = SidebarHostingView(rootView: SidebarView(model: model, controller: controller))
+        workspaceFilterHeaderHost = SidebarHostingView(rootView: WorkspaceFilterHeader(model: model, controller: controller))
         cluster = SidebarHostingView(rootView: TitlebarCluster(model: model, controller: controller))
+        centerChipHost = SidebarHostingView(rootView: TitlebarCenterChip(model: model, workspace: model.selected, availableWidth: 400))
+        rightClusterHost = SidebarHostingView(rootView: TitlebarRightCluster(model: model, controller: controller))
+        rightInspectorHost = SidebarHostingView(rootView: InspectorContainerView(model: model, controller: controller))
+        footerHost = SidebarHostingView(rootView: WindowFooterView(model: model, onInspectTab: { [weak controller] tab in
+            controller?.showInspectorTab(tab)
+        }, onToggleInspector: { [weak controller] in
+            controller?.toggleInspector()
+        }))
         super.init(frame: NSRect(x: 0, y: 0, width: 1280, height: 800))
         // SwiftUI hosting views size themselves to content by default; lmux lays them out.
         sidebarHost.sizingOptions = []
+        workspaceFilterHeaderHost.sizingOptions = []
         cluster.sizingOptions = []
-        // With a full-size content view the titlebar is an unsafe area: SwiftUI would push the
-        // buttons' content down out of their frame (drawn one row low, clicks landing nowhere).
-        // lmux places these views itself, so no safe-area insets.
+        centerChipHost.sizingOptions = []
+        rightClusterHost.sizingOptions = []
+        rightInspectorHost.sizingOptions = []
+        footerHost.sizingOptions = []
+
         sidebarHost.safeAreaRegions = []
+        workspaceFilterHeaderHost.safeAreaRegions = []
         cluster.safeAreaRegions = []
-        for v in [content, header, sidebarBackdrop, sidebarTitlebar, sidebarHost, sidebarEdge, resizeHandle, cluster] as [NSView] {
+        centerChipHost.safeAreaRegions = []
+        rightClusterHost.safeAreaRegions = []
+        rightInspectorHost.safeAreaRegions = []
+        footerHost.safeAreaRegions = []
+
+        for v in [
+            content, header,
+            titlebarBackdrop,
+            sidebarBackdrop, sidebarTitlebar, workspaceFilterHeaderHost, sidebarHost, sidebarEdge, resizeHandle,
+            rightInspectorBackdrop, rightInspectorHost, rightInspectorHandle,
+            footerBackdrop, footerHost,
+            cluster, centerChipHost, rightClusterHost
+        ] as [NSView] {
             addSubview(v)
         }
         resizeHandle.onDrag = { [weak self] x in
@@ -69,26 +106,37 @@ final class RootView: FlippedView {
             self.controller?.scheduleSave()
         }
         resizeHandle.onDragStateChange = { [weak self] active in
-            self?.sidebarBackdrop.isResizing = active
+            self?.setAllBackdropsResizing(active)
+        }
+        rightInspectorHandle.onDrag = { [weak self] x in
+            guard let self else { return }
+            let W = self.bounds.width
+            let newWidth = min(max(W - x, T.Layout.rightInspectorWidthMin), T.Layout.rightInspectorWidthMax)
+            self.model.inspectorWidth = newWidth
+            self.needsLayout = true
+            self.controller?.scheduleSave()
+        }
+        rightInspectorHandle.onDragStateChange = { [weak self] active in
+            self?.setAllBackdropsResizing(active)
         }
         let nc = NotificationCenter.default
         resizeObservers.append(nc.addObserver(forName: NSWindow.willStartLiveResizeNotification, object: nil, queue: .main) { [weak self] note in
             MainActor.assumeIsolated {
                 guard let self, let w = self.window, note.object as AnyObject? === w else { return }
-                self.sidebarBackdrop.isResizing = true
+                self.setAllBackdropsResizing(true)
             }
         })
         for name in [NSWindow.didEndLiveResizeNotification, NSWindow.didResignKeyNotification] {
             resizeObservers.append(nc.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 MainActor.assumeIsolated {
                     guard let self, let w = self.window, note.object as AnyObject? === w else { return }
-                    self.sidebarBackdrop.isResizing = false
+                    self.setAllBackdropsResizing(false)
                 }
             })
         }
         resizeObservers.append(nc.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
-                self?.sidebarBackdrop.isResizing = false
+                self?.setAllBackdropsResizing(false)
             }
         })
         trackSidebarState()
@@ -103,11 +151,22 @@ final class RootView: FlippedView {
         resizeObservers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 
+    func setAllBackdropsResizing(_ active: Bool) {
+        sidebarBackdrop.isResizing = active
+        titlebarBackdrop.isResizing = active
+        rightInspectorBackdrop.isResizing = active
+        footerBackdrop.isResizing = active
+    }
+
     /// Re-layout when the sidebar is toggled or resized (from anywhere).
     private func trackSidebarState() {
         withObservationTracking {
             _ = model.sidebarVisible
             _ = model.sidebarWidth
+            _ = model.inspectorVisible
+            _ = model.inspectorWidth
+            _ = model.inspectorTab
+            _ = model.selectedID
         } onChange: { [weak self] in
             DispatchQueue.main.async {
                 self?.needsLayout = true
@@ -121,8 +180,10 @@ final class RootView: FlippedView {
     /// Move the titlebar buttons into the window's titlebar view (see `titlebarHost`).
     func attachTitlebar(_ host: NSView) {
         titlebarHost = host
-        cluster.removeFromSuperview()
-        host.addSubview(cluster)
+        for v in [cluster, centerChipHost, rightClusterHost] as [NSView] {
+            v.removeFromSuperview()
+            host.addSubview(v)
+        }
         host.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(forName: NSView.frameDidChangeNotification, object: host, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.needsLayout = true }
@@ -191,46 +252,100 @@ final class RootView: FlippedView {
             if h > 0 { titlebarHeight = h }
         }
         let W = bounds.width, H = bounds.height, tb = titlebarHeight
-        let sw = sidebarWidth
         let visible = model.sidebarVisible
-        for v in [sidebarBackdrop, sidebarTitlebar, sidebarHost, sidebarEdge, resizeHandle] as [NSView] { v.isHidden = !visible }
+        let effectiveSw: CGFloat = visible ? min(model.sidebarWidth, max(0, W - 120)) : 0
+
+        // Footer layout
+        let footerH: CGFloat = (H >= 120) ? T.Layout.footerHeight : 0
+        let midH = max(0, H - tb - footerH)
+        footerBackdrop.isHidden = (footerH == 0)
+        footerHost.isHidden = (footerH == 0)
+        if footerH > 0 {
+            footerBackdrop.frame = NSRect(x: 0, y: H - footerH, width: W, height: footerH)
+            footerHost.frame = NSRect(x: 0, y: H - footerH, width: W, height: footerH)
+        }
+
+        // Right Inspector layout & Narrow Window clamp
+        let iw = model.inspectorWidth
+        let canFitInspector = model.inspectorVisible && (W - effectiveSw - iw >= 120)
+        let rw: CGFloat = canFitInspector ? iw : 0
+
+        rightInspectorBackdrop.isHidden = !canFitInspector
+        rightInspectorHost.isHidden = !canFitInspector
+        rightInspectorHandle.isHidden = !canFitInspector
+
+        if canFitInspector {
+            let ix = W - rw
+            rightInspectorBackdrop.frame = NSRect(x: ix, y: tb, width: rw, height: midH)
+            rightInspectorHost.frame = NSRect(x: ix, y: tb, width: rw, height: midH)
+            rightInspectorHandle.frame = NSRect(x: ix - 4, y: tb, width: 8, height: midH)
+        }
+
+        // Left Sidebar layout
+        for v in [sidebarBackdrop, sidebarTitlebar, workspaceFilterHeaderHost, sidebarHost, sidebarEdge, resizeHandle] as [NSView] {
+            v.isHidden = !visible
+        }
         updateClusterAppearance()
 
-        sidebarBackdrop.frame = NSRect(x: 0, y: 0, width: max(0, sw - 1), height: H)
-        sidebarTitlebar.frame = NSRect(x: 0, y: 0, width: sw, height: tb)
-        sidebarHost.frame = NSRect(x: 0, y: tb, width: max(0, sw - 1), height: H - tb)
-        sidebarEdge.frame = NSRect(x: sw - 1, y: 0, width: 1, height: H)
-        resizeHandle.frame = NSRect(x: sw - 4, y: tb, width: 8, height: H - tb)
+        let headerH = T.Layout.workspaceFilterHeaderHeight
+        sidebarBackdrop.frame = NSRect(x: 0, y: 0, width: max(0, effectiveSw - 1), height: H - footerH)
+        sidebarTitlebar.frame = NSRect(x: 0, y: 0, width: effectiveSw, height: tb)
+        workspaceFilterHeaderHost.frame = NSRect(x: 0, y: tb, width: max(0, effectiveSw - 1), height: headerH)
+        sidebarHost.frame = NSRect(x: 0, y: tb + headerH, width: max(0, effectiveSw - 1), height: max(0, midH - headerH))
+        sidebarEdge.frame = NSRect(x: effectiveSw - 1, y: 0, width: 1, height: H - footerH)
+        resizeHandle.frame = NSRect(x: effectiveSw - 4, y: tb, width: 8, height: midH)
 
+        // Titlebar layout
+        titlebarBackdrop.frame = NSRect(x: 0, y: 0, width: W, height: tb)
         let cw = TitlebarCluster.width, bs = T.Layout.titlebarButtonSize
+        let rcw = TitlebarRightCluster.width
         let lights = trafficLightsFrame
         // Full screen hides the traffic lights: the buttons go to the left edge (like Finder, Xcode),
         // and right after the lights again while the pointer reveals them (or full screen ends).
         let fullScreen = (window?.styleMask.contains(.fullScreen) ?? false) && !exitingFullScreen
         let inset = fullScreen && !trafficLightsVisible ? T.Layout.rowInsetX
             : lights.map { max(T.Layout.trafficLightsInset, $0.maxX + 12) } ?? T.Layout.trafficLightsInset
-        // Fixed right after the traffic lights whether the sidebar is shown or not (like Finder,
-        // Notes, Xcode): the toggle never moves under the pointer, so a second click toggles back.
         let clusterX = inset
+        let rightClusterX = max(clusterX + cw + 16, W - rw - rcw - 8)
+
         if let host = titlebarHost, let lights {
-            // Vertically centered on the traffic lights, in the titlebar view's coordinates.
-            let mid = host.convert(NSPoint(x: clusterX, y: lights.midY), from: nil)
-            cluster.frame = NSRect(x: mid.x, y: mid.y - bs / 2, width: cw, height: bs)
+            let midLeft = host.convert(NSPoint(x: clusterX, y: lights.midY), from: nil)
+            cluster.frame = NSRect(x: midLeft.x, y: midLeft.y - bs / 2, width: cw, height: bs)
+
+            let midRight = host.convert(NSPoint(x: rightClusterX, y: lights.midY), from: nil)
+            rightClusterHost.frame = NSRect(x: midRight.x, y: midRight.y - bs / 2, width: rcw, height: bs)
         } else {
             cluster.frame = NSRect(x: clusterX, y: (tb - bs) / 2, width: cw, height: bs)
+            rightClusterHost.frame = NSRect(x: rightClusterX, y: (tb - bs) / 2, width: rcw, height: bs)
         }
 
-        let contentX = visible ? sw : clusterX + cw + 8
-        header.frame = NSRect(x: contentX, y: 0, width: W - contentX, height: tb)
-        content.frame = NSRect(x: sw, y: tb, width: W - sw, height: H - tb)
+        // Center Chip layout
+        let leftBound = clusterX + cw + 12
+        let rightBound = rightClusterX - 12
+        let maxChipW = max(60, rightBound - leftBound)
+        let chipW = min(400, maxChipW)
+        let chipX = max(leftBound, min(rightBound - chipW, (W - chipW) / 2))
+        currentChipAvailableWidth = chipW
+        centerChipHost.rootView = TitlebarCenterChip(model: model, workspace: model.selected, availableWidth: chipW)
+
+        if let host = titlebarHost, let lights {
+            let midCenter = host.convert(NSPoint(x: chipX, y: lights.midY), from: nil)
+            centerChipHost.frame = NSRect(x: midCenter.x, y: midCenter.y - bs / 2, width: chipW, height: bs)
+        } else {
+            centerChipHost.frame = NSRect(x: chipX, y: (tb - bs) / 2, width: chipW, height: bs)
+        }
+
+        // Content & Content Header layout
+        let contentX = visible ? effectiveSw : clusterX + cw + 8
+        header.frame = NSRect(x: contentX, y: 0, width: max(0, W - rw - contentX), height: tb)
+        content.frame = NSRect(x: effectiveSw, y: tb, width: max(0, W - effectiveSw - rw), height: midH)
 
         // plugin 的 bar 放在 sidebar 最底部。集中寫在 layout() 最後：上面的版面計算怎麼改，
         // 這裡都是在它算完之後才扣掉 bar 的高度，rebase 時不必記得補回去。
         if let a = sidebarAccessory {
-            // 視窗縮小時也替 workspace 清單和 History 搜尋欄留空間（sidebarListMinHeight）。
             let h = min(a.height, max(0, sidebarHost.frame.height - Self.sidebarListMinHeight))
             sidebarHost.frame.size.height -= h
-            a.view.frame = NSRect(x: 0, y: H - h, width: max(0, sw - 1), height: h)
+            a.view.frame = NSRect(x: 0, y: H - footerH - h, width: max(0, effectiveSw - 1), height: h)
             a.view.isHidden = !visible
         }
     }
@@ -238,9 +353,17 @@ final class RootView: FlippedView {
     /// The titlebar buttons sit on the sidebar, or on the content header when it's hidden: they read
     /// like what's under them (the terminal's color: header, a sidebar that matches it).
     func updateClusterAppearance() {
-        cluster.adoptAppearance(on: model.sidebarVisible ? sidebarBackdrop.matchColor : model.selected?.focusedPane?.surface?.terminalBackground)
+        let bg = model.sidebarVisible ? sidebarBackdrop.matchColor : model.selected?.focusedPane?.surface?.terminalBackground
+        cluster.adoptAppearance(on: bg)
+        centerChipHost.adoptAppearance(on: bg)
+        rightClusterHost.adoptAppearance(on: bg)
+        workspaceFilterHeaderHost.adoptAppearance(on: bg)
         // plugin 的 bar 與 sidebar 的列用同一套外觀（applySidebarLook 會先設定 sidebarHost 再呼叫這裡）。
         if let v = sidebarAccessory?.view, v.appearance?.name != sidebarHost.appearance?.name { v.appearance = sidebarHost.appearance }
+    }
+
+    func updateAllBackdropAppearances() {
+        updateClusterAppearance()
     }
 
     /// Content header (POLISH.md 5): chip · title · `⎇ branch · ~/path`, without repeats.
@@ -258,6 +381,7 @@ final class RootView: FlippedView {
         // On the terminal's background: its text takes the appearance that reads there.
         header.adoptAppearance(on: bg)
         updateClusterAppearance()
+        centerChipHost.rootView = TitlebarCenterChip(model: model, workspace: ws, availableWidth: currentChipAvailableWidth)
         let (branch, path) = ws.headerMeta
         // Same texts (most calls: a hook event, a focus refresh): no layout or redraw.
         var changed = false
