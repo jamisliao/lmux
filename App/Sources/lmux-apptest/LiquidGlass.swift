@@ -6,6 +6,7 @@
 
 import AppKit
 import LmuxTokens
+import LmuxHooks
 @testable import LmuxNotificationBar
 @testable import LmuxUI
 
@@ -249,6 +250,60 @@ func runLiquidGlass() async -> Int32 {
     r.check("TitlebarRightCluster.actionToggleInspector toggles inspector",
             c.model.inspectorVisible == !prevInsp2)
     TitlebarRightCluster.actionToggleInspector(controller: c) // restore
+
+    // 7. WorkspaceFilter, WorkspaceFilterHeader, WorkspaceRowContent Glass Cards
+    let wsIdle = c.model.workspaces[0]
+    let wsRun = c.newWorkspace()
+    wsRun.customTitle = "ws-running"
+    wsRun.focusedPane?.agent.handle(HookEvent(paneID: wsRun.focusedPane!.id, name: HookEvent.Kind.userPromptSubmit.rawValue), focused: true)
+    var preBash = HookEvent(paneID: wsRun.focusedPane!.id, name: HookEvent.Kind.preToolUse.rawValue)
+    preBash.toolName = "Bash"; preBash.toolArgument = "swift test"
+    wsRun.focusedPane?.agent.handle(preBash, focused: true)
+
+    let wsNeed = c.newWorkspace()
+    wsNeed.customTitle = "ws-needs-input"
+    var ask = HookEvent(paneID: wsNeed.focusedPane!.id, name: HookEvent.Kind.preToolUse.rawValue)
+    ask.toolName = "AskUserQuestion"
+    wsNeed.focusedPane?.agent.handle(ask, focused: true)
+
+    // (a) WorkspaceFilter matching & filteredWorkspaces
+    c.model.workspaceFilter = .all
+    r.check("WorkspaceFilter .all matches all workspaces",
+            c.model.filteredWorkspaces.count == c.model.workspaces.count)
+
+    c.model.workspaceFilter = .active
+    r.check("WorkspaceFilter .active matches running workspace",
+            c.model.filteredWorkspaces.contains(where: { $0.id == wsRun.id }) &&
+            !c.model.filteredWorkspaces.contains(where: { $0.id == wsIdle.id }))
+
+    c.model.workspaceFilter = .needsInput
+    r.check("WorkspaceFilter .needsInput matches needsInput workspace",
+            c.model.filteredWorkspaces.contains(where: { $0.id == wsNeed.id }) &&
+            !c.model.filteredWorkspaces.contains(where: { $0.id == wsRun.id }))
+
+    // (b) Empty state when filter has no matches
+    c.closeWorkspace(wsNeed)
+    r.check("WorkspaceFilter .needsInput empty when no matching workspaces",
+            c.model.filteredWorkspaces.isEmpty)
+    r.check("WorkspaceFilterEmptyView shows empty message and reset button title",
+            WorkspaceFilterEmptyView.emptyMessage == "沒有符合篩選條件的工作區" &&
+            WorkspaceFilterEmptyView.resetButtonTitle == "重置為全部")
+    WorkspaceFilterEmptyView.resetFilter(model: c.model)
+    r.check("WorkspaceFilterEmptyView resetFilter restores .all",
+            c.model.workspaceFilter == .all && !c.model.filteredWorkspaces.isEmpty)
+
+    // (c) TabDisclosureButton hit rect x: 1..<15 vs AccentStripe x: >=16 safe inset
+    r.check("TabDisclosureButton hit target x: 1..<15 does not overlap AccentStripe at x >= 16",
+            WorkspaceRow.disclosureLeading + LmuxTokens.Layout.tabDisclosureSize <=
+            LmuxTokens.Layout.rowInsetX + LmuxTokens.Layout.rowPaddingX)
+
+    // (d) Status pill text & token mapping
+    r.check("WorkspaceStatusPill text reflects states",
+            WorkspaceStatusPill.statusText(for: .running(nil)) == "⚡ 執行中" &&
+            WorkspaceStatusPill.statusText(for: .needsInput(nil)) == "🔔 需要確認" &&
+            WorkspaceStatusPill.statusText(for: .done(nil)) == "✓ 測試通過")
+
+    c.closeWorkspace(wsRun)
 
     return finish(r, c)
 }

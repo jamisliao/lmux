@@ -45,21 +45,28 @@ struct SidebarView: View {
                 GeometryReader { viewport in
                     ScrollView(.vertical) {
                         let names = model.rowDisambiguators
-                        let drag = model.sidebarDrag
+                        let drag = (model.workspaceFilter == .all) ? model.sidebarDrag : nil
                         let shifts = drag.map { dragOffsets($0) } ?? [:]
+                        let visibleWorkspaces = model.filteredWorkspaces
                         VStack(spacing: T.Layout.rowGap) {
-                            ForEach(Array(model.workspaces.enumerated()), id: \.element.id) { _, ws in
-                                SidebarRowMotion(model: model, id: ws.id, shift: shifts[ws.id] ?? 0,
-                                                 lifted: drag?.ids.contains(ws.id) ?? false) {
-                                    // workspace 列與它的 Tab 子列是同一組（beat: sidebar-tab-tree.feature）：
-                                    // 外層量到的 frame 包含 Tab 子列，拖曳時整組一起移動。
-                                    VStack(spacing: T.Layout.rowGap) {
-                                        WorkspaceRow(ws: ws, disambiguator: names[ws.id], selected: ws.id == model.selectedID,
-                                                     inSelection: model.isInSelection(ws),
-                                                     hover: drag == nil && model.hoveredRowID == ws.id,
-                                                     controller: controller, rowFrames: rowFrames)
-                                        SidebarTabChildren(ws: ws, selected: ws.id == model.selectedID,
-                                                           hoverEnabled: drag == nil, controller: controller)
+                            if visibleWorkspaces.isEmpty && model.workspaceFilter != .all {
+                                WorkspaceFilterEmptyView(model: model)
+                                    .padding(.top, 24)
+                                    .padding(.horizontal, T.Layout.rowInsetX)
+                            } else {
+                                ForEach(Array(visibleWorkspaces.enumerated()), id: \.element.id) { _, ws in
+                                    SidebarRowMotion(model: model, id: ws.id, shift: shifts[ws.id] ?? 0,
+                                                     lifted: drag?.ids.contains(ws.id) ?? false) {
+                                        // workspace 列與它的 Tab 子列是同一組（beat: sidebar-tab-tree.feature）：
+                                        // 外層量到的 frame 包含 Tab 子列，拖曳時整組一起移動。
+                                        VStack(spacing: T.Layout.rowGap) {
+                                            WorkspaceRow(ws: ws, disambiguator: names[ws.id], selected: ws.id == model.selectedID,
+                                                         inSelection: model.isInSelection(ws),
+                                                         hover: drag == nil && model.hoveredRowID == ws.id,
+                                                         controller: controller, rowFrames: rowFrames)
+                                            SidebarTabChildren(ws: ws, selected: ws.id == model.selectedID,
+                                                               hoverEnabled: drag == nil, controller: controller)
+                                        }
                                     }
                                 }
                             }
@@ -145,6 +152,23 @@ private struct SidebarDragAutoScroll: View {
     }
 }
 
+/// The workspace's vertical accent stripe in the Liquid Glass card (3pt wide, 14pt tall, 1.5pt radius).
+public struct AccentStripe: View {
+    public let accent: Int
+    public var width: CGFloat = 3
+    public var height: CGFloat = 14
+    public init(accent: Int, width: CGFloat = 3, height: CGFloat = 14) {
+        self.accent = accent
+        self.width = width
+        self.height = height
+    }
+    public var body: some View {
+        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+            .fill(T.Colors.workspaceAccents[accent % T.Colors.workspaceAccents.count].color)
+            .frame(width: width, height: height)
+    }
+}
+
 /// The workspace's color: the only place it shows (row, content header, input legend; R7).
 struct AccentChip: View {
     let accent: Int
@@ -191,6 +215,7 @@ struct WorkspaceRow: View {
             // pointer (it follows it) doesn't feed back into the location.
             .simultaneousGesture(DragGesture(minimumDistance: 8, coordinateSpace: .named(sidebarRowsSpace))
                 .onChanged { value in
+                    guard controller.model.workspaceFilter == .all else { return }
                     // The rows this drag carries (fixed when it started; a selection change mid-drag
                     // must not shift where the others are counted from).
                     let ids = Set(controller.model.sidebarDrag?.ids ?? controller.closeTargets(for: ws).map(\.id))
@@ -199,7 +224,10 @@ struct WorkspaceRow: View {
                         .dropIndex(grabbed: ws.id, translation: moved)
                     controller.sidebarDragUpdate(ws, dropIndex: idx, pointerY: value.location.y, translation: moved)
                 }
-                .onEnded { _ in controller.sidebarDragEnded() })
+                .onEnded { _ in
+                    guard controller.model.workspaceFilter == .all else { return }
+                    controller.sidebarDragEnded()
+                })
             .help(ws.rowHelp)
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(inSelection ? [.isSelected, .isButton] : [.isButton])
@@ -279,28 +307,45 @@ struct RowCloseButton: View {
 }
 
 /// What a row draws; also used as-is by the onboarding sheet's preview.
-struct WorkspaceRowContent: View {
-    let title: String
-    let accent: Int
-    let state: AgentDisplay
-    let detail: Workspace.RowDetail?
-    let unread: Int
-    let selected: Bool
-    var inSelection = false
-    var hover = false
+public struct WorkspaceRowContent: View {
+    public let title: String
+    public let accent: Int
+    public let state: AgentDisplay
+    public let detail: Workspace.RowDetail?
+    public let unread: Int
+    public let selected: Bool
+    public var inSelection = false
+    public var hover = false
     /// Done / needs input and left unattended past the reminder delay.
-    var unattended = false
-    var pulse = true
-    var reduceMotion = false
+    public var unattended = false
+    public var pulse = true
+    public var reduceMotion = false
     /// Running, but waiting for a usage limit to reset (a still clock instead of the spinner).
-    var waiting = false
+    public var waiting = false
     @Environment(\.controlActiveState) private var activeState
 
-    var body: some View {
+    public init(title: String, accent: Int, state: AgentDisplay, detail: Workspace.RowDetail?,
+                unread: Int, selected: Bool, inSelection: Bool = false, hover: Bool = false,
+                unattended: Bool = false, pulse: Bool = true, reduceMotion: Bool = false, waiting: Bool = false) {
+        self.title = title
+        self.accent = accent
+        self.state = state
+        self.detail = detail
+        self.unread = unread
+        self.selected = selected
+        self.inSelection = inSelection
+        self.hover = hover
+        self.unattended = unattended
+        self.pulse = pulse
+        self.reduceMotion = reduceMotion
+        self.waiting = waiting
+    }
+
+    public var body: some View {
         let height = detail == nil ? T.Layout.workspaceRowHeightSingle : T.Layout.workspaceRowHeightDouble
         VStack(alignment: .leading, spacing: T.Layout.rowLineGap) {
             HStack(spacing: 0) {
-                AccentChip(accent: accent)
+                AccentStripe(accent: accent)
                     .padding(.trailing, T.Layout.accentChipGap)
                 Text(title)
                     .font(T.Typography.rowTitle.font)
@@ -309,8 +354,8 @@ struct WorkspaceRowContent: View {
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 // Hovered, the trailing slot is the row's × (drawn by WorkspaceRow over it).
-                StateIndicator(display: state, unread: selected ? 0 : unread, unattended: unattended,
-                               pulse: pulse, reduceMotion: reduceMotion, waiting: waiting)
+                WorkspaceStatusPill(display: state, unread: selected ? 0 : unread, unattended: unattended,
+                                    pulse: pulse, reduceMotion: reduceMotion, waiting: waiting)
                     .padding(.leading, 6)
                     .opacity(hover ? 0 : 1)
             }
@@ -334,7 +379,7 @@ struct WorkspaceRowContent: View {
                 }
                 .font(d.tone == .tertiary ? T.Typography.rowMeta.font : T.Typography.rowSubtitle.font)
                 .foregroundStyle(color(d.tone))
-                .padding(.leading, T.Layout.accentChipSize + T.Layout.accentChipGap)
+                .padding(.leading, 3 + T.Layout.accentChipGap)
                 .frame(height: T.Typography.rowSubtitle.lineHeight)
             }
         }
@@ -352,15 +397,15 @@ struct WorkspaceRowContent: View {
         .padding(.horizontal, T.Layout.rowInsetX)
     }
 
-    static func showsGlassBorder(selected: Bool, inSelection: Bool) -> Bool {
+    public static func showsGlassBorder(selected: Bool, inSelection: Bool) -> Bool {
         selected || inSelection
     }
 
     private var pillColor: Color {
         let inactive = activeState == .inactive
-        if selected { return (inactive ? T.Colors.rowSelectedInactive : T.Colors.rowSelected).color }
+        if selected { return (inactive ? T.Colors.rowSelectedInactive : T.Colors.glassCardSelected).color }
         if inSelection { return (inactive ? T.Colors.rowSelectedSecondaryInactive : T.Colors.rowSelectedSecondary).color }
-        return hover ? T.Colors.rowHover.color : .clear
+        return hover ? T.Colors.glassCardHover.color : .clear
     }
 
     private func color(_ tone: Workspace.RowDetail.Tone) -> Color {
@@ -368,6 +413,91 @@ struct WorkspaceRowContent: View {
         case .needsInput: return T.Colors.stateNeedsInput.color
         case .secondary: return T.Colors.textSecondary.color
         case .tertiary: return T.Colors.textTertiary.color
+        }
+    }
+}
+
+/// 1:1 Apple Liquid Glass status pill with WCAG AA compliant text & background colors.
+public struct WorkspaceStatusPill: View {
+    public let display: AgentDisplay
+    public var unread: Int = 0
+    public var unattended: Bool = false
+    public var pulse: Bool = true
+    public var reduceMotion: Bool = false
+    public var waiting: Bool = false
+
+    public init(display: AgentDisplay, unread: Int = 0, unattended: Bool = false,
+                pulse: Bool = true, reduceMotion: Bool = false, waiting: Bool = false) {
+        self.display = display
+        self.unread = unread
+        self.unattended = unattended
+        self.pulse = pulse
+        self.reduceMotion = reduceMotion
+        self.waiting = waiting
+    }
+
+    public static func statusText(for display: AgentDisplay) -> String {
+        switch display {
+        case .running: return "⚡ 執行中"
+        case .needsInput: return "🔔 需要確認"
+        case .done: return "✓ 測試通過"
+        case .failed: return "✕ 失敗"
+        case .idle: return ""
+        }
+    }
+
+    public static func pillColor(for display: AgentDisplay) -> LmuxTokens.DynamicColor {
+        switch display {
+        case .running: return LmuxTokens.Colors.statusRunningPill
+        case .needsInput: return LmuxTokens.Colors.statusNeedsInputPill
+        case .done: return LmuxTokens.Colors.statusDonePill
+        case .failed: return LmuxTokens.Colors.diffRemovedBg
+        case .idle: return LmuxTokens.Colors.statusIdlePill
+        }
+    }
+
+    public static func textColor(for display: AgentDisplay) -> LmuxTokens.DynamicColor {
+        switch display {
+        case .running: return LmuxTokens.Colors.statusRunningText
+        case .needsInput: return LmuxTokens.Colors.statusNeedsInputText
+        case .done: return LmuxTokens.Colors.statusDoneText
+        case .failed: return LmuxTokens.Colors.diffRemovedFg
+        case .idle: return LmuxTokens.Colors.statusIdleText
+        }
+    }
+
+    public var body: some View {
+        let text = Self.statusText(for: display)
+        if display == .idle {
+            if unread > 0 {
+                Badge(count: unread)
+            } else {
+                EmptyView()
+            }
+        } else {
+            let content = HStack(spacing: 3) {
+                HStack(spacing: 4) {
+                    if case .running = display, !waiting {
+                        Spinner(color: Self.textColor(for: display))
+                            .frame(width: 10, height: 10)
+                    }
+                    Text(text)
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundStyle(Self.textColor(for: display).color)
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1.5)
+                .background(Capsule().fill(Self.pillColor(for: display).color))
+                .overlay(Capsule().strokeBorder(Self.pillColor(for: display).color.opacity(0.35), lineWidth: 0.5))
+                if unread > 0 {
+                    Badge(count: unread)
+                }
+            }
+            if unattended && !reduceMotion {
+                Pulse(animating: pulse) { content }
+            } else {
+                content
+            }
         }
     }
 }

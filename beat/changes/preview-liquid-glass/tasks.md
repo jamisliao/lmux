@@ -540,21 +540,21 @@ git commit -m "feat(ui): build 44pt Liquid Glass Titlebar components (backdrop, 
   - `WorkspaceRowContent`（左側 `3pt` 垂直 Accent 條位於安全內距、保留 `TabDisclosureButton` 既有 `x: 1..<15` 熱區不衝突；第 1 行標題 + 右側狀態藥丸 [hover 時保留 `×` 並維持 `closeButtonRect` 相容]；第 2 行摘要 + 相對時間；保有預設參數確保 `HooksSetup.swift` 與 `Sidebar.swift` 測試建構相容）
   - 篩選為 `.active` / `.needsInput` 且無符合項目時顯示清晰空狀態（`"沒有符合篩選條件的工作區"` + 重置為全部按鈕），且篩選開啟時安全停用拖曳排序避免索引錯位。
 
-- [ ] **Step 1: 在 `LiquidGlass.swift` 加入篩選狀態（`all` / `active` / `needsInput`）、無結果空狀態、狀態藥丸視覺呈現與 `TabDisclosureButton` 不重疊測試**
+- [x] **Step 1: 在 `LiquidGlass.swift` 加入篩選狀態（`all` / `active` / `needsInput`）、無結果空狀態、狀態藥丸視覺呈現與 `TabDisclosureButton` 不重疊測試**
 
-- [ ] **Step 2: 執行 `--liquid-glass` 確認 RED**
+- [x] **Step 2: 執行 `--liquid-glass` 確認 RED**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --liquid-glass`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `WorkspaceFilterHeader.swift` 與新版 `WorkspaceRowContent`（同時保護多選、右鍵選單與拖曳重排）**
+- [x] **Step 3: 實作 `WorkspaceFilterHeader.swift` 與新版 `WorkspaceRowContent`（同時保護多選、右鍵選單與拖曳重排）**
 
-- [ ] **Step 4: 執行 `--sidebar`、`--sidebar-tabs`、`--zoom-clear-reorder` 與 `--liquid-glass` 驗證完全相容且 GREEN**
+- [x] **Step 4: 執行 `--sidebar`、`--sidebar-tabs`、`--zoom-clear-reorder` 與 `--liquid-glass` 驗證完全相容且 GREEN**
 
 Run: `PATH="/tmp/swift-native-shim:$PATH" ./App/scripts/apptest.sh --sidebar --sidebar-tabs --liquid-glass`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 8a**
+- [x] **Step 5: 提交 Task 8a**
 
 ```bash
 git add App/Sources/LmuxUI/WorkspaceFilterHeader.swift App/Sources/LmuxUI/Sidebar.swift App/Sources/LmuxUI/HooksSetup.swift App/Sources/lmux-apptest/LiquidGlass.swift

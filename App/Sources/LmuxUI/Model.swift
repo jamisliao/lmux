@@ -759,6 +759,28 @@ public enum WorkspaceFilter: String, CaseIterable {
     case all
     case active
     case needsInput
+
+    public var title: String {
+        switch self {
+        case .all: return "全部"
+        case .active: return "進行中"
+        case .needsInput: return "需要確認"
+        }
+    }
+
+    @MainActor
+    public func matches(_ ws: Workspace) -> Bool {
+        switch self {
+        case .all:
+            return true
+        case .active:
+            if case .running = ws.rowState { return true }
+            return false
+        case .needsInput:
+            if case .needsInput = ws.rowState { return true }
+            return false
+        }
+    }
 }
 
 @MainActor @Observable
@@ -771,6 +793,10 @@ public final class AppModel {
     public var inspectorWidth: CGFloat = LmuxTokens.Layout.rightInspectorWidthDefault
     public var inspectorTab: InspectorTab = .preview
     public var workspaceFilter: WorkspaceFilter = .all
+    public var filteredWorkspaces: [Workspace] {
+        if workspaceFilter == .all { return workspaces }
+        return workspaces.filter { workspaceFilter.matches($0) }
+    }
     public var inspectorPreviewURLByWorkspace: [String: URL] = [:]
     public var reduceMotionOverride: Bool?
     @ObservationIgnored var telemetryStore: AgentTelemetryStore?

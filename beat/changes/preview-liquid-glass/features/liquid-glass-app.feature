@@ -78,6 +78,7 @@
     而且 標題列右側應顯示分割控制鈕與 **右側 Inspector** 開關鈕
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlass.swift
   場景: 左側 workspace 卡片顯示彩色識別條與狀態藥丸並保留多選與排序
     假設 側邊欄存在多個處於不同執行狀態的 **workspace**
     當 側邊欄渲染清單與搜尋區
