@@ -204,6 +204,14 @@ if [ "${1:-}" = "--compat" ]; then
   run_compat_suite
   exit $status
 fi
+run_newuser_suite() {
+  mkdir -p "$T/newuser" "$T/xdg"
+  LMUX_STATE_DIR="$T/newuser" XDG_CONFIG_HOME="$T/xdg" "$BIN/lmux-apptest" --newuser 2>/dev/null | filter || phase_failed $?
+}
+if [ "${1:-}" = "--newuser" ]; then
+  run_newuser_suite
+  exit $status
+fi
 LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || phase_failed $?
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"

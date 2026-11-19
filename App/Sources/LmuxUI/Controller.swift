@@ -805,6 +805,13 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         focusCurrent()
     }
 
+    public func toggleInspector() {
+        model.inspectorVisible.toggle()
+        root.needsLayout = true
+        scheduleSave()
+        focusCurrent()
+    }
+
     // MARK: - Splits
 
     public enum SplitDirection { case right, down, left, up }
@@ -1479,9 +1486,21 @@ public final class LmuxWindow: NSWindow {
     public override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if controller?.handleCloseSelectionKey(event) == true { return true }
         if super.performKeyEquivalent(with: event) { return true }
+        if let menu = NSApp.mainMenu, menu.performKeyEquivalent(with: event) { return true }
         // A non-Latin input source (Korean 2-Set: ⌃⌘S is "ㄴ" ignoring modifiers): menus match ⌃/⌥ shortcuts
         // on that character and miss. Try the same key as the ASCII-capable layout types it.
-        if let latin = Self.asciiEquivalent(event), let menu = NSApp.mainMenu { return menu.performKeyEquivalent(with: latin) }
+        if let latin = Self.asciiEquivalent(event), let menu = NSApp.mainMenu {
+            if menu.performKeyEquivalent(with: latin) { return true }
+        }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let chars = (event.charactersIgnoringModifiers ?? "").lowercased()
+        let asciiChars = Self.asciiEquivalent(event)?.charactersIgnoringModifiers?.lowercased() ?? chars
+        if flags == .command && (chars == "b" || asciiChars == "b") {
+            if !(firstResponder is NSText) {
+                controller?.toggleSidebar()
+                return true
+            }
+        }
         return false
     }
 

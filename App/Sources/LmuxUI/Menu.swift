@@ -81,9 +81,10 @@ extension LmuxController {
         editItem.submenu = edit
         main.addItem(editItem)
 
-        let viewItem = NSMenuItem()
+        let viewItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
         let view = NSMenu(title: "View")
         add(view, "Toggle Sidebar", #selector(menuToggleSidebar(_:)), fallback: ("s", [.command, .control]), id: "toggleSidebar")
+        add(view, "Toggle Inspector", #selector(menuToggleInspector(_:)), fallback: ("b", [.command, .option]), id: "toggleInspector")
         add(view, "Search History", #selector(menuSearchHistory(_:)), fallback: ("h", [.command, .shift]))
         view.addItem(.separator())
         splitZoomMenuItem = add(view, "Zoom Split", #selector(menuToggleSplitZoom(_:)), ghostty: "toggle_split_zoom",
@@ -153,6 +154,7 @@ extension LmuxController {
                      fallback: (String, NSEvent.ModifierFlags)? = nil, id: String? = nil) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: sel, keyEquivalent: "")
         item.target = self
+        if let id { item.identifier = NSUserInterfaceItemIdentifier(id) }
         if let id, let s = settings.shortcuts[id], let (key, mods) = parseShortcut(s) {
             // An lmux-only shortcut the user changed (imported from cmux).
             item.keyEquivalent = key
@@ -250,6 +252,7 @@ extension LmuxController {
     @objc func menuCloseWorkspace(_ s: Any?) { requestCloseWorkspaces(model.selectedWorkspaces) }
     @objc func menuRename(_ s: Any?) { if let w = model.selected { promptRename(w) } }
     @objc func menuToggleSidebar(_ s: Any?) { toggleSidebar() }
+    @objc func menuToggleInspector(_ s: Any?) { toggleInspector() }
     @objc func menuToggleSplitZoom(_ s: Any?) { toggleSplitZoom() }
     @objc func menuSearchHistory(_ s: Any?) { searchHistory() }
 

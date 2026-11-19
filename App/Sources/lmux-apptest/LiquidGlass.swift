@@ -143,5 +143,70 @@ func runLiquidGlass() async -> Int32 {
 
     bd.matchColor = savedMatch
     bd.forceOpaque = savedForceOpaque
+
+    // 5. Shortcuts ⌘B / ⌃⌘S / ⌥⌘B and toggleInspector()
+    let initInspectorVisible = c.model.inspectorVisible
+
+    // toggleInspector()
+    c.toggleInspector()
+    r.check("c.toggleInspector() toggles inspectorVisible", c.model.inspectorVisible == !initInspectorVisible)
+    c.toggleInspector()
+    r.check("c.toggleInspector() toggles back", c.model.inspectorVisible == initInspectorVisible)
+
+    // View Menu items
+    let viewMenu = NSApp.mainMenu?.items.first(where: { $0.title == "View" || $0.submenu?.title == "View" })?.submenu
+    let toggleSidebarItem = viewMenu?.items.first(where: { $0.identifier?.rawValue == "toggleSidebar" })
+    let toggleInspectorItem = viewMenu?.items.first(where: { $0.identifier?.rawValue == "toggleInspector" })
+    r.check("View menu has Toggle Sidebar with ⌃⌘S",
+            toggleSidebarItem != nil && toggleSidebarItem?.keyEquivalent == "s" &&
+            toggleSidebarItem?.keyEquivalentModifierMask == [.command, .control])
+    r.check("View menu has Toggle Inspector with ⌥⌘B",
+            toggleInspectorItem != nil && toggleInspectorItem?.keyEquivalent == "b" &&
+            toggleInspectorItem?.keyEquivalentModifierMask == [.command, .option])
+
+    // Key equivalents via window.performKeyEquivalent
+    func makeKeyEvent(key: String, chars: String, mods: NSEvent.ModifierFlags) -> NSEvent {
+        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: mods,
+                         timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: w.windowNumber,
+                         context: nil, characters: chars, charactersIgnoringModifiers: key,
+                         isARepeat: false, keyCode: 11)!
+    }
+
+    let cmdB = makeKeyEvent(key: "b", chars: "b", mods: .command)
+    let optCmdB = makeKeyEvent(key: "b", chars: "∫", mods: [.command, .option])
+    let ctrlCmdS = makeKeyEvent(key: "s", chars: "\u{13}", mods: [.command, .control])
+
+    // ⌥⌘B toggles inspector
+    let prevInsp = c.model.inspectorVisible
+    let optCmdBHandled = w.performKeyEquivalent(with: optCmdB)
+    r.check("⌥⌘B via performKeyEquivalent toggles inspectorVisible",
+            optCmdBHandled && c.model.inspectorVisible == !prevInsp)
+    _ = w.performKeyEquivalent(with: optCmdB) // restore
+
+    // ⌃⌘S toggles sidebar
+    let prevSide = c.model.sidebarVisible
+    let ctrlCmdSHandled = w.performKeyEquivalent(with: ctrlCmdS)
+    r.check("⌃⌘S via performKeyEquivalent toggles sidebarVisible",
+            ctrlCmdSHandled && c.model.sidebarVisible == !prevSide)
+    _ = w.performKeyEquivalent(with: ctrlCmdS) // restore
+
+    // ⌘B toggles sidebar when not in NSText
+    let curSide = c.model.sidebarVisible
+    let cmdBHandled = w.performKeyEquivalent(with: cmdB)
+    r.check("⌘B via performKeyEquivalent toggles sidebarVisible",
+            cmdBHandled && c.model.sidebarVisible == !curSide)
+    _ = w.performKeyEquivalent(with: cmdB) // restore
+
+    // ⌘B does not steal key when firstResponder is NSText
+    let dummyTextView = NSTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 20))
+    w.contentView?.addSubview(dummyTextView)
+    w.makeFirstResponder(dummyTextView)
+    let sideBeforeInText = c.model.sidebarVisible
+    _ = w.performKeyEquivalent(with: cmdB)
+    r.check("⌘B does not toggle sidebar when firstResponder is NSText",
+            c.model.sidebarVisible == sideBeforeInText)
+    dummyTextView.removeFromSuperview()
+    c.focusCurrent()
+
     return finish(r, c)
 }
