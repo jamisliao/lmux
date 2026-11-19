@@ -329,6 +329,33 @@ func runLiquidGlass() async -> Int32 {
             RingView.strokeColor == LmuxTokens.Colors.stateNeedsInput &&
             RingView.strokeColor != LmuxTokens.Colors.activePaneRing)
 
+    // 10a-1. RightInspectorBackdrop & RightInspectorResizeHandle
+    let inspectorBackdrop = RightInspectorBackdrop(frame: NSRect(x: 0, y: 0, width: 300, height: 600))
+    r.check("RightInspectorBackdrop: translucent material and specular edge shown when idle",
+            !inspectorBackdrop.material.isHidden && !inspectorBackdrop.specular.isHidden)
+    inspectorBackdrop.forceOpaque = true
+    r.check("RightInspectorBackdrop: forceOpaque engages opaque fallback",
+            inspectorBackdrop.material.isHidden && inspectorBackdrop.specular.isHidden && inspectorBackdrop.isOpaqueFallback)
+    inspectorBackdrop.forceOpaque = false
+    inspectorBackdrop.isResizing = true
+    r.check("RightInspectorBackdrop: isResizing engages opaque fallback",
+            inspectorBackdrop.material.isHidden && inspectorBackdrop.specular.isHidden && inspectorBackdrop.isOpaqueFallback)
+    inspectorBackdrop.isResizing = false
+    r.check("RightInspectorBackdrop: hitTest returns nil to allow drag pass-through",
+            inspectorBackdrop.hitTest(NSPoint(x: 10, y: 10)) == nil)
+
+    let inspectorHandle = RightInspectorResizeHandle(frame: NSRect(x: 0, y: 0, width: 5, height: 600))
+    var dragNotified = false
+    inspectorHandle.onDragStateChange = { active in dragNotified = active }
+    let dummyEv = NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+    inspectorHandle.mouseDown(with: dummyEv)
+    r.check("RightInspectorResizeHandle: mouseDown sets isDragging",
+            inspectorHandle.isDragging && dragNotified)
+    // viewWillMove(toWindow: nil) resets isDragging
+    inspectorHandle.viewWillMove(toWindow: nil)
+    r.check("RightInspectorResizeHandle: viewWillMove(toWindow: nil) resets isDragging",
+            !inspectorHandle.isDragging && !dragNotified)
+
     c.closeWorkspace(wsRun)
 
     return finish(r, c)
