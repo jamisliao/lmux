@@ -82,12 +82,43 @@ public struct GitDiffSnapshot: Equatable, Sendable {
 enum GitDiffParser {
     static func parseNumstat(_ raw: String) -> [(path: String, added: Int, deleted: Int, isBinary: Bool)] {
         var results: [(path: String, added: Int, deleted: Int, isBinary: Bool)] = []
+        if raw.contains("\0") {
+            let tokens = raw.split(separator: "\0", omittingEmptySubsequences: false).map(String.init)
+            var i = 0
+            while i < tokens.count {
+                let tok = tokens[i]
+                if tok.isEmpty { i += 1; continue }
+                let parts = tok.split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
+                guard parts.count == 3 else { i += 1; continue }
+                let addStr = parts[0].trimmingCharacters(in: .whitespaces)
+                let delStr = parts[1].trimmingCharacters(in: .whitespaces)
+                let isBin = (addStr == "-" && delStr == "-")
+                let added = isBin ? 0 : (Int(addStr) ?? 0)
+                let deleted = isBin ? 0 : (Int(delStr) ?? 0)
+                let pathPart = String(parts[2])
+                let rawPath: String
+                if pathPart.isEmpty {
+                    // `--numstat -z` emits `<added>\t<deleted>\t\0<old>\0<new>\0` for renames/copies.
+                    guard i + 2 < tokens.count else { break }
+                    rawPath = tokens[i + 2]
+                    i += 3
+                } else {
+                    rawPath = pathPart
+                    i += 1
+                }
+                let path = PreviewTarget.replacingUnsafeScalars(rawPath)
+                guard !path.isEmpty else { continue }
+                results.append((path: path, added: added, deleted: deleted, isBinary: isBin))
+            }
+            return results
+        }
         for line in raw.components(separatedBy: "\n") {
             let parts = line.components(separatedBy: "\t")
             guard parts.count >= 3 else { continue }
             let addStr = parts[0].trimmingCharacters(in: .whitespaces)
             let delStr = parts[1].trimmingCharacters(in: .whitespaces)
-            let path = PreviewTarget.replacingUnsafeScalars(parts[2].trimmingCharacters(in: .whitespaces))
+            let rawPath = resolveNumstatRenamePath(parts[2].trimmingCharacters(in: .whitespaces))
+            let path = PreviewTarget.replacingUnsafeScalars(rawPath)
             guard !path.isEmpty else { continue }
             let isBin = (addStr == "-" && delStr == "-")
             let added = isBin ? 0 : (Int(addStr) ?? 0)
@@ -95,6 +126,21 @@ enum GitDiffParser {
             results.append((path: path, added: added, deleted: deleted, isBinary: isBin))
         }
         return results
+    }
+
+    private static func resolveNumstatRenamePath(_ raw: String) -> String {
+        if let open = raw.range(of: "{"),
+           let arrow = raw.range(of: " => ", range: open.upperBound..<raw.endIndex),
+           let close = raw.range(of: "}", range: arrow.upperBound..<raw.endIndex) {
+            let prefix = String(raw[..<open.lowerBound])
+            let newPart = String(raw[arrow.upperBound..<close.lowerBound])
+            let suffix = String(raw[close.upperBound...])
+            return (prefix + newPart + suffix).replacingOccurrences(of: "//", with: "/")
+        }
+        if let arrow = raw.range(of: " => ") {
+            return String(raw[arrow.upperBound...])
+        }
+        return raw
     }
 
     static func parseUnifiedDiff(_ raw: String, maxLines: Int = GitDiffService.maxDiffLinesPerFile) -> [GitDiffFile] {

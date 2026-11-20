@@ -11,7 +11,7 @@ extension LmuxController {
         guard model.workspaces.contains(where: { $0 === ws }) else { return }
         let m = modifiers.intersection([.command, .shift, .control])
         if m.contains(.control) { return }
-        let ids = model.workspaces.map(\.id)
+        let ids = model.filteredWorkspaces.map(\.id)  // a filter-hidden row never joins a range
         var sel = model.isMultiSelection ? model.selection : Set([model.selectedID].compactMap { $0 })
         if m.contains(.shift), let anchor = model.selectionAnchorID ?? model.selectedID,
            let a = ids.firstIndex(of: anchor), let b = ids.firstIndex(of: ws.id) {

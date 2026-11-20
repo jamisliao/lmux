@@ -30,18 +30,19 @@ public final class WorkspacePreviewCoordinator {
     }
 
     public func load(url: URL, workspaceID: String) {
-        guard !PreviewTarget.hasUnsafeScalar(url.path),
-              PreviewTarget.resolve(url.path, cwd: nil) != nil else { return }
+        guard url.isFileURL,
+              !PreviewTarget.hasUnsafeScalar(url.path),
+              let resolved = PreviewTarget.resolve(url.path, cwd: nil) else { return }
         if self.workspaceID == workspaceID, let existing = previewView {
-            if self.currentURL == url { return }
-            self.currentURL = url
-            existing.show(url)
+            if self.currentURL == resolved { return }
+            self.currentURL = resolved
+            existing.show(resolved)
             return
         }
         closeCurrent()
         self.workspaceID = workspaceID
-        self.currentURL = url
-        let pv = PreviewView(fileURL: url)
+        self.currentURL = resolved
+        let pv = PreviewView(fileURL: resolved)
         pv.openExternal = { [weak self] target in
             self?.openExternalTarget(target)
         }
@@ -130,15 +131,18 @@ struct PreviewRepresentable: NSViewRepresentable {
 public struct InspectorPreviewPane: View {
     @Bindable var coordinator: WorkspacePreviewCoordinator
     let candidates: [URL]
+    let workspaceCwd: String?
     var onSelectCandidate: ((URL) -> Void)?
 
     public init(
         coordinator: WorkspacePreviewCoordinator,
         candidates: [URL] = [],
+        workspaceCwd: String? = nil,
         onSelectCandidate: ((URL) -> Void)? = nil
     ) {
         self.coordinator = coordinator
         self.candidates = candidates
+        self.workspaceCwd = workspaceCwd
         self.onSelectCandidate = onSelectCandidate
     }
 
@@ -198,7 +202,13 @@ public struct InspectorPreviewPane: View {
             .disabled(coordinator.currentURL == nil)
             .accessibilityLabel("重新整理")
 
-            Text(coordinator.currentURL?.lastPathComponent ?? "無開啟預覽")
+            if let url = coordinator.currentURL {
+                Image(systemName: fileIconName(for: url))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(T.Colors.stateDone.color)
+            }
+
+            Text(displayPath(for: coordinator.currentURL))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(T.Colors.textPrimary.color)
                 .lineLimit(1)
@@ -256,7 +266,7 @@ public struct InspectorPreviewPane: View {
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 4)
-                                    .stroke(isSelected ? T.Colors.glassBorder.color : Color.clear, lineWidth: 0.5)
+                                    .stroke(isSelected ? T.Colors.glassHighlightBorder.color : Color.clear, lineWidth: 0.5)
                             )
                             .foregroundColor(isSelected ? T.Colors.textPrimary.color : T.Colors.textSecondary.color)
                     }
@@ -300,5 +310,26 @@ public struct InspectorPreviewPane: View {
         .padding(.horizontal, 8)
         .frame(height: 22)
         .background(T.Colors.glassSurfaceRecessed.color.opacity(0.3))
+    }
+
+    private func fileIconName(for url: URL) -> String {
+        switch PreviewTarget.kind(url) {
+        case .markdown: return "doc.richtext"
+        case .html: return "globe"
+        case .text, nil: return "doc.text"
+        }
+    }
+
+    private func displayPath(for url: URL?) -> String {
+        guard let url else { return "無開啟預覽" }
+        if let base = workspaceCwd, !base.isEmpty {
+            let rootPath = URL(fileURLWithPath: base).resolvingSymlinksInPath().path
+            let filePath = url.resolvingSymlinksInPath().path
+            let prefix = rootPath == "/" ? "/" : rootPath + "/"
+            if filePath.hasPrefix(prefix) {
+                return String(filePath.dropFirst(prefix.count))
+            }
+        }
+        return url.lastPathComponent
     }
 }

@@ -243,6 +243,24 @@ func runPaneTabs() async -> Int32 {
     _ = await sinks.waitReady(r2.id)
     r.check("…Close button exists on strip action lane", sr.buttonRect(2).width > 0)
     r.check("…every pane of the split has its own strip", sw.visiblePanes.allSatisfy { $0.view.tabStrip != nil && $0.view.header.isHidden })
+    if let srTemp = r2.view.tabStrip {
+        srTemp.layoutSubtreeIfNeeded()
+        await click(srTemp, at: NSPoint(x: srTemp.buttonRect(0).midX, y: srTemp.bounds.midY))
+        if sw.visiblePanes.count == 4 {
+            let r3 = sw.visiblePanes[3]
+            _ = await sinks.waitReady(r3.id)
+            if let sr3 = r3.view.tabStrip {
+                sr3.layoutSubtreeIfNeeded()
+                await click(sr3, at: NSPoint(x: sr3.buttonRect(2).midX, y: sr3.bounds.midY))
+            }
+            let handledClose = r3.view.overlay.card != nil || sw.visiblePanes.count == 3
+            if sw.panes.contains(where: { $0 === r3 }) { c.closePane(r3) }
+            r.check("…clicking Close button (button 2) triggers close/confirm and cleans up split pane",
+                    handledClose && sw.visiblePanes.count == 3 && !sw.panes.contains(where: { $0 === r3 }))
+        } else {
+            r.check("…clicking Close button (button 2) triggers close/confirm and cleans up split pane", false)
+        }
+    }
     sa = a.view.tabStrip!  // a split makes new leaves (and strips)
 
     // Double-clicks: on the empty part a new tab, on a tab a zoom.

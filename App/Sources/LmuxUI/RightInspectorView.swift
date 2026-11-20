@@ -20,10 +20,10 @@ public final class RightInspectorBackdrop: GlassBackdropView {
     public required init?(coder: NSCoder) { fatalError() }
 }
 
-// MARK: - Right Inspector Resize Handle
+// MARK: - Vertical Resize Handle (Shared)
 
 @MainActor
-public final class RightInspectorResizeHandle: NSView {
+public final class VerticalResizeHandle: NSView {
     public var onDrag: ((CGFloat) -> Void)?
     public var onDragStateChange: ((Bool) -> Void)?
     public private(set) var isDragging = false
@@ -59,6 +59,8 @@ public final class RightInspectorResizeHandle: NSView {
         }
     }
 }
+
+public typealias RightInspectorResizeHandle = VerticalResizeHandle
 
 // MARK: - Right Inspector View
 
@@ -181,6 +183,7 @@ public struct InspectorContainerView: View {
                     InspectorPreviewPane(
                         coordinator: controller.previewCoordinator,
                         candidates: model.gitDiffService.snapshot.previewCandidates,
+                        workspaceCwd: model.gitDiffService.snapshot.repoRoot ?? model.gitDiffService.snapshot.cwd ?? model.selected?.focusedPane?.cwd,
                         onSelectCandidate: { [weak controller] url in
                             controller?.openInInspectorPreview(url)
                         }

@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Observation
 
@@ -6,6 +7,7 @@ import Observation
 public final class GitDiffService {
     public nonisolated static let maxDiffLinesPerFile = 100
     private nonisolated static let maxUntrackedReadBytes = 64 * 1024
+    private nonisolated static let emptyTreeHash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
     public private(set) var snapshot = GitDiffSnapshot()
     public private(set) var isLoading = false
@@ -72,18 +74,22 @@ public final class GitDiffService {
             let branch = await self.resolveBranch(in: cwd, gen: gen)
             guard self.currentGeneration == gen else { return }
 
+            let filterOverrides = await self.filterOverrideArgs(in: cwd, gen: gen)
+            guard self.currentGeneration == gen else { return }
+            let diffGlobalArgs = ["--attr-source=\(Self.emptyTreeHash)"] + filterOverrides
+
             let baseDiffFlags = ["diff", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/"]
-            var numstatRes = await self.runGit(baseDiffFlags + ["--numstat", "HEAD", "--"], cwd: cwd, gen: gen)
-            var diffRes = await self.runGit(baseDiffFlags + ["HEAD", "--"], cwd: cwd, gen: gen)
+            var numstatRes = await self.runGit(baseDiffFlags + ["--numstat", "-z", "HEAD", "--"], globalArgs: diffGlobalArgs, cwd: cwd, gen: gen)
+            var diffRes = await self.runGit(baseDiffFlags + ["HEAD", "--"], globalArgs: diffGlobalArgs, cwd: cwd, gen: gen)
             guard self.currentGeneration == gen else { return }
 
             if numstatRes.status != 0 {
-                numstatRes = await self.runGit(baseDiffFlags + ["--numstat", "--cached", "--"], cwd: cwd, gen: gen)
-                diffRes = await self.runGit(baseDiffFlags + ["--cached", "--"], cwd: cwd, gen: gen)
+                numstatRes = await self.runGit(baseDiffFlags + ["--numstat", "-z", "--cached", "--"], globalArgs: diffGlobalArgs, cwd: cwd, gen: gen)
+                diffRes = await self.runGit(baseDiffFlags + ["--cached", "--"], globalArgs: diffGlobalArgs, cwd: cwd, gen: gen)
             }
             guard self.currentGeneration == gen else { return }
 
-            let statusRes = await self.runGit(["status", "--porcelain=v1", "-z", "--untracked-files=all"], cwd: cwd, gen: gen)
+            let statusRes = await self.runGit(["status", "--porcelain=v1", "-z", "--untracked-files=all"], globalArgs: diffGlobalArgs, cwd: cwd, gen: gen)
             guard self.currentGeneration == gen else { return }
 
             let built = await Task.detached(priority: .utility) {
@@ -103,6 +109,24 @@ public final class GitDiffService {
         }
     }
 
+    private func filterOverrideArgs(in cwd: String, gen: UInt64) async -> [String] {
+        let res = await runGit(
+            ["config", "--local", "--includes", "--name-only", "-z", "--get-regexp", #"^filter\..*\.(clean|process|smudge|required)$"#],
+            cwd: cwd,
+            gen: gen
+        )
+        guard res.status == 0, !res.stdout.isEmpty else { return [] }
+        var args: [String] = []
+        for rawKey in res.stdout.split(separator: "\0", omittingEmptySubsequences: true) {
+            let key = String(rawKey)
+            let lowered = key.lowercased()
+            guard lowered.hasPrefix("filter."), !key.contains("\n"), !key.contains("\0") else { continue }
+            args.append("-c")
+            args.append(lowered.hasSuffix(".required") ? "\(key)=false" : "\(key)=")
+        }
+        return args
+    }
+
     private func resolveBranch(in cwd: String, gen: UInt64) async -> String? {
         let bRes = await runGit(["branch", "--show-current"], cwd: cwd, gen: gen)
         let bStr = PreviewTarget.replacingUnsafeScalars(bRes.stdout.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -120,21 +144,9 @@ public final class GitDiffService {
         diffStdout: String,
         statusStdout: String
     ) -> GitDiffSnapshot {
-        let numstatList = GitDiffParser.parseNumstat(numstatStdout)
-        let parsedFiles = GitDiffParser.parseUnifiedDiff(diffStdout, maxLines: maxDiffLinesPerFile)
-        var filesByPath = Dictionary(parsedFiles.map { ($0.path, $0) }, uniquingKeysWith: { _, latest in latest })
-
-        for item in numstatList {
-            if var f = filesByPath[item.path] {
-                f.added = item.added
-                f.deleted = item.deleted
-                filesByPath[item.path] = f
-            } else {
-                filesByPath[item.path] = GitDiffFile(path: item.path, status: "M", added: item.added, deleted: item.deleted)
-            }
-        }
-
         let entries = statusStdout.split(separator: "\0", omittingEmptySubsequences: true)
+        var statusOrder: [(path: String, status: String)] = []
+        var statusByPath: [String: String] = [:]
         var i = 0
         while i < entries.count {
             let s = String(entries[i])
@@ -142,18 +154,55 @@ public final class GitDiffService {
             let isRenameOrCopy = code.contains("R") || code.contains("C")
             defer { i += isRenameOrCopy ? 2 : 1 }
             guard s.count >= 3 else { continue }
-            let rawPath = String(s.dropFirst(3))
-            let cleanPath = PreviewTarget.replacingUnsafeScalars(rawPath)
-            guard !cleanPath.isEmpty, filesByPath[cleanPath] == nil else { continue }
+            let cleanPath = PreviewTarget.replacingUnsafeScalars(String(s.dropFirst(3)))
+            guard !cleanPath.isEmpty else { continue }
+            let rawSt = code.trimmingCharacters(in: .whitespaces)
+            let st = rawSt.isEmpty ? "M" : rawSt
+            if statusByPath[cleanPath] == nil {
+                statusByPath[cleanPath] = st
+                statusOrder.append((path: cleanPath, status: st))
+            }
+        }
 
-            let st = code.trimmingCharacters(in: .whitespaces)
+        let numstatList = GitDiffParser.parseNumstat(numstatStdout)
+        let parsedFiles = GitDiffParser.parseUnifiedDiff(diffStdout, maxLines: maxDiffLinesPerFile)
+        var filesByPath = Dictionary(parsedFiles.map { ($0.path, $0) }, uniquingKeysWith: { _, latest in latest })
+
+        for (path, st) in statusByPath {
+            if var f = filesByPath[path], f.status == "M" && st != "M" {
+                f.status = st
+                filesByPath[path] = f
+            }
+        }
+
+        for item in numstatList {
+            if var f = filesByPath[item.path] {
+                f.added = item.added
+                f.deleted = item.deleted
+                filesByPath[item.path] = f
+            } else {
+                // Omitted from unified diff (e.g. exceeded maxBytes cap) or binary: mark truncated for non-binary diffs.
+                let st = statusByPath[item.path] ?? "M"
+                filesByPath[item.path] = GitDiffFile(
+                    path: item.path,
+                    status: st,
+                    added: item.added,
+                    deleted: item.deleted,
+                    lines: [],
+                    truncated: !item.isBinary
+                )
+            }
+        }
+
+        for entry in statusOrder where filesByPath[entry.path] == nil {
+            let st = entry.status
             let isUntrackedOrAdded = st == "??" || st == "A" || st.hasPrefix("A")
             if isUntrackedOrAdded {
                 // Git paths in diff/status are relative to the repository top-level, not necessarily cwd.
-                let fullURL = URL(fileURLWithPath: repoRoot).appendingPathComponent(cleanPath)
+                let fullURL = URL(fileURLWithPath: repoRoot).appendingPathComponent(entry.path)
                 let (lines, totalCount, isTruncated) = readUntrackedLines(at: fullURL, cwd: repoRoot)
-                filesByPath[cleanPath] = GitDiffFile(
-                    path: cleanPath,
+                filesByPath[entry.path] = GitDiffFile(
+                    path: entry.path,
                     status: st,
                     added: totalCount,
                     deleted: 0,
@@ -161,10 +210,10 @@ public final class GitDiffService {
                     truncated: isTruncated
                 )
             } else {
-                // Tracked file absent from unified diff (e.g. exceeded maxBytes cap): preserve status without faking full-file additions.
-                filesByPath[cleanPath] = GitDiffFile(
-                    path: cleanPath,
-                    status: st.isEmpty ? "M" : st,
+                // Tracked file absent from both unified diff and numstat: preserve status without faking full-file additions.
+                filesByPath[entry.path] = GitDiffFile(
+                    path: entry.path,
+                    status: st,
                     added: 0,
                     deleted: 0,
                     lines: [],
@@ -198,15 +247,18 @@ public final class GitDiffService {
 
     private nonisolated static func readUntrackedLines(at url: URL, cwd: String) -> ([GitDiffLine], Int, Bool) {
         let dirURL = URL(fileURLWithPath: cwd).resolvingSymlinksInPath()
-        let canonical = url.resolvingSymlinksInPath().path
+        let canonicalURL = url.resolvingSymlinksInPath()
         let prefix = dirURL.path == "/" ? "/" : dirURL.path + "/"
-        guard canonical.hasPrefix(prefix),
-              let rv = try? url.resolvingSymlinksInPath().resourceValues(forKeys: [.isRegularFileKey]),
-              rv.isRegularFile == true,
-              let fh = try? FileHandle(forReadingFrom: url) else {
+        guard canonicalURL.path.hasPrefix(prefix) else { return ([], 0, false) }
+
+        // Open canonical path with O_NOFOLLOW | O_NONBLOCK and verify S_IFREG on the fd to close symlink/FIFO TOCTOU.
+        let fd = Darwin.open(canonicalURL.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
+        guard fd >= 0 else { return ([], 0, false) }
+        let fh = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+        var st = stat()
+        guard fstat(fd, &st) == 0, (st.st_mode & S_IFMT) == S_IFREG else {
             return ([], 0, false)
         }
-        defer { try? fh.close() }
         guard let data = try? fh.read(upToCount: maxUntrackedReadBytes),
               let content = String(data: data, encoding: .utf8),
               !content.isEmpty else {
@@ -251,6 +303,7 @@ public final class GitDiffService {
 
     private func runGit(
         _ args: [String],
+        globalArgs: [String] = [],
         cwd: String,
         gen: UInt64,
         maxBytes: Int = 256 * 1024,
@@ -260,8 +313,17 @@ public final class GitDiffService {
             DispatchQueue.global().async { [weak self] in
                 let p = Process()
                 p.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-                // Apply -c core.fsmonitor=false centrally before every subcommand to neutralize untrusted .git/config hooks.
-                p.arguments = ["-C", cwd, "-c", "core.fsmonitor=false"] + args
+                // Neutralize untrusted .git/config hooks, pagers, attributes, path quoting, and submodule protocols.
+                p.arguments = [
+                    "-C", cwd,
+                    "--no-pager",
+                    "-c", "core.fsmonitor=false",
+                    "-c", "core.quotePath=false",
+                    "-c", "core.attributesfile=/dev/null",
+                    "-c", "core.hooksPath=/dev/null",
+                    "-c", "diff.submodule=short",
+                    "-c", "protocol.file.allow=never",
+                ] + globalArgs + args
                 p.currentDirectoryURL = URL(fileURLWithPath: cwd)
                 p.environment = ProcessInfo.processInfo.environment.merging(["GIT_OPTIONAL_LOCKS": "0"]) { $1 }
 

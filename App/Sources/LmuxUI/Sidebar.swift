@@ -54,6 +54,14 @@ struct SidebarView: View {
                                     .padding(.top, 24)
                                     .padding(.horizontal, T.Layout.rowInsetX)
                             } else {
+                                if model.workspaceFilter != .all {
+                                    Text("篩選中（已停用拖曳排序）")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(T.Colors.textTertiary.color)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, T.Layout.rowInsetX + T.Layout.rowPaddingX)
+                                        .padding(.bottom, 2)
+                                }
                                 ForEach(Array(visibleWorkspaces.enumerated()), id: \.element.id) { _, ws in
                                     SidebarRowMotion(model: model, id: ws.id, shift: shifts[ws.id] ?? 0,
                                                      lifted: drag?.ids.contains(ws.id) ?? false) {
@@ -356,6 +364,8 @@ public struct WorkspaceRowContent: View {
                 // Hovered, the trailing slot is the row's × (drawn by WorkspaceRow over it).
                 WorkspaceStatusPill(display: state, unread: selected ? 0 : unread, unattended: unattended,
                                     pulse: pulse, reduceMotion: reduceMotion, waiting: waiting)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(1)
                     .padding(.leading, 6)
                     .opacity(hover ? 0 : 1)
             }
@@ -390,7 +400,7 @@ public struct WorkspaceRowContent: View {
                 .fill(pillColor)
                 .overlay(
                     RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
-                        .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)
+                        .strokeBorder(T.Colors.glassHighlightBorder.color, lineWidth: 0.5)
                         .opacity(Self.showsGlassBorder(selected: selected, inSelection: inSelection) ? 1 : 0)
                 )
         )
@@ -490,6 +500,7 @@ public struct WorkspaceStatusPill: View {
                     Text(text)
                         .font(.system(size: 9.5, weight: .semibold))
                         .foregroundStyle(Self.textColor(for: display).color)
+                        .lineLimit(1)
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1.5)

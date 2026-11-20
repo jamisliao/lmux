@@ -120,7 +120,7 @@ public struct InspectorDiffView: View {
         .background(T.Colors.glassSurfaceRecessed.color.opacity(0.6))
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(T.Colors.glassBorder.color, lineWidth: 0.5)
+                .stroke(T.Colors.glassHighlightBorder.color, lineWidth: 0.5)
         )
         .cornerRadius(6)
     }
@@ -132,13 +132,30 @@ public struct InspectorDiffView: View {
                 .foregroundColor(statusColor(file.status))
                 .frame(width: 14)
 
-            Text(file.path)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(T.Colors.textPrimary.color)
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-            Spacer()
+            if file.previewURL != nil {
+                Button {
+                    let baseDir = snapshot.repoRoot ?? snapshot.cwd
+                    if let liveURL = Self.resolvePreviewURL(file: file.path, cwd: baseDir) {
+                        onOpenPreview?(liveURL)
+                    }
+                } label: {
+                    Text(file.path)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(T.Colors.textPrimary.color)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .help("在即時預覽中開啟")
+            } else {
+                Text(file.path)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(T.Colors.textPrimary.color)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+            }
 
             if file.previewURL != nil {
                 Button {

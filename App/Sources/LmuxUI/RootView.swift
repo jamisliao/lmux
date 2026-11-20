@@ -427,8 +427,8 @@ extension NSView {
     }
 }
 
-/// The sidebar's surface (POLISH.md 2): `NSVisualEffectView(.sidebar, .behindWindow)` with a
-/// `sidebarTint` layer on top, so the sidebar stays Nord and lets a little of the desktop through.
+/// The sidebar's surface: `NSVisualEffectView(.sidebar, .behindWindow)` with a
+/// `sidebarTint` layer on top (High-Key Crystal / Obsidian Midnight glass).
 /// Opaque `sidebarBackground` under Reduce Transparency, and in headless / offscreen snapshots
 /// (a material has nothing behind it to blend there).
 final class SidebarBackdrop: GlassBackdropView {
@@ -621,34 +621,4 @@ final class ContentHeaderView: TitlebarDragView {
 }
 
 /// Invisible strip on the sidebar edge; drag to resize the sidebar.
-final class SidebarResizeHandle: NSView {
-    var onDrag: ((CGFloat) -> Void)?
-    var onDragStateChange: ((Bool) -> Void)?
-    private(set) var isDragging = false
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-    override var mouseDownCanMoveWindow: Bool { false }
-    override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeLeftRight) }
-    override func mouseDown(with event: NSEvent) {
-        isDragging = true
-        onDragStateChange?(true)
-    }
-    override func mouseDragged(with event: NSEvent) {
-        guard isDragging, let sv = superview else { return }
-        onDrag?(sv.convert(event.locationInWindow, from: nil).x)
-    }
-    override func mouseUp(with event: NSEvent) {
-        isDragging = false
-        onDragStateChange?(false)
-    }
-    override func viewWillMove(toWindow newWindow: NSWindow?) {
-        super.viewWillMove(toWindow: newWindow)
-        if newWindow == nil { cancelDragIfNeeded() }
-    }
-    func cancelDragIfNeeded() {
-        if isDragging {
-            isDragging = false
-            onDragStateChange?(false)
-        }
-    }
-}
+typealias SidebarResizeHandle = VerticalResizeHandle

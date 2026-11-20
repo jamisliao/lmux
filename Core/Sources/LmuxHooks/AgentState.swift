@@ -89,6 +89,10 @@ public struct PaneAgent: Sendable, Equatable {
         toolStream.record(event)
     }
 
+    public mutating func resetToolStream() {
+        toolStream = ToolCallStream()
+    }
+
     /// The session's last turn had ended (done) when lmux quit, as the relaunch shows it.
     public static var restoredDone: PaneAgent {
         var a = PaneAgent()

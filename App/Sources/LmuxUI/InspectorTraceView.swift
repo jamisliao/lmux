@@ -100,7 +100,7 @@ public struct InspectorTraceView: View {
             }
         }
         .padding(10).background(T.Colors.glassSurfaceRecessed.color.opacity(0.5))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(T.Colors.glassBorder.color, lineWidth: 0.5)).cornerRadius(8)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(T.Colors.glassHighlightBorder.color, lineWidth: 0.5)).cornerRadius(8)
     }
 
     private func metricItem(_ label: String, _ value: String) -> some View {
@@ -124,7 +124,7 @@ public struct InspectorTraceView: View {
             }
         }
         .padding(10).background(T.Colors.glassSurfaceRecessed.color.opacity(0.5))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(T.Colors.glassBorder.color, lineWidth: 0.5)).cornerRadius(8)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(T.Colors.glassHighlightBorder.color, lineWidth: 0.5)).cornerRadius(8)
     }
 
     private func toolCallRow(_ call: ToolCallEntry) -> some View {

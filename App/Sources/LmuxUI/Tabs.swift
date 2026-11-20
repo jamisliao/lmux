@@ -50,6 +50,7 @@ extension LmuxController {
     func insert(_ tab: Pane, into leaf: SplitNode, at index: Int, _ ws: Workspace, select: Bool) {
         let pc = leaf.pinnedCount
         let at = tab.pinned ? min(index, pc) : max(index, pc)
+        let prevFocused = ws.focusedPane
         leaf.tabs.insert(tab, at: min(max(at, 0), leaf.tabs.count))
         tab.surface?.setOcclusion(visible: false)
         ws.structureChanged()
@@ -62,6 +63,7 @@ extension LmuxController {
         if ws === model.selected {
             rebuildContent()
             focusCurrent()
+            if ws.focusedPane !== prevFocused { activePaneDidChange(to: ws.focusedPane, in: ws) }
         }
         scheduleSave()
     }
@@ -69,11 +71,13 @@ extension LmuxController {
     /// Bring `tab` to the front of its leaf (and focus it there).
     public func selectTab(_ tab: Pane) {
         guard let ws = tab.workspace, let leaf = ws.root.find(tab) else { return }
+        let prevFocused = ws.focusedPane
         let changed = showTab(tab, in: leaf, ws)
         ws.focusedPane = tab
         if ws === model.selected {
             if changed { rebuildContent() }
             focusCurrent()
+            if ws.focusedPane !== prevFocused { activePaneDidChange(to: tab, in: ws) }
         }
         if changed { scheduleSave() }
     }
@@ -111,6 +115,7 @@ extension LmuxController {
     /// (the left one for the last), the leaf stays. Closing a tab behind keeps the shown one.
     func closeTab(_ tab: Pane, in leaf: SplitNode) {
         guard let ws = tab.workspace, let i = leaf.tabs.firstIndex(where: { $0 === tab }) else { return }
+        let prevFocused = ws.focusedPane
         leaf.tabs.remove(at: i)
         if leaf.shownTab === tab {
             let next = leaf.tabs[min(i, leaf.tabs.count - 1)]
@@ -125,6 +130,7 @@ extension LmuxController {
         if ws === model.selected {
             rebuildContent()
             focusCurrent()
+            if ws.focusedPane !== prevFocused { activePaneDidChange(to: ws.focusedPane, in: ws) }
         }
         scheduleSave()
     }

@@ -31,7 +31,7 @@ public struct LayoutFile: Codable, Equatable {
         inspectorVisible = try c.decodeIfPresent(Bool.self, forKey: .inspectorVisible) ?? true
         let rawInspectorWidth = try c.decodeIfPresent(Double.self, forKey: .inspectorWidth) ?? Double(LmuxTokens.Layout.rightInspectorWidthDefault)
         inspectorWidth = min(max(rawInspectorWidth, Double(LmuxTokens.Layout.rightInspectorWidthMin)), Double(LmuxTokens.Layout.rightInspectorWidthMax))
-        inspectorTab = try c.decodeIfPresent(InspectorTab.self, forKey: .inspectorTab) ?? .preview
+        inspectorTab = (try? c.decodeIfPresent(String.self, forKey: .inspectorTab)).flatMap(InspectorTab.init(rawValue:)) ?? .preview
     }
 
     public struct WorkspaceState: Codable, Equatable {

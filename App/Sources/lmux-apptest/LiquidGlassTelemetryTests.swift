@@ -27,6 +27,13 @@ func runLiquidGlassTelemetry() async -> Int32 {
             && numstatParsed[1].path == "Assets/logo.png" && numstatParsed[1].isBinary
             && numstatParsed[2].path == "README.md" && numstatParsed[2].added == 5 && numstatParsed[2].deleted == 0)
 
+    let renameNumstatZ = "4\t1\t\0Sources/OldName.swift\0Sources/NewName.swift\0" + "2\t0\tDocs/設計.md\0"
+    let renameParsed = GitDiffService.parseNumstat(renameNumstatZ)
+    r.check("parseNumstat -z resolves renames and UTF-8 paths without quote escaping",
+            renameParsed.count == 2
+            && renameParsed[0].path == "Sources/NewName.swift" && renameParsed[0].added == 4 && renameParsed[0].deleted == 1
+            && renameParsed[1].path == "Docs/設計.md" && renameParsed[1].added == 2)
+
     let sampleDiff = """
     diff --git a/README.md b/README.md
     index 1234567..89abcde 100644
@@ -59,21 +66,27 @@ func runLiquidGlassTelemetry() async -> Int32 {
     let fm = FileManager.default
     let pwnedPath = "/tmp/pwned_\(UUID().uuidString)"
     let pwnedFsMonitorPath = "/tmp/pwned_fsmonitor_\(UUID().uuidString)"
+    let pwnedFilterPath = "/tmp/pwned_filter_\(UUID().uuidString)"
     let repoA = fm.temporaryDirectory.appendingPathComponent("repo-a-\(UUID().uuidString)")
     defer {
         try? fm.removeItem(at: repoA)
         try? fm.removeItem(atPath: pwnedPath)
         try? fm.removeItem(atPath: pwnedFsMonitorPath)
+        try? fm.removeItem(atPath: pwnedFilterPath)
     }
     try? fm.createDirectory(at: repoA, withIntermediateDirectories: true)
     _ = await runProcess("/usr/bin/git", ["init", "-b", "main"], env: ["GIT_DIR": repoA.appendingPathComponent(".git").path])
     let testFile = repoA.appendingPathComponent("test.txt")
+    let attrsFile = repoA.appendingPathComponent(".gitattributes")
+    try? "*.txt filter=evil\n".write(to: attrsFile, atomically: true, encoding: .utf8)
     try? "line1\nline2\n".write(to: testFile, atomically: true, encoding: .utf8)
-    _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "add", "test.txt"])
+    _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "add", "test.txt", ".gitattributes"])
     _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "-c", "user.name=test", "-c", "user.email=t@e.com", "commit", "-m", "init"])
-    // Configure malicious diff.external and core.fsmonitor after commit setup so only GitDiffService is tested.
+    // Configure malicious diff.external, core.fsmonitor, and filter.evil.* after commit setup so only GitDiffService is tested.
     _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "config", "diff.external", "touch \(pwnedPath)"])
     _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "config", "core.fsmonitor", "touch \(pwnedFsMonitorPath)"])
+    _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "config", "filter.evil.clean", "touch \(pwnedFilterPath) && cat"])
+    _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "config", "filter.evil.smudge", "touch \(pwnedFilterPath) && cat"])
     try? "line1\nline2-edited\nline3\n".write(to: testFile, atomically: true, encoding: .utf8)
 
     let svc = GitDiffService()
@@ -81,8 +94,8 @@ func runLiquidGlassTelemetry() async -> Int32 {
     let refreshed = await waitFor(3) { !svc.isLoading && svc.snapshot.isGitRepo }
     let testDiff = svc.snapshot.files.first(where: { $0.path == "test.txt" })
     r.check("refresh on git repo finishes without loading", refreshed)
-    r.check("malicious diff.external and core.fsmonitor are never executed",
-            !fm.fileExists(atPath: pwnedPath) && !fm.fileExists(atPath: pwnedFsMonitorPath))
+    r.check("malicious diff.external, core.fsmonitor, and filter.*.clean are never executed",
+            !fm.fileExists(atPath: pwnedPath) && !fm.fileExists(atPath: pwnedFsMonitorPath) && !fm.fileExists(atPath: pwnedFilterPath))
     r.check("snapshot has real unified diff hunks, exact added/deleted counts, and branch",
             svc.snapshot.isGitRepo
             && svc.snapshot.branch == "main"
@@ -184,20 +197,40 @@ func runLiquidGlassTelemetry() async -> Int32 {
       "version": 1,
       "workspaces": [],
       "sidebarVisible": true,
-      "sidebarWidth": 260.0,
+      "sidebarWidth": 40.0,
       "inspectorVisible": false,
       "inspectorWidth": 999.0,
       "inspectorTab": "diff"
     }
     """
     if let clampedLayout = try? JSONDecoder().decode(LayoutFile.self, from: Data(outOfBoundsJSON.utf8)) {
-        r.check("out-of-bounds inspectorWidth 999 is clamped to 500", clampedLayout.inspectorWidth == Double(LmuxTokens.Layout.rightInspectorWidthMax))
+        r.check("out-of-bounds widths clamp to sidebarWidthMin (180) and inspectorWidthMax (500)",
+                clampedLayout.sidebarWidth == Double(LmuxTokens.Layout.sidebarWidthMin)
+                && clampedLayout.inspectorWidth == Double(LmuxTokens.Layout.rightInspectorWidthMax))
         r.check("inspectorVisible is restored as false", clampedLayout.inspectorVisible == false)
         r.check("inspectorTab is restored as diff", clampedLayout.inspectorTab == .diff)
     } else {
-        r.check("out-of-bounds inspectorWidth 999 is clamped to 500", false)
+        r.check("out-of-bounds widths clamp to sidebarWidthMin (180) and inspectorWidthMax (500)", false)
         r.check("inspectorVisible is restored as false", false)
         r.check("inspectorTab is restored as diff", false)
+    }
+
+    let unknownTabJSON = """
+    {
+      "version": 1,
+      "workspaces": [],
+      "sidebarWidth": 999.0,
+      "inspectorWidth": 80.0,
+      "inspectorTab": "future-unknown-tab"
+    }
+    """
+    if let futureLayout = try? JSONDecoder().decode(LayoutFile.self, from: Data(unknownTabJSON.utf8)) {
+        r.check("unknown inspectorTab falls back to .preview and clamps high sidebar / low inspector widths",
+                futureLayout.inspectorTab == .preview
+                && futureLayout.sidebarWidth == Double(LmuxTokens.Layout.sidebarWidthMax)
+                && futureLayout.inspectorWidth == Double(LmuxTokens.Layout.rightInspectorWidthMin))
+    } else {
+        r.check("unknown inspectorTab falls back to .preview and clamps high sidebar / low inspector widths", false)
     }
 
     // 7. AppModel inspector & workspaceFilter defaults and roundtrip
@@ -318,9 +351,51 @@ func runLiquidGlassTelemetry() async -> Int32 {
     r.check("InspectorDiffView.displayState for dirty git repo",
             InspectorDiffView.displayState(for: dirtySnap) == .diff(branch: "feat", fileCount: 1, added: 5, deleted: 2))
 
-    // symlink / unsafe preview check
-    r.check("InspectorDiffView.resolvePreviewURL rejects unsafe control characters",
-            InspectorDiffView.resolvePreviewURL(file: "test\u{202E}file.txt", cwd: "/tmp") == nil)
+    // symlink / traversal / unsafe preview check
+    r.check("InspectorDiffView.resolvePreviewURL rejects unsafe control characters and path traversal",
+            InspectorDiffView.resolvePreviewURL(file: "test\u{202E}file.txt", cwd: "/tmp") == nil
+            && InspectorDiffView.resolvePreviewURL(file: "../README.md", cwd: unbornRepo.path) == nil
+            && InspectorDiffView.resolvePreviewURL(file: "passwd_link.txt", cwd: unbornRepo.path) == nil)
+
+    // Large tracked diff > maxBytes still retains numstat counts and truncated = true for omitted following files
+    let hugeRepo = fm.temporaryDirectory.appendingPathComponent("huge-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: hugeRepo) }
+    try? fm.createDirectory(at: hugeRepo, withIntermediateDirectories: true)
+    _ = await runProcess("/usr/bin/git", ["init", "-b", "main"], env: ["GIT_DIR": hugeRepo.appendingPathComponent(".git").path])
+    let hugeFile = hugeRepo.appendingPathComponent("00-big.txt")
+    let afterHugeFile = hugeRepo.appendingPathComponent("zz-after.txt")
+    let bigChunk = String(repeating: "0123456789abcdef0123456789abcdef\n", count: 10_000) // ~330 KB (> 256 KB maxBytes)
+    try? "seed\n".write(to: hugeFile, atomically: true, encoding: .utf8)
+    try? "before\n".write(to: afterHugeFile, atomically: true, encoding: .utf8)
+    _ = await runProcess("/usr/bin/git", ["-C", hugeRepo.path, "add", "00-big.txt", "zz-after.txt"])
+    _ = await runProcess("/usr/bin/git", ["-C", hugeRepo.path, "-c", "user.name=test", "-c", "user.email=t@e.com", "commit", "-m", "init"])
+    try? bigChunk.write(to: hugeFile, atomically: true, encoding: .utf8)
+    try? "before\nafter\n".write(to: afterHugeFile, atomically: true, encoding: .utf8)
+    svc.refresh(cwd: hugeRepo.path, immediate: true)
+    _ = await waitFor(3) { !svc.isLoading && svc.snapshot.cwd == hugeRepo.path }
+    let bigDiffEntry = svc.snapshot.files.first(where: { $0.path == "00-big.txt" })
+    let omittedAfterEntry = svc.snapshot.files.first(where: { $0.path == "zz-after.txt" })
+    r.check("oversized unified diff omitted by maxBytes preserves numstat added count and sets truncated=true",
+            bigDiffEntry?.truncated == true
+            && bigDiffEntry?.lines.count == GitDiffService.maxDiffLinesPerFile
+            && omittedAfterEntry?.added == 1
+            && omittedAfterEntry?.lines.isEmpty == true
+            && omittedAfterEntry?.truncated == true,
+            "big=(\(bigDiffEntry?.lines.count ?? -1),\(bigDiffEntry?.truncated ?? false)) omitted=(\(omittedAfterEntry?.added ?? -1),\(omittedAfterEntry?.lines.count ?? -1),\(omittedAfterEntry?.truncated ?? false))")
+
+    // Codex OSC 7501 new SessionStart resets toolStream without leaking prior turn count/tools
+    var cdxStart = try! HookEvent(paneID: pane.id, payload: ["hook_event_name": "SessionStart", "session_id": "codex-2", "source": "startup"])
+    cdxStart.agent = .codex
+    c.handleHook(cdxStart)
+    r.check("codexReport SessionStart resets ToolCallStream entries and turnCount",
+            pane.agent.toolStream.entries.isEmpty && pane.agent.toolStream.turnCount == 0)
+
+    // SessionStart(source: compact) retains telemetry snapshot while hook Stop triggers transcript refresh
+    store.recordSnapshot(fakeTelemetry, for: pane.id)
+    let compactStart = try! HookEvent(paneID: pane.id, payload: ["hook_event_name": "SessionStart", "session_id": "sess-live-e2e", "source": "compact"])
+    c.handleHook(compactStart)
+    r.check("SessionStart(source: compact) retains AgentTelemetryStore snapshot",
+            store.display(for: pane).contextUsedTokens == 15_000)
 
     // 8. InspectorTraceView.presentation(for:)
     let emptyDisplay = PaneTelemetryDisplay()
