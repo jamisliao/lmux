@@ -1,6 +1,7 @@
 // @feature: liquid-glass-app.feature
 // @scenario: 玻璃背景顯示毛玻璃與高光邊緣，開啟減少透明度時切換為不透明實底
 // @scenario: 系統開啟減少動態效果時縮短過渡並停止呼吸動畫
+// @scenario: 透過快捷鍵與標題列／狀態列控制右側 Inspector 展開、收合與分頁切換
 // @scenario: 右側 Inspector 即時預覽支援檔案切換、重整與雙軌開啟
 // @scenario: 切換不同 workspace 時右側 Inspector 與底部狀態列同步切換上下文
 // @scenario: 拖曳調整左右側邊欄、分割線、通知 bar 或視窗縮放期間啟動拖曳降級
@@ -38,9 +39,11 @@ func runLiquidGlassWorkbench() async -> Int32 {
         sb.forceOpaque = false; tb.forceOpaque = false; rb.forceOpaque = false; fb.forceOpaque = false
         c.root.setAllBackdropsResizing(false)
 
-        let allIdle = !sb.isOpaqueFallback && !tb.isOpaqueFallback && !rb.isOpaqueFallback && !fb.isOpaqueFallback
-        let allVisible = !sb.material.isHidden && !tb.material.isHidden && !rb.material.isHidden && !fb.material.isHidden
-        r.check("[\(label)] 4 個 Backdrop 預設皆啟用系統毛玻璃與高光邊緣", allIdle && allVisible)
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+            let allIdle = !sb.isOpaqueFallback && !tb.isOpaqueFallback && !rb.isOpaqueFallback && !fb.isOpaqueFallback
+            let allVisible = !sb.material.isHidden && !tb.material.isHidden && !rb.material.isHidden && !fb.material.isHidden
+            r.check("[\(label)] 4 個 Backdrop 預設皆啟用系統毛玻璃與高光邊緣", allIdle && allVisible)
+        }
 
         sb.forceOpaque = true; tb.forceOpaque = true; rb.forceOpaque = true; fb.forceOpaque = true
         let allOpaque = sb.isOpaqueFallback && tb.isOpaqueFallback && rb.isOpaqueFallback && fb.isOpaqueFallback
@@ -226,12 +229,30 @@ func runLiquidGlassWorkbench() async -> Int32 {
             && pres2.gitChangesText == "—"
             && pres2.latestToolText == nil)
 
-    // 切回 Workspace 1，驗證狀態與預覽上下文復原
+    // 切回 Workspace 1，驗證狀態與預覽上下文復原；同時驗證背景 Workspace 2 Hook / 目錄事件不覆寫前景 gitDiffService
     c.select(ws1)
-    r.check("切回 Workspace 1 後選中狀態、chipState 與預覽 URL 恢復",
+    let ws1SnapDir = fm.temporaryDirectory.appendingPathComponent("wb-ws1-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: ws1SnapDir) }
+    try? fm.createDirectory(at: ws1SnapDir, withIntermediateDirectories: true)
+    p1.cwd = ws1SnapDir.path
+    c.model.gitDiffService.refresh(cwd: ws1SnapDir.path, immediate: true)
+    _ = await waitFor(3) { !c.model.gitDiffService.isLoading && c.model.gitDiffService.snapshot.cwd == ws1SnapDir.path }
+
+    // Trigger background workspace hook (.stop) and directory change while ws1 stays selected
+    c.paneDidChangeDirectory(p2, nonGitWsDir.path)
+    if let bgStop = try? HookEvent(paneID: p2.id, payload: [
+        "hook_event_name": "Stop",
+        "session_id": "wb-bg-session"
+    ]) {
+        c.handleHook(bgStop)
+    }
+    try? await Task.sleep(nanoseconds: 300_000_000)
+
+    r.check("切回 Workspace 1 後選中狀態、chipState、預覽 URL 與前景 gitDiffService 不受背景 workspace 干擾",
             c.model.selected?.id == ws1.id
             && c.root.chipState.workspace?.id == ws1.id
-            && c.previewCoordinator.currentURL == gitWsPreview)
+            && c.previewCoordinator.currentURL == gitWsPreview
+            && c.model.gitDiffService.snapshot.cwd == ws1SnapDir.path)
 
     // TabStripView overflow 時 + 按鈕保持可見且可點擊
     if let overflowStrip = p1.view.tabStrip {

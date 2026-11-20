@@ -477,9 +477,15 @@ public struct WorkspaceStatusPill: View {
         } else {
             let content = HStack(spacing: 3) {
                 HStack(spacing: 4) {
-                    if case .running = display, !waiting {
-                        Spinner(color: Self.textColor(for: display))
-                            .frame(width: 10, height: 10)
+                    if case .running = display {
+                        if waiting {
+                            Image(systemName: "clock")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundStyle(Self.textColor(for: display).color)
+                        } else {
+                            Spinner(color: Self.textColor(for: display))
+                                .frame(width: 10, height: 10)
+                        }
                     }
                     Text(text)
                         .font(.system(size: 9.5, weight: .semibold))
@@ -669,7 +675,7 @@ struct TitlebarCluster: View {
 
     var body: some View {
         HStack(spacing: 2) {
-            IconButton(symbol: "sidebar.left", help: "Toggle Sidebar (⌃⌘S)") { controller.toggleSidebar() }
+            IconButton(symbol: "sidebar.left", help: "Toggle Sidebar (⌘B / ⌃⌘S)") { controller.toggleSidebar() }
             ZStack(alignment: .topTrailing) {
                 IconButton(symbol: "bell", help: "Notifications (⌥-click: Jump to Latest Unread, ⇧⌘U)") {
                     controller.bellClicked(modifiers: LmuxWindow.clickModifiers)

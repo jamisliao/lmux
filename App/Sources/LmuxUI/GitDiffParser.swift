@@ -27,6 +27,7 @@ public struct GitDiffFile: Equatable, Identifiable, Sendable {
     public var deleted: Int
     public var lines: [GitDiffLine]
     public var truncated: Bool
+    public var previewURL: URL?
 
     public init(
         path: String,
@@ -34,7 +35,8 @@ public struct GitDiffFile: Equatable, Identifiable, Sendable {
         added: Int = 0,
         deleted: Int = 0,
         lines: [GitDiffLine] = [],
-        truncated: Bool = false
+        truncated: Bool = false,
+        previewURL: URL? = nil
     ) {
         self.path = path
         self.status = status
@@ -42,6 +44,7 @@ public struct GitDiffFile: Equatable, Identifiable, Sendable {
         self.deleted = deleted
         self.lines = lines
         self.truncated = truncated
+        self.previewURL = previewURL
     }
 }
 

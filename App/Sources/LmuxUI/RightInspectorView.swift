@@ -174,7 +174,6 @@ public struct InspectorContainerView: View {
                 controller?.showInspectorTab(tab)
             },
             onLeavePreview: { [weak controller] in
-                controller?.previewCoordinator.onLeavePreview()
                 controller?.focusCurrent()
             },
             previewContent: { [weak controller] in

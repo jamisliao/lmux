@@ -131,6 +131,8 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         r.check("在右側欄即時預覽：設定 inspectorTab == .preview 且 inspectorVisible == true 不更動分割數",
                 c.model.inspectorVisible && c.model.inspectorTab == .preview
                 && c.model.inspectorPreviewURLByWorkspace[ws.id] == design
+                && c.previewCoordinator.currentURL == design
+                && c.previewCoordinator.previewView != nil
                 && ws.panes.count == 2)
         r.check("其他項目都不開出預覽 tab", ws.panes.count == 2, "\(ws.panes.count)")
         answer = .preview
@@ -145,7 +147,10 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         asked.removeAll()
         c.clickModifiersOverride = [.control, .command]
         click("docs/design.md")
-        r.check("⌃⌘-click 略過選單直接在新 tab 預覽", asked.isEmpty && ws.panes.count == 4)
+        let leafAfter = ws.root.find(a)
+        let directTab = leafAfter?.tabs.dropFirst().first
+        r.check("⌃⌘-click 略過選單直接在新 tab 預覽",
+                asked.isEmpty && ws.panes.count == 4 && directTab?.preview?.fileURL == design)
         c.clickModifiersOverride = nil
         let beforePaneCount = ws.panes.count
         let staleWS2 = c.newWorkspace(cwd: fx.root.path)
@@ -383,11 +388,26 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         try? "# Page A\n[Go to B](nav-b.md)\n".write(to: navA, atomically: true, encoding: .utf8)
         try? "# Page B\n".write(to: navB, atomically: true, encoding: .utf8)
         coord.load(url: navA, workspaceID: ws1.id)
-        _ = await waitFor(3) { coord.previewView?.fileURL == navA && coord.previewView?.webView.isLoading == false }
         if let pvNav = coord.previewView {
-            pvNav.noteUserClick()
-            _ = try? await pvNav.webView.evaluateJavaScript("document.querySelector('a[href=\"nav-b.md\"]').click()")
-            _ = await waitFor(5) { coord.currentURL == navB && coord.canGoBack }
+            // Mount in window hierarchy so WKWebView processes navigation & KVO updates reliably in headless runs.
+            pvNav.frame = NSRect(x: 0, y: 0, width: 400, height: 400)
+            c.window!.contentView?.addSubview(pvNav)
+            defer { pvNav.removeFromSuperview() }
+            _ = await waitFor(5) { pvNav.fileURL == navA && !pvNav.webView.isLoading }
+            var hasLink = false
+            let linkDeadline = Date().addingTimeInterval(5)
+            while Date() < linkDeadline {
+                if let res = try? await pvNav.webView.evaluateJavaScript("Boolean(document.querySelector('a[href=\"nav-b.md\"]'))") as? Bool, res {
+                    hasLink = true
+                    break
+                }
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
+            if hasLink {
+                pvNav.noteUserClick()
+                _ = try? await pvNav.webView.evaluateJavaScript("document.querySelector('a[href=\"nav-b.md\"]').click()")
+                _ = await waitFor(5) { coord.currentURL == navB && coord.canGoBack }
+            }
             r.check("WorkspacePreviewCoordinator 支援連結跳轉後 canGoBack 響應式啟用", coord.canGoBack && coord.currentURL == navB)
             coord.goBack()
             r.check("WorkspacePreviewCoordinator goBack() 退回上一頁並啟用 canGoForward",
@@ -397,6 +417,11 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
                     await waitFor(5) { coord.currentURL == navB })
             coord.reload()
             r.check("WorkspacePreviewCoordinator reload() 不改變 currentURL 且可重載", coord.currentURL == navB)
+        } else {
+            r.check("WorkspacePreviewCoordinator 支援連結跳轉後 canGoBack 響應式啟用", false)
+            r.check("WorkspacePreviewCoordinator goBack() 退回上一頁並啟用 canGoForward", false)
+            r.check("WorkspacePreviewCoordinator goForward() 前進下一頁", false)
+            r.check("WorkspacePreviewCoordinator reload() 不改變 currentURL 且可重載", false)
         }
 
         // 7. ensureFocus() 與 showInspectorTab() 切換分頁離開 .preview 時歸還焦點

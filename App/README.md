@@ -49,7 +49,8 @@ App/scripts/readme.sh hero       # site hero video (2000 px, H.264 CRF 21 / VP9 
 | Target | What |
 |---|---|
 | `LmuxTerminal` | libghostty runtime + `SurfaceView` (adapted from Ghostty, MIT) |
-| `LmuxTokens` | design tokens (`design/Tokens.swift` is a symlink to it) |
+| `LmuxTokens` | design tokens (`App/Sources/LmuxTokens/Tokens.swift`) |
+| `LmuxNotificationBar` | sidebar bottom Inbox & notification cards (`NotificationBarPlugin`, `BarLayout`, collapse/drag-threshold persistence, card rendering) |
 | `LmuxUI` | window, unified glass titlebar, sidebar, workspaces/splits (`Pane Tab Strip`), Right Inspector (`InspectorPreviewPane` / `InspectorDiffView` / `InspectorTraceView`), Window Footer, optional-`surface` panes (`Pane.Content`: terminal or Markdown/HTML/plain-text `PreviewView`), dual-track `⌘`-click open menu, `AgentTelemetryStore`, `GitDiffService`, persistence, CLI socket, hooks onboarding |
 | `lmux` | the app (`main.swift` only) |
 | `lmux-cli` | the `lmux` command, bundled as `Contents/Resources/bin/lmux` (on PATH inside panes) |

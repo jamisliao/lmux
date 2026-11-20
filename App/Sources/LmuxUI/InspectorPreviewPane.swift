@@ -94,10 +94,6 @@ public final class WorkspacePreviewCoordinator {
         previewView?.webView.reload()
     }
 
-    public func onLeavePreview() {
-        // Leave preview callback hook
-    }
-
     public func openCurrentExternally() {
         guard let currentURL else { return }
         openExternalTarget(currentURL)

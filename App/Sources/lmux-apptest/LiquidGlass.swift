@@ -257,7 +257,17 @@ func runLiquidGlass() async -> Int32 {
     r.check("TitlebarBackdrop: hitTest returns nil to allow window drag",
             tb.hitTest(NSPoint(x: 100, y: 20)) == nil)
 
-    // TitlebarCenterChip layout computation
+    c.root.layoutSubtreeIfNeeded()
+    if let wsTitle = c.model.selected {
+        wsTitle.customTitle = "lmux-app"
+        c.root.updateHeader()
+        c.root.layoutSubtreeIfNeeded()
+        r.check("RootView mounts titlebar cluster, centerChipHost, and rightClusterHost with non-zero centered frames",
+                !c.root.cluster.frame.isEmpty
+                && !c.root.centerChipHost.frame.isEmpty
+                && !c.root.rightClusterHost.frame.isEmpty
+                && c.root.chipState.workspace?.title == "lmux-app")
+    }
     let wide = TitlebarCenterChip.computeChipLayout(availableWidth: 500, title: "lmux", branch: "main", path: "~/src/lmux")
     r.check("computeChipLayout: wide window shows title, branch, and path",
             wide.showBranch && wide.showPath && wide.chipWidth <= 500)
@@ -362,8 +372,10 @@ func runLiquidGlass() async -> Int32 {
 
     // 10a-1. RightInspectorBackdrop & RightInspectorResizeHandle
     let inspectorBackdrop = RightInspectorBackdrop(frame: NSRect(x: 0, y: 0, width: 300, height: 600))
-    r.check("RightInspectorBackdrop: translucent material and specular edge shown when idle",
-            !inspectorBackdrop.material.isHidden && !inspectorBackdrop.specular.isHidden)
+    if !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+        r.check("RightInspectorBackdrop: translucent material and specular edge shown when idle",
+                !inspectorBackdrop.material.isHidden && !inspectorBackdrop.specular.isHidden)
+    }
     inspectorBackdrop.forceOpaque = true
     r.check("RightInspectorBackdrop: forceOpaque engages opaque fallback",
             inspectorBackdrop.material.isHidden && inspectorBackdrop.specular.isHidden && inspectorBackdrop.isOpaqueFallback)
@@ -389,8 +401,10 @@ func runLiquidGlass() async -> Int32 {
 
     // 11a-1. FooterBackdrop & WindowFooterView presentation
     let footerBackdrop = FooterBackdrop(frame: NSRect(x: 0, y: 0, width: 800, height: 32))
-    r.check("FooterBackdrop: translucent material and top border shown when idle",
-            !footerBackdrop.material.isHidden && !footerBackdrop.specular.isHidden)
+    if !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+        r.check("FooterBackdrop: translucent material and top border shown when idle",
+                !footerBackdrop.material.isHidden && !footerBackdrop.specular.isHidden)
+    }
     footerBackdrop.forceOpaque = true
     r.check("FooterBackdrop: forceOpaque engages opaque fallback",
             footerBackdrop.material.isHidden && footerBackdrop.specular.isHidden && footerBackdrop.isOpaqueFallback)

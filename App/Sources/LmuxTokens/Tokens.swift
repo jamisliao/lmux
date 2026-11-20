@@ -1,7 +1,6 @@
 // lmux design tokens. Single source of truth for chrome colors, type, spacing and motion.
-// Documented in design/TOKENS.md. No dependencies; compiles standalone:
-//   swiftc -typecheck design/Tokens.swift
-// Lives in the app's LmuxTokens module (App/Sources/LmuxTokens); design/Tokens.swift is a symlink.
+// Compiled directly inside the LmuxTokens target (App/Sources/LmuxTokens/Tokens.swift):
+//   swiftc -typecheck App/Sources/LmuxTokens/Tokens.swift
 //
 // Nord palette by Arctic Ice Studio & Sven Greb (MIT), https://www.nordtheme.com
 // Values marked "derived" are Nord hues darkened/lightened to pass WCAG AA on lmux surfaces.

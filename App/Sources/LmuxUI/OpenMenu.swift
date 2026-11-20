@@ -50,12 +50,15 @@ extension LmuxController {
 
     public func openInInspectorPreview(_ file: URL, workspace: Workspace? = nil) {
         let ws = workspace ?? model.selected
-        if let wsID = ws?.id {
-            model.inspectorPreviewURLByWorkspace[wsID] = file
-            previewCoordinator.load(url: file, workspaceID: wsID)
+        if let ws {
+            model.inspectorPreviewURLByWorkspace[ws.id] = file
+            if ws === model.selected {
+                previewCoordinator.load(url: file, workspaceID: ws.id)
+            }
         }
         model.inspectorTab = .preview
         model.inspectorVisible = true
+        scheduleSave()
     }
 
     /// 跳出開啟選單，執行使用者選的項目。

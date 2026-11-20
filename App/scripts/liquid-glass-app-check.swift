@@ -140,6 +140,14 @@ enum LiquidGlassAppCheck {
                 rFooterPrimary >= 4.5 && rFooterSecondary >= 4.5 && rFooterTertiary >= 4.5,
                 String(format: "primary=%.1f secondary=%.1f tertiary=%.1f", rFooterPrimary, rFooterSecondary, rFooterTertiary)
             )
+
+            // 通知列 / 摘要列未讀角標 (onAccent over accent)
+            let rBadge = ratio(v(C.onAccent), v(C.accent))
+            check(
+                "\(name) 模式未讀角標文字 (onAccent on accent) 符合 WCAG AA (>= 4.5:1)",
+                rBadge >= 4.5,
+                String(format: "badge=%.1f", rBadge)
+            )
         }
 
         // 4. MarkdownHTML 預覽頁雙主題 Liquid Glass 樣式與無障礙降級檢查

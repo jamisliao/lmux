@@ -353,6 +353,7 @@ public struct PaneAgent: Sendable, Equatable {
         blockingAgent = nil
         stateBeforeCompaction = nil
         activeSubagents.removeAll()
+        toolStream = ToolCallStream()
         clearUsageLimit()
     }
 

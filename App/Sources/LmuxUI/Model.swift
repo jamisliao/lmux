@@ -98,9 +98,6 @@ public final class Pane: Identifiable {
     public var agent = PaneAgent() {
         didSet {
             if agent.state != oldValue.state { agentStateChanged() }
-            if agent != oldValue {
-                workspace?.model?.telemetryStore?.noteHookUpdate(for: self)
-            }
         }
     }
     /// Last main-agent tool name while running.

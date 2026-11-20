@@ -23,8 +23,10 @@
 <!-- @scenario: 拖曳調整左右側邊欄、分割線、通知 bar 或視窗縮放期間啟動拖曳降級 -->
 <!-- @scenario: 拖曳途中視窗或應用程式失去焦點時自動清除拖曳降級 -->
 <!-- @feature: open-menu.feature -->
+<!-- @scenario: ⌘-click 可預覽檔案的路徑跳出開啟選單 -->
 <!-- @scenario: 選「在右側欄即時預覽」載入檔案至右側 Inspector -->
 <!-- @scenario: 按住 ⌃⌘ 點擊可預覽檔案直接開成預覽 tab -->
+<!-- @scenario: 不選任何項目就關掉選單 -->
 
 ---
 
@@ -40,7 +42,7 @@
 | 6 | **中央分塊 10pt 圓角卡片與 Pane Tab Strip** | `liquid-glass-app.feature`<br>中央終端窗格顯示圓角卡片、焦點光環與 Pane Tab Strip | 建立水平／垂直分割，切換焦點與分頁 | 分割格具備 `10pt` 圓角卡片；當前聚焦格顯示藍色 `activePaneRing`（1.5pt），非聚焦格維持細邊框；頂部整合式 `30pt` 膠囊 Tab Strip（含狀態圓點、關閉、新增按鈕與右側向右／向下／關閉分塊按鈕） | **通過** |
 | 7 | **右側 Inspector 三分頁導覽與寬度調整** | `liquid-glass-app.feature`<br>透過快捷鍵與標題列／狀態列控制右側 Inspector 展開、收合與分頁切換 | 1. 按 `⌥⌘B` 或點擊標題列/Footer 按鈕<br>2. 切換「即時預覽」、「變更 (Diff)」、「執行記錄」分頁<br>3. 拖曳手把調整寬度 | 展開收合順暢，寬度鉗製於 `240...500pt`；三分頁切換正常；切換離開預覽分頁時透過 `onLeavePreview()` 安全交還鍵盤焦點至終端機 | **通過** |
 | 8 | **Inspector 即時預覽 (WKWebView) 與安全外開** | `liquid-glass-app.feature`<br>右側 Inspector 即時預覽支援檔案切換、重整與雙軌開啟 | 1. 點擊候選檔案 chip 或 ⌘-click<br>2. 點擊 `‹`、`›`、`↻`<br>3. 點擊 `↗` 外開 | 預覽位址列顯示目前檔名與 `LIVE` 徽章，瀏覽歷史可上一頁／下一頁／重整；點擊 `↗` 外開經 `GhosttyRuntime.openTerminalURL` 與 `UntrustedURLAlert` 規則嚴格保護，阻擋 `.sh`、`/dev/zero` 與不安全字元 | **通過** |
-| 9 | **雙軌 OpenMenu 與 ⌃⌘-click** | `open-menu.feature`<br>選「在右側欄即時預覽」載入檔案至右側 Inspector<br>按住 ⌃⌘ 點擊可預覽檔案直接開成預覽 tab | 1. ⌘-click 可預覽檔案路徑<br>2. 選擇「在右側欄即時預覽」<br>3. 按住 ⌃⌘-click 可預覽路徑 | 彈出 5 項選單首項為「在右側欄即時預覽」，選擇後展開右側 Inspector 預覽該檔案且中央分割維持不變；⌃⌘-click 直接於中央建立預覽 tab，stale pane 不誤觸發 | **通過** |
+| 9 | **雙軌 OpenMenu、⌃⌘-click 與關閉還原焦點** | `open-menu.feature`<br>⌘-click 可預覽檔案的路徑跳出開啟選單<br>選「在右側欄即時預覽」載入檔案至右側 Inspector<br>按住 ⌃⌘ 點擊可預覽檔案直接開成預覽 tab<br>不選任何項目就關掉選單 | 1. ⌘-click 可預覽檔案路徑<br>2. 選擇「在右側欄即時預覽」<br>3. 按住 ⌃⌘-click 可預覽路徑<br>4. Esc / 點擊選單外取消 | 彈出 5 項選單首項為「在右側欄即時預覽」，選擇後展開右側 Inspector 預覽該檔案且中央分割維持不變；⌃⌘-click 直接於中央建立預覽 tab，stale pane 不誤觸發；Esc / 外點關閉選單且不開啟預覽、鍵盤焦點回到終端機 | **通過** |
 | 10 | **Core Agent 遙測與背景 Git Diff 串流** | `liquid-glass-app.feature`<br>增量解析 Claude 與 Codex 對話紀錄取得模型、Turn 與 Token 用量<br>Hook 即時工具事件更新串流<br>Git Diff 服務讀取工作區統計 | 檢視「執行記錄」與「變更 (Diff)」分頁內容 | Context Window 儀表呈現已用/上限比例條與真實 4 項 API 統計；Tool Calls 串流分類圖示、參數摘要與耗時；Git Diff 呈現 Working Tree 分支統計、逐檔 Diff hunks，非 Git 目錄或乾淨工作樹呈現清楚空狀態 | **通過** |
 | 11 | **全寬玻璃 WindowFooterView (32pt) 交互** | `liquid-glass-app.feature`<br>切換不同 workspace 時右側 Inspector 與底部狀態列同步切換上下文 | 點擊 Footer 各統計按鈕並切換 workspace | 左側顯示模型名、最新 Tool、Turn 數與 Metal 渲染器；中央顯示 Context 進度條與 `%`；右側顯示 Git 分支與加減行統計；點擊各區塊自動展開 Inspector 並跳轉對應分頁；切換 workspace 遙測與 Diff 同步重置/切換 | **通過** |
 | 12 | **全面板拖曳降級 (isResizing) 與失焦安全復原** | `liquid-glass-app.feature`<br>拖曳調整左右側邊欄、分割線、通知 bar 或視窗縮放期間啟動拖曳降級<br>拖曳途中視窗或應用程式失去焦點時自動清除拖曳降級 | 拖曳左側欄、右側欄、通知 bar、分割線或視窗縮放，並在拖曳中按下 ⌘Tab 切換視窗或切離應用 | 拖曳啟動時 4 個 Backdrop（側欄、標題列、Inspector、Footer）同步進入 `isResizing` 不透明實底降級，完全消除 GPU 模糊負載維持 60fps；放開滑鼠或遇 `didResignKey`、`didResignActive` 自動清除降級並復原毛玻璃 | **通過** |
