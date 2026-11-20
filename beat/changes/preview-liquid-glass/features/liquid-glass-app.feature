@@ -104,7 +104,7 @@
   # @covered-by: Core/Tests/LmuxTranscriptTests/AgentTelemetryTests.swift
   場景: 增量解析 Claude 與 Codex 對話紀錄取得模型、Turn 與 Token 用量
     假設 一個對話紀錄檔包含多輪對話、模型名稱、輸入／快取／輸出 token 統計或 context 上限資訊
-    當 `Core` 遙測解析器讀取初始內容與後續新增行
+    當 遙測解析器讀取初始內容與後續新增行
     那麼 **Agent 遙測** 應回報正確的模型名稱、累積 Turn 次數與 Context Window 已用及上限數量
     而且 後續增量追加對話行時應只處理新增資料並更新最新指標
 
@@ -130,6 +130,7 @@
 
   @e2e @happy-path
   # @covered-by: App/Sources/lmux-apptest/LiquidGlass.swift
+  # @covered-by: App/Sources/lmux-apptest/LiquidGlassWorkbenchTests.swift
   場景: 透過快捷鍵與標題列／狀態列控制右側 Inspector 展開、收合與分頁切換
     當 使用者點擊標題列右側鈕、**底部狀態列** 快捷鈕或按下 ⌥⌘B 快捷鍵
     那麼 **右側 Inspector** 應在展開與收合之間切換，並保留寬度與所選分頁狀態

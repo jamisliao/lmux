@@ -48,5 +48,15 @@ final class ToolCallStreamTests: XCTestCase {
         }
         XCTAssertEqual(agent.toolStream.entries.count, ToolCallStream.cap)
         XCTAssertEqual(agent.toolStream.entries.first?.id, "cap-6")
+
+        // Main stop finalizes lingering .running entries so dropped PostToolUse never stays stuck
+        agent.handle(HookEvent(paneID: "p1", name: HookEvent.Kind.stop.rawValue), focused: true)
+        XCTAssertFalse(agent.toolStream.entries.contains { $0.status == .running })
+        XCTAssertLessThan(agent.toolStream.entries.last?.durationMs ?? Int.max, 60_000)
+
+        // Non-compact SessionStart (/clear) resets toolStream
+        agent.handle(HookEvent(paneID: "p1", name: HookEvent.Kind.sessionStart.rawValue), focused: true)
+        XCTAssertTrue(agent.toolStream.entries.isEmpty)
+        XCTAssertEqual(agent.toolStream.turnCount, 0)
     }
 }

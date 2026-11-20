@@ -17,7 +17,7 @@ public final class GitDiffService {
 
     public init() {}
 
-    public static func isPathContained(_ url: URL, inDirectory dir: String) -> Bool {
+    public nonisolated static func isPathContained(_ url: URL, inDirectory dir: String) -> Bool {
         let dirURL = URL(fileURLWithPath: dir).resolvingSymlinksInPath()
         let canonical = url.resolvingSymlinksInPath().path
         let prefix = dirURL.path == "/" ? "/" : dirURL.path + "/"
@@ -33,7 +33,10 @@ public final class GitDiffService {
         }
         activeProcess = nil
 
-        guard let cwd, !cwd.isEmpty, FileManager.default.fileExists(atPath: cwd) else {
+        var isDir: ObjCBool = false
+        guard let cwd, !cwd.isEmpty,
+              FileManager.default.fileExists(atPath: cwd, isDirectory: &isDir),
+              isDir.boolValue else {
             snapshot = GitDiffSnapshot(cwd: cwd, isGitRepo: false)
             isLoading = false
             return
@@ -47,7 +50,7 @@ public final class GitDiffService {
             }
             guard let self, self.currentGeneration == gen else { return }
 
-            let check = await self.runGit(["-C", cwd, "rev-parse", "--is-inside-work-tree"], cwd: cwd, gen: gen)
+            let check = await self.runGit(["rev-parse", "--is-inside-work-tree"], cwd: cwd, gen: gen)
             guard self.currentGeneration == gen else { return }
 
             if check.status != 0 || check.stdout.trimmingCharacters(in: .whitespacesAndNewlines) != "true" {
@@ -63,7 +66,7 @@ public final class GitDiffService {
             let branch = await self.resolveBranch(in: cwd, gen: gen)
             guard self.currentGeneration == gen else { return }
 
-            let baseDiffFlags = ["-C", cwd, "-c", "core.fsmonitor=false", "diff", "--no-ext-diff", "--no-textconv"]
+            let baseDiffFlags = ["diff", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/"]
             var numstatRes = await self.runGit(baseDiffFlags + ["--numstat", "HEAD", "--"], cwd: cwd, gen: gen)
             var diffRes = await self.runGit(baseDiffFlags + ["HEAD", "--"], cwd: cwd, gen: gen)
             guard self.currentGeneration == gen else { return }
@@ -74,7 +77,7 @@ public final class GitDiffService {
             }
             guard self.currentGeneration == gen else { return }
 
-            let statusRes = await self.runGit(["-C", cwd, "status", "--porcelain=v1", "-z"], cwd: cwd, gen: gen)
+            let statusRes = await self.runGit(["status", "--porcelain=v1", "-z"], cwd: cwd, gen: gen)
             guard self.currentGeneration == gen else { return }
 
             let built = await Task.detached(priority: .utility) {
@@ -94,10 +97,10 @@ public final class GitDiffService {
     }
 
     private func resolveBranch(in cwd: String, gen: UInt64) async -> String? {
-        let bRes = await runGit(["-C", cwd, "branch", "--show-current"], cwd: cwd, gen: gen)
+        let bRes = await runGit(["branch", "--show-current"], cwd: cwd, gen: gen)
         let bStr = PreviewTarget.replacingUnsafeScalars(bRes.stdout.trimmingCharacters(in: .whitespacesAndNewlines))
         if !bStr.isEmpty { return bStr }
-        let headRes = await runGit(["-C", cwd, "rev-parse", "--short", "HEAD"], cwd: cwd, gen: gen)
+        let headRes = await runGit(["rev-parse", "--short", "HEAD"], cwd: cwd, gen: gen)
         let hStr = PreviewTarget.replacingUnsafeScalars(headRes.stdout.trimmingCharacters(in: .whitespacesAndNewlines))
         return hStr.isEmpty ? nil : "(detached: \(hStr))"
     }
@@ -128,10 +131,10 @@ public final class GitDiffService {
         while i < entries.count {
             let s = String(entries[i])
             let code = s.count >= 2 ? String(s.prefix(2)) : ""
-            let isRenameOrCopy = code.first == "R" || code.first == "C"
+            let isRenameOrCopy = code.contains("R") || code.contains("C")
             defer { i += isRenameOrCopy ? 2 : 1 }
             guard s.count >= 3 else { continue }
-            let rawPath = String(s.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            let rawPath = String(s.dropFirst(3))
             let cleanPath = PreviewTarget.replacingUnsafeScalars(rawPath)
             guard !cleanPath.isEmpty, filesByPath[cleanPath] == nil else { continue }
 
@@ -161,7 +164,13 @@ public final class GitDiffService {
             }
         }
 
-        let files = Array(filesByPath.values).sorted { $0.path < $1.path }
+        let files = Array(filesByPath.values)
+            .sorted { $0.path < $1.path }
+            .map { file in
+                var f = file
+                f.previewURL = PreviewTarget.resolve(f.path, cwd: cwd).flatMap { Self.isPathContained($0, inDirectory: cwd) ? $0 : nil }
+                return f
+            }
         let totalAdded = files.reduce(0) { $0 + $1.added }
         let totalDeleted = files.reduce(0) { $0 + $1.deleted }
         let previewCandidates = scanPreviewCandidates(in: cwd)
@@ -237,7 +246,8 @@ public final class GitDiffService {
             DispatchQueue.global().async { [weak self] in
                 let p = Process()
                 p.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-                p.arguments = args
+                // Apply -c core.fsmonitor=false centrally before every subcommand to neutralize untrusted .git/config hooks.
+                p.arguments = ["-C", cwd, "-c", "core.fsmonitor=false"] + args
                 p.currentDirectoryURL = URL(fileURLWithPath: cwd)
                 p.environment = ProcessInfo.processInfo.environment.merging(["GIT_OPTIONAL_LOCKS": "0"]) { $1 }
 

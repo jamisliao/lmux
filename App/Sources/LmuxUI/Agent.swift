@@ -125,6 +125,11 @@ extension LmuxController {
         switch e.kind {
         case .sessionStart:
             titleSessionStarted(pane, e)
+            let isResumed = e.source != "clear" && e.sessionID == pane.restoredDoneSession
+            if e.source != "compact" && !isResumed {
+                model.telemetryStore?.clear(paneID: pane.id)
+                attended(pane)
+            }
             pane.relaunchingSessionID = nil
             pane.rewoundFrom = nil
         case .userPromptSubmit:
@@ -143,7 +148,10 @@ extension LmuxController {
         default:
             break
         }
-        if [.postToolUse, .postToolUseFailure, .stop].contains(e.kind), let cwd = pane.cwd {
+        if [.postToolUse, .postToolUseFailure, .stop].contains(e.kind),
+           pane.workspace === model.selected,
+           pane === pane.workspace?.focusedPane,
+           let cwd = pane.cwd {
             model.gitDiffService.refresh(cwd: cwd)
         }
         if [.sessionStart, .userPromptSubmit, .postToolUse, .postToolUseFailure, .stop].contains(e.kind) {
@@ -190,7 +198,6 @@ extension LmuxController {
                 break
             }
             schedulePaneChrome(pane)
-            model.telemetryStore?.noteHookUpdate(for: pane)
             return
         }
 
@@ -208,7 +215,6 @@ extension LmuxController {
         }
         apply(t, to: pane, focused: focused)
         if resumed { pane.agent.recordToolEvent(e) }
-        model.telemetryStore?.noteHookUpdate(for: pane)
     }
 
     /// Badge, row detail, bell list and the one notification for a state transition.

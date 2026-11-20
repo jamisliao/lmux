@@ -55,22 +55,25 @@ func runLiquidGlassTelemetry() async -> Int32 {
             && filesDiff[0].truncated == true
             && filesDiff[1].path == "my notes.md")
 
-    // 2. Malicious git config diff.external test
+    // 2. Malicious git config diff.external + core.fsmonitor test
     let fm = FileManager.default
     let pwnedPath = "/tmp/pwned_\(UUID().uuidString)"
+    let pwnedFsMonitorPath = "/tmp/pwned_fsmonitor_\(UUID().uuidString)"
     let repoA = fm.temporaryDirectory.appendingPathComponent("repo-a-\(UUID().uuidString)")
     defer {
         try? fm.removeItem(at: repoA)
         try? fm.removeItem(atPath: pwnedPath)
+        try? fm.removeItem(atPath: pwnedFsMonitorPath)
     }
     try? fm.createDirectory(at: repoA, withIntermediateDirectories: true)
     _ = await runProcess("/usr/bin/git", ["init", "-b", "main"], env: ["GIT_DIR": repoA.appendingPathComponent(".git").path])
-    // Configure malicious diff.external
-    _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "config", "diff.external", "touch \(pwnedPath)"])
     let testFile = repoA.appendingPathComponent("test.txt")
     try? "line1\nline2\n".write(to: testFile, atomically: true, encoding: .utf8)
     _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "add", "test.txt"])
     _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "-c", "user.name=test", "-c", "user.email=t@e.com", "commit", "-m", "init"])
+    // Configure malicious diff.external and core.fsmonitor after commit setup so only GitDiffService is tested.
+    _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "config", "diff.external", "touch \(pwnedPath)"])
+    _ = await runProcess("/usr/bin/git", ["-C", repoA.path, "config", "core.fsmonitor", "touch \(pwnedFsMonitorPath)"])
     try? "line1\nline2-edited\nline3\n".write(to: testFile, atomically: true, encoding: .utf8)
 
     let svc = GitDiffService()
@@ -78,7 +81,8 @@ func runLiquidGlassTelemetry() async -> Int32 {
     let refreshed = await waitFor(3) { !svc.isLoading && svc.snapshot.isGitRepo }
     let testDiff = svc.snapshot.files.first(where: { $0.path == "test.txt" })
     r.check("refresh on git repo finishes without loading", refreshed)
-    r.check("malicious diff.external is never executed", !fm.fileExists(atPath: pwnedPath))
+    r.check("malicious diff.external and core.fsmonitor are never executed",
+            !fm.fileExists(atPath: pwnedPath) && !fm.fileExists(atPath: pwnedFsMonitorPath))
     r.check("snapshot has real unified diff hunks, exact added/deleted counts, and branch",
             svc.snapshot.isGitRepo
             && svc.snapshot.branch == "main"
@@ -262,6 +266,23 @@ func runLiquidGlassTelemetry() async -> Int32 {
     d = store.display(for: pane)
     r.check("sessionEnd clears telemetry snapshot in AgentTelemetryStore",
             d.contextUsedTokens == 0)
+
+    // Real JSONL transcript -> Controller.scheduleTelemetryRefresh -> TranscriptCache -> AgentTelemetryStore end-to-end
+    let liveTranscript = fm.temporaryDirectory.appendingPathComponent("live-telemetry-\(UUID().uuidString).jsonl")
+    defer { try? fm.removeItem(at: liveTranscript) }
+    let jsonlLine = #"{"type":"assistant","uuid":"u-e2e-1","parentUuid":null,"timestamp":"2026-11-19T10:00:00Z","message":{"id":"msg_e2e_1","role":"assistant","model":"claude-sonnet-4-5-20250929","content":[{"type":"text","text":"hello"}],"usage":{"input_tokens":1200,"cache_read_input_tokens":800,"output_tokens":300}}}"# + "\n"
+    try? jsonlLine.write(to: liveTranscript, atomically: true, encoding: .utf8)
+    pane.claudeSessionID = "sess-live-e2e"
+    pane.transcriptPath = liveTranscript.path
+    c.scheduleTelemetryRefresh(pane, delay: 0.01)
+    let liveReady = await waitFor(3) { store.display(for: pane).model == "claude-sonnet-4-5-20250929" }
+    let liveDisplay = store.display(for: pane)
+    r.check("Controller.scheduleTelemetryRefresh parses real JSONL file into AgentTelemetryStore",
+            liveReady
+            && liveDisplay.inputTokens == 1200
+            && liveDisplay.outputTokens == 300
+            && liveDisplay.cacheReadTokens == 800
+            && liveDisplay.contextUsedTokens == 2000)
 
     // 7. InspectorDiffView.displayState(for:)
     let nonGitSnap = GitDiffSnapshot(cwd: "/tmp", isGitRepo: false)

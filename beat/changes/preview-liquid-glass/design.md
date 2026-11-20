@@ -2,7 +2,7 @@
 
 ## Approach
 
-本設計在保留根目錄設計原型 [preview-mockup.html](../../preview-mockup.html) 作為驗收與視覺對照基準的前提下，從 `Core/` 資料層到 `App/` 三欄原生介面全面實現 1:1 的 Apple Liquid Glass 工作台，同時延續 lmux「不包裹 CLI、只旁聽並以 AppKit/Metal 呈現極致流暢終端機」的核心架構。
+本設計在保留根目錄設計原型 [preview-mockup.html](../../../preview-mockup.html) 作為驗收與視覺對照基準的前提下，從 `Core/` 資料層到 `App/` 三欄原生介面全面實現 1:1 的 Apple Liquid Glass 工作台，同時延續 lmux「不包裹 CLI、只旁聽並以 AppKit/Metal 呈現極致流暢終端機」的核心架構。
 
 ```mermaid
 flowchart TB
@@ -52,7 +52,7 @@ flowchart TB
 - 發布 `@Observable` `GitDiffSnapshot`：`cwd: String?`、`isGitRepo: Bool`、`branch: String?`、`totalAdded: Int`、`totalDeleted: Int`、`files: [GitDiffFile]`、`previewCandidates: [URL]`（以 `PreviewTarget.resolve` 驗證之一般檔案清單）。非 Git 目錄設定 `isGitRepo = false`，讓 **右側 Inspector** 與 **底部狀態列** 呈現清晰空狀態。
 
 ### 3. 1:1 Apple Liquid Glass Token（`App/Sources/LmuxTokens/Tokens.swift`）
-- 對照 [preview-mockup.html](../../preview-mockup.html) 重調淺色（High-Key Crystal）與深色（Obsidian Midnight）全套色彩與版面常數：
+- 對照 [preview-mockup.html](../../../preview-mockup.html) 重調淺色（High-Key Crystal）與深色（Obsidian Midnight）全套色彩與版面常數：
   - **標題列與雙側邊欄玻璃**：新增 `windowBackgroundTint`、`titlebarBackground`、`rightSidebarTint`、`footerBackground`、`glassCard`、`glassCardHover`、`glassCardSelected`、`glassSurfaceRecessed`、`activePaneRing`（`0x0A84FF`），更新 `sidebarTint`、`specularHighlight`；既有 `glassBorder` 保留給傳統邊線呼叫點相容檢查，並新增 `glassHighlightBorder` 供 1:1 淺色高透白邊與深色亮邊卡片使用。
   - **狀態藥丸與 Diff 色彩**：`statusRunningPill`/`Text`、`statusNeedsInputPill`/`Text`、`statusDonePill`/`Text`、`statusIdlePill`/`Text`、`diffAddedBg`/`Fg`、`diffRemovedBg`/`Fg`。
   - **尺寸常數**：`titlebarHeight = 44`、`footerHeight = 32`、`sidebarWidthDefault = 260`（180–400）、`rightInspectorWidthDefault = 320`（240–500）、`paneCornerRadius = 10`、`paneGap = 8`、`paneTabStripHeight = 30`、`workspaceFilterHeaderHeight = 30`。

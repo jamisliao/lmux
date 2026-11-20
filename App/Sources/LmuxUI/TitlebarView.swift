@@ -39,6 +39,14 @@ public final class TitlebarChipState {
 public struct TitlebarCenterChip: View {
     @Bindable var state: TitlebarChipState
 
+    public init(state: TitlebarChipState) {
+        self.state = state
+    }
+
+    public init(workspace: Workspace?, availableWidth: CGFloat = 400) {
+        self.state = TitlebarChipState(workspace: workspace, availableWidth: availableWidth)
+    }
+
     public init(model _: AppModel, state: TitlebarChipState) {
         self.state = state
     }
@@ -64,7 +72,7 @@ public struct TitlebarCenterChip: View {
         if showBranch, let b = branch { estimated += 20 + CGFloat(b.count) * 7 }
         if showPath, let p = path { estimated += 20 + CGFloat(p.count) * 6 }
 
-        let chipWidth = min(estimated, max(60, availableWidth))
+        let chipWidth = min(estimated, max(0, availableWidth))
         return (showBranch, showPath, chipWidth)
     }
 

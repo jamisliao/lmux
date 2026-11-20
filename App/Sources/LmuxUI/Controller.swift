@@ -197,6 +197,12 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         model.telemetryStore?.onRefreshTranscript = { [weak self] pane in
             self?.scheduleTelemetryRefresh(pane)
         }
+        previewCoordinator.onFileChange = { [weak self] newURL in
+            guard let self,
+                  let wsID = self.previewCoordinator.workspaceID ?? self.model.selectedID else { return }
+            self.model.inspectorPreviewURLByWorkspace[wsID] = newURL
+            self.scheduleSave()
+        }
         history = HistoryModel(paths: paths, controller: self)
         notifier.onActivate = { [weak self] paneID in
             guard let self, let p = self.panesByID[paneID] else { return }
@@ -551,7 +557,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             if let c = pane.cwd {
                 let b = GitBranch.read(cwd: c)
                 if b != pane.branch { pane.branch = b }
-                self.model.gitDiffService.refresh(cwd: c)
+                if pane.workspace === self.model.selected && pane === pane.workspace?.focusedPane {
+                    self.model.gitDiffService.refresh(cwd: c)
+                }
             }
             // A hidden workspace's pane headers are refreshed when it is shown (rebuildContent).
             if pane.workspace === self.model.selected, let ws = pane.workspace {
@@ -858,7 +866,6 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         root.needsLayout = true
         scheduleSave()
         if wasPreview && tab != .preview {
-            previewCoordinator.onLeavePreview()
             focusCurrent()
         }
     }
@@ -1134,7 +1141,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if fr is NSText { return }
         if let s = fr as? SurfaceView, ws.visiblePanes.contains(where: { $0.surface === s }) { return }
         if let v = fr as? NSView, ws.visiblePanes.contains(where: { $0.preview.map { v.isDescendant(of: $0) } == true }) { return }
-        if let v = fr as? NSView, model.inspectorVisible && model.inspectorTab == .preview,
+        if let v = fr as? NSView,
+           model.inspectorVisible && !(root?.rightInspectorHost.isHidden ?? true) && model.inspectorTab == .preview,
            let inspectorPreview = previewCoordinator.previewView, v.isDescendant(of: inspectorPreview) {
             return
         }
@@ -1456,7 +1464,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         pane.branch = GitBranch.read(cwd: dir)
         if pane.workspace === model.selected {
             root.updateHeader()
-            model.gitDiffService.refresh(cwd: dir)
+            if pane === pane.workspace?.focusedPane {
+                model.gitDiffService.refresh(cwd: dir)
+            }
         }
         scheduleSave()
     }

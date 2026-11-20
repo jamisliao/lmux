@@ -65,7 +65,7 @@ final class RootView: FlippedView {
         sidebarHost = SidebarHostingView(rootView: SidebarView(model: model, controller: controller))
         workspaceFilterHeaderHost = SidebarHostingView(rootView: WorkspaceFilterHeader(model: model, controller: controller))
         cluster = SidebarHostingView(rootView: TitlebarCluster(model: model, controller: controller))
-        centerChipHost = SidebarHostingView(rootView: TitlebarCenterChip(model: model, state: chipState))
+        centerChipHost = SidebarHostingView(rootView: TitlebarCenterChip(state: chipState))
         rightClusterHost = SidebarHostingView(rootView: TitlebarRightCluster(model: model, controller: controller))
         rightInspectorHost = SidebarHostingView(rootView: InspectorContainerView(model: model, controller: controller))
         footerHost = SidebarHostingView(rootView: WindowFooterView(model: model, onInspectTab: { [weak controller] tab in
@@ -264,7 +264,7 @@ final class RootView: FlippedView {
         super.layout()
         if let w = window, w.styleMask.contains(.titled), !w.styleMask.contains(.fullScreen) {
             let h = w.frame.height - w.contentLayoutRect.height
-            if h > 0 { titlebarHeight = h }
+            if h > 0 { titlebarHeight = max(T.Layout.titlebarHeight, h) }
         }
         let W = bounds.width, H = bounds.height, tb = titlebarHeight
         let visible = model.sidebarVisible
@@ -303,11 +303,12 @@ final class RootView: FlippedView {
         updateClusterAppearance()
 
         let headerH = T.Layout.workspaceFilterHeaderHeight
-        sidebarBackdrop.frame = NSRect(x: 0, y: 0, width: max(0, effectiveSw - 1), height: H - footerH)
+        // Keep sidebarBackdrop and sidebarEdge below the 44pt unified titlebar so only a single NSVisualEffectView sits in the titlebar (ADR-0003).
+        sidebarBackdrop.frame = NSRect(x: 0, y: tb, width: max(0, effectiveSw - 1), height: midH)
         sidebarTitlebar.frame = NSRect(x: 0, y: 0, width: effectiveSw, height: tb)
         workspaceFilterHeaderHost.frame = NSRect(x: 0, y: tb, width: max(0, effectiveSw - 1), height: headerH)
         sidebarHost.frame = NSRect(x: 0, y: tb + headerH, width: max(0, effectiveSw - 1), height: max(0, midH - headerH))
-        sidebarEdge.frame = NSRect(x: effectiveSw - 1, y: 0, width: 1, height: H - footerH)
+        sidebarEdge.frame = NSRect(x: effectiveSw - 1, y: tb, width: 1, height: midH)
         resizeHandle.frame = NSRect(x: effectiveSw - 4, y: tb, width: 8, height: midH)
 
         // Titlebar layout
@@ -337,8 +338,9 @@ final class RootView: FlippedView {
         // Center Chip layout
         let leftBound = clusterX + cw + 12
         let rightBound = rightClusterX - 12
-        let maxChipW = max(60, rightBound - leftBound)
+        let maxChipW = max(0, rightBound - leftBound)
         let chipW = min(400, maxChipW)
+        centerChipHost.isHidden = maxChipW < 40
         let chipX = max(leftBound, min(rightBound - chipW, (W - chipW) / 2))
         if abs(chipState.availableWidth - chipW) > 0.5 { chipState.availableWidth = chipW }
         if chipState.workspace !== model.selected { chipState.workspace = model.selected }

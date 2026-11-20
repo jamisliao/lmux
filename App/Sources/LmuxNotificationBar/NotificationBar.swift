@@ -67,9 +67,12 @@ public enum NotificationBarPlugin {
             _ = host?.rows.count
             _ = layout.extra
             _ = layout.isCollapsed
-        } onChange: {
+        } onChange: { [weak host, weak layout, weak view, weak controller] in
             DispatchQueue.main.async {
-                MainActor.assumeIsolated { followHeight(host, layout, view, controller, last: height) }
+                MainActor.assumeIsolated {
+                    guard let layout, let view, let controller else { return }
+                    followHeight(host, layout, view, controller, last: height)
+                }
             }
         }
         if height != last { controller.installSidebarAccessory(view, height: height) }
@@ -151,10 +154,10 @@ public final class BarLayout {
 
         if isCollapsed {
             if translationHeight < 0 {
+                // Expand smoothly upward starting from 0 so the bar doesn't snap open abruptly.
                 isCollapsed = false
-                let restored = max(0, savedExtraBeforeCollapse)
-                dragStart = restored
-                extra = min(max(0, restored - translationHeight), max(0, maxExtra))
+                dragStart = 0
+                extra = min(max(0, -translationHeight), max(0, maxExtra))
             }
             return
         }
@@ -162,13 +165,15 @@ public final class BarLayout {
         let newExtra = start - translationHeight
         let totalHeight = NotificationBarPlugin.minHeight(pluginRows: pluginRows) + newExtra
         if totalHeight <= Self.collapseDragThreshold {
-            if !isCollapsed && start > 0 {
+            // Preserve the user's pre-collapse expanded height in `savedExtraBeforeCollapse` / `extra` (ignored while collapsed).
+            if start > 0 {
                 savedExtraBeforeCollapse = start
+                extra = start
             }
             isCollapsed = true
-            extra = 0
         } else {
             extra = min(max(0, newExtra), max(0, maxExtra))
+            savedExtraBeforeCollapse = extra
         }
     }
 
@@ -437,7 +442,7 @@ struct NotificationSummaryRow: View {
             if unread > 0 {
                 Text("\(unread)")
                     .font(.system(size: 10, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(Color.white)
+                    .foregroundStyle(T.Colors.onAccent.color)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(

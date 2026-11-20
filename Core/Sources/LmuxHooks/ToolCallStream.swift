@@ -73,7 +73,7 @@ public struct ToolCallStream: Sendable, Equatable {
             return
         }
 
-        let nowNanos = event.sentAtNanos ?? event.receivedAtNanos ?? DispatchTime.now().uptimeNanoseconds
+        let nowNanos = event.sentAtNanos ?? event.receivedAtNanos ?? unixNanosNow()
 
         if kind == .preToolUse {
             let name = event.toolName ?? "unknown"
@@ -114,9 +114,10 @@ public struct ToolCallStream: Sendable, Equatable {
             return
         }
 
-        if kind == .interrupt {
+        if kind == .interrupt || (!event.isSubagent && (kind == .stop || kind == .stopFailure)) {
+            let finalStatus: ToolStatus = kind == .interrupt ? .interrupted : (kind == .stopFailure ? .failed : .succeeded)
             for i in entries.indices where entries[i].status == .running {
-                entries[i].status = .interrupted
+                entries[i].status = finalStatus
                 if entries[i].durationMs == nil {
                     let dur = nowNanos >= entries[i].startedAtNanos ? nowNanos - entries[i].startedAtNanos : 0
                     entries[i].durationMs = Int(dur / 1_000_000)

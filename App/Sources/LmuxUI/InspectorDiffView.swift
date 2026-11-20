@@ -140,9 +140,11 @@ public struct InspectorDiffView: View {
 
             Spacer()
 
-            if let url = Self.resolvePreviewURL(file: file.path, cwd: snapshot.cwd) {
+            if file.previewURL != nil {
                 Button {
-                    onOpenPreview?(url)
+                    if let liveURL = Self.resolvePreviewURL(file: file.path, cwd: snapshot.cwd) {
+                        onOpenPreview?(liveURL)
+                    }
                 } label: {
                     Image(systemName: "eye")
                         .font(.system(size: 10))

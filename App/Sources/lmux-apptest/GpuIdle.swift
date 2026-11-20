@@ -96,6 +96,8 @@ private func cpuSeconds() -> Double {
 func runGpuIdle() async -> Int32 {
     let r = Report()
     let c = makeController()
+    c.model.inspectorVisible = false
+    c.root.layoutSubtreeIfNeeded()
     let state = URL(fileURLWithPath: env["LMUX_STATE_DIR"]!)
     let prog = tailProgram(state)
     // Nothing is focused (the window isn't key in headless runs, and the patch keeps the focused
@@ -165,7 +167,7 @@ func runGpuIdle() async -> Int32 {
     c.window.setFrame(NSRect(x: f0.minX, y: f0.minY, width: f0.width - 240, height: f0.height - 160), display: true)
     c.window.contentView?.layoutSubtreeIfNeeded()
     r.check("window resized while every pane is released: each frame is redrawn at the new size, bands kept",
-            await waitFor(3) { visible.allSatisfy { frameFits($0) && bands($0, perBand: perBand) >= 0.9 } },
+            await waitFor(3) { visible.allSatisfy { frameFits($0) && bands($0, perBand: perBand) >= 1.5 } },
             "\(visible.map { "\(frameFits($0)) \(bands($0, perBand: perBand))" })")
     await sleepMs(idleRelease)
     c.window.setFrame(f0, display: true)
@@ -216,7 +218,7 @@ func runGpuIdle() async -> Int32 {
     }
     c.windowShownOverride = nil
     r.check("occluded / shown 5 times (output in between): every frame back, the right size, 3 bands",
-            await waitFor(3) { visible.allSatisfy { frameFits($0) && bands($0, perBand: perBand) >= 2.0 } },
+            await waitFor(3) { visible.allSatisfy { frameFits($0) && bands($0, perBand: perBand) >= 2.5 } },
             "\(visible.map { "\(frameFits($0)) \(bands($0, perBand: perBand))" })")
 
     // ------------------------------------------------------------ appearance change while released
@@ -224,7 +226,7 @@ func runGpuIdle() async -> Int32 {
     await sleepMs(idleRelease)
     let darkBG = panePixels(c, a0)?.last
     NSApp.appearance = NSAppearance(named: NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .aqua : .darkAqua)
-    let changed = await waitFor(4) { panePixels(c, a0)?.last != darkBG && visible.allSatisfy { frameFits($0) && bands($0, perBand: perBand) >= 2.0 } }
+    let changed = await waitFor(4) { panePixels(c, a0)?.last != darkBG && visible.allSatisfy { frameFits($0) && bands($0, perBand: perBand) >= 2.5 } }
     r.check("appearance flipped while released: every pane redraws in the other theme, bands kept", changed,
             "bg \(String(format: "%08x", darkBG ?? 0)) -> \(String(format: "%08x", panePixels(c, a0)?.last ?? 0))")
     NSApp.appearance = nil
