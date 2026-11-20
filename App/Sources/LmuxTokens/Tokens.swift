@@ -112,10 +112,9 @@ public enum LmuxTokens {
         /// Sidebar + titlebar over the sidebar column. Light: paper (nord6). Dark: one step below nord0 (derived).
         /// Polish: now the OPAQUE fallback only (Reduce Transparency, inactive-window snapshots, tests).
         public static let sidebarBackground = DynamicColor(light: Nord.nord6, dark: 0x292E39)
-        /// Polish: drawn over an NSVisualEffectView (.sidebar, .behindWindow, state .followsWindowActiveState)
-        /// that spans the full sidebar height including the titlebar. Keeps the sidebar Nord while
-        /// letting the desktop through a little. Raise alpha (max 0.92) if textTertiary measures < 4.5:1.
-        public static let sidebarTint = DynamicColor(light: Nord.nord6, dark: 0x292E39, lightAlpha: 0.80, darkAlpha: 0.84)
+        /// Translucent sidebar glass tint drawn over NSVisualEffectView (.sidebar, .behindWindow).
+        /// Aligned with High-Key Crystal (light) and Obsidian Midnight (dark) `rightSidebarTint`.
+        public static let sidebarTint = DynamicColor(light: 0xFFFFFF, dark: 0x141822, lightAlpha: 0.36, darkAlpha: 0.84)
         /// Toasts, the History search field. Light: derived, a hair above nord6.
         public static let elevatedBackground = DynamicColor(light: 0xF5F7FA, dark: Nord.nord1)
         /// Hairlines: sidebar edge, pane split, content header bottom, History panel top.
@@ -134,7 +133,6 @@ public enum LmuxTokens {
         public static let dragHandlePillActive = DynamicColor(light: 0x46658E, dark: Nord.nord8, lightAlpha: 0.70, darkAlpha: 0.75)
 
         // Liquid Glass Surfaces & Chrome
-        public static let windowBackgroundTint = DynamicColor(light: 0xFFFFFF, dark: 0x141822, lightAlpha: 0.40, darkAlpha: 0.85)
         public static let titlebarBackground = DynamicColor(light: 0xFFFFFF, dark: 0x121620, lightAlpha: 0.45, darkAlpha: 0.86)
         public static let rightSidebarTint = DynamicColor(light: 0xFFFFFF, dark: 0x141822, lightAlpha: 0.36, darkAlpha: 0.84)
         public static let footerBackground = DynamicColor(light: 0xFFFFFF, dark: 0x121620, lightAlpha: 0.42, darkAlpha: 0.88)

@@ -58,5 +58,41 @@ final class ToolCallStreamTests: XCTestCase {
         agent.handle(HookEvent(paneID: "p1", name: HookEvent.Kind.sessionStart.rawValue), focused: true)
         XCTAssertTrue(agent.toolStream.entries.isEmpty)
         XCTAssertEqual(agent.toolStream.turnCount, 0)
+
+        // Subagent stop does not finalize main-agent running tools; main stopFailure -> .failed
+        var mainPre = HookEvent(paneID: "p1", name: HookEvent.Kind.preToolUse.rawValue)
+        mainPre.toolName = "  gLoB  "; mainPre.toolUseID = "tu-main"; mainPre.sentAtNanos = 5_000_000_000
+        agent.handle(mainPre, focused: true)
+        XCTAssertEqual(agent.toolStream.entries.last?.category, .search)
+        var subStop = HookEvent(paneID: "p1", name: HookEvent.Kind.stop.rawValue)
+        subStop.agentID = "sub-1"; subStop.sentAtNanos = 5_100_000_000
+        agent.handle(subStop, focused: true)
+        XCTAssertEqual(agent.toolStream.entries.last?.status, .running)
+
+        // Backward clock timestamp clamps duration to 0ms on stopFailure -> .failed
+        var mainStopFail = HookEvent(paneID: "p1", name: HookEvent.Kind.stopFailure.rawValue)
+        mainStopFail.sentAtNanos = 4_000_000_000
+        agent.handle(mainStopFail, focused: true)
+        XCTAssertEqual(agent.toolStream.entries.last?.status, .failed)
+        XCTAssertEqual(agent.toolStream.entries.last?.durationMs, 0)
+
+        // Duplicate toolUseID creates distinct entry instead of colliding; nil-ID/nil-name completion fallback; .other category
+        var dup1 = HookEvent(paneID: "p1", name: HookEvent.Kind.preToolUse.rawValue)
+        dup1.toolName = "CustomMcpTool"; dup1.toolUseID = "dup-1"
+        agent.handle(dup1, focused: true)
+        var dup2 = HookEvent(paneID: "p1", name: HookEvent.Kind.preToolUse.rawValue)
+        dup2.toolName = "CustomMcpTool"; dup2.toolUseID = "dup-1"
+        agent.handle(dup2, focused: true)
+        XCTAssertEqual(agent.toolStream.entries.suffix(2).count, 2)
+        XCTAssertNotEqual(agent.toolStream.entries[agent.toolStream.entries.count - 2].id,
+                          agent.toolStream.entries[agent.toolStream.entries.count - 1].id)
+        XCTAssertEqual(agent.toolStream.entries.last?.category, .other)
+        agent.handle(HookEvent(paneID: "p1", name: HookEvent.Kind.postToolUse.rawValue), focused: true)
+        XCTAssertEqual(agent.toolStream.entries.last?.status, .succeeded)
+
+        // Direct resetToolStream() helper (used on codexReport OSC 7501 early-return path)
+        agent.resetToolStream()
+        XCTAssertTrue(agent.toolStream.entries.isEmpty)
+        XCTAssertEqual(agent.toolStream.turnCount, 0)
     }
 }

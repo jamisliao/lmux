@@ -19,7 +19,6 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
     // @scenario: shell 沒回報目前目錄時，相對路徑照原本流程
     // @scenario: 選「在新 tab 預覽」開出預覽 tab
     // @scenario: 選「在右側欄即時預覽」載入檔案至右側 Inspector
-    // @scenario: 按住 ⌃⌘ 點擊可預覽檔案直接開成預覽 tab
     // @scenario: 選單的其他項目
     // @scenario: 不選任何項目就關掉選單
     do {
@@ -142,24 +141,6 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         r.check("在新 tab 預覽：插在 A 與 B 之間", leaf?.tabs.map(\.id) == [a.id, p?.id ?? "-", b.id],
                 "\(leaf?.tabs.map(\.id) ?? [])")
         r.check("在新 tab 預覽：成為 focused tab", p != nil && ws.focusedPane === p)
-
-        // ⌃⌘-click 直接開新 tab 預覽，不彈出選單
-        asked.removeAll()
-        c.clickModifiersOverride = [.control, .command]
-        click("docs/design.md")
-        let leafAfter = ws.root.find(a)
-        let directTab = leafAfter?.tabs.dropFirst().first
-        r.check("⌃⌘-click 略過選單直接在新 tab 預覽",
-                asked.isEmpty && ws.panes.count == 4 && directTab?.preview?.fileURL == design)
-        c.clickModifiersOverride = nil
-        let beforePaneCount = ws.panes.count
-        let staleWS2 = c.newWorkspace(cwd: fx.root.path)
-        let stalePane2 = staleWS2.panes[0]
-        c.closeWorkspace(staleWS2)
-        c.clickModifiersOverride = [.control, .command]
-        c.openTerminalLink("docs/design.md", kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN, pane: stalePane2, view: nil)
-        r.check("已關閉 pane 在 ⌃⌘-click 下不觸發預覽", staleWS2.panes.count == 1 && ws.panes.count == beforePaneCount)
-        c.clickModifiersOverride = nil
     }
 
     // MARK: Ghostty 的 OPEN_URL 走開啟選單（Task 23）
@@ -374,6 +355,10 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         coord.load(url: URL(fileURLWithPath: "/dev/zero"), workspaceID: ws1.id)
         r.check("Coordinator 拒絕載入非一般／不可預覽檔案 (/dev/zero)", coord.currentURL == design)
 
+        let httpsURL = URL(string: "https://example.com" + design.path)!
+        coord.load(url: httpsURL, workspaceID: ws1.id)
+        r.check("Coordinator 拒絕載入非 file:// URL", coord.currentURL == design)
+
         // 同 workspace 內切換候選檔 chip 應保留 WKWebView 瀏覽歷史，讓 ‹ / › 可前後導覽
         if let pv1 {
             pv1.frame = NSRect(x: 0, y: 0, width: 400, height: 400)
@@ -432,8 +417,20 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
             coord.goForward()
             r.check("WorkspacePreviewCoordinator goForward() 前進下一頁",
                     await waitFor(5) { coord.currentURL == navB })
+            try? "# Page B\nUpdated on disk\n".write(to: navB, atomically: true, encoding: .utf8)
             coord.reload()
-            r.check("WorkspacePreviewCoordinator reload() 不改變 currentURL 且可重載", coord.currentURL == navB)
+            var reloaded = false
+            let reloadDeadline = Date().addingTimeInterval(5)
+            while Date() < reloadDeadline {
+                if coord.currentURL == navB, !pvNav.webView.isLoading,
+                   let txt = try? await pvNav.webView.evaluateJavaScript("document.body.innerText") as? String,
+                   txt.contains("Updated on disk") {
+                    reloaded = true
+                    break
+                }
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
+            r.check("WorkspacePreviewCoordinator reload() 重新載入磁碟內容並維持 currentURL", reloaded)
         } else {
             r.check("WorkspacePreviewCoordinator 支援連結跳轉後 canGoBack 響應式啟用", false)
             r.check("WorkspacePreviewCoordinator goBack() 退回上一頁並啟用 canGoForward", false)
@@ -460,6 +457,20 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
                     c.window!.firstResponder === ws1.panes[0].surface)
             pv.removeFromSuperview()
         }
+
+        // 背景 workspace 呼叫 openInInspectorPreview 不干擾前景 coordinator；onFileChange 同步記錄至 inspectorPreviewURLByWorkspace
+        c.select(ws1)
+        c.openInInspectorPreview(design, workspace: ws1)
+        c.openInInspectorPreview(page2, workspace: ws2)
+        r.check("背景 workspace openInInspectorPreview 不覆寫前景 previewCoordinator",
+                c.previewCoordinator.workspaceID == ws1.id
+                && c.previewCoordinator.currentURL == design
+                && c.model.inspectorPreviewURLByWorkspace[ws2.id] == page2)
+        let navigatedNote = docs.appendingPathComponent("nav-callback.md")
+        try? "# Callback\n".write(to: navigatedNote, atomically: true, encoding: .utf8)
+        c.previewCoordinator.onFileChange?(navigatedNote)
+        r.check("previewCoordinator.onFileChange 同步寫回 inspectorPreviewURLByWorkspace",
+                c.model.inspectorPreviewURLByWorkspace[ws1.id] == navigatedNote)
 
         coord.switchWorkspace(to: ws2.id, targetURL: nil)
         r.check("switchWorkspace(to:) 未指定 targetURL 時同步清空 currentURL 與 previewView",

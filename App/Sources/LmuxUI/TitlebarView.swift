@@ -147,20 +147,26 @@ public struct TitlebarCenterChip: View {
                         .stroke(T.Colors.glassHighlightBorder.color, lineWidth: 1)
                 )
         )
-        .frame(maxWidth: layout.chipWidth)
+        .frame(maxWidth: max(0, state.availableWidth))
     }
 
     private var dotColor: Color {
-        guard let p = state.workspace?.focusedPane else { return T.Colors.statusIdlePill.color }
-        switch p.agent.state {
+        Self.dotColor(for: state.workspace?.focusedPane?.display).color
+    }
+
+    public static func dotColor(for display: AgentDisplay?) -> LmuxTokens.DynamicColor {
+        guard let display else { return T.Colors.statusIdleText }
+        switch display {
         case .running:
-            return T.Colors.statusRunningText.color
+            return T.Colors.statusRunningText
         case .needsInput:
-            return T.Colors.statusNeedsInputText.color
+            return T.Colors.statusNeedsInputText
         case .done:
-            return T.Colors.statusDoneText.color
+            return T.Colors.statusDoneText
+        case .failed:
+            return T.Colors.diffRemovedFg
         case .idle:
-            return T.Colors.statusIdleText.color
+            return T.Colors.statusIdleText
         }
     }
 }

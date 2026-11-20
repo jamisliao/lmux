@@ -589,7 +589,7 @@ struct HistoryRow: View {
                 .fill(selected ? T.Colors.glassCardSelected.color : (hover ? T.Colors.glassCardHover.color : .clear))
                 .overlay(
                     RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
-                        .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)
+                        .strokeBorder(T.Colors.glassHighlightBorder.color, lineWidth: 0.5)
                         .opacity(Self.showsGlassBorder(selected: selected) ? 1 : 0)
                 )
         )

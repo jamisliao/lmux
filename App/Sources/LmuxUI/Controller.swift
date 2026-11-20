@@ -24,8 +24,6 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     /// Tests: treat the app as active/key (headless never is).
     public var assumeAppActive = false
-    /// Tests: simulated click modifier flags for testing URL/link click actions.
-    public var clickModifiersOverride: NSEvent.ModifierFlags?
     /// Tests: a headless window with the real titled chrome (toolbar, traffic lights, the titlebar
     /// view the buttons live in), ordered in off screen like the borderless one (never on a display).
     static var headlessTitled = false
@@ -896,11 +894,13 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         old.parent = node
         new.parent = node
         node.ratio = 0.5
+        let prevFocused = ws.focusedPane
         ws.focusedPane = newPane
         ws.structureChanged()
         if ws === model.selected {
             rebuildContent()
             focusCurrent()
+            if ws.focusedPane !== prevFocused { activePaneDidChange(to: ws.focusedPane, in: ws) }
         } else {
             newPane.surface?.setOcclusion(visible: false)
         }
@@ -910,6 +910,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     public func closePane(_ pane: Pane) {
         guard let ws = pane.workspace, let node = ws.root.find(pane) else { return }
         if node.tabs.count > 1 { closeTab(pane, in: node); return }
+        let prevFocused = ws.focusedPane
         ws.zoomedPane = nil  // closing while zoomed unzooms first, then closes as normal
         guard removeLeaf(node, in: ws, leaving: pane) else {
             closeWorkspace(ws)
@@ -920,6 +921,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if ws === model.selected {
             rebuildContent()
             focusCurrent()
+            if ws.focusedPane !== prevFocused { activePaneDidChange(to: ws.focusedPane, in: ws) }
         }
         scheduleSave()
     }
@@ -1096,9 +1098,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     public func focus(_ pane: Pane) {
         guard let ws = pane.workspace else { return }
-        model.gitDiffService.refresh(cwd: pane.cwd)
-        if pane.transcriptPath != nil { scheduleTelemetryRefresh(pane, delay: 0.02) }
         // A tab behind another one is brought to the front first (⇧⌘J, a notification, unread).
+        let prevFocused = ws.focusedPane
         let switched = ws.root.find(pane).map { showTab(pane, in: $0, ws) } ?? false
         if switched { scheduleSave() }
         if ws !== model.selected {
@@ -1108,7 +1109,17 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             if unzoom(ws, toFocus: pane) || switched { rebuildContent() }
             ws.focusedPane = pane
             focusCurrent()
+            if ws.focusedPane !== prevFocused { activePaneDidChange(to: pane, in: ws) }
         }
+    }
+
+    func activePaneDidChange(to pane: Pane?, in ws: Workspace) {
+        guard ws === model.selected else { return }
+        model.gitDiffService.refresh(cwd: pane?.cwd)
+        if let pane, pane.transcriptPath != nil {
+            scheduleTelemetryRefresh(pane, delay: 0.02)
+        }
+        root.updateHeader()
     }
 
     /// Focusing a pane other than the zoomed one unzooms first (Ghostty does the same), so the
@@ -1127,10 +1138,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         let changed = ws.focusedPane !== pane
         if changed {
             ws.focusedPane = pane
-            model.gitDiffService.refresh(cwd: pane.cwd)
-            if pane.transcriptPath != nil {
-                scheduleTelemetryRefresh(pane, delay: 0.02)
-            }
+            activePaneDidChange(to: pane, in: ws)
             scheduleSave()
         }
         if unzoom(ws, toFocus: pane) { rebuildContent(); focusCurrent() }
@@ -1569,7 +1577,7 @@ public final class LmuxWindow: NSWindow {
         if let latin = Self.asciiEquivalent(event), let menu = NSApp.mainMenu {
             if menu.performKeyEquivalent(with: latin) { return true }
         }
-        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
         let chars = (event.charactersIgnoringModifiers ?? "").lowercased()
         let asciiChars = Self.asciiEquivalent(event)?.charactersIgnoringModifiers?.lowercased() ?? chars
         if flags == .command && (chars == "b" || asciiChars == "b"),

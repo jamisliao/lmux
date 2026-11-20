@@ -44,6 +44,42 @@ final class AgentTelemetryTests: XCTestCase {
         XCTAssertEqual(idx.telemetry.contextUsedTokens, 4100)
         XCTAssertEqual(idx.telemetry.inputTokens, 0)
         XCTAssertEqual(idx.telemetry.outputTokens, 500)
+
+        // Streaming update for same msgID replaces previous output_tokens/cost instead of double counting
+        let a2Stream = #"{"type":"assistant","uuid":"a2b","parentUuid":"a2","message":{"id":"m2","role":"assistant","model":"claude-opus-4-1","usage":{"input_tokens":0,"cache_creation_input_tokens":100,"cache_read_input_tokens":4000,"output_tokens":350},"content":[{"type":"text","text":"done updated"}]}}"#
+        let hStream = try FileHandle(forUpdating: tmp)
+        defer { try? hStream.close() }
+        try hStream.seekToEnd()
+        try hStream.write(contentsOf: Data((a2Stream + "\n").utf8))
+        _ = try idx.update()
+        XCTAssertEqual(idx.fullReads, 1)
+        XCTAssertEqual(idx.telemetry.outputTokens, 650)
+
+        // Transcript rewrite/truncation triggers full re-read and resets accumulated totals
+        let uReset = #"{"type":"user","uuid":"ur1","parentUuid":null,"turnOrigin":"human","message":{"role":"user","content":"fresh"}}"#
+        let aReset = #"{"type":"assistant","uuid":"ar1","parentUuid":"ur1","message":{"id":"mr1","role":"assistant","model":"claude-sonnet-4-6[1m]","usage":{"input_tokens":100,"output_tokens":50},"content":[{"type":"text","text":"reset"}]}}"#
+        try (uReset + "\n" + aReset + "\n").write(to: tmp, atomically: true, encoding: .utf8)
+        _ = try idx.update()
+        XCTAssertEqual(idx.fullReads, 2)
+        XCTAssertEqual(idx.telemetry.turnCount, 1)
+        XCTAssertEqual(idx.telemetry.outputTokens, 50)
+        XCTAssertEqual(idx.telemetry.contextLimitTokens, 1_000_000)
+    }
+
+    func testModelPricingLimitsCostsAndContextPercentEdgeCases() {
+        XCTAssertEqual(ModelPricing.contextLimit(for: nil), 200_000)
+        XCTAssertEqual(ModelPricing.contextLimit(for: "gpt-5.3-codex"), 272_000)
+        XCTAssertEqual(ModelPricing.contextLimit(for: "gemini-1.5-pro"), 1_000_000)
+        XCTAssertEqual(ModelPricing.contextLimit(for: "gemini-2.5-pro"), 1_000_000)
+        XCTAssertEqual(ModelPricing.contextLimit(for: "claude-sonnet-4-6[1m]"), 1_000_000)
+        XCTAssertEqual(ModelPricing.contextLimit(for: "claude-sonnet-4-6"), 200_000)
+
+        XCTAssertNil(ModelPricing.estimateCostUSD(model: nil, input: 100, output: 100))
+        XCTAssertEqual(ModelPricing.estimateCostUSD(model: "claude-3-5-haiku", input: 1_000_000, output: 1_000_000) ?? -1, 4.80, accuracy: 0.0001)
+        XCTAssertEqual(ModelPricing.estimateCostUSD(model: "gpt-4o", input: 1_000_000, output: 1_000_000) ?? -1, 12.50, accuracy: 0.0001)
+
+        let zeroLimit = AgentTelemetrySnapshot(contextUsedTokens: 500, contextLimitTokens: 0)
+        XCTAssertEqual(zeroLimit.contextPercent, 0.0)
     }
 
     func testCodexRolloutParsesTokenCountIncrementallyAndViaStaticParse() throws {
@@ -80,6 +116,7 @@ final class AgentTelemetryTests: XCTestCase {
         XCTAssertEqual(rollout.telemetry.model, "o3")
         XCTAssertEqual(rollout.telemetry.turnCount, 2)
         XCTAssertEqual(rollout.telemetry.contextUsedTokens, 0)
+        XCTAssertEqual(rollout.telemetry.inputTokens, 0)
         XCTAssertEqual(rollout.telemetry.outputTokens, 550)
 
         let whole = try CodexRollout.parse(tmp)

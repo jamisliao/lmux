@@ -30,11 +30,6 @@ extension LmuxController {
             || (kind == GHOSTTY_ACTION_OPEN_URL_KIND_OSC8 && value.lowercased().hasPrefix("file://"))
         if textOrFileLink, let pane, let file = PreviewTarget.resolve(value, cwd: pane.cwd) {
             guard isLivePane(pane) else { return }
-            let mods = clickModifiersOverride ?? NSEvent.modifierFlags
-            if mods.contains([.control, .command]) || (clickModifiersOverride != nil && mods.contains(.control)) {
-                newPreviewTab(file, after: pane)
-                return
-            }
             showOpenMenu(file, pane: pane, view: view)
             return
         }

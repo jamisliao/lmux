@@ -46,7 +46,9 @@ public enum ModelPricing: Sendable {
         guard let model = model?.lowercased() else { return 200_000 }
         if model.contains("gpt-5") { return 272_000 }
         if model.contains("gemini-1.5-pro") || model.contains("gemini-2") { return 1_000_000 }
-        if model.contains("claude") { return 200_000 }
+        if model.contains("claude") {
+            return (model.contains("[1m]") || model.hasSuffix("-1m") || model.contains("-1m-")) ? 1_000_000 : 200_000
+        }
         return 200_000
     }
 

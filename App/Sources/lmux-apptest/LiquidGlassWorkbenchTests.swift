@@ -243,20 +243,54 @@ func runLiquidGlassWorkbench() async -> Int32 {
     _ = await waitFor(3) { !c.model.gitDiffService.isLoading && c.model.gitDiffService.snapshot.cwd == ws1SnapDir.path }
 
     // Trigger background workspace hook (.stop) and directory change while ws1 stays selected
-    c.paneDidChangeDirectory(p2, nonGitWsDir.path)
+    let bgOtherDir = fm.temporaryDirectory.appendingPathComponent("wb-bg-other-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: bgOtherDir) }
+    try? fm.createDirectory(at: bgOtherDir, withIntermediateDirectories: true)
+    c.paneDidChangeDirectory(p2, bgOtherDir.path)
     if let bgStop = try? HookEvent(paneID: p2.id, payload: [
         "hook_event_name": "Stop",
         "session_id": "wb-bg-session"
     ]) {
         c.handleHook(bgStop)
     }
-    try? await Task.sleep(nanoseconds: 300_000_000)
+    let bgSettled = await waitFor(2) {
+        p2.cwd == bgOtherDir.path && p2.agent.state == .done && !c.model.gitDiffService.isLoading
+    }
 
     r.check("切回 Workspace 1 後選中狀態、chipState、預覽 URL 與前景 gitDiffService 不受背景 workspace 干擾",
-            c.model.selected?.id == ws1.id
+            bgSettled
+            && p2.cwd == bgOtherDir.path
+            && c.model.selected?.id == ws1.id
             && c.root.chipState.workspace?.id == ws1.id
             && c.previewCoordinator.currentURL == gitWsPreview
             && c.model.gitDiffService.snapshot.cwd == ws1SnapDir.path)
+
+    // 同 workspace 內切換不同 cwd 的 split/tab 時，gitDiffService 同步刷新為新 focusedPane 的 cwd
+    let ws1SecondDir = fm.temporaryDirectory.appendingPathComponent("wb-ws1-tab2-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: ws1SecondDir) }
+    try? fm.createDirectory(at: ws1SecondDir, withIntermediateDirectories: true)
+    if let p1b = c.newTab(p1) {
+        _ = await sinks.waitReady(p1b.id)
+        c.paneDidChangeDirectory(p1b, ws1SecondDir.path)
+        let tabSwitched = await waitFor(3) {
+            !c.model.gitDiffService.isLoading && c.model.gitDiffService.snapshot.cwd == ws1SecondDir.path
+        }
+        r.check("同 workspace 內新分頁目錄變更後 gitDiffService 更新為 p1b.cwd", tabSwitched,
+                "actual=\(c.model.gitDiffService.snapshot.cwd ?? "nil") expected=\(ws1SecondDir.path)")
+        c.selectTab(p1)
+        let switchedBack = await waitFor(3) {
+            !c.model.gitDiffService.isLoading && c.model.gitDiffService.snapshot.cwd == ws1SnapDir.path
+        }
+        r.check("selectTab 切回先前 tab 後 gitDiffService 刷新為 p1.cwd", switchedBack,
+                "actual=\(c.model.gitDiffService.snapshot.cwd ?? "nil") expected=\(ws1SnapDir.path)")
+        c.selectTab(p1b)
+        let switchedForward = await waitFor(3) {
+            !c.model.gitDiffService.isLoading && c.model.gitDiffService.snapshot.cwd == ws1SecondDir.path
+        }
+        r.check("selectTab 再次切換至不同 cwd 的 tab 時 gitDiffService 刷新為 p1b.cwd", switchedForward,
+                "actual=\(c.model.gitDiffService.snapshot.cwd ?? "nil") expected=\(ws1SecondDir.path)")
+        c.closePane(p1b)
+    }
 
     // TabStripView overflow 時 + 按鈕保持可見且可點擊
     if let overflowStrip = p1.view.tabStrip {
@@ -264,14 +298,28 @@ func runLiquidGlassWorkbench() async -> Int32 {
         overflowStrip.frame = NSRect(x: 0, y: 0, width: 130, height: TabStripView.height)
         overflowStrip.layoutSubtreeIfNeeded()
         let overflowAdd = overflowStrip.newTabRect
-        r.check("TabStripView overflow 時 + 按鈕仍位於可視區域並可命中",
+        r.check("TabStripView overflow 時 + 按鈕仍位於可視區域並可命中，且 clip 區外 hit-test 回 nil",
                 overflowAdd.maxX <= overflowStrip.bounds.width - TabStripView.laneWidth + 0.5
-                && overflowStrip.button(at: NSPoint(x: overflowAdd.midX, y: overflowAdd.midY)) == 100)
+                && overflowStrip.button(at: NSPoint(x: overflowAdd.midX, y: overflowAdd.midY)) == 100
+                && overflowStrip.index(at: NSPoint(x: overflowAdd.midX, y: overflowAdd.midY)) == nil)
         overflowStrip.frame = origFrame
         overflowStrip.layoutSubtreeIfNeeded()
     } else {
         r.check("TabStripView overflow 時 + 按鈕仍位於可視區域並可命中", false)
     }
+
+    // 窄視窗與極矮視窗邊界保護：自動隱藏 rightInspectorHost 與 footerHost
+    let origContentFrame = c.root.frame
+    c.model.inspectorVisible = true
+    c.model.inspectorWidth = 320
+    c.model.sidebarVisible = true
+    c.model.sidebarWidth = 260
+    c.root.frame = NSRect(x: 0, y: 0, width: 650, height: 110) // 650 - 260 - 320 = 70 < 120; H=110 < 120
+    c.root.layoutSubtreeIfNeeded()
+    r.check("RootView 窄/矮視窗自動隱藏 rightInspectorHost 與 footerHost 以保護中央畫布",
+            c.root.rightInspectorHost.isHidden && c.root.footerHost.isHidden)
+    c.root.frame = origContentFrame
+    c.root.layoutSubtreeIfNeeded()
 
     // 5. Inspector 即時預覽與分頁切換導覽
     c.model.inspectorVisible = false
@@ -317,6 +365,8 @@ func runLiquidGlassRestore() async -> Int32 {
     r.check("重開驗證：BarLayout.isCollapsed 正確還原", barLayout.isCollapsed == true)
     r.check("重開驗證：BarLayout.extra 還原為 45pt", abs(barLayout.extra - 45) < 0.5,
             "actual=\(barLayout.extra)")
+    barLayout.toggleCollapsed(on: c)
+    r.check("重開驗證：toggleCollapsed(on:) 可展開已還原收合的通知 bar", !barLayout.isCollapsed)
     wbDefaults.removePersistentDomain(forName: suiteName)
 
     return finish(r, c)

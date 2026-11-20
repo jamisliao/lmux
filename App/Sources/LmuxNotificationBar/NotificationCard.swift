@@ -89,7 +89,7 @@ struct NotificationCard: View {
                 .fill(background)
                 .overlay(
                     RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
-                        .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)
+                        .strokeBorder(T.Colors.glassHighlightBorder.color, lineWidth: 0.5)
                         .opacity(Self.showsGlassBorder(highlighted: highlighted, hover: hover) ? 1 : 0)
                 )
         )

@@ -41,7 +41,7 @@ flowchart TB
 ### 1. Core Telemetry 擴充（`Core/LmuxHooks` + `Core/LmuxTranscript`）
 - **資料模型（`Core/Sources/LmuxTranscript/AgentTelemetry.swift` 等）**：
   - `AgentTelemetrySnapshot`：`model: String?`、`turnCount: Int`、`contextUsedTokens: Int`、`contextLimitTokens: Int`、`inputTokens: Int`、`outputTokens: Int`、`cacheCreationTokens: Int`、`cacheReadTokens: Int`、`estimatedCostUSD: Double?`、`contextPercent: Double`、`updatedAt: Date?`。
-  - **Claude JSONL 增量抽取**：擴充 `TranscriptIndex`（並透過 `TranscriptCache.Snapshot` 暴露給 UI）在增量掃描 `assistant` 條目時讀取 `message["model"]` 與 `message["usage"]`（`input_tokens`、`cache_read_input_tokens`、`cache_creation_input_tokens`、`output_tokens`），算出目前 Context 佔用與快取命中率，並依模型家族對應預設 Context 上限（如 Claude 200k / 1M）與費率估算。對無 `usage` 欄位或半行損毀的 JSON 安全略過，絕不崩潰或產生負值。
+  - **Claude JSONL 增量抽取**：擴充 `TranscriptIndex`（並透過 `TranscriptCache.Snapshot` 暴露給 UI）在增量掃描 `assistant` 條目時讀取 `message["model"]` 與 `message["usage"]`（`input_tokens`、`cache_read_input_tokens`、`cache_creation_input_tokens`、`output_tokens`），算出目前 Context 佔用與快取命中率，並依模型家族對應預設 Context 上限（如 Claude 200k，含 `[1m]` 或 `-1m` 後綴為 1M）與費率估算。對無 `usage` 欄位或半行損毀的 JSON 安全略過，絕不崩潰或產生負值。
   - **Codex Rollout 增量抽取**：擴充 `CodexRollout`（及 `CodexRollout.Parsed`）在 `classify(o)` 前解析 `session_meta` / `turn_context`（`model`）與 `token_count`（`model_context_window`、`last_token_usage`），統一匯入 `AgentTelemetrySnapshot`。
 - **即時 Tool Call 串流（`Core/Sources/LmuxHooks/ToolCallStream.swift` + `AgentState.swift` / `LmuxUI/Agent.swift`）**：
   - `HookEvent` 在 `PreToolUse`、`PostToolUse`、`PostToolUseFailure` 已有 `toolName`、`toolArgument`、`toolUseID`、`sentAtNanos`（搭配 `receivedAtNanos` fallback）。
@@ -53,7 +53,7 @@ flowchart TB
 
 ### 3. 1:1 Apple Liquid Glass Token（`App/Sources/LmuxTokens/Tokens.swift`）
 - 對照 [preview-mockup.html](../../../preview-mockup.html) 重調淺色（High-Key Crystal）與深色（Obsidian Midnight）全套色彩與版面常數：
-  - **標題列與雙側邊欄玻璃**：新增 `windowBackgroundTint`、`titlebarBackground`、`rightSidebarTint`、`footerBackground`、`glassCard`、`glassCardHover`、`glassCardSelected`、`glassSurfaceRecessed`、`activePaneRing`（`0x0A84FF`），更新 `sidebarTint`、`specularHighlight`；既有 `glassBorder` 保留給傳統邊線呼叫點相容檢查，並新增 `glassHighlightBorder` 供 1:1 淺色高透白邊與深色亮邊卡片使用。
+  - **標題列與雙側邊欄玻璃**：新增 `titlebarBackground`、`rightSidebarTint`、`footerBackground`、`glassCard`、`glassCardHover`、`glassCardSelected`、`glassSurfaceRecessed`、`activePaneRing`（`0x0A84FF`），更新 `sidebarTint`、`specularHighlight`；既有 `glassBorder` 保留給傳統邊線呼叫點相容檢查，並新增 `glassHighlightBorder` 供 1:1 淺色高透白邊與深色亮邊卡片使用。
   - **狀態藥丸與 Diff 色彩**：`statusRunningPill`/`Text`、`statusNeedsInputPill`/`Text`、`statusDonePill`/`Text`、`statusIdlePill`/`Text`、`diffAddedBg`/`Fg`、`diffRemovedBg`/`Fg`。
   - **尺寸常數**：`titlebarHeight = 44`、`footerHeight = 32`、`sidebarWidthDefault = 260`（180–400）、`rightInspectorWidthDefault = 320`（240–500）、`paneCornerRadius = 10`、`paneGap = 8`、`paneTabStripHeight = 30`、`workspaceFilterHeaderHeight = 30`。
   - **對比與降級**：保留 `AccessibilityTests` / `liquid-glass-app-check` 對全部選取列、狀態藥丸、搜尋框、Diff 標籤與 **底部狀態列** 文字對比 >= 4.5:1 的檢核；`accessibilityDisplayShouldReduceTransparency` 與 `Motion.reduceMotion` 全域生效（含測試專用 `reduceMotionOverride`）。
@@ -77,8 +77,8 @@ flowchart TB
   - 上方統一渲染 **`Pane Tab Strip`（`30pt`）**，左側列出分頁膠囊（活躍狀態亮點、標題、關閉 `×`）與 `+` 開分頁鈕，右側列出向右分割、向下分割與關閉分塊鈕；既有分頁拖拽重排／跨格分割、雙擊改名、點選切換與 `libghostty` 鍵盤轉發維持完整行為。
 - **右側 Inspector（`RightInspectorView.swift`、`InspectorDiffView.swift`、`InspectorTraceView.swift`、`InspectorPreviewPane.swift`）**：
   - Segmented Control 切換三個分頁：
-    - **即時預覽**：透過 `WorkspacePreviewCoordinator` 管理目前預覽檔與單一乾淨重設/隔離之 `PreviewView`（切換 **workspace** 時明確 `close()` 並重建以免殘留 `backForwardList`/`PreviewWatcher`），提供位址控制列（`‹` `›` `↻`、檔案圖示、目前相對路徑、`LIVE` 綠色標籤、透過 `GhosttyRuntime.openTerminalURL` 安全外開之 `↗`）、快速檔案 chip 列與底部狀態列（`WKWebView Pipeline (Metal)` / `Auto-reload on save`）；並更新 `Controller.ensureFocus()` 允許 `Inspector` `.preview` 中的 `WKWebView` 保留焦點，隱藏或切離分頁時呼叫 `focusCurrent()`。
-    - **變更 (Diff)**：Working Tree 摘要卡片（分支、檔案數、`+adds -dels`）+ 逐檔 Diff 卡片（紅刪除 `-` / 綠新增 `+` monospace 等寬列）；點擊檔案標題經 `PreviewTarget.resolve` 檢查後切入「即時預覽」；非 Git 目錄顯示空狀態。
+    - **即時預覽**：透過 `WorkspacePreviewCoordinator` 管理目前預覽檔與單一乾淨重設/隔離之 `PreviewView`（切換 **workspace** 時明確 `close()` 並重建以免殘留 `backForwardList`/`PreviewWatcher`），提供位址控制列（`‹` `›` `↻`、檔案圖示、目前相對路徑（無工作目錄前綴時顯示檔名）、`LIVE` 綠色標籤、透過 `GhosttyRuntime.openTerminalURL` 安全外開之 `↗`）、快速檔案 chip 列與底部狀態列（`WKWebView Pipeline (Metal)` / `Auto-reload on save`）；並更新 `Controller.ensureFocus()` 允許 `Inspector` `.preview` 中的 `WKWebView` 保留焦點，隱藏或切離分頁時呼叫 `focusCurrent()`。
+    - **變更 (Diff)**：Working Tree 摘要卡片（分支、檔案數、`+adds -dels`）+ 逐檔 Diff 卡片（紅刪除 `-` / 綠新增 `+` monospace 等寬列）；點擊檔案標題或預覽按鈕經 `PreviewTarget.resolve` 檢查後切入「即時預覽」；非 Git 目錄顯示空狀態。
     - **執行記錄**：Card 1「Context Window (Token 負載)」（百分比徽章、藍紫漸層進度條、已用/上限、2×2 明細：輸入 Input、輸出 Output、快取命中 Cache、估計費用）；Card 2「最近執行的工具 (Tool Calls)」即時串流列表；無作用中 Agent 顯示清楚空狀態。
 - **全域 `拖曳降級` 協調**：
   - 左側欄寬度、`右側 Inspector` 寬度、**通知 bar** 高度、`SplitContainerView` 分割線及 `NSWindow` live resize 皆透過 `RootView.setAllBackdropsResizing(_:)`（含 `SidebarAccessory.setSidebarResizing(_:)` 轉發）同步切換左／右／頂／底四個 `NSVisualEffectView` 背景為 `isResizing = true`，並保留 `didResignKey`、`didResignActive`、`@GestureState` 與 `viewWillMove(toWindow: nil)` 全方位自動清理。
@@ -88,7 +88,7 @@ flowchart TB
 ## Key Decisions
 
 1. **雙軌預覽模型（Right Inspector Live Preview + Split Preview Tab）** — 詳見 [docs/adr/0002-dual-track-inspector-preview.md](../../../docs/adr/0002-dual-track-inspector-preview.md)。
-   - **開啟選單**第一項新增「在右側欄即時預覽」，保留「在新 tab 預覽」；同時按住 `⌃⌘` 點擊終端機路徑可略過選單直接開成 **預覽 tab**。
+   - **開啟選單**第一項新增「在右側欄即時預覽」，保留「在新 tab 預覽」。不提供 `⌃⌘`-click 直接開 **預覽 tab** 的捷徑：Ghostty 只在修飾鍵恰為 `⌘` 時偵測連結，`⌃⌘` 點擊不會送到 lmux（verify F1，2026-11-20 移除）。
 2. **單層 Backdrop Material 搭配半透明覆層與 `拖曳降級` 守護** — 詳見 [docs/adr/0003-single-backdrop-glass-simulation.md](../../../docs/adr/0003-single-backdrop-glass-simulation.md)。
    - 僅大面板底層掛載 `NSVisualEffectView`，清單卡片與分頁以半透明色票＋高光邊框實現同等視覺，拖曳時全面轉不透明實底。
 3. **Hook 即時事件 + JSONL 增量解析雙軌收集 Agent 遙測** — 詳見 [docs/adr/0004-hybrid-hook-and-jsonl-telemetry.md](../../../docs/adr/0004-hybrid-hook-and-jsonl-telemetry.md)。

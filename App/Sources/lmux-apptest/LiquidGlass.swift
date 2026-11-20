@@ -111,6 +111,17 @@ func runLiquidGlass() async -> Int32 {
             !barLayout.isCollapsed && barLayout.extra == savedExtra + 40 &&
             !testDefaults.bool(forKey: BarLayout.collapsedDefaultsKey))
 
+    // Exact threshold 43 (>42) stays expanded and maxExtra clamps; <=42 auto-collapses
+    let baseBarH = NotificationBarPlugin.minHeight(pluginRows: 0)
+    barLayout.extra = 20
+    barLayout.endDrag(on: c)
+    barLayout.updateDrag(translationHeight: (baseBarH + 20) - 43, maxExtra: 200, on: c)
+    r.check("BarLayout totalHeight == 43 stays expanded", !barLayout.isCollapsed)
+    barLayout.endDrag(on: c)
+    barLayout.updateDrag(translationHeight: -500, maxExtra: 200, on: c)
+    r.check("BarLayout clamps extra to maxExtra (200)", barLayout.extra == 200 && !barLayout.isCollapsed)
+    barLayout.endDrag(on: c)
+
     // Downward drag to total height <= 42 triggers auto-collapse
     barLayout.updateDrag(translationHeight: 300, maxExtra: 200, on: c)
     r.check("BarLayout dragging down past threshold triggers auto-collapse", barLayout.isCollapsed)
@@ -222,12 +233,20 @@ func runLiquidGlass() async -> Int32 {
             ctrlCmdSHandled && c.model.sidebarVisible == !prevSide)
     _ = w.performKeyEquivalent(with: ctrlCmdS) // restore
 
-    // ⌘B toggles sidebar when not in NSText
+    // ⌘B toggles sidebar when not in NSText (even with Caps Lock active)
     let curSide = c.model.sidebarVisible
     let cmdBHandled = w.performKeyEquivalent(with: cmdB)
     r.check("⌘B via performKeyEquivalent toggles sidebarVisible",
             cmdBHandled && c.model.sidebarVisible == !curSide)
-    _ = w.performKeyEquivalent(with: cmdB) // restore
+    let cmdBWithCaps = makeKeyEvent(key: "b", chars: "b", mods: [.command, .capsLock])
+    let cmdBCapsHandled = w.performKeyEquivalent(with: cmdBWithCaps)
+    r.check("⌘B works even when Caps Lock modifier is active",
+            cmdBCapsHandled && c.model.sidebarVisible == curSide)
+
+    // TitlebarCenterChip.dotColor distinguishes .failed and nil states
+    r.check("TitlebarCenterChip.dotColor maps .failed to diffRemovedFg and nil to statusIdleText",
+            TitlebarCenterChip.dotColor(for: .failed(nil)) == LmuxTokens.Colors.diffRemovedFg
+            && TitlebarCenterChip.dotColor(for: nil) == LmuxTokens.Colors.statusIdleText)
 
     // ⌘B does not steal key when firstResponder is NSText
     let dummyTextView = NSTextView(frame: NSRect(x: 0, y: 0, width: 100, height: 20))
@@ -312,15 +331,53 @@ func runLiquidGlass() async -> Int32 {
     r.check("WorkspaceFilter .all matches all workspaces",
             c.model.filteredWorkspaces.count == c.model.workspaces.count)
 
+    let wsDone = c.newWorkspace()
+    wsDone.customTitle = "ws-done"
+    wsDone.panes[0].agent = .restoredDone
+    let wsFail = c.newWorkspace()
+    wsFail.customTitle = "ws-failed"
+    wsFail.panes[0].agent = .restoredDone
+    wsFail.panes[0].failed = true
+
     c.model.workspaceFilter = .active
-    r.check("WorkspaceFilter .active matches running workspace",
+    r.check("WorkspaceFilter .active matches running and excludes idle, done, and failed",
             c.model.filteredWorkspaces.contains(where: { $0.id == wsRun.id }) &&
-            !c.model.filteredWorkspaces.contains(where: { $0.id == wsIdle.id }))
+            !c.model.filteredWorkspaces.contains(where: { $0.id == wsIdle.id }) &&
+            !c.model.filteredWorkspaces.contains(where: { $0.id == wsDone.id }) &&
+            !c.model.filteredWorkspaces.contains(where: { $0.id == wsFail.id }))
 
     c.model.workspaceFilter = .needsInput
-    r.check("WorkspaceFilter .needsInput matches needsInput workspace",
+    r.check("WorkspaceFilter .needsInput matches needsInput and excludes running, done, and failed",
             c.model.filteredWorkspaces.contains(where: { $0.id == wsNeed.id }) &&
-            !c.model.filteredWorkspaces.contains(where: { $0.id == wsRun.id }))
+            !c.model.filteredWorkspaces.contains(where: { $0.id == wsRun.id }) &&
+            !c.model.filteredWorkspaces.contains(where: { $0.id == wsDone.id }) &&
+            !c.model.filteredWorkspaces.contains(where: { $0.id == wsFail.id }))
+    c.closeWorkspace(wsDone)
+    c.closeWorkspace(wsFail)
+
+    // (a2) 篩選中 ⇧-click 的範圍只含看得到的列；切換篩選時清除多選（verify F2）
+    let prevSelected = c.model.selected
+    let wsRun2 = c.newWorkspace()
+    wsRun2.customTitle = "ws-running-2"
+    wsRun2.focusedPane?.agent.handle(HookEvent(paneID: wsRun2.focusedPane!.id, name: HookEvent.Kind.userPromptSubmit.rawValue), focused: true)
+    var preBash2 = HookEvent(paneID: wsRun2.focusedPane!.id, name: HookEvent.Kind.preToolUse.rawValue)
+    preBash2.toolName = "Bash"; preBash2.toolArgument = "swift test"
+    wsRun2.focusedPane?.agent.handle(preBash2, focused: true)
+    c.model.workspaceFilter = .active
+    let allIDs = c.model.workspaces.map(\.id)
+    let visibleIDs = Set(c.model.filteredWorkspaces.map(\.id))
+    let ends = [allIDs.firstIndex(of: wsRun.id) ?? 0, allIDs.firstIndex(of: wsRun2.id) ?? 0].sorted()
+    let hiddenBetween = allIDs[ends[0]...ends[1]].filter { !visibleIDs.contains($0) }
+    c.clickRow(wsRun, modifiers: [])
+    c.clickRow(wsRun2, modifiers: .shift)
+    r.check("篩選中 ⇧-click 範圍選取不含被篩選隱藏的 workspace",
+            !hiddenBetween.isEmpty && c.model.selection == [wsRun.id, wsRun2.id],
+            "hiddenBetween=\(hiddenBetween.count) selection=\(c.model.selection.count)")
+    c.model.workspaceFilter = .needsInput
+    r.check("切換篩選時清除多選，不留下看不見的已選列", c.model.selection.isEmpty,
+            "selection=\(c.model.selection.count)")
+    c.closeWorkspace(wsRun2)
+    if let prevSelected { c.clickRow(prevSelected, modifiers: []) }
 
     // (b) Empty state when filter has no matches
     c.closeWorkspace(wsNeed)

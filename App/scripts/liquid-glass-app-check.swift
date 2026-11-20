@@ -66,7 +66,8 @@ enum LiquidGlassAppCheck {
         )
 
         check(
-            "LmuxTokens 具備 titlebarBackground、rightSidebarTint 與 footerBackground",
+            "LmuxTokens 具備 High-Key Crystal / Obsidian Midnight 雙側欄與狀態列底色設定",
+            C.sidebarTint.light == 0xFFFFFF && C.sidebarTint.dark == 0x141822 &&
             C.titlebarBackground.lightAlpha > 0 && C.titlebarBackground.darkAlpha > 0 &&
             C.rightSidebarTint.lightAlpha > 0 && C.rightSidebarTint.darkAlpha > 0 &&
             C.footerBackground.lightAlpha > 0 && C.footerBackground.darkAlpha > 0

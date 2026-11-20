@@ -26,6 +26,8 @@ struct HoverCache {
     var stamp: FileStamp?
     var loadedPath: String?
     var loading = false
+    var needsReload = false
+    var pendingThens: [@MainActor () -> Void] = []
     var point: NSPoint?
     /// Times the viewport was read and mapped to turns (hover reuses the map for 0.4s).
     var locates = 0
@@ -276,14 +278,25 @@ extension LmuxController {
         guard let path = pane.transcriptPath else { return }
         let stamp = FileStamp.of(path)
         if pane.hover.loadedPath == path, pane.hover.stamp == stamp { then?(); return }
-        guard !pane.hover.loading else { return }
+        guard !pane.hover.loading else {
+            pane.hover.needsReload = true
+            if let then { pane.hover.pendingThens.append(then) }
+            return
+        }
         pane.hover.loading = true
+        pane.hover.needsReload = false
         Task { [weak self, weak pane] in
             guard let self, let pane else { return }
             let snap = await self.transcripts.snapshot(pane: pane.id, path: path)
             pane.hover.loading = false
             if let snap { self.apply(snap, path: path, to: pane) }
+            let queued = pane.hover.pendingThens
+            pane.hover.pendingThens.removeAll()
+            let needAnother = pane.hover.needsReload
+            pane.hover.needsReload = false
             then?()
+            for cb in queued { cb() }
+            if needAnother { self.refreshTurns(pane) }
         }
     }
 

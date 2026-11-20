@@ -536,7 +536,7 @@ public final class Workspace: Identifiable {
         let shown = title
         func own(_ p: Pane) -> String {
             let t = p.headerTitle
-            return t == shown ? (running(p) ?? t) : t
+            return (!p.titleState.isManual && t == shown) ? (running(p) ?? t) : t
         }
         let groups = Dictionary(grouping: panes.enumerated(), by: { own($0.element) })
         for (title, members) in groups {
@@ -789,7 +789,8 @@ public final class AppModel {
     public var inspectorVisible: Bool = true
     public var inspectorWidth: CGFloat = LmuxTokens.Layout.rightInspectorWidthDefault
     public var inspectorTab: InspectorTab = .preview
-    public var workspaceFilter: WorkspaceFilter = .all
+    /// Changing it drops the multi-selection, so ⌘W never closes rows the filter hides.
+    public var workspaceFilter: WorkspaceFilter = .all { didSet { if workspaceFilter != oldValue { selection = [] } } }
     public var filteredWorkspaces: [Workspace] {
         if workspaceFilter == .all { return workspaces }
         return workspaces.filter { workspaceFilter.matches($0) }

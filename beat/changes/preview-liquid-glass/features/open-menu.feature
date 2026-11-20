@@ -12,7 +12,7 @@
     1. 使用者按住 ⌘ 點終端機裡的路徑文字或 OSC 8 連結
     2. Ghostty 偵測路徑；相對路徑用 shell 回報的目前目錄補成絕對路徑
     3. lmux 去掉路徑尾端的 ":行號"，判斷它是不是存在的可預覽檔案
-    4. 是：在滑鼠位置跳出開啟選單（按住 ⌃⌘ 點擊可略過選單直接開在新 tab 預覽）。否：照加入選單前的方式開啟
+    4. 是：在滑鼠位置跳出開啟選單。否：照加入選單前的方式開啟
 
   開啟選單的內容:
     | 位置    | 項目               | 結果                                   |
@@ -111,13 +111,6 @@
     當 使用者選 "在新 tab 預覽"
     那麼 A 與 B 之間多出一個 **預覽 tab**，顯示 "docs/design.md"
     而且 這個預覽 tab 成為 **focused tab**
-
-  @e2e @edge-case
-  # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift
-  場景: 按住 ⌃⌘ 點擊可預覽檔案直接開成預覽 tab
-    假設 一個 **workspace** 的 **終端機 tab** A 的目前目錄裡有 "docs/design.md"
-    當 使用者同時按住 ⌃ 與 ⌘ 點擊 "docs/design.md"
-    那麼 不跳出 **開啟選單**，直接緊鄰 A 開出顯示 "docs/design.md" 的 **預覽 tab**
 
   @e2e @happy-path
   # @covered-by: App/Sources/lmux-apptest/PreviewInteractions.swift

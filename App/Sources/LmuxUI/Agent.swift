@@ -179,6 +179,11 @@ extension LmuxController {
         // A codex that reports its own state (OSC 7501) has it from there: hooks only bring the
         // text of its alerts (and a late one fills in the row's detail, without a second alert).
         if e.agent == .codex, pane.codexReport != nil {
+            let isResumedCodex = e.kind == .sessionStart && e.source != "clear" && pane.restoredDoneSession != nil && e.sessionID == pane.restoredDoneSession
+            if e.kind == .sessionStart {
+                if e.source != "compact" && !isResumedCodex { pane.agent.resetToolStream() }
+                pane.restoredDoneSession = nil
+            }
             pane.agent.recordToolEvent(e)
             switch e.kind {
             case .stop where !e.isSubagent:
