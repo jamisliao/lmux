@@ -44,7 +44,7 @@ _Avoid_: toast, alert item
 停靠於視窗右側的可調寬面板（預設開啟），整合「即時預覽」、「變更 (Diff)」與「執行記錄」三個檢視分頁。
 _Avoid_: right sidebar, inspector drawer, preview panel
 
-**底部狀態列**:
+**底部狀態列**（原型稱 **視窗底部狀態列**）:
 跨越整個視窗底部的系統列，即時顯示目前 **workspace** 的 **Agent 遙測**、Git 變更統計與 **右側 Inspector** 快捷控制。
 _Avoid_: footer bar, status strip, telemetry bar
 

@@ -164,23 +164,24 @@ run_liquid_glass_suite() {
   else
     echo "FAIL  [liquid-glass] swiftc liquid-glass-app-check.swift failed"; status=1
   fi
+  mkdir -p "$T/liquid-glass-workbench"
   LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
     "$BIN/lmux-apptest" --liquid-glass 2>/dev/null | filter || status=1
-  LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+  LMUX_STATE_DIR="$T/liquid-glass-workbench" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
     "$BIN/lmux-apptest" --liquid-glass-workbench 2>/dev/null | filter || status=1
-  LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+  LMUX_STATE_DIR="$T/liquid-glass-workbench" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
     "$BIN/lmux-apptest" --liquid-glass-restore 2>/dev/null | filter || status=1
   run_liquid_glass_telemetry_suite
 }
 if [ "${1:-}" = "--liquid-glass-workbench" ]; then
-  mkdir -p "$T/liquid-glass"
-  LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+  mkdir -p "$T/liquid-glass-workbench"
+  LMUX_STATE_DIR="$T/liquid-glass-workbench" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
     "$BIN/lmux-apptest" --liquid-glass-workbench 2>/dev/null | filter || status=1
   exit $status
 fi
 if [ "${1:-}" = "--liquid-glass-restore" ]; then
-  mkdir -p "$T/liquid-glass"
-  LMUX_STATE_DIR="$T/liquid-glass" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+  mkdir -p "$T/liquid-glass-workbench"
+  LMUX_STATE_DIR="$T/liquid-glass-workbench" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
     "$BIN/lmux-apptest" --liquid-glass-restore 2>/dev/null | filter || status=1
   exit $status
 fi

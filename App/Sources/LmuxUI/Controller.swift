@@ -1121,8 +1121,13 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     /// A surface became first responder (click, makeFirstResponder, ...).
     func surfaceDidFocus(_ pane: Pane) {
         guard let ws = pane.workspace, ws === model.selected else { return }
-        if ws.focusedPane !== pane {
+        let changed = ws.focusedPane !== pane
+        if changed {
             ws.focusedPane = pane
+            model.gitDiffService.refresh(cwd: pane.cwd)
+            if pane.transcriptPath != nil {
+                scheduleTelemetryRefresh(pane, delay: 0.02)
+            }
             scheduleSave()
         }
         if unzoom(ws, toFocus: pane) { rebuildContent(); focusCurrent() }

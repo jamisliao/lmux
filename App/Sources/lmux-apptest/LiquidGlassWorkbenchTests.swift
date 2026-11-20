@@ -119,16 +119,18 @@ func runLiquidGlassWorkbench() async -> Int32 {
     NotificationCenter.default.post(name: NSWindow.didEndLiveResizeNotification, object: w)
     r.check("視窗結束縮放後 4 個 Backdrop 恢復", !sb.isResizing)
 
-    // (e) 拖曳中失焦與中斷安全復原
-    c.root.setAllBackdropsResizing(true)
+    // (e) 拖曳中失焦與中斷安全復原（使用真實 mouseDown 觸發拖曳）
+    c.root.rightInspectorHandle.mouseDown(with: NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: w.windowNumber, context: nil, eventNumber: 3, clickCount: 1, pressure: 1)!)
+    r.check("mouseDown 啟動右側手把拖曳與 Backdrop 降級",
+            c.root.rightInspectorHandle.isDragging && rb.isResizing)
     NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: w)
-    r.check("didResignKeyNotification 自動清除 4 個 Backdrop isResizing",
-            !sb.isResizing && !tb.isResizing && !rb.isResizing && !fb.isResizing)
+    r.check("didResignKeyNotification 自動清除 4 個 Backdrop isResizing 與手把拖曳狀態",
+            !c.root.rightInspectorHandle.isDragging && !sb.isResizing && !tb.isResizing && !rb.isResizing && !fb.isResizing)
 
-    c.root.setAllBackdropsResizing(true)
+    c.root.rightInspectorHandle.mouseDown(with: NSEvent.mouseEvent(with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: w.windowNumber, context: nil, eventNumber: 4, clickCount: 1, pressure: 1)!)
     NotificationCenter.default.post(name: NSApplication.didResignActiveNotification, object: NSApp)
-    r.check("didResignActiveNotification 自動清除 4 個 Backdrop isResizing",
-            !sb.isResizing && !tb.isResizing && !rb.isResizing && !fb.isResizing)
+    r.check("didResignActiveNotification 自動清除 4 個 Backdrop isResizing 與手把拖曳狀態",
+            !c.root.rightInspectorHandle.isDragging && !sb.isResizing && !tb.isResizing && !rb.isResizing && !fb.isResizing)
 
     // 4. 即時 Socket Hook → Footer & Inspector 執行記錄串流 + 切換 Workspace 上下文同步
     let ws1 = c.model.selected!
@@ -227,6 +229,8 @@ func runLiquidGlassWorkbench() async -> Int32 {
             && c.previewCoordinator.previewView == nil
             && pres2.gitBranchText == "—"
             && pres2.gitChangesText == "—"
+            && pres2.contextPercentText == "—"
+            && pres2.contextRatio == nil
             && pres2.latestToolText == nil)
 
     // 切回 Workspace 1，驗證狀態與預覽上下文復原；同時驗證背景 Workspace 2 Hook / 目錄事件不覆寫前景 gitDiffService

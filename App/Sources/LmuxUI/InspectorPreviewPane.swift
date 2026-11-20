@@ -30,8 +30,12 @@ public final class WorkspacePreviewCoordinator {
     }
 
     public func load(url: URL, workspaceID: String) {
-        guard !PreviewTarget.hasUnsafeScalar(url.path) else { return }
-        if self.workspaceID == workspaceID && self.currentURL == url && previewView != nil {
+        guard !PreviewTarget.hasUnsafeScalar(url.path),
+              PreviewTarget.resolve(url.path, cwd: nil) != nil else { return }
+        if self.workspaceID == workspaceID, let existing = previewView {
+            if self.currentURL == url { return }
+            self.currentURL = url
+            existing.show(url)
             return
         }
         closeCurrent()

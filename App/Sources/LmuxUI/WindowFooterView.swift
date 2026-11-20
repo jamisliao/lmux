@@ -94,7 +94,8 @@ public struct WindowFooterView: View {
         let renderer = "Metal"
         let percentText: String
         let ratio: Double?
-        if let t = telemetry, t.contextLimitTokens > 0 {
+        let hasTelemetry = telemetry.map { $0.isActiveAgent || $0.model != nil || $0.contextUsedTokens > 0 } ?? false
+        if let t = telemetry, hasTelemetry, t.contextLimitTokens > 0 {
             let clamped = min(max(t.contextPercent, 0), 1)
             percentText = "\(Int((clamped * 100).rounded()))%"
             ratio = clamped

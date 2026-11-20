@@ -371,6 +371,23 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         coord.load(url: unsafeScalarURL, workspaceID: ws1.id)
         r.check("Coordinator 拒絕載入含 unsafe scalar 的檔案", coord.currentURL == design)
 
+        coord.load(url: URL(fileURLWithPath: "/dev/zero"), workspaceID: ws1.id)
+        r.check("Coordinator 拒絕載入非一般／不可預覽檔案 (/dev/zero)", coord.currentURL == design)
+
+        // 同 workspace 內切換候選檔 chip 應保留 WKWebView 瀏覽歷史，讓 ‹ / › 可前後導覽
+        if let pv1 {
+            pv1.frame = NSRect(x: 0, y: 0, width: 400, height: 400)
+            c.window!.contentView?.addSubview(pv1)
+            _ = await waitFor(5) { pv1.fileURL == design && !pv1.webView.isLoading && pv1.webView.backForwardList.currentItem != nil }
+        }
+        let chipNext = docs.appendingPathComponent("chip-next.md")
+        try? "# Chip Next\n".write(to: chipNext, atomically: true, encoding: .utf8)
+        coord.load(url: chipNext, workspaceID: ws1.id)
+        r.check("同 workspace 切換候選檔時保留瀏覽歷史並啟用 canGoBack",
+                await waitFor(5) { coord.currentURL == chipNext && coord.canGoBack && !(coord.previewView?.webView.isLoading ?? true) },
+                "current=\(coord.currentURL?.lastPathComponent ?? "nil") canGoBack=\(coord.canGoBack) backCount=\(coord.previewView?.webView.backForwardList.backList.count ?? -1)")
+        pv1?.removeFromSuperview()
+
         // 5. 切換 workspace 後 backForwardList 清空且舊 PreviewWatcher 停止 (pv1.isClosed == true)
         let page2 = docs.appendingPathComponent("page2.md")
         try? "# Page 2\n".write(to: page2, atomically: true, encoding: .utf8)

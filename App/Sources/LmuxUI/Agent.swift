@@ -125,7 +125,7 @@ extension LmuxController {
         switch e.kind {
         case .sessionStart:
             titleSessionStarted(pane, e)
-            let isResumed = e.source != "clear" && e.sessionID == pane.restoredDoneSession
+            let isResumed = e.source != "clear" && pane.restoredDoneSession != nil && e.sessionID == pane.restoredDoneSession
             if e.source != "compact" && !isResumed {
                 model.telemetryStore?.clear(paneID: pane.id)
                 attended(pane)
@@ -204,7 +204,7 @@ extension LmuxController {
         let focused = isPaneFocused(pane)
         var agent = pane.agent
         // The restored agent resuming its own session: it still sits on the done turn it ended on.
-        let resumed = e.kind == .sessionStart && e.source != "clear" && e.sessionID == pane.restoredDoneSession
+        let resumed = e.kind == .sessionStart && e.source != "clear" && pane.restoredDoneSession != nil && e.sessionID == pane.restoredDoneSession
         if e.kind == .sessionStart { pane.restoredDoneSession = nil }
         let t = resumed ? nil : agent.handle(e, focused: focused)
         if agent != pane.agent {
@@ -214,7 +214,6 @@ extension LmuxController {
             pane.agent = agent
         }
         apply(t, to: pane, focused: focused)
-        if resumed { pane.agent.recordToolEvent(e) }
     }
 
     /// Badge, row detail, bell list and the one notification for a state transition.

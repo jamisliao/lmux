@@ -91,6 +91,23 @@ func runLiquidGlassTelemetry() async -> Int32 {
             && (testDiff?.lines.contains(where: { $0.kind == .hunkHeader && $0.text.hasPrefix("@@") }) == true),
             "added=\(svc.snapshot.totalAdded) deleted=\(svc.snapshot.totalDeleted) lines=\(testDiff?.lines.count ?? 0)")
 
+    // 2b. Subdirectory Git cwd resolves repoRoot (--show-toplevel) for untracked files & previewURL
+    let subDir = repoA.appendingPathComponent("nested/sub")
+    try? fm.createDirectory(at: subDir, withIntermediateDirectories: true)
+    let subNote = subDir.appendingPathComponent("sub-note.md")
+    try? "# Nested\nline2\n".write(to: subNote, atomically: true, encoding: .utf8)
+    svc.refresh(cwd: subDir.path, immediate: true)
+    let subRefreshed = await waitFor(3) { !svc.isLoading && svc.snapshot.cwd == subDir.path }
+    let subFileEntry = svc.snapshot.files.first(where: { $0.path == "nested/sub/sub-note.md" })
+    let subResolved = InspectorDiffView.resolvePreviewURL(file: "nested/sub/sub-note.md", cwd: svc.snapshot.repoRoot ?? svc.snapshot.cwd)
+    r.check("subdirectory cwd resolves repoRoot for untracked diff lines and previewURL",
+            subRefreshed
+            && svc.snapshot.repoRoot != nil
+            && subFileEntry?.added == 2
+            && subFileEntry?.previewURL != nil
+            && subResolved?.resolvingSymlinksInPath() == subNote.resolvingSymlinksInPath(),
+            "refreshed=\(subRefreshed) root=\(svc.snapshot.repoRoot ?? "nil") added=\(subFileEntry?.added ?? -1) url=\(subFileEntry?.previewURL?.path ?? "nil")")
+
     // 3. Unborn HEAD repository
     let unbornRepo = fm.temporaryDirectory.appendingPathComponent("unborn-\(UUID().uuidString)")
     defer { try? fm.removeItem(at: unbornRepo) }
@@ -337,6 +354,5 @@ func runLiquidGlassTelemetry() async -> Int32 {
             && activePres.toolCalls[0].category == .bash
             && activePres.toolCalls[1].category == .read)
 
-    print("\nRESULT: \(r.failed == 0 ? "PASS" : "FAIL") (\(r.passed)/\(r.passed + r.failed) checks passed)\n")
-    return r.failed == 0 ? 0 : 1
+    return finish(r, c)
 }

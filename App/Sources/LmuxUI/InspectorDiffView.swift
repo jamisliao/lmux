@@ -111,7 +111,7 @@ public struct InspectorDiffView: View {
             Divider().overlay(T.Colors.glassBorder.color.opacity(0.5))
             diffLines(file.lines)
             if file.truncated {
-                Text("已截斷顯示前 \(GitDiffService.maxDiffLinesPerFile) 行…")
+                Text(file.lines.isEmpty ? "差異過大，已省略內容" : "已截斷顯示前 \(GitDiffService.maxDiffLinesPerFile) 行…")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(T.Colors.textTertiary.color)
                     .padding(6)
@@ -142,7 +142,8 @@ public struct InspectorDiffView: View {
 
             if file.previewURL != nil {
                 Button {
-                    if let liveURL = Self.resolvePreviewURL(file: file.path, cwd: snapshot.cwd) {
+                    let baseDir = snapshot.repoRoot ?? snapshot.cwd
+                    if let liveURL = Self.resolvePreviewURL(file: file.path, cwd: baseDir) {
                         onOpenPreview?(liveURL)
                     }
                 } label: {
@@ -181,7 +182,7 @@ public struct InspectorDiffView: View {
     }
 
     private func statusColor(_ status: String) -> Color {
-        status == "A" ? T.Colors.diffAddedFg.color : (status == "D" ? T.Colors.diffRemovedFg.color : T.Colors.stateNeedsInput.color)
+        (status == "A" || status == "??") ? T.Colors.diffAddedFg.color : (status == "D" ? T.Colors.diffRemovedFg.color : T.Colors.stateNeedsInput.color)
     }
 
     private func lineTextColor(_ kind: GitDiffLine.Kind) -> Color {
