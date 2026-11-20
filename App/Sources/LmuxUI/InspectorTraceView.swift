@@ -88,7 +88,7 @@ public struct InspectorTraceView: View {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 3).fill(T.Colors.glassSurfaceRecessed.color)
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(LinearGradient(colors: [T.Colors.activePaneRing.color, Color.purple.opacity(0.8)], startPoint: .leading, endPoint: .trailing))
+                        .fill(LinearGradient(colors: [T.Colors.activePaneRing.color, T.Colors.workspaceAccents[2].color.opacity(0.85)], startPoint: .leading, endPoint: .trailing))
                         .frame(width: max(0, min(geo.size.width, geo.size.width * CGFloat(pres.contextPercent))))
                 }
             }.frame(height: 6)
@@ -161,10 +161,10 @@ public struct InspectorTraceView: View {
 
     private func categoryColor(_ category: ToolCategory) -> Color {
         switch category {
-        case .bash: return Color.green
-        case .read: return Color.blue
-        case .edit: return Color.orange
-        case .search: return Color.purple
+        case .bash: return T.Colors.stateDone.color
+        case .read: return T.Colors.activePaneRing.color
+        case .edit: return T.Colors.needsInputRing.color
+        case .search: return T.Colors.workspaceAccents[2].color
         case .other: return T.Colors.textSecondary.color
         }
     }

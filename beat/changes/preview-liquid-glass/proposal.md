@@ -28,7 +28,7 @@
 
 - **修改模組**：
   - `Core/LmuxHooks/`、`Core/LmuxTranscript/`（擴充模型、Token Usage、Tool Call 歷史與即時串流欄位與測試）
-  - `App/Sources/LmuxTokens/Tokens.swift`（及 `design/Tokens.swift`）
+  - `App/Sources/LmuxTokens/Tokens.swift`
   - `App/Sources/LmuxUI/`（Titlebar、Workspace 清單、History 位置調整、Pane 圓角／Tab Strip、**右側 Inspector**、**底部狀態列**、`GitDiffService`、`OpenMenu`、`Persistence` 相容擴充）
   - `App/Sources/LmuxNotificationBar/`（玻璃卡片、未讀點與外觀同步）
   - `App/Sources/lmux-apptest/` 與 `App/scripts/`（更新並擴充對照測試）

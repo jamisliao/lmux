@@ -50,6 +50,7 @@ public struct GitDiffFile: Equatable, Identifiable, Sendable {
 
 public struct GitDiffSnapshot: Equatable, Sendable {
     public var cwd: String?
+    public var repoRoot: String?
     public var isGitRepo: Bool
     public var branch: String?
     public var totalAdded: Int
@@ -59,6 +60,7 @@ public struct GitDiffSnapshot: Equatable, Sendable {
 
     public init(
         cwd: String? = nil,
+        repoRoot: String? = nil,
         isGitRepo: Bool = false,
         branch: String? = nil,
         totalAdded: Int = 0,
@@ -67,6 +69,7 @@ public struct GitDiffSnapshot: Equatable, Sendable {
         previewCandidates: [URL] = []
     ) {
         self.cwd = cwd
+        self.repoRoot = repoRoot
         self.isGitRepo = isGitRepo
         self.branch = branch
         self.totalAdded = totalAdded

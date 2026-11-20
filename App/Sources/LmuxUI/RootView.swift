@@ -367,23 +367,24 @@ final class RootView: FlippedView {
         }
     }
 
-    /// The titlebar buttons sit on the sidebar, or on the content header when it's hidden: they read
-    /// like what's under them (the terminal's color: header, a sidebar that matches it).
+    /// Sidebar contents follow the terminal background only when sidebarMatchesTerminal is enabled.
+    /// Unified 44pt titlebar controls stay on TitlebarBackdrop and inherit system/window appearance.
     func updateClusterAppearance() {
-        let bg = model.sidebarVisible ? sidebarBackdrop.matchColor : model.selected?.focusedPane?.surface?.terminalBackground
-        cluster.adoptAppearance(on: bg)
-        centerChipHost.adoptAppearance(on: bg)
-        rightClusterHost.adoptAppearance(on: bg)
-        workspaceFilterHeaderHost.adoptAppearance(on: bg)
+        let matchBg = model.sidebarVisible ? sidebarBackdrop.matchColor : nil
+        cluster.appearance = nil
+        centerChipHost.appearance = nil
+        rightClusterHost.appearance = nil
+        workspaceFilterHeaderHost.adoptAppearance(on: matchBg)
         // plugin 的 bar 與 sidebar 的列用同一套外觀（applySidebarLook 會先設定 sidebarHost 再呼叫這裡）。
         if let v = sidebarAccessory?.view, v.appearance?.name != sidebarHost.appearance?.name { v.appearance = sidebarHost.appearance }
     }
 
     func updateAllBackdropAppearances() {
         updateClusterAppearance()
-        let app = window?.effectiveAppearance ?? NSApp.effectiveAppearance
-        rightInspectorHost.appearance = app
-        footerHost.appearance = app
+        // Use NSApp.appearance (nil in .system mode) so inspector/footer track live Light/Dark switches dynamically.
+        let appAppearance = NSApp.appearance
+        rightInspectorHost.appearance = appAppearance
+        footerHost.appearance = appAppearance
     }
 
     /// Content header (POLISH.md 5): chip · title · `⎇ branch · ~/path`, without repeats.

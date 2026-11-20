@@ -353,7 +353,19 @@ func runLiquidGlass() async -> Int32 {
     r.check("HistoryRow shows glassBorder only when selected",
             HistoryRow.showsGlassBorder(selected: true) && !HistoryRow.showsGlassBorder(selected: false))
 
-    // 9. PaneView 10pt rounded cards & activePaneRing vs RingView amber ring
+    // 9. PaneView 10pt rounded cards & activePaneRing vs RingView amber ring (live split & focus switch)
+    let splitBase = wsIdle.panes[0]
+    if let splitSecond = c.split(splitBase, .right) {
+        _ = await sinks.waitReady(splitSecond.id)
+        c.focus(splitSecond)
+        c.root.layoutSubtreeIfNeeded()
+        r.check("PaneView split leaves both have TabStripView, 10pt cornerRadius, and live focus borderWidth",
+                splitBase.view.tabStrip != nil && splitSecond.view.tabStrip != nil
+                && splitSecond.view.layer?.cornerRadius == LmuxTokens.Layout.paneCornerRadius
+                && splitSecond.view.layer?.borderWidth == 1.5
+                && splitBase.view.layer?.borderWidth == 0.5)
+        c.closePane(splitSecond)
+    }
     let testPane = wsIdle.panes[0]
     let paneView = testPane.view
     r.check("PaneView cornerRadius is 10pt (paneCornerRadius)",

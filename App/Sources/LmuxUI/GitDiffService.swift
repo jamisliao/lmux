@@ -63,6 +63,12 @@ public final class GitDiffService {
                 return
             }
 
+            let topRes = await self.runGit(["rev-parse", "--show-toplevel"], cwd: cwd, gen: gen)
+            let rawTop = topRes.status == 0
+                ? topRes.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+                : ""
+            let repoRoot = (!rawTop.isEmpty && FileManager.default.fileExists(atPath: rawTop)) ? rawTop : cwd
+
             let branch = await self.resolveBranch(in: cwd, gen: gen)
             guard self.currentGeneration == gen else { return }
 
@@ -77,12 +83,13 @@ public final class GitDiffService {
             }
             guard self.currentGeneration == gen else { return }
 
-            let statusRes = await self.runGit(["status", "--porcelain=v1", "-z"], cwd: cwd, gen: gen)
+            let statusRes = await self.runGit(["status", "--porcelain=v1", "-z", "--untracked-files=all"], cwd: cwd, gen: gen)
             guard self.currentGeneration == gen else { return }
 
             let built = await Task.detached(priority: .utility) {
                 Self.buildSnapshot(
                     cwd: cwd,
+                    repoRoot: repoRoot,
                     branch: branch,
                     numstatStdout: numstatRes.stdout,
                     diffStdout: diffRes.stdout,
@@ -107,6 +114,7 @@ public final class GitDiffService {
 
     private nonisolated static func buildSnapshot(
         cwd: String,
+        repoRoot: String,
         branch: String?,
         numstatStdout: String,
         diffStdout: String,
@@ -141,8 +149,9 @@ public final class GitDiffService {
             let st = code.trimmingCharacters(in: .whitespaces)
             let isUntrackedOrAdded = st == "??" || st == "A" || st.hasPrefix("A")
             if isUntrackedOrAdded {
-                let fullURL = URL(fileURLWithPath: cwd).appendingPathComponent(cleanPath)
-                let (lines, totalCount, isTruncated) = readUntrackedLines(at: fullURL, cwd: cwd)
+                // Git paths in diff/status are relative to the repository top-level, not necessarily cwd.
+                let fullURL = URL(fileURLWithPath: repoRoot).appendingPathComponent(cleanPath)
+                let (lines, totalCount, isTruncated) = readUntrackedLines(at: fullURL, cwd: repoRoot)
                 filesByPath[cleanPath] = GitDiffFile(
                     path: cleanPath,
                     status: st,
@@ -168,7 +177,7 @@ public final class GitDiffService {
             .sorted { $0.path < $1.path }
             .map { file in
                 var f = file
-                f.previewURL = PreviewTarget.resolve(f.path, cwd: cwd).flatMap { Self.isPathContained($0, inDirectory: cwd) ? $0 : nil }
+                f.previewURL = PreviewTarget.resolve(f.path, cwd: repoRoot).flatMap { Self.isPathContained($0, inDirectory: repoRoot) ? $0 : nil }
                 return f
             }
         let totalAdded = files.reduce(0) { $0 + $1.added }
@@ -177,6 +186,7 @@ public final class GitDiffService {
 
         return GitDiffSnapshot(
             cwd: cwd,
+            repoRoot: repoRoot,
             isGitRepo: true,
             branch: branch,
             totalAdded: totalAdded,
@@ -198,10 +208,14 @@ public final class GitDiffService {
         }
         defer { try? fh.close() }
         guard let data = try? fh.read(upToCount: maxUntrackedReadBytes),
-              let content = String(data: data, encoding: .utf8) else {
+              let content = String(data: data, encoding: .utf8),
+              !content.isEmpty else {
             return ([], 0, false)
         }
-        let contentLines = content.components(separatedBy: "\n")
+        var contentLines = content.components(separatedBy: "\n")
+        if contentLines.last == "", contentLines.count > 1 {
+            contentLines.removeLast()
+        }
         let capped = contentLines.prefix(maxDiffLinesPerFile).enumerated().map {
             GitDiffLine(id: $0 + 1, kind: .added, text: "+" + $1)
         }

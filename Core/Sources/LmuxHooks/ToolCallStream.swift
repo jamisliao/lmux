@@ -78,7 +78,8 @@ public struct ToolCallStream: Sendable, Equatable {
         if kind == .preToolUse {
             let name = event.toolName ?? "unknown"
             let cat = ToolCategory.from(name: name)
-            let id = event.toolUseID ?? UUID().uuidString
+            let rawID = event.toolUseID?.isEmpty == false ? event.toolUseID : nil
+            let id = (rawID.flatMap { candidate in entries.contains(where: { $0.id == candidate }) ? nil : candidate }) ?? UUID().uuidString
             let entry = ToolCallEntry(
                 id: id,
                 name: name,

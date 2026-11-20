@@ -67,7 +67,7 @@ flowchart TB
     2. 中央終端畫布：窄視窗（如 `600×360` / `420×260`）自動依序暫時折疊右側 Inspector／鉗製側欄寬度以維持至少 `120pt` 終端可用寬度；內部配置帶 `paneGap` 之圓角分割窗格。
     3. 右側調整手把 `RightInspectorResizeHandle` + **右側 Inspector**（`RightInspectorBackdrop` + `RightInspectorView`，預設展開，寬度持久化於 `layout.json`）。
 - **Workspace 卡片重構（`Sidebar.swift`）**：
-  - 卡片改為圓角 `8pt` 玻璃卡片，左側 `3pt` 垂直 Accent 條（與 `TabDisclosureButton` 水平座標錯開不重疊），第 1 行左側標題／右側狀態藥丸（`⚡ 執行中` / `🔔 需要確認` / `✓ 測試通過` / `閒置`；hover 時保留快速關閉 ×），第 2 行左側最新 agent 摘要／目錄、右側相對時間。
+  - 卡片改為圓角 `8pt` 玻璃卡片，左側 `3pt` 垂直 Accent 條（與 `TabDisclosureButton` 水平座標錯開不重疊），第 1 行左側標題／右側狀態藥丸（`⚡ 執行中` / `🔔 需要確認` / `✓ 測試通過`；閒置列保持乾淨留白，hover 時保留快速關閉 ×），第 2 行左側最新 agent 摘要／目錄、右側相對時間。
   - **100% 保留** `SidebarTabChildren`（Tab 子樹展開）、`⌘`/`⇧` 多選、`SidebarRowMotion` 拖曳重排（`workspaceFilter != .all` 時顯示提示並停用拖曳重排與無結果空狀態）與右鍵選單，加上標題列篩選（全部／進行中／需要確認）。
 - **History 與 NotificationBar（`History.swift`、`NotificationBar.swift`、`NotificationCard.swift`）**：
   - `HistorySection` 固定置於 Workspace 清單底部、**通知 bar** 上方，採用玻璃膠囊搜尋框（`⇧⌘H` 快捷與既有搜尋結果清單向上／浮層展開不遮擋下方通知列）。
@@ -104,7 +104,7 @@ flowchart TB
 |---|---|
 | `Core/Sources/LmuxTranscript/AgentTelemetry.swift`、`TranscriptIndex.swift`、`CodexRollout.swift` | 增量抽取 Claude `model`/`usage` 與 Codex `token_count`/`model_context_window`，定義 `AgentTelemetrySnapshot` 與容錯測試。 |
 | `Core/Sources/LmuxHooks/ToolCallStream.swift`、`AgentState.swift` | 擴充工具呼叫開始／結束／失敗追蹤結構（`ToolCallEntry` / `ToolCallStream`）與 Turn 計數統計，支援即時串流。 |
-| `App/Sources/LmuxTokens/Tokens.swift`（與 `design/Tokens.swift`） | 實作 1:1 淺／深雙主題 Liquid Glass 色彩、尺寸（`44/32/260/320`）、圓角、光暈邊框與狀態藥丸色票。 |
+| `App/Sources/LmuxTokens/Tokens.swift` | 實作 1:1 淺／深雙主題 Liquid Glass 色彩、尺寸（`44/32/260/320`）、圓角、光暈邊框與狀態藥丸色票。 |
 | `App/Sources/LmuxUI/GitDiffService.swift` | 背景安全非同步執行 `git status` / `git diff`，彙整分支、增刪行總計、Diff hunks 與經 `PreviewTarget` 驗證之可預覽檔案清單。 |
 | `App/Sources/LmuxUI/AgentTelemetryStore.swift`、`MessageActions.swift`、`Agent.swift` | 彙整 Hook（含 Codex tool events）與 `TranscriptCache` 增量結果，提供 per-Pane／per-Workspace 模型、Turn、Token 與 Tool Calls。 |
 | `App/Sources/LmuxUI/RootView.swift`、`WindowFooterView.swift`、`TitlebarView.swift`、`SidebarAccessory.swift` | 重構為 `titlebarHost` 整合之 44pt Titlebar + 窄視窗保護三欄工作區 + 32pt 全寬 **底部狀態列**，統一 `setAllBackdropsResizing(_:)` 協調。 |

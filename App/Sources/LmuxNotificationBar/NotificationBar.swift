@@ -269,6 +269,10 @@ struct BarResizeHandle: View {
             }
         }
         .onDisappear {
+            if hover {
+                hover = false
+                NSCursor.pop()
+            }
             if layout.isDragging {
                 layout.endDrag(on: controller)
             }

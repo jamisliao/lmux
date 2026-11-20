@@ -74,38 +74,6 @@ public final class AgentTelemetryStore {
         snapshotsByPane[paneID] = snapshot
     }
 
-    public func noteHookUpdate(for pane: Pane) {
-        guard pane.transcriptPath != nil else { return }
-        onRefreshTranscript?(pane)
-    }
-
-    public func refreshTranscriptTelemetry(for pane: Pane) {
-        if let onRefreshTranscript {
-            onRefreshTranscript(pane)
-            return
-        }
-        guard let path = pane.transcriptPath else { return }
-        let paneID = pane.id
-        Task { [weak self] in
-            let telemetry = await Task.detached(priority: .utility) {
-                Self.readTelemetry(at: path)
-            }.value
-            self?.recordSnapshot(telemetry, for: paneID)
-        }
-    }
-
-    private nonisolated static func readTelemetry(at path: String) -> AgentTelemetrySnapshot {
-        if CodexRollout.isRollout(path) {
-            let rollout = CodexRollout(url: URL(fileURLWithPath: path))
-            _ = try? rollout.update()
-            return rollout.telemetry
-        } else {
-            let index = TranscriptIndex(url: URL(fileURLWithPath: path))
-            _ = try? index.update()
-            return index.telemetry
-        }
-    }
-
     public func clear(paneID: String) {
         snapshotsByPane.removeValue(forKey: paneID)
     }

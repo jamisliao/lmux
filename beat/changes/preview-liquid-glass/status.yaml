@@ -1,7 +1,7 @@
 name: preview-liquid-glass
 created: 2026-11-17
 phase: verify
-verification: { status: issues-found, critical: 3, date: 2026-11-19 }
+verification: { status: passed, critical: 0, date: 2026-11-20 }
 pipeline:
   proposal: { status: done }
   gherkin: { status: done, modified: ["beat/features/preview/open-menu.feature"] }
