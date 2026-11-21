@@ -209,7 +209,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     public private(set) var unsafeStateDir = false
 
     /// Build the window, restore the layout (or open one workspace), start sockets.
-    public func start(windowFrame: NSRect = NSRect(x: 0, y: 0, width: 1280, height: 800)) {
+    /// Folders opened with the app become new workspaces without adding an idle default pane.
+    public func start(windowFrame: NSRect = NSRect(x: 0, y: 0, width: 1280, height: 800),
+                      openingDirectories: [String] = []) {
         try? FileManager.default.createDirectory(at: paths.stateDir, withIntermediateDirectories: true,
                                                  attributes: [.posixPermissions: 0o700])
         // Its layout.json is replayed into shells and its sockets accept commands: it must be ours.
@@ -227,7 +229,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         buildWindow(frame: windowFrame)
         loadRetiredPaneTokens()
         startHookServer()
-        if !restoreLayout() { newWorkspace() }
+        if !restoreLayout(), openingDirectories.isEmpty { newWorkspace() }
+        for cwd in openingDirectories { newWorkspace(cwd: cwd) }
         removeSavedScrollback()
         persistenceEnabled = true
         scheduleSave()

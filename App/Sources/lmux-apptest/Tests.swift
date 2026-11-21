@@ -11,7 +11,7 @@ let sinks = Sinks(dir: URL(fileURLWithPath: env["LMUX_SINK_DIR"] ?? "/tmp"))
 let paths = LmuxPaths()
 
 @MainActor
-func makeController() -> LmuxController {
+func makeController(openingDirectories: [String] = []) -> LmuxController {
     guard let runtime = GhosttyRuntime(fontProfile: .korean) else { print("runtime init failed"); _exit(2) }
     // Copy / paste never touch the user's clipboard.
     GhosttyRuntime.standardPasteboard = NSPasteboard(name: NSPasteboard.Name("dev.lmux.apptest.\(getpid())"))
@@ -19,7 +19,7 @@ func makeController() -> LmuxController {
     c.buildMainMenu()
     // History indexes through the helper process, as the app does.
     c.history.helper = Bundle.main.executableURL
-    c.start(windowFrame: NSRect(x: 0, y: 0, width: 1280, height: 800))
+    c.start(windowFrame: NSRect(x: 0, y: 0, width: 1280, height: 800), openingDirectories: openingDirectories)
     // Hermetic: the machine's Reduce Motion (on in GitHub's macOS runner image) doesn't decide whether
     // rows breathe and spinners turn; the checks of Reduce Motion turn it on themselves.
     c.reduceMotionOverride = false

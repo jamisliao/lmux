@@ -156,7 +156,13 @@ func runNewWorkspaceDirRestore() async -> Int32 {
     r.section = "start dir: restore"
     guard let fx = DirFixture() else { return 2 }
     // working-directory = proj (left by the run above) must not move a restored pane.
-    let c = makeController()
+    let folder = URL(fileURLWithPath: fx.work).appendingPathComponent("Project Folder").path
+    try? FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+    let c = makeController(openingDirectories: [folder])
+    let opened = c.model.selected?.focusedPane
+    let openedPwd = await fx.started(opened)
+    r.check("an opened folder starts a selected workspace alongside restored panes",
+            opened?.cwd == folder && openedPwd == real(folder), "pwd=\(openedPwd ?? "-")")
     let ws = c.model.workspaces.first { $0.panes.contains { $0.cwd == fx.work } }
     let restored = ws?.panes.filter { $0.cwd == fx.work } ?? []
     var pwds: [String?] = []
