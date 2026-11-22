@@ -537,7 +537,8 @@ extension LmuxController {
                 guard let next = await press(pane, .down, from: state) else { return await backOut(pane, "the list didn't move") }
                 state = next
                 guard case .list(let selected, _, _, _) = state, RewindMenu.matches(selected, prompt: listed[k].prompt) else {
-                    return await backOut(pane, "entry \(k + 1) from the top isn't its turn: \(state)")
+                    return await backOut(pane, "entry \(k + 1) from the top isn't its turn: \(state), "
+                                         + "expected \(String(reflecting: String(listed[k].prompt.prefix(120))))")
                 }
             }
         } else {
@@ -546,7 +547,8 @@ extension LmuxController {
                 state = next
                 guard case .list(let selected, _, _, _) = state,
                       RewindMenu.matches(selected, prompt: turns[turns.count - depth].prompt) else {
-                    return await backOut(pane, "entry \(depth) isn't turn \(turns.count - depth + 1): \(state)")
+                    return await backOut(pane, "entry \(depth) isn't turn \(turns.count - depth + 1): \(state), "
+                                         + "expected \(String(reflecting: String(turns[turns.count - depth].prompt.prefix(120))))")
                 }
             }
         }

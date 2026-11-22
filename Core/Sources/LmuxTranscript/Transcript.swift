@@ -279,14 +279,29 @@ public struct Transcript {
         return !nonPromptPrefixes.contains { trimmed.hasPrefix($0) }
     }
 
-    static func promptText(_ e: Entry) -> String {
-        let content = e.message?["content"]
-        if let s = content as? String { return s }
+    static func promptText(_ e: Entry) -> String { promptText(message: e.message) }
+
+    /// A prompt's text as typed: string content, or its blocks (text as is, others as "[type]"),
+    /// with pasted text unwrapped.
+    static func promptText(message: [String: Any]?) -> String {
+        let content = message?["content"]
+        if let s = content as? String { return unwrappingPastes(s) }
         let blocks = content as? [[String: Any]] ?? []
-        return blocks.map { b in
+        return unwrappingPastes(blocks.map { b in
             (b["text"] as? String) ?? "[\(b["type"] as? String ?? "?")]"
-        }.joined(separator: "\n")
+        }.joined(separator: "\n"))
     }
+
+    /// Claude Code 2.1.330 writes pasted text between `<pasted_content id="…">` and
+    /// `</pasted_content id="…">` lines (it used to write the text alone). The tags aren't what was
+    /// typed or shown: drop those lines, and the blank lines that then lead or trail the prompt.
+    static func unwrappingPastes(_ s: String) -> String {
+        guard s.contains("pasted_content") else { return s }
+        let out = pasteTag.stringByReplacingMatches(in: s, range: NSRange(s.startIndex..., in: s), withTemplate: "")
+        return out == s ? s : out.trimmingCharacters(in: .newlines)
+    }
+
+    static let pasteTag = try! NSRegularExpression(pattern: #"(?m)^</?pasted_content(?: [^>\n]*)?>(?:\n|$)"#)
 
     static func textBlocks(_ e: Entry) -> [String] {
         guard e.type == "assistant", let blocks = e.message?["content"] as? [[String: Any]] else { return [] }

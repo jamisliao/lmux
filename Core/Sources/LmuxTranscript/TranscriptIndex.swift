@@ -236,12 +236,7 @@ public final class TranscriptIndex: @unchecked Sendable {
         return text.hasPrefix("[Request interrupted by user")
     }
 
-    static func promptText(_ message: [String: Any]?) -> String {
-        let content = message?["content"]
-        if let s = content as? String { return s }
-        let blocks = content as? [[String: Any]] ?? []
-        return blocks.map { b in (b["text"] as? String) ?? "[\(b["type"] as? String ?? "?")]" }.joined(separator: "\n")
-    }
+    static func promptText(_ message: [String: Any]?) -> String { Transcript.promptText(message: message) }
 
     // MARK: - Turns (same rules as `Transcript.turns()`)
 
