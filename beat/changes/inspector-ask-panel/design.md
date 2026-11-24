@@ -61,7 +61,7 @@ stateDiagram-v2
     1. 若請求攜帶有效 `LMUX_PANE_NONCE`（`pane(token:)` 解析為 `P`）：未帶 `--pane` 時目標即 `P`；若指定 `--pane Q` 且 `Q != P`，必須開啟 `allowCrossPaneSend`，否則拒絕。
     2. 若無有效 pane token：必須開啟 `allowExternalSend`（`apptest` 已支援 `LMUX_ALLOW_EXTERNAL_SEND=1`），且若 `callerPane(token: nil, peerPID:)` 指向另一個 pane 仍拒絕跨區偽造；目標預設為 `--pane` 或目前選取 workspace 的 focused terminal pane。
     3. 目標必須是 **終端機 tab**（`target.surface != nil`），拒絕 **預覽 tab**。
-  - **`ask-wait`**：必須通過與建立時相同的授權檢查（若該工作階段由 pane 建立，呼叫端必須持有該 `ownerPaneID` 的有效 token 或開啟 `allowCrossPaneSend`；若由外部建立則需 `allowExternalSend`），防止本機其他程序透過 `ps` 看到 `--wait <sessionId>` 搶領或偷讀使用者的回答。若同一 `sessionId` 已有舊 waiter 掛著，先安全通知／關閉舊 waiter 再掛上新連線，絕不洩漏 `ControlServer.waiting` fd。
+  - **`ask-wait`**：必須通過與建立時相同的授權檢查（若該工作階段由 pane 建立，呼叫端必須持有有效 pane token，且為該 `ownerPaneID` 本身或開啟 `allowCrossPaneSend`；外部呼叫端永遠不可領取 pane 建立的工作階段；若由外部建立則需 `allowExternalSend`），防止本機其他程序透過 `ps` 看到 `--wait <sessionId>` 搶領或偷讀使用者的回答。若同一 `sessionId` 已有舊 waiter 掛著，先安全通知／關閉舊 waiter 再掛上新連線，絕不洩漏 `ControlServer.waiting` fd。
 - **同 pane FIFO 佇列與短期結果快取**：
   - `AskSessionStore` 依 `paneID` 維護陣列（FIFO），預設顯示該 tab 第一筆 `pending` 工作階段（多筆時於頁首顯示 `1 / N` 指示），不靜默覆蓋草稿。
   - 若使用者在呼叫端逾時斷線後、執行 `--wait` 前按了送出或取消，結果在記憶體保留最多 10 分鐘（上限 32 筆），讓隨後的授權 `ask-wait` 立即領回並清除。
@@ -72,7 +72,7 @@ stateDiagram-v2
 
 1. **階段一（同步建立）**：`lmux ask --spec` 先送出 `{"cmd": "ask-create", "spec": <object>, "lenient": <bool>, "pane": ..., "token": ...}`，由 `handleControl` 同步驗權、正規化 spec、建立 `pending` 工作階段並觸發背景上下文與引用載入，立即回傳單行 `{"ok": true, "sessionId": "<id>"}` 並關閉連線。
 2. **階段二（長連線等待）**：`lmux ask --spec` 隨即以該 `<id>` 發起第二條連線 `{"cmd": "ask-wait", "sessionId": "<id>", "token": ...}`（與 `lmux ask --wait <id>` 共用完全相同的函式！），走 `ControlServer` 長連線 `waiting` 通道：
-   - Client 端以 `poll()` 計時 `--timeout`（預設 `540` 秒，範圍 `1...3600`）；逾時未收到回覆時，直接關閉 fd 並於 stdout 印出 `{"status":"pending","sessionId":"<id>","resume":"lmux ask --wait <id>"}`（exit `0`）。Server 端 `readWaiting` 偵測到 EOF 時僅解除該 `sessionId` 的 reply closure，**保留** `pending` 工作階段。
+   - Client 端以 `poll()` 計時 `--timeout`（預設 `540` 秒，有效範圍 `> 0` 至 `3600` 秒，拒絕 `NaN`/`Inf`/負數或超限）；逾時未收到回覆時，直接關閉 fd 並於 stdout 印出 `{"status":"pending","sessionId":"<id>","resume":"lmux ask --wait <id>"}`（exit `0`）。Server 端 `readWaiting` 偵測到 EOF 時僅解除該 `sessionId` 的 reply closure，**保留** `pending` 工作階段。
    - App 結束時 `ControlServer.stop()` 寫出既有的 `{"ok":true,"gone":true}\n`，CLI 將 `gone == true` 轉印為 `{"status":"lost","sessionId":"<id>","note":"lmux 已結束或來源分頁已關閉。"}`（exit `0`）。
 3. **修復 `lmux-cli` 大型請求截斷**：將 `connectAndSend` 中的單次 `write()` 改為完整迴圈寫入（處理 `EINTR`，寫入失敗則報錯離開），確保超過 macOS Unix domain socket 預設 8KB 緩衝區的 spec JSON 不被截斷（上限仍受 `ControlServer.maxRequestBytes = 1 MB` 保護）。
 
