@@ -145,7 +145,7 @@ stateDiagram-v2
 |---|---|
 | `Core/Sources/LmuxTranscript/TranscriptContextExtractor.swift`、`TranscriptIndex.swift`、`CodexRollout.swift` | 產出純值型別 `TranscriptContextSummary`（任務起點、近期輪次摘要、異動檔案）；過濾 Claude `<synthetic>` 摘要並補齊 Codex 異動檔案抽取。 |
 | `App/Sources/LmuxUI/AskSpec.swift`、`AskSessionStore.swift`、`AskContextBuilder.swift` | 實作對齊 `ask-me` 的 Spec 正規化／防偷懶檢核、128-bit `sessionId`、per-pane FIFO 佇列、10 分鐘答案快取，以及結合 `TranscriptCache`＋`ToolCallStream`＋per-cwd Git 的上下文組裝。 |
-| `App/Sources/LmuxUI/AskRefLoader.swift`、`GitDiffService.swift`、`PreviewTarget.swift` | 複用 `O_NOFOLLOW` 邊界檢查與 `filterOverrideEnv` 安全讀取 `refs` 與 `gitDiff`（含 unborn HEAD 與未追蹤檔支援），擴充常見無副檔名純文字預覽白名單。 |
+| `App/Sources/LmuxUI/AskRefLoader.swift`、`GitDiffService.swift` | 複用 `O_NOFOLLOW` 邊界檢查與 `filterOverrideEnv` 安全讀取 `refs` 與 `gitDiff`（含 unborn HEAD 與未追蹤檔支援），並維持既有 `PreviewTarget.kind` 預覽規則。 |
 | `App/Sources/LmuxUI/AskMarkdownParser.swift`、`InspectorAskView.swift` | 分塊解析 Markdown／紅綠 Diff／Code（行內 `.inlineOnlyPreservingWhitespace`＋安全連結攔截），實作 Liquid Glass **待確認面板**（**Session 上下文補充**、題目卡、引用卡、Mermaid 複製卡、全題必答檢核）。 |
 | `App/Sources/LmuxUI/ControlServer.swift`、`Controller.swift`、`Model.swift`、`Menu.swift`、`SidebarSelection.swift`、`RightInspectorView.swift`、`RootView.swift`、`Persistence.swift` | 實作 `ask-create`／`ask-wait` 與 `LMUX_PANE_NONCE` 驗權、`hasPendingAsk` 優先序與 `lmux wait` 連動、`syncInspectorForFocusedPane()`、緊湊頁籤與窄視窗夾緊、`NSText` 編輯快捷鍵（`⌘Z`/`⇧⌘Z`/`⌘X`）及 `⌘↩` 防穿透攔截。 |
 | `App/Sources/lmux-cli/main.swift`、`skills/lmux/SKILL.md` | 修復 `connectAndSend` 迴圈寫入，實作 `lmux ask --spec <path|-> [--lenient]` 與 `lmux ask --wait <id>`，更新內建 skill 文件。 |

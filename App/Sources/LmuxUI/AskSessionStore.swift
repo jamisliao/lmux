@@ -258,7 +258,10 @@ public final class AskSessionStore {
 
     public static func randomSessionID() -> String {
         var bytes = [UInt8](repeating: 0, count: 16)
-        _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        if SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) != errSecSuccess {
+            var rng = SystemRandomNumberGenerator()
+            for i in bytes.indices { bytes[i] = UInt8.random(in: 0...255, using: &rng) }
+        }
         return bytes.map { String(format: "%02x", $0) }.joined()
     }
 
