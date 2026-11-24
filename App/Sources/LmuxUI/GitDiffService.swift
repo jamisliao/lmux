@@ -170,6 +170,32 @@ public final class GitDiffService {
         }
     }
 
+    /// Stateless hardened `git config` scan discovering filter override env vars (`nonisolated static`).
+    nonisolated static func buildFilterOverrideEnv(
+        in cwd: String,
+        gitPath: String = "/usr/bin/git"
+    ) async -> [String: String]? {
+        let res = await runGitHardened(
+            ["config", "--includes", "--name-only", "-z", "--list"],
+            env: ["LC_ALL": "C"],
+            cwd: cwd,
+            gitPath: gitPath,
+            maxBytes: 2 * 1024 * 1024
+        )
+        guard !res.truncated, res.status == 0 else { return nil }
+        return buildFilterOverrideEnv(from: res.stdoutData)
+    }
+
+    /// Stateless hardened empty tree hash lookup (`nonisolated static`) usable without `@MainActor` generation state.
+    nonisolated static func emptyTreeHash(
+        in cwd: String,
+        gitPath: String = "/usr/bin/git"
+    ) async -> String? {
+        let res = await runGitHardened(["hash-object", "-t", "tree", "/dev/null"], cwd: cwd, gitPath: gitPath)
+        let h = res.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (res.status == 0 && !h.isEmpty) ? h : nil
+    }
+
     /// Discovers all configured `filter.*.(clean|process|smudge|required)` keys across every scope
     /// (including `.git/config`, `[include]`/`[includeIf]`, `.git/config.worktree`, global, and system)
     /// and returns `GIT_CONFIG_COUNT` env overrides that neutralize them without `-c` first-`=` splitting.
@@ -407,6 +433,7 @@ public final class GitDiffService {
             return ([], 0, false)
         }
         guard let data = try? fh.read(upToCount: maxUntrackedReadBytes),
+              !data.contains(0),
               let content = String(data: data, encoding: .utf8),
               !content.isEmpty else {
             return ([], 0, false)
@@ -456,9 +483,49 @@ public final class GitDiffService {
         maxBytes: Int = 256 * 1024,
         timeout: TimeInterval = 3.0
     ) async -> (status: Int32, stdout: String, stdoutData: Data, truncated: Bool) {
-        let gitPath = self.gitPath
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global().async { [weak self] in
+        await Self.runGitHardened(
+            args,
+            env: env,
+            cwd: cwd,
+            gitPath: gitPath,
+            maxBytes: maxBytes,
+            timeout: timeout,
+            onProcessLaunch: { [weak self] p in
+                DispatchQueue.main.async {
+                    guard let self else {
+                        if p.isRunning { p.terminate() }
+                        return
+                    }
+                    if self.currentGeneration == gen {
+                        self.activeProcess = p
+                    } else if p.isRunning {
+                        p.terminate()
+                    }
+                }
+                return true
+            },
+            onProcessExit: { [weak self] p in
+                DispatchQueue.main.async {
+                    if self?.activeProcess === p {
+                        self?.activeProcess = nil
+                    }
+                }
+            }
+        )
+    }
+
+    nonisolated static func runGitHardened(
+        _ args: [String],
+        env: [String: String] = [:],
+        cwd: String,
+        gitPath: String = "/usr/bin/git",
+        maxBytes: Int = 256 * 1024,
+        timeout: TimeInterval = 3.0,
+        onProcessLaunch: (@Sendable (Process) -> Bool)? = nil,
+        onProcessExit: (@Sendable (Process) -> Void)? = nil
+    ) async -> (status: Int32, stdout: String, stdoutData: Data, truncated: Bool) {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
                 let p = Process()
                 p.executableURL = URL(fileURLWithPath: gitPath)
                 // Neutralize untrusted .git/config hooks, pagers, attributes, path quoting, submodules, ssh/credentials, and remote protocols.
@@ -519,16 +586,8 @@ public final class GitDiffService {
                 }
 
                 // Register only after p.run() succeeds so Process.terminate() is never called on an unlaunched task.
-                DispatchQueue.main.async {
-                    guard let self else {
-                        if p.isRunning { p.terminate() }
-                        return
-                    }
-                    if self.currentGeneration == gen {
-                        self.activeProcess = p
-                    } else if p.isRunning {
-                        p.terminate()
-                    }
+                if let onProcessLaunch, !onProcessLaunch(p), p.isRunning {
+                    p.terminate()
                 }
 
                 // Close parent copy of write end so reading hits EOF cleanly when git exits.
@@ -552,11 +611,7 @@ public final class GitDiffService {
                 p.waitUntilExit()
                 timer.cancel()
 
-                DispatchQueue.main.async {
-                    if self?.activeProcess === p {
-                        self?.activeProcess = nil
-                    }
-                }
+                onProcessExit?(p)
 
                 let str = String(decoding: outData, as: UTF8.self)
                 continuation.resume(returning: (p.terminationStatus, str, outData, truncated))

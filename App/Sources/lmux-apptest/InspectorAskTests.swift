@@ -11,6 +11,7 @@ func runInspectorAsk() async -> Int32 {
 
     await runAskSpecTests(r)
     await runAskSessionStoreTests(r)
+    await runAskRefLoaderTests(r)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -295,4 +296,116 @@ private func runAskSessionStoreTests(_ r: Report) async {
     r.check("AskSessionStore caps global pending at 64",
             store.totalPendingCount == AskSessionStore.maxPendingGlobal)
     store.markAllLost()
+}
+
+// @scenario: 本機檔案與 Git 引用越界、指向危險／二進位檔案或新倉庫未追蹤檔時安全處理
+@MainActor
+private func runAskRefLoaderTests(_ r: Report) async {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appendingPathComponent("ask-refs-\(UUID().uuidString)")
+    let repoDir = root.appendingPathComponent("repo")
+    let srcDir = repoDir.appendingPathComponent("src")
+    let outsideDir = root.appendingPathComponent("outside")
+    try? fm.createDirectory(at: srcDir, withIntermediateDirectories: true)
+    try? fm.createDirectory(at: outsideDir, withIntermediateDirectories: true)
+    defer { try? fm.removeItem(at: root) }
+
+    // 1. Valid file ref with range, >120 line truncation, and colon filename
+    try? "line1\nline2\nline3\nline4\nline5\n".write(
+        to: srcDir.appendingPathComponent("App.swift"), atomically: true, encoding: .utf8
+    )
+    let rangeRes = AskRefLoader.loadFileRef("src/App.swift:2-4", baseDir: repoDir.path, repoRoot: repoDir.path)
+    r.check("AskRefLoader loads valid line range 2-4",
+            rangeRes.errorMessage == nil && rangeRes.lines == ["line2", "line3", "line4"] && !rangeRes.truncated)
+
+    let manyLines = (1...150).map { "row \($0)" }.joined(separator: "\n")
+    try? manyLines.write(to: srcDir.appendingPathComponent("Long.swift"), atomically: true, encoding: .utf8)
+    let longRes = AskRefLoader.loadFileRef("src/Long.swift:1-140", baseDir: repoDir.path, repoRoot: repoDir.path)
+    r.check("AskRefLoader caps output at 120 lines and marks truncated",
+            longRes.errorMessage == nil && longRes.lines.count == 120 && longRes.truncated)
+
+    try? "colon-a\ncolon-b\n".write(
+        to: srcDir.appendingPathComponent("a:b.swift"), atomically: true, encoding: .utf8
+    )
+    let colonRes = AskRefLoader.loadFileRef("src/a:b.swift:2-2", baseDir: repoDir.path, repoRoot: repoDir.path)
+    r.check("AskRefLoader handles colon in filename with trailing line range",
+            colonRes.errorMessage == nil && colonRes.lines == ["colon-b"])
+
+    // 2. Security boundary rejections
+    let secretURL = outsideDir.appendingPathComponent("secret.txt")
+    try? "TOP_SECRET".write(to: secretURL, atomically: true, encoding: .utf8)
+    let symlinkURL = repoDir.appendingPathComponent("escape.txt")
+    try? fm.createSymbolicLink(at: symlinkURL, withDestinationURL: secretURL)
+
+    r.check("AskRefLoader rejects ../ traversal",
+            AskRefLoader.loadFileRef("../outside/secret.txt", baseDir: repoDir.path, repoRoot: repoDir.path).errorMessage != nil)
+    r.check("AskRefLoader rejects symlink escaping repo",
+            AskRefLoader.loadFileRef("escape.txt", baseDir: repoDir.path, repoRoot: repoDir.path).errorMessage != nil)
+    r.check("AskRefLoader rejects directory (S_IFDIR)",
+            AskRefLoader.loadFileRef("src", baseDir: repoDir.path, repoRoot: repoDir.path).errorMessage != nil)
+
+    let fifoPath = repoDir.appendingPathComponent("pipe.fifo").path
+    if mkfifo(fifoPath, 0o600) == 0 {
+        r.check("AskRefLoader rejects FIFO non-regular file without blocking",
+                AskRefLoader.loadFileRef("pipe.fifo", baseDir: repoDir.path, repoRoot: repoDir.path).errorMessage != nil)
+    }
+
+    let bigData = Data(repeating: 0x41, count: 513 * 1024)
+    try? bigData.write(to: repoDir.appendingPathComponent("huge.txt"))
+    r.check("AskRefLoader rejects >512 KB file",
+            AskRefLoader.loadFileRef("huge.txt", baseDir: repoDir.path, repoRoot: repoDir.path).errorMessage != nil)
+
+    var nulUTF8 = Data("hello".utf8)
+    nulUTF8.append(0x00)
+    nulUTF8.append(contentsOf: "world".utf8)
+    try? nulUTF8.write(to: repoDir.appendingPathComponent("bin.dat"))
+    r.check("AskRefLoader rejects UTF-8 data containing NUL byte",
+            AskRefLoader.loadFileRef("bin.dat", baseDir: repoDir.path, repoRoot: repoDir.path).errorMessage != nil)
+
+    r.check("AskRefLoader rejects file:// scheme and nil baseDir",
+            AskRefLoader.loadFileRef("file:///etc/passwd", baseDir: repoDir.path, repoRoot: repoDir.path).errorMessage != nil
+            && AskRefLoader.loadFileRef("src/App.swift", baseDir: nil, repoRoot: nil).errorMessage != nil)
+
+    // 3. Git diff hardening, filter isolation, and unborn HEAD untracked file
+    let gitRepo = root.appendingPathComponent("gitrepo")
+    try? fm.createDirectory(at: gitRepo, withIntermediateDirectories: true)
+    func runCmd(_ args: [String], cwd: URL) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        p.arguments = args
+        p.currentDirectoryURL = cwd
+        try? p.run()
+        p.waitUntilExit()
+    }
+    runCmd(["init"], cwd: gitRepo)
+    let filterSentinel = root.appendingPathComponent("filter-executed")
+    runCmd(["config", "filter.evil.clean", "touch \(filterSentinel.path)"], cwd: gitRepo)
+    try? "*.swift filter=evil\n".write(to: gitRepo.appendingPathComponent(".gitattributes"), atomically: true, encoding: .utf8)
+    try? "let x = 1\nlet y = 2\n".write(to: gitRepo.appendingPathComponent("NewFile.swift"), atomically: true, encoding: .utf8)
+    try? nulUTF8.write(to: gitRepo.appendingPathComponent("BinaryNew.bin"))
+
+    let flagRes = await AskRefLoader.loadGitDiff("--output=/tmp/pwned", cwd: gitRepo.path)
+    let travRes = await AskRefLoader.loadGitDiff("../outside/secret.txt", cwd: gitRepo.path)
+    let absRes = await AskRefLoader.loadGitDiff("/etc/passwd", cwd: gitRepo.path)
+    let ctrlRes = await AskRefLoader.loadGitDiff("New\u{202E}File.swift", cwd: gitRepo.path)
+    r.check("AskRefLoader.loadGitDiff rejects flag injection, traversal, absolute path, and unsafe scalars",
+            flagRes.errorMessage != nil && travRes.errorMessage != nil && absRes.errorMessage != nil && ctrlRes.errorMessage != nil)
+
+    let untrackedRes = await AskRefLoader.loadGitDiff("NewFile.swift", cwd: gitRepo.path)
+    r.check("AskRefLoader.loadGitDiff reads untracked plaintext file in unborn HEAD repo without executing git filters",
+            untrackedRes.errorMessage == nil
+            && !untrackedRes.lines.isEmpty
+            && untrackedRes.lines.first?.kind == .added
+            && !fm.fileExists(atPath: filterSentinel.path))
+
+    let nulDiffRes = await AskRefLoader.loadGitDiff("BinaryNew.bin", cwd: gitRepo.path)
+    r.check("GitDiffService.readUntrackedLines & AskRefLoader reject untracked NUL binary file",
+            nulDiffRes.errorMessage != nil && nulDiffRes.lines.isEmpty)
+
+    // 4. PreviewTarget whitelist includes extensionless & config text files
+    r.check("PreviewTarget accepts Makefile, Dockerfile, .feature, and .toml",
+            PreviewTarget.kind(URL(fileURLWithPath: "/tmp/Makefile")) == .text
+            && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/Dockerfile")) == .text
+            && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/spec.feature")) == .text
+            && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/Cargo.toml")) == .text)
 }

@@ -93,6 +93,7 @@
     而且 在自由輸入欄編輯文字時執行復原操作應復原輸入文字，不應誤觸終端機對話回溯
 
   @behavior @error-handling
+  # @covered-by: App/Sources/lmux-apptest/InspectorAskTests.swift
   場景: 本機檔案與 Git 引用越界、指向危險／二進位檔案或新倉庫未追蹤檔時安全處理
     假設 提問規格中的本機引用包含上層目錄遍歷、指向工作區外的符號連結、特殊裝置檔、二進位檔，或位於無初始提交倉庫的新增未追蹤檔
     當 系統解析該題的本機檔案引用與 Git Diff 引用
