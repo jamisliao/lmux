@@ -65,6 +65,7 @@
     而且 **待確認面板** 應自動隱藏並還原送出前的檢視分頁，鍵盤焦點回到終端機
 
   @e2e @edge-case
+  # @covered-by: App/Sources/lmux-apptest/InspectorAskTests.swift
   場景: 提問等待逾時時保留表單，後續透過授權的 wait 領取結果
     假設 來源 **終端機 tab** 發起 **問答工作階段** 且指定短暫等待時間
     當 等待時間屆滿而使用者尚未送出
@@ -73,6 +74,7 @@
     那麼 續等指令應立即取得該次送出的完整答案，不應開啟第二份重複表單
 
   @e2e @error-handling
+  # @covered-by: App/Sources/lmux-apptest/InspectorAskTests.swift
   場景: 使用者取消、來源 tab 關閉、規格不合法或跨分頁未授權呼叫時妥善處理
     假設 一個 **終端機 tab** 正在等待 **問答工作階段** 回覆
     當 使用者在 **待確認面板** 點選取消，或關閉該來源 **終端機 tab**

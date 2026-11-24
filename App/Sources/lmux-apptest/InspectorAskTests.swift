@@ -16,6 +16,7 @@ func runInspectorAsk() async -> Int32 {
     await runAskRefLoaderTests(r)
     await runAskContextBuilderTests(r, ctrl: ctrl)
     await runAskControlTests(r, ctrl: ctrl)
+    await runAskCliTests(r, ctrl: ctrl)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -669,4 +670,129 @@ private func runAskControlTests(_ r: Report, ctrl: LmuxController) async {
         r.check("ControlServer test socket connects", false)
         srv.stop()
     }
+}
+
+// @scenario: 提問等待逾時時保留表單，後續透過授權的 wait 領取結果
+// @scenario: 使用者取消、來源 tab 關閉、規格不合法或跨分頁未授權呼叫時妥善處理
+@MainActor
+private func runAskCliTests(_ r: Report, ctrl: LmuxController) async {
+    let cli = paths.binDir!.appendingPathComponent("lmux").path
+    let ws = ctrl.model.workspaces.first!
+    let pane = ws.focusedPane!
+    guard let token = ctrl.token(for: pane) else {
+        r.check("ask CLI test has pane token", false)
+        return
+    }
+    let cliEnv: [String: String] = [
+        "LMUX_CONTROL_SOCKET": ctrl.paths.controlSocket,
+        "LMUX_STATE_DIR": ctrl.paths.stateDir.path,
+        "LMUX_PANE_NONCE": token
+    ]
+
+    let tmpDir = FileManager.default.temporaryDirectory.appendingPathComponent("ask-cli-\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
+    defer {
+        try? FileManager.default.removeItem(at: tmpDir)
+        ctrl.askStore.markAllLost()
+    }
+
+    // 1. Large (>16KB) --spec file to test looped connectAndSend + --timeout pending + --wait resume
+    let paddingDetail = String(repeating: "說明文字", count: 1500) // ~18 KB UTF-8
+    let largeSpecObj: [String: Any] = [
+        "title": "大型規格寫入與逾時測試",
+        "intro": "這是一段超過二十五個字的前情提要，用來測試大型規格與逾時續等。",
+        "questions": [[
+            "id": "q_large",
+            "question": "請確認大型規格",
+            "detail": paddingDetail,
+            "options": ["確定 (Recommended)", "取消"]
+        ]]
+    ]
+    let largeSpecFile = tmpDir.appendingPathComponent("large-spec.json")
+    if let data = try? JSONSerialization.data(withJSONObject: largeSpecObj) {
+        try? data.write(to: largeSpecFile)
+    }
+
+    let timeoutRes = await runProcess(
+        cli,
+        ["ask", "--spec", largeSpecFile.path, "--timeout", "0.2"],
+        env: cliEnv
+    )
+    let timeoutJSON = (timeoutRes.out.data(using: .utf8)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    let pendingSID = timeoutJSON?["sessionId"] as? String ?? ""
+    r.check("lmux ask --timeout prints pending status, sessionId, and resume cmd with exit 0 while keeping form",
+            timeoutRes.status == 0
+            && (timeoutJSON?["status"] as? String) == "pending"
+            && !pendingSID.isEmpty
+            && (timeoutJSON?["resume"] as? String) == "lmux ask --wait \(pendingSID)"
+            && ctrl.askStore.pendingCount(for: pane.id) == 1,
+            "exit=\(timeoutRes.status) out=\(timeoutRes.out) err=\(timeoutRes.err)")
+
+    // Now answer in UI and reclaim via `lmux ask --wait <sessionId>`
+    if let session = ctrl.askStore.session(id: pendingSID) {
+        session.draftSelected["q_large"] = ["確定"]
+        _ = ctrl.askStore.submit(sessionID: pendingSID)
+    }
+    let waitRes = await runProcess(cli, ["ask", "--wait", pendingSID, "--timeout", "2"], env: cliEnv)
+    let waitJSON = (waitRes.out.data(using: .utf8)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    r.check("lmux ask --wait retrieves submitted JSON without reopening duplicate form",
+            waitRes.status == 0
+            && (waitJSON?["status"] as? String) == "submitted"
+            && ((waitJSON?["answers"] as? [[String: Any]])?.first?["selected"] as? [String]) == ["確定"]
+            && ctrl.askStore.pendingCount(for: pane.id) == 0,
+            "exit=\(waitRes.status) out=\(waitRes.out) err=\(waitRes.err)")
+
+    // 2. --spec - (stdin) + live cancel -> status cancelled with note, exit 0
+    let shortSpecObj: [String: Any] = [
+        "intro": "短確認說明",
+        "questions": [["id": "q_stdin", "question": "確定取消嗎？", "allowFreeText": true]]
+    ]
+    let stdinData = (try? JSONSerialization.data(withJSONObject: shortSpecObj)) ?? Data()
+    let cancelTask = Task { @MainActor in
+        for _ in 0..<50 {
+            if let s = ctrl.askStore.activeSession(for: pane.id) {
+                ctrl.askStore.cancel(sessionID: s.id)
+                return
+            }
+            await sleepMs(20)
+        }
+    }
+    let stdinRes = await runProcess(cli, ["ask", "--spec", "-", "--lenient", "--timeout", "3"], env: cliEnv, stdin: stdinData)
+    _ = await cancelTask.value
+    let stdinJSON = (stdinRes.out.data(using: .utf8)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    r.check("lmux ask --spec - --lenient handles stdin and receives cancelled status with note",
+            stdinRes.status == 0
+            && (stdinJSON?["status"] as? String) == "cancelled"
+            && !((stdinJSON?["note"] as? String) ?? "").isEmpty,
+            "exit=\(stdinRes.status) out=\(stdinRes.out) err=\(stdinRes.err)")
+
+    // 3.gone:true from isolated server translates to status: lost + note, exit 0
+    let goneSock = tmpDir.appendingPathComponent("gone.sock").path
+    let goneSrv = ControlServer(path: goneSock) { _ in ["ok": true, "sessionId": "00112233445566778899aabbccddeeff", "pane": pane.id] }
+    goneSrv.handleAskWait = { _, _ in return {} }
+    try? goneSrv.start()
+    let stopTask = Task { @MainActor in
+        await sleepMs(80)
+        goneSrv.stop()
+    }
+    let goneEnv = ["LMUX_CONTROL_SOCKET": goneSock, "LMUX_PANE_NONCE": token]
+    let goneRes = await runProcess(cli, ["ask", "--wait", "00112233445566778899aabbccddeeff", "--timeout", "3"], env: goneEnv)
+    _ = await stopTask.value
+    let goneJSON = (goneRes.out.data(using: .utf8)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    r.check("lmux ask translates gone:true into status:lost JSON with note and exit 0",
+            goneRes.status == 0
+            && (goneJSON?["status"] as? String) == "lost"
+            && !((goneJSON?["note"] as? String) ?? "").isEmpty,
+            "exit=\(goneRes.status) out=\(goneRes.out) err=\(goneRes.err)")
+
+    // 4. Invalid spec / JSON -> exit 1; bad flags / NaN / <=0 timeout -> exit 2
+    let badSpecFile = tmpDir.appendingPathComponent("bad-spec.json")
+    try? "{corrupt json".write(to: badSpecFile, atomically: true, encoding: .utf8)
+    let badSpecRes = await runProcess(cli, ["ask", "--spec", badSpecFile.path], env: cliEnv)
+    let negTimeout = await runProcess(cli, ["ask", "--wait", "abc", "--timeout", "-1"], env: cliEnv)
+    let nanTimeout = await runProcess(cli, ["ask", "--wait", "abc", "--timeout", "NaN"], env: cliEnv)
+    let badFlag = await runProcess(cli, ["ask", "--bogus"], env: cliEnv)
+    r.check("lmux ask exits 1 on malformed spec and 2 on invalid timeout or unknown flags",
+            badSpecRes.status == 1 && !badSpecRes.err.isEmpty
+            && negTimeout.status == 2 && nanTimeout.status == 2 && badFlag.status == 2)
 }

@@ -24,6 +24,7 @@ func usage() -> Never {
            lmux notify [--title TITLE] TEXT
            lmux list [--json]
            lmux wait PANE|WORKSPACE [--until idle|done|needs-you|any] [--timeout SECS] [--json]
+           lmux ask (--spec PATH|- | --wait ID) [--timeout SECS] [--pane ID] [--lenient]
 
     """.utf8))
     exit(2)
@@ -113,7 +114,23 @@ func connectAndSend(_ obj: [String: Any]) -> Int32 {
     setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
     var line = (try? JSONSerialization.data(withJSONObject: obj)) ?? Data()
     line.append(0x0A)
-    _ = line.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
+    var sent = 0
+    let ok = line.withUnsafeBytes { (buf: UnsafeRawBufferPointer) -> Bool in
+        guard let base = buf.baseAddress else { return false }
+        while sent < line.count {
+            let n = write(fd, base + sent, line.count - sent)
+            if n > 0 { sent += n; continue }
+            if n < 0, errno == EINTR { continue }
+            if n < 0, errno == EAGAIN {
+                var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
+                _ = poll(&pfd, 1, 2000)
+                continue
+            }
+            return false
+        }
+        return true
+    }
+    if !ok { fail("failed writing request to lmux") }
     return fd
 }
 
@@ -190,6 +207,123 @@ func wait(_ args: ArraySlice<String>) -> Never {
     exit(0)
 }
 
+func currentPaneToken() -> String? {
+    [env["LMUX_PANE_NONCE"], env["LMUX_PANE_TOKEN"]].compactMap { $0 }.first(where: { !$0.isEmpty })
+}
+
+func printJSON(_ obj: [String: Any]) {
+    let data = (try? JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys])) ?? Data("{}".utf8)
+    print(String(decoding: data, as: UTF8.self))
+}
+
+func readBoundedSpecData(_ path: String, maxBytes: Int = 1 << 20) -> Data {
+    if path == "-" {
+        var data = Data()
+        while true {
+            let chunk = FileHandle.standardInput.availableData
+            if chunk.isEmpty { break }
+            data.append(chunk)
+            if data.count > maxBytes { fail("spec input exceeds \(maxBytes) bytes") }
+        }
+        return data
+    }
+    let fd = Darwin.open(path, O_RDONLY | O_NONBLOCK)
+    guard fd >= 0 else { fail("cannot open spec file: \(path)") }
+    defer { Darwin.close(fd) }
+    var st = stat()
+    guard fstat(fd, &st) == 0, (st.st_mode & S_IFMT) == S_IFREG else {
+        fail("spec path is not a regular file: \(path)")
+    }
+    guard st.st_size <= off_t(maxBytes) else {
+        fail("spec file exceeds \(maxBytes) bytes")
+    }
+    let fh = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
+    guard let data = try? fh.read(upToCount: maxBytes + 1), data.count <= maxBytes else {
+        fail("spec file exceeds \(maxBytes) bytes")
+    }
+    return data
+}
+
+func ask(_ args: ArraySlice<String>) -> Never {
+    failStatus = 2
+    let (o, rest) = parse(args, options: ["--spec", "--wait", "--timeout", "--pane"])
+    guard rest.allSatisfy({ $0 == "--lenient" }) else { usage() }
+    let lenient = rest.contains("--lenient")
+
+    var timeout: Double?
+    if let rawTimeout = o["--timeout"] {
+        guard let v = Double(rawTimeout), v.isFinite, v > 0, v <= 3600 else {
+            fail("--timeout must be finite and between 0 and 3600 seconds")
+        }
+        timeout = v
+    }
+
+    let specPath = o["--spec"]
+    let waitSID = o["--wait"]
+    guard (specPath == nil) != (waitSID == nil) else { usage() }
+
+    failStatus = 1
+    let token = currentPaneToken()
+    let sessionID: String
+
+    if let specPath {
+        guard !specPath.isEmpty else { fail("--spec path cannot be empty") }
+        let rawData = readBoundedSpecData(specPath)
+        guard let specObj = (try? JSONSerialization.jsonObject(with: rawData)) as? [String: Any] else {
+            fail("spec is not a valid JSON object")
+        }
+        var createReq: [String: Any] = ["cmd": "ask-create", "spec": specObj]
+        if lenient { createReq["lenient"] = true }
+        if let pane = o["--pane"], !pane.isEmpty { createReq["pane"] = pane }
+        if let token { createReq["token"] = token }
+
+        let created = request(createReq)
+        guard created["ok"] as? Bool == true, let sid = created["sessionId"] as? String, !sid.isEmpty else {
+            fail(created["error"] as? String ?? "ask-create failed")
+        }
+        sessionID = sid
+    } else if let waitSID, !waitSID.isEmpty {
+        sessionID = waitSID
+    } else {
+        failStatus = 2
+        usage()
+    }
+
+    var waitReq: [String: Any] = ["cmd": "ask-wait", "sessionId": sessionID]
+    if let token { waitReq["token"] = token }
+
+    let fd = connectAndSend(waitReq)
+    guard let r = readResponse(fd, timeout: timeout) else {
+        close(fd)
+        printJSON([
+            "status": "pending",
+            "sessionId": sessionID,
+            "resume": "lmux ask --wait \(sessionID)"
+        ])
+        exit(0)
+    }
+    close(fd)
+    guard !r.isEmpty else { fail("no response from lmux") }
+    if r["gone"] as? Bool == true {
+        printJSON([
+            "status": "lost",
+            "sessionId": sessionID,
+            "note": "lmux terminated before the ask session finished"
+        ])
+        exit(0)
+    }
+    guard r["ok"] as? Bool == true else { fail(r["error"] as? String ?? "ask-wait failed") }
+
+    var out: [String: Any] = [
+        "status": r["status"] as? String ?? "unknown",
+        "sessionId": sessionID
+    ]
+    if let answers = r["answers"] { out["answers"] = answers }
+    if let note = r["note"] { out["note"] = note }
+    printJSON(out)
+    exit(0)
+}
+
 // Titles, cwds and replies come from programs in the panes: no control characters reach this terminal.
 // Fast check (a pane's cwd can be megabytes): strcspn for C0, DEL and 0xC2 (C1 is 0xC2 0x80-0x9F).
 let rejectAll: [CChar] = ((1...0x1F).map { $0 } + [0x7F, 0xC2]).map { CChar(bitPattern: UInt8($0)) } + [0]
@@ -236,6 +370,8 @@ case "list":
     req = ["cmd": "list"]
 case "wait":
     wait(args.dropFirst())
+case "ask":
+    ask(args.dropFirst())
 case "-h", "--help", "help":
     usage()
 default:

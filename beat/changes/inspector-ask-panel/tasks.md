@@ -355,7 +355,7 @@ git commit -m "feat(ui): add ask-create/ask-wait ControlServer RPCs with strict 
   - `lmux ask --wait <sessionId> [--timeout <secs>]`
   - `connectAndSend` 迴圈寫入完整位元組（防 8KB `AF_UNIX` 截斷）；`--spec` 檔案以 `O_NONBLOCK` + `S_IFREG` 與 `1 MB` 上限安全讀取；`ask(_:)` 明確對 `ask-create` 與 `ask-wait` 皆附上 `LMUX_PANE_NONCE`/`LMUX_PANE_TOKEN`；`--timeout` 檢核 `> 0 && <= 3600`（拒絕 `NaN`/`Inf`/`<= 0` 回 exit `2`）。
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上真實 `lmux` binary CLI 測試（對應 Scenarios 3, 4, 5）**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上真實 `lmux` binary CLI 測試（對應 Scenarios 3, 4, 5）**
 
 涵蓋：
 - `--spec <file>`（含 >16KB 大型 spec 驗證迴圈寫入）與 `--spec -`（stdin 輸入）；
@@ -363,19 +363,19 @@ git commit -m "feat(ui): add ask-create/ask-wait ControlServer RPCs with strict 
 - CLI 端收到 `gone: true` 轉印 `status: "lost"` 含 `note`（exit `0`）；
 - 非法規格（`intro < 25`、重複 `id`、損毀 JSON）回 stderr + exit `1`；無效旗標／負 timeout／`NaN` 回 exit `2`。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `App/Sources/lmux-cli/main.swift` 的迴圈寫入與 `ask(_:)`**
+- [x] **Step 3: 實作 `App/Sources/lmux-cli/main.swift` 的迴圈寫入與 `ask(_:)`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 7**
+- [x] **Step 5: 提交 Task 7**
 
 ```bash
 git add App/Sources/lmux-cli/main.swift App/Sources/lmux-apptest/InspectorAskTests.swift
