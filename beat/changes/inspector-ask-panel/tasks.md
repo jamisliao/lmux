@@ -191,23 +191,23 @@ git commit -m "feat(ui): add AskSpec parser with ask-me parity and register --in
     - `submit(sessionID:) -> Bool`、`cancel(sessionID:)`、`markPaneClosed(_ paneID:)`、`markAllLost()`
     - `activeSession(for paneID:) -> AskSession?`、`pendingCount(for paneID:) -> Int`、`session(id:) -> AskSession?`
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上 `AskSessionStore` 狀態機與容量上限測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上 `AskSessionStore` 狀態機與容量上限測試**
 
 涵蓋：同 pane FIFO 不覆蓋草稿；未全題作答 `submit` 回 `false` 與 `firstUnansweredQuestionID`；無 waiter 先 `submit` 後由 `attachWaiter` 自快取領回並清除；重複 `attachWaiter` 乾淨 supersede 舊 waiter；`cancel`（含 `note`）、`markPaneClosed` 與 `markAllLost()`（回 `lost` 含 `note`）；快取 10 分鐘過期（注入 `now`）與 32 筆淘汰；超過單 pane 16 筆／全域 64 筆上限 fail-closed 拒絕。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `App/Sources/LmuxUI/AskSessionStore.swift`**
+- [x] **Step 3: 實作 `App/Sources/LmuxUI/AskSessionStore.swift`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 3**
+- [x] **Step 5: 提交 Task 3**
 
 ```bash
 git add App/Sources/LmuxUI/AskSessionStore.swift App/Sources/lmux-apptest/InspectorAskTests.swift
