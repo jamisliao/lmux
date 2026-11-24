@@ -24,6 +24,8 @@ public final class ControlServer {
     private let handle: ([String: Any]) -> [String: Any]
     /// `wait`: the request and its reply, answered later; returns what to do if the client leaves first.
     var handleWait: (([String: Any], @escaping ([String: Any]) -> Void) -> () -> Void)?
+    /// `ask-wait`: waits until an ask session completes or is cancelled/lost.
+    var handleAskWait: (([String: Any], @escaping ([String: Any]) -> Void) -> () -> Void)?
     private var listenFD: Int32 = -1
     private var listenSource: DispatchSourceRead?
     private var clients: [Int32: (DispatchSourceRead, Data)] = [:]
@@ -237,7 +239,8 @@ public final class ControlServer {
                 var pid: pid_t = 0
                 var len = socklen_t(MemoryLayout<pid_t>.size)
                 obj["_peerpid"] = getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &pid, &len) == 0 ? Int(pid) : 0
-                if obj["cmd"] as? String == "wait", let handleWait {
+                if let cmd = obj["cmd"] as? String,
+                   (cmd == "wait" && handleWait != nil) || (cmd == "ask-wait" && handleAskWait != nil) {
                     clients[fd] = nil
                     guard waiting.count < maxWaiting else {
                         return Self.respond(fd, ["ok": false, "error": "too many waits"]) { src.cancel() }
@@ -245,7 +248,8 @@ public final class ControlServer {
                     // Until answered, the connection is only read for the client hanging up.
                     waiting[fd] = (src, {})
                     src.setEventHandler { [weak self] in self?.readWaiting(fd) }
-                    let cancel = handleWait(obj) { [weak self] r in self?.answerWait(fd, r) }
+                    let waitHandler = (cmd == "ask-wait") ? handleAskWait! : handleWait!
+                    let cancel = waitHandler(obj) { [weak self] r in self?.answerWait(fd, r) }
                     if waiting[fd] != nil { waiting[fd]?.cancel = cancel }
                     return
                 }
@@ -278,6 +282,9 @@ extension LmuxController {
         }
         server.handleWait = { [weak self] req, reply in
             MainActor.assumeIsolated { self?.startWait(req, reply: reply) ?? {} }
+        }
+        server.handleAskWait = { [weak self] req, reply in
+            MainActor.assumeIsolated { self?.startAskWait(req, reply: reply) ?? {} }
         }
         do {
             try server.start()
@@ -366,6 +373,8 @@ extension LmuxController {
             let from = callerPane(token: req["token"] as? String, peerPID: req["_peerpid"] as? Int)?.id ?? (req["pane"] as? String)
             notify(text: text, title: req["title"] as? String, paneID: from)
             return ["ok": true]
+        case "ask-create":
+            return handleAskCreate(req)
         default:
             return ["ok": false, "error": "unknown command"]
         }

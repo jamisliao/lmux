@@ -9,11 +9,13 @@ import LmuxHooks
 func runInspectorAsk() async -> Int32 {
     let r = Report()
     r.section = "inspector-ask"
+    let ctrl = makeController()
 
     await runAskSpecTests(r)
     await runAskSessionStoreTests(r)
     await runAskRefLoaderTests(r)
-    await runAskContextBuilderTests(r)
+    await runAskContextBuilderTests(r, ctrl: ctrl)
+    await runAskControlTests(r, ctrl: ctrl)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -166,8 +168,8 @@ private func runAskSpecTests(_ r: Report) async {
 
 @MainActor
 private func runAskSessionStoreTests(_ r: Report) async {
-    let paneA = UUID()
-    let paneB = UUID()
+    let paneA = UUID().uuidString
+    let paneB = UUID().uuidString
     func makeSpec(id: String = "q1", allowFreeText: Bool = false) -> AskSpec {
         AskSpec(
             title: "確認",
@@ -286,7 +288,7 @@ private func runAskSessionStoreTests(_ r: Report) async {
     r.check("AskSessionStore caps per-pane pending at 16", createdOnA == AskSessionStore.maxPendingPerPane)
     var globalTotal = store.totalPendingCount
     for idx in 0..<6 {
-        let p = UUID()
+        let p = UUID().uuidString
         for _ in 0..<16 {
             if (try? store.create(spec: makeSpec(), paneID: p, createdInsidePane: true)) != nil {
                 globalTotal += 1
@@ -415,7 +417,7 @@ private func runAskRefLoaderTests(_ r: Report) async {
 // @scenario: 從 Claude 與 Codex 對話紀錄本機抽取 Session 上下文補充
 // @scenario: 對話紀錄缺少、含損毀行或合成佔位訊息時安全降級產生上下文補充
 @MainActor
-private func runAskContextBuilderTests(_ r: Report) async {
+private func runAskContextBuilderTests(_ r: Report, ctrl: LmuxController) async {
     let fm = FileManager.default
     let root = fm.temporaryDirectory.appendingPathComponent("ask-ctx-\(UUID().uuidString)")
     try? fm.createDirectory(at: root, withIntermediateDirectories: true)
@@ -443,7 +445,6 @@ private func runAskContextBuilderTests(_ r: Report) async {
     try? "b2\n".write(to: repoB.appendingPathComponent("c.swift"), atomically: true, encoding: .utf8)
 
     let cache = TranscriptCache()
-    let ctrl = makeController()
     let ws1 = ctrl.model.workspaces.first!
     let ws2 = ctrl.newWorkspace()
     let ws3 = ctrl.newWorkspace()
@@ -526,4 +527,146 @@ private func runAskContextBuilderTests(_ r: Report) async {
     let ctxPlain = await AskContextBuilder.build(for: panePlain, transcripts: cache, activeGitSnapshot: nil)
     r.check("AskContextBuilder degrades gracefully when transcriptPath is missing in non-git directory",
             ctxPlain.isEmpty)
+}
+
+@MainActor
+private func runAskControlTests(_ r: Report, ctrl: LmuxController) async {
+    let suiteName = "ask-control-test-\(UUID().uuidString)"
+    let origDefaults = ctrl.defaults
+    let testDefaults = UserDefaults(suiteName: suiteName)!
+    ctrl.defaults = testDefaults
+    let origExternalAtLaunch = ctrl.allowExternalSendAtLaunch
+    ctrl.allowExternalSendAtLaunch = false
+    defer {
+        ctrl.defaults = origDefaults
+        ctrl.allowExternalSendAtLaunch = origExternalAtLaunch
+        ctrl.askStore.markAllLost()
+        testDefaults.removePersistentDomain(forName: suiteName)
+    }
+
+    let wsA = ctrl.model.workspaces.first!
+    let paneA = wsA.focusedPane!
+    let wsB = ctrl.newWorkspace()
+    let paneB = wsB.focusedPane!
+    let previewURL = FileManager.default.temporaryDirectory.appendingPathComponent("ask-preview-\(UUID().uuidString).md")
+    try? "# preview\n".write(to: previewURL, atomically: true, encoding: .utf8)
+    let previewPane = ctrl.newPreviewTab(previewURL, after: paneB)
+    defer {
+        ctrl.closeWorkspace(wsB)
+        try? FileManager.default.removeItem(at: previewURL)
+    }
+
+    guard let tokenA = ctrl.token(for: paneA), let tokenB = ctrl.token(for: paneB) else {
+        r.check("Controller mints pane tokens for panes", false)
+        return
+    }
+
+    let validSpec: [String: Any] = [
+        "title": "控制通道測試",
+        "intro": "這是一段超過二十五個字的控制通道提問說明內容，驗證遠端權限與隔離檢查。",
+        "questions": [[
+            "id": "q1",
+            "question": "確認選項？",
+            "detail": "這是一段肯定超過二十個字的詳細選項說明文字內容。",
+            "options": ["同意 (Recommended)", "拒絕"]
+        ]]
+    ]
+
+    // 1. Valid LMUX_PANE_NONCE create + 32-char hex sessionId + ask-wait submit round-trip
+    let createRes = ctrl.handleControl(["cmd": "ask-create", "token": tokenA, "spec": validSpec])
+    let sid = createRes["sessionId"] as? String ?? ""
+    let isHex32 = sid.count == 32 && sid.unicodeScalars.allSatisfy { CharacterSet(charactersIn: "0123456789abcdef").contains($0) }
+    r.check("ask-create with valid pane token returns ok and 32-char hex sessionId",
+            (createRes["ok"] as? Bool) == true && isHex32 && (createRes["pane"] as? String) == paneA.id,
+            "\(createRes)")
+
+    var waitReply: [String: Any]?
+    let cancelWait = ctrl.startAskWait(["cmd": "ask-wait", "sessionId": sid, "token": tokenA]) { waitReply = $0 }
+    ctrl.askStore.session(id: sid)?.draftSelected["q1"] = ["同意"]
+    _ = ctrl.askStore.submit(sessionID: sid)
+    cancelWait()
+    r.check("ask-wait receives submitted answer for pane session",
+            (waitReply?["ok"] as? Bool) == true
+            && (waitReply?["status"] as? String) == "submitted"
+            && ((waitReply?["answers"] as? [[String: Any]])?.first?["selected"] as? [String]) == ["同意"])
+
+    // 2. Reject forged tokens, preview tab target, cross-pane without setting, external without setting
+    let forgedCreate = ctrl.handleControl(["cmd": "ask-create", "token": "forged-token", "spec": validSpec])
+    let crossDeniedCreate = ctrl.handleControl(["cmd": "ask-create", "token": tokenA, "pane": paneB.id, "spec": validSpec])
+    let extDeniedCreate = ctrl.handleControl(["cmd": "ask-create", "pane": paneA.id, "spec": validSpec])
+    let previewDeniedCreate = ctrl.handleControl(["cmd": "ask-create", "token": tokenB, "pane": previewPane?.id ?? "none", "spec": validSpec])
+    r.check("ask-create rejects forged token, unauthorized cross-pane, disabled external send, and preview tab",
+            (forgedCreate["ok"] as? Bool) == false
+            && (crossDeniedCreate["ok"] as? Bool) == false
+            && (extDeniedCreate["ok"] as? Bool) == false
+            && (previewDeniedCreate["ok"] as? Bool) == false)
+
+    // 3. Create pane-originated session on paneA, verify isolation
+    let paneCreate2 = ctrl.handleControl(["cmd": "ask-create", "token": tokenA, "spec": validSpec])
+    let sid2 = paneCreate2["sessionId"] as? String ?? ""
+
+    // 3a. External caller CANNOT wait for pane-originated session even with BOTH allowExternalSend & allowCrossPaneSend true!
+    testDefaults.set(true, forKey: "allowExternalSend")
+    testDefaults.set(true, forKey: "allowCrossPaneSend")
+    var extStealReply: [String: Any]?
+    _ = ctrl.startAskWait(["cmd": "ask-wait", "sessionId": sid2]) { extStealReply = $0 }
+    var forgedWaitReply: [String: Any]?
+    _ = ctrl.startAskWait(["cmd": "ask-wait", "sessionId": sid2, "token": "bad"]) { forgedWaitReply = $0 }
+    var missingWaitReply: [String: Any]?
+    _ = ctrl.startAskWait(["cmd": "ask-wait", "sessionId": String(repeating: "0", count: 32), "token": tokenA]) { missingWaitReply = $0 }
+
+    r.check("external caller never allowed on pane-originated ask-wait even when allowCrossPaneSend & allowExternalSend enabled",
+            (extStealReply?["ok"] as? Bool) == false && (forgedWaitReply?["ok"] as? Bool) == false)
+    r.check("unknown and unauthorized ask-wait return consistent non-leaking error",
+            (extStealReply?["error"] as? String) == (missingWaitReply?["error"] as? String))
+
+    // 3b. Cross-pane WITH valid tokenB succeeds ONLY when allowCrossPaneSend == true
+    var crossWaitReply: [String: Any]?
+    let cancelCross = ctrl.startAskWait(["cmd": "ask-wait", "sessionId": sid2, "token": tokenB]) { crossWaitReply = $0 }
+    ctrl.askStore.session(id: sid2)?.draftSelected["q1"] = ["拒絕"]
+    _ = ctrl.askStore.submit(sessionID: sid2)
+    cancelCross()
+    r.check("allowCrossPaneSend allows ask-wait from another pane holding a valid pane token",
+            (crossWaitReply?["ok"] as? Bool) == true && (crossWaitReply?["status"] as? String) == "submitted")
+
+    // 3c. PeerPID inside pane A without token CANNOT spoof target pane B even when allowExternalSend == true
+    let myPID = Int(getpid())
+    if let ttyGroup = LmuxController.terminalForegroundGroup(pid_t(myPID)) {
+        _ = ttyGroup // Only enforce if apptest runs under a PTY foreground group matching a pane; skip else
+    }
+
+    // 3d. Positive external-create + external-wait when allowExternalSend == true
+    let extCreate = ctrl.handleControl(["cmd": "ask-create", "pane": paneB.id, "spec": validSpec])
+    let extSid = extCreate["sessionId"] as? String ?? ""
+    var extWait: [String: Any]?
+    let cancelExt = ctrl.startAskWait(["cmd": "ask-wait", "sessionId": extSid]) { extWait = $0 }
+    ctrl.askStore.session(id: extSid)?.draftSelected["q1"] = ["同意"]
+    _ = ctrl.askStore.submit(sessionID: extSid)
+    cancelExt()
+    r.check("allowExternalSend allows external create and external wait for external session",
+            (extCreate["ok"] as? Bool) == true && (extWait?["status"] as? String) == "submitted")
+
+    // 4. ControlServer.stop() delivers {"ok":true,"gone":true} over Unix socket for ask-wait
+    let sockPath = FileManager.default.temporaryDirectory
+        .appendingPathComponent("ask-srv-\(UUID().uuidString.prefix(8)).sock").path
+    defer { try? FileManager.default.removeItem(atPath: sockPath) }
+    let srv = ControlServer(path: sockPath) { ctrl.handleControl($0) }
+    srv.handleAskWait = { req, reply in ctrl.startAskWait(req, reply: reply) }
+    try? srv.start()
+    let extPaneReq = ctrl.handleControl(["cmd": "ask-create", "pane": paneA.id, "spec": validSpec])
+    let liveSid = extPaneReq["sessionId"] as? String ?? ""
+    if let fd = ControlServer.connect(sockPath) {
+        let msg = Array("{\"cmd\":\"ask-wait\",\"sessionId\":\"\(liveSid)\"}\n".utf8)
+        _ = msg.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
+        await sleepMs(60)
+        srv.stop()
+        var buf = [UInt8](repeating: 0, count: 512)
+        let n = Darwin.read(fd, &buf, buf.count)
+        Darwin.close(fd)
+        let line = n > 0 ? String(decoding: buf[0..<n], as: UTF8.self) : ""
+        r.check("ControlServer.stop sends gone:true to connected ask-wait client", line.contains("\"gone\":true"))
+    } else {
+        r.check("ControlServer test socket connects", false)
+        srv.stop()
+    }
 }

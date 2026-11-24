@@ -136,7 +136,7 @@ public enum AskSessionError: Error, Equatable, CustomStringConvertible {
 @Observable
 public final class AskSession: Identifiable {
     public let id: String
-    public let paneID: UUID
+    public let paneID: String
     public let createdInsidePane: Bool
     public let spec: AskSpec
     public var context: AskSessionContext?
@@ -148,7 +148,7 @@ public final class AskSession: Identifiable {
 
     public init(
         id: String,
-        paneID: UUID,
+        paneID: String,
         createdInsidePane: Bool,
         spec: AskSpec,
         isLoadingContext: Bool = false
@@ -214,12 +214,13 @@ public final class AskSessionStore {
 
     private struct CachedOutcome {
         let sessionID: String
+        let paneID: String
         let createdInsidePane: Bool
         let outcome: AskWaitOutcome
         let recordedAt: Date
     }
 
-    private var paneQueues: [UUID: [String]] = [:]
+    private var paneQueues: [String: [String]] = [:]
     private var sessionsByID: [String: AskSession] = [:]
     private var waitersByID: [String: Waiter] = [:]
     private var cachedOutcomes: [CachedOutcome] = []
@@ -235,11 +236,11 @@ public final class AskSessionStore {
         sessionsByID.count
     }
 
-    public func pendingCount(for paneID: UUID) -> Int {
+    public func pendingCount(for paneID: String) -> Int {
         paneQueues[paneID]?.count ?? 0
     }
 
-    public func activeSession(for paneID: UUID) -> AskSession? {
+    public func activeSession(for paneID: String) -> AskSession? {
         guard let firstID = paneQueues[paneID]?.first else { return nil }
         return sessionsByID[firstID]
     }
@@ -248,9 +249,10 @@ public final class AskSessionStore {
         sessionsByID[id]
     }
 
-    public func cachedOutcomeCreatedInsidePane(sessionID: String) -> Bool? {
+    public func cachedOutcomeMeta(sessionID: String) -> (paneID: String, createdInsidePane: Bool)? {
         pruneExpiredCache()
-        return cachedOutcomes.first { $0.sessionID == sessionID }?.createdInsidePane
+        guard let hit = cachedOutcomes.first(where: { $0.sessionID == sessionID }) else { return nil }
+        return (hit.paneID, hit.createdInsidePane)
     }
 
     public static func randomSessionID() -> String {
@@ -262,7 +264,7 @@ public final class AskSessionStore {
     @discardableResult
     public func create(
         spec: AskSpec,
-        paneID: UUID,
+        paneID: String,
         createdInsidePane: Bool,
         sessionID: String? = nil
     ) throws -> AskSession {
@@ -326,7 +328,7 @@ public final class AskSessionStore {
         resolveSession(sessionID, outcome: AskWaitOutcome(status: "cancelled", note: note))
     }
 
-    public func markPaneClosed(_ paneID: UUID) {
+    public func markPaneClosed(_ paneID: String) {
         let ids = paneQueues[paneID] ?? []
         for id in ids {
             resolveSession(id, outcome: AskWaitOutcome(status: "lost", note: "Source pane closed before submission."))
@@ -360,6 +362,7 @@ public final class AskSessionStore {
         } else {
             recordCachedOutcome(
                 sessionID: sessionID,
+                paneID: session.paneID,
                 createdInsidePane: session.createdInsidePane,
                 outcome: outcome
             )
@@ -367,7 +370,7 @@ public final class AskSessionStore {
         onChange?()
     }
 
-    private func recordCachedOutcome(sessionID: String, createdInsidePane: Bool, outcome: AskWaitOutcome) {
+    private func recordCachedOutcome(sessionID: String, paneID: String, createdInsidePane: Bool, outcome: AskWaitOutcome) {
         pruneExpiredCache()
         cachedOutcomes.removeAll { $0.sessionID == sessionID }
         while cachedOutcomes.count >= Self.maxCachedOutcomes {
@@ -375,6 +378,7 @@ public final class AskSessionStore {
         }
         cachedOutcomes.append(CachedOutcome(
             sessionID: sessionID,
+            paneID: paneID,
             createdInsidePane: createdInsidePane,
             outcome: outcome,
             recordedAt: now()

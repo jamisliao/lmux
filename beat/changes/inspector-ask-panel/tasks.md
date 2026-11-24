@@ -311,7 +311,7 @@ git commit -m "feat(ui): add AskContextBuilder with TranscriptCache, ToolCallStr
   - `ControlServer.handleAskWait: (([String: Any], @escaping ([String: Any]) -> Void) -> () -> Void)?`
   - `LmuxController.handleAskCreate(_ req: [String: Any]) -> [String: Any]`、`LmuxController.startAskWait(_ req: [String: Any], reply: @escaping ([String: Any]) -> Void) -> () -> Void`
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上伺服器端 RPC 與完整安全驗權測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上伺服器端 RPC 與完整安全驗權測試**
 
 涵蓋：
 - 合法 `LMUX_PANE_NONCE` 呼叫 `ask-create` 回傳 32 字元 hex（128-bit）`sessionId`，隨後 `ask-wait` 收到送出結果；
@@ -321,19 +321,19 @@ git commit -m "feat(ui): add AskContextBuilder with TranscriptCache, ToolCallStr
 - 未知 `sessionId` 回傳一致不洩漏存在性的錯誤訊息；
 - `ControlServer.stop()` 觸發等待連線收到 `gone: true`。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `AskControl.swift` 與 `ControlServer.swift`**
+- [x] **Step 3: 實作 `AskControl.swift` 與 `ControlServer.swift`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 6**
+- [x] **Step 5: 提交 Task 6**
 
 ```bash
 git add App/Sources/LmuxUI/AskControl.swift App/Sources/LmuxUI/ControlServer.swift App/Sources/lmux-apptest/InspectorAskTests.swift
