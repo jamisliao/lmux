@@ -2,123 +2,140 @@
 
 ## Approach
 
-本設計在既有 `feat/preview-liquid-glass` 三欄 Apple Liquid Glass 工作台與 `ControlServer` 長連線等待基礎上，新增三條協作管線，全程維持「零 HTML／零 WebView、零額外 LLM Token、不干預 `lmux-hook`」的核心原則：
+本設計在既有 `feat/preview-liquid-glass` 三欄 Apple Liquid Glass 工作台與 `ControlServer` 基礎上，新增三條協作管線，全程維持「零 HTML／零 WebView、零額外 LLM Token、不干預 `lmux-hook`、嚴格租戶與路徑隔離」的核心原則：
 
 ```mermaid
 flowchart TB
   subgraph Caller ["Calling Agent / Script / ask-me"]
-    CLI["lmux ask --spec / --wait"]
+    CLI["lmux ask --spec / --wait (looped write + single-line poll)"]
   end
 
-  subgraph Core ["Core/LmuxTranscript"]
-    Extractor["SessionContextExtractor (TranscriptIndex / CodexRollout -> SessionContextSummary)"]
+  subgraph Core ["Core/LmuxTranscript (Pure Foundation)"]
+    Extractor["TranscriptContextExtractor (Claude JSONL & Codex Rollout -> TranscriptContextSummary)"]
   end
 
   subgraph AppServices ["App/LmuxUI Services (MainActor + Background I/O)"]
-    Sock["ControlServer (cmd: ask / ask-wait, long-lived handleAsk)"]
-    Store["AskSessionStore (per-pane pending sessions + submitted cache)"]
-    RefLoader["AskRefLoader (contained local refs + safe git diff)"]
-    Attn["Controller Attention (needsInput + NotificationBar card)"]
+    Sock["ControlServer (ask-create sync RPC + ask-wait via waiting)"]
+    Auth["Pane Nonce & allowCrossPaneSend / allowExternalSend Guard"]
+    Store["AskSessionStore (per-pane FIFO queue + 10m submitted cache)"]
+    CtxSvc["AskContextBuilder (TranscriptCache + ToolCallStream + per-cwd Git stats)"]
+    RefLoader["AskRefLoader (O_NOFOLLOW contained file read + hardened Git diff)"]
+    Attn["Pane.needsInput / agentStateChanged / NotificationBar"]
   end
 
-  subgraph UI ["Right Inspector (Pure Native SwiftUI)"]
-    Tabs["RightInspectorView (dynamic .ask tab with badge)"]
-    View["InspectorAskView + AskMarkdownParser"]
+  subgraph UI ["Right Inspector (Pure Native SwiftUI + AppKit Focus Guard)"]
+    Tabs["RightInspectorView (dynamic .ask tab + compact labels)"]
+    View["InspectorAskView + AskMarkdownParser (block-split inline Markdown + Diff)"]
   end
 
-  CLI -->|"Unix Socket JSON line"| Sock
-  Sock --> Store
-  Store -->|"background transcript parse"| Extractor
-  Store -->|"background file / git read"| RefLoader
+  CLI -->|"1. cmd: ask-create"| Sock
+  CLI -->|"2. cmd: ask-wait"| Sock
+  Sock --> Auth --> Store
+  Store -->|"background queue"| CtxSvc --> Extractor
+  Store -->|"background queue"| RefLoader
   Store --> Attn
-  Store --> Tabs
-  Tabs --> View
-  View -->|"submit / cancel"| Store
-  Store -->|"JSON response"| Sock
-  Sock -->|"stdout JSON"| CLI
+  Store --> Tabs --> View
+  View -->|"submit (all answered) / cancel"| Store
+  Store -->|"single-line JSON"| Sock -->|"stdout JSON"| CLI
 ```
 
-### 1. 問答工作階段狀態機（`AskSessionStore`）
+### 1. 問答工作階段狀態機與權限隔離（`AskSessionStore`）
 
-每個由 `lmux ask` 建立的 **問答工作階段** 都有唯一的 `sessionId` 並綁定來源 `paneID`（若外部呼叫未帶合法 pane token，則可綁定 `--pane` 指定的 pane 或目前選取 workspace 的 focused pane）：
+每個由 `lmux ask` 建立的 **問答工作階段** 擁有以 128-bit CSPRNG（`LmuxController.randomToken()`，32 字元 hex）產生的 `sessionId`，並綁定驗證後的來源終端機 `ownerPaneID`：
 
 ```mermaid
 stateDiagram-v2
-  [*] --> pending: lmux ask --spec (validated)
-  pending --> pending: CLI timeout / disconnect (returns pending + resume; UI stays open)
-  pending --> pending: lmux ask --wait <id> (re-attaches reply callback)
-  pending --> submitted: User submits answers in 待確認面板
+  [*] --> pending: ask-create (authorized & spec valid)
+  pending --> pending: ask-wait client timeout / hangup (detaches socket callback only; UI stays open)
+  pending --> pending: lmux ask --wait <id> (authorized; supersedes any stale waiter & attaches callback)
+  pending --> submitted: User answers all questions & submits in 待確認面板
   pending --> cancelled: User clicks 取消
-  pending --> lost: Source tab closed or lmux quits
-  submitted --> [*]: Reply sent to waiting CLI (or cached 10m for late --wait)
-  cancelled --> [*]: Reply {status: cancelled} sent & removed
-  lost --> [*]: Reply {status: lost} sent & removed
+  pending --> lost: Source terminal tab closed or lmux quits (ControlServer.stop -> gone)
+  submitted --> [*]: Single-line JSON sent to attached waiter (or cached 10m for subsequent --wait)
+  cancelled --> [*]: Single-line {status: cancelled, note: ...} sent (or cached 10m) & removed from UI
+  lost --> [*]: Single-line {status: lost} / {gone: true} sent & removed
 ```
 
-- **同 pane 多工作階段不覆蓋**：`AskSessionStore` 依 `paneID` 維護陣列（FIFO 佇列），預設顯示該 tab 最早一筆尚未處理的 `pending` 工作階段（若同時超過 1 筆，頁首顯示切換列如 `1 / 2`），避免同一個 tab 的子任務或重試靜默覆蓋使用者寫到一半的草稿。
-- **無連線送出的答案快取**：若前一次 `lmux ask` 因逾時先回傳 `pending`，使用者在呼叫端執行 `--wait` 之前就先按了送出，`AskSessionStore` 會將 `submitted` 答案短暫保留（上限 10 分鐘、最多 32 筆），讓緊接著到來的 `lmux ask --wait <id>` 立即領回答案並清除快取。
+- **`control.sock` 授權與租戶隔離（對齊 `Controller.send`）**：
+  - **`ask-create`**：
+    1. 若請求攜帶有效 `LMUX_PANE_NONCE`（`pane(token:)` 解析為 `P`）：未帶 `--pane` 時目標即 `P`；若指定 `--pane Q` 且 `Q != P`，必須開啟 `allowCrossPaneSend`，否則拒絕。
+    2. 若無有效 pane token：必須開啟 `allowExternalSend`（`apptest` 已支援 `LMUX_ALLOW_EXTERNAL_SEND=1`），且若 `callerPane(token: nil, peerPID:)` 指向另一個 pane 仍拒絕跨區偽造；目標預設為 `--pane` 或目前選取 workspace 的 focused terminal pane。
+    3. 目標必須是 **終端機 tab**（`target.surface != nil`），拒絕 **預覽 tab**。
+  - **`ask-wait`**：必須通過與建立時相同的授權檢查（若該工作階段由 pane 建立，呼叫端必須持有該 `ownerPaneID` 的有效 token 或開啟 `allowCrossPaneSend`；若由外部建立則需 `allowExternalSend`），防止本機其他程序透過 `ps` 看到 `--wait <sessionId>` 搶領或偷讀使用者的回答。若同一 `sessionId` 已有舊 waiter 掛著，先安全通知／關閉舊 waiter 再掛上新連線，絕不洩漏 `ControlServer.waiting` fd。
+- **同 pane FIFO 佇列與短期結果快取**：
+  - `AskSessionStore` 依 `paneID` 維護陣列（FIFO），預設顯示該 tab 第一筆 `pending` 工作階段（多筆時於頁首顯示 `1 / N` 指示），不靜默覆蓋草稿。
+  - 若使用者在呼叫端逾時斷線後、執行 `--wait` 前按了送出或取消，結果在記憶體保留最多 10 分鐘（上限 32 筆），讓隨後的授權 `ask-wait` 立即領回並清除。
 
-### 2. 零 Token 本地 Session 上下文抽取（`Core/LmuxTranscript/SessionContextExtractor.swift`）
+### 2. 兩階段單行 Socket 協議與 `lmux-cli` 強化（`ControlServer.swift` + `lmux-cli/main.swift`）
 
-為了從根本解決冷啟動使用者「不知道 Agent 剛做了什麼、為什麼現在問這題」的痛點，建立新 **問答工作階段** 時，背景佇列會對來源 **終端機 tab** 抽取 `SessionContextSummary`（純本地確定性解析，0 額外 LLM Token）：
+為百分百遵守 `ControlServer`「一條連線一行 JSON 請求、一行 JSON 回應」的不變量（避免雙行黏包造成 `JSONSerialization` 失敗與雙 `DispatchSourceWrite` 競爭）：
 
-- **資料來源**：
-  1. **對話紀錄**：複用 `TranscriptCache` 中該 pane 的 `TranscriptIndex`（Claude Code）或 `CodexRollout`（Codex），先增量 `update()` 確保讀到最新行。
-     - `sessionTitle`：`customTitle ?? aiTitle ?? threadName`
-     - `initialGoal`：第 1 輪 `turns.first?.prompt`（壓縮為精簡摘要，保留核心任務起點）
-     - `recentTurns`：最後 3 輪（不含與 `initialGoal` 重複者）的 `prompt` 首段與 `replyHead` 首段（自動去除控制字元與過長噪音，過濾 `<synthetic>` 與純空白）
-     - `touchedFiles`：彙整最近 5 輪的 `editedFiles` 與 `createdFiles`（去重並優先呈現最新異動）
-  2. **即時工具串流**：取來源 `pane.agent.toolStream.entries.suffix(5)`（名稱、參數摘要、耗時與成敗狀態）。
-  3. **工作區 Git 摘要**：若來源 pane 位於 Git 目錄，附帶分支名稱與 `GitDiffService` 的目前異動檔數／增刪統計。
-- **顯示策略**：若 spec 的 `intro` 較簡短（例如降級模式或精簡呼叫），**Session 上下文補充** 卡片預設展開；若 `intro` 本身已很詳盡，預設為可一鍵展開的精簡摘要列（顯示標題、近期異動檔數與最近一輪進度），兼顧資訊密度與版面清爽。
+1. **階段一（同步建立）**：`lmux ask --spec` 先送出 `{"cmd": "ask-create", "spec": <object>, "lenient": <bool>, "pane": ..., "token": ...}`，由 `handleControl` 同步驗權、正規化 spec、建立 `pending` 工作階段並觸發背景上下文與引用載入，立即回傳單行 `{"ok": true, "sessionId": "<id>"}` 並關閉連線。
+2. **階段二（長連線等待）**：`lmux ask --spec` 隨即以該 `<id>` 發起第二條連線 `{"cmd": "ask-wait", "sessionId": "<id>", "token": ...}`（與 `lmux ask --wait <id>` 共用完全相同的函式！），走 `ControlServer` 長連線 `waiting` 通道：
+   - Client 端以 `poll()` 計時 `--timeout`（預設 `540` 秒，範圍 `1...3600`）；逾時未收到回覆時，直接關閉 fd 並於 stdout 印出 `{"status":"pending","sessionId":"<id>","resume":"lmux ask --wait <id>"}`（exit `0`）。Server 端 `readWaiting` 偵測到 EOF 時僅解除該 `sessionId` 的 reply closure，**保留** `pending` 工作階段。
+   - App 結束時 `ControlServer.stop()` 寫出既有的 `{"ok":true,"gone":true}\n`，CLI 將 `gone == true` 轉印為 `{"status":"lost","sessionId":"<id>","note":"lmux 已結束或來源分頁已關閉。"}`（exit `0`）。
+3. **修復 `lmux-cli` 大型請求截斷**：將 `connectAndSend` 中的單次 `write()` 改為完整迴圈寫入（處理 `EINTR`，寫入失敗則報錯離開），確保超過 macOS Unix domain socket 預設 8KB 緩衝區的 spec JSON 不被截斷（上限仍受 `ControlServer.maxRequestBytes = 1 MB` 保護）。
 
-### 3. CLI 與 `ControlServer` 長連線協議（`App/Sources/lmux-cli` + `ControlServer.swift`）
+### 3. 與 `ask-me` 完全對齊的 Spec 正規化與輸出契約（`AskSpec.swift`）
 
-- **CLI 參數**：
-  - `lmux ask --spec <path|-> [--timeout <secs>] [--pane <id>]`（`--spec -` 支援從 stdin 讀取 JSON；`--timeout` 預設 `540`，有效範圍 `1...3600`）
-  - `lmux ask --wait <sessionId> [--timeout <secs>]`
-  - 傳入 `LMUX_PANE_NONCE`（相容 `LMUX_PANE_TOKEN`）供 `ControlServer` 識別來源 pane。
-- **Spec 正規化與檢核**（`AskSpec.swift`，放在 `LmuxUI` 或 `Core` 純值型別以利單元測試）：
-  - `intro` 必填且去空白後非空；`questions` 必填且介於 `1...12` 題；每題 `question` 非空。
-  - 每題 `id` 預設 `q1`, `q2`...；`allowFreeText` 預設 `true`；`multiSelect` 預設 `false`；`options` 允許為空（純開放題）。
-  - `refs`（如 `"App/Sources/LmuxUI/Agent.swift:120-160"`）與 `gitDiff`（如 `"App/Sources/LmuxUI/Agent.swift"`）為選填字串陣列，各設合理數量上限（如每題最多 8 筆）避免濫用。
-- **Socket 請求與回覆**：
-  - 擴充 `ControlServer` 支援 `cmd == "ask"` 與 `cmd == "ask-wait"` 走既有長連線 `waiting` 通道（重用 client disconnect 偵測、上限管控與 `stop()` 清理）。
-  - 注意：`lmux ask` CLI 端自行計時 `--timeout`（同 `lmux wait` 透過 `poll()` 等待 socket 讀就緒）；若逾時，CLI 直接印出 `{"status":"pending","sessionId":"...","resume":"lmux ask --wait <id>"}` 並關閉連線，**不取消** `AskSessionStore` 中的表單（與 `lmux wait` 不同：client 斷線只解除該條 socket 的 reply callback，保留 UI 工作階段直到使用者送出、取消或 tab 關閉！）。
-  - 為讓 `lmux ask --spec` 在逾時前就能先拿到 `sessionId`（以便印出正確 `resume` 指令），`ControlServer` 在收到 `cmd == "ask"` 建立工作階段後，立即先寫回第一行 ACK `{"ok":true,"event":"created","sessionId":"..."}`，再保持連線直到送出／取消／遺失寫出第二行結果 JSON！
+- **Spec 檢核與正規化**：
+  - `questions` 必填且數量 `1...12`；每題 `question` 去空白後非空；每題 `id` 預設 `q1`, `q2`...，**嚴格拒絕重複 `question.id`**。
+  - 選項相容字串簡寫（`["方案 A", "方案 B"]`）與物件（`{label, description, recommended}`）；自動識別並剝除 `label` 尾端的 `(Recommended)` / `（推薦）` / `（建議）` 標記並設 `recommended = true`（作答回傳剝除後的乾淨 `label`）；**嚴格拒絕單題內重複的正規化 `label`**。
+  - **防偷懶字數把關**：預設與 `ask-me` 一致，要求 `intro` 去空白後至少 25 字元，且含 `options` 的題目 `detail` 至少 20 字元（引導模型交代脈絡與代價）；另提供 `--lenient` 旗標（僅要求 `intro` 與 `question` 非空）供簡易 shell 腳本或 `direct` 降級路徑使用。
+  - **全題必答規則**：每道題目必須「至少勾選一個選項」或「填寫非空白 `freeText`」才算已作答；全部題目皆已作答後，送出按鈕與 `⌘↩` 才會送出表單。
+- **Stdout JSON 與 Exit Code**：
+  - `submitted`：`{"status":"submitted","sessionId":"...","answers":[{"id":"...","header":"...","question":"...","selected":["..."],"freeText":"..."}]}`（`header` 與 `freeText` 無值時固定為 `""`）
+  - `pending`：`{"status":"pending","sessionId":"...","resume":"lmux ask --wait <id>"}`
+  - `cancelled`：`{"status":"cancelled","sessionId":"...","note":"使用者在待確認面板點選取消；請勿立即重開相同問題，先在終端機確認使用者意圖。"}`
+  - `lost`：`{"status":"lost","sessionId":"...","note":"來源終端機分頁已關閉或問答工作階段已失效。"}`
+  - 上述四種生命週期 JSON 皆印至 stdout 並以 **exit `0`** 結束；spec 驗證失敗、檔案讀取失敗、未授權或 socket 斷線則輸出錯誤至 stderr 並以 **exit `1`** 結束；CLI 旗標語法錯誤為 **exit `2`**。
 
-### 4. 安全本機引用載入（`AskRefLoader.swift`）
+### 4. 零 Token 本地 Session 上下文抽取（`Core/LmuxTranscript` + `App/LmuxUI`）
 
-- **`refs` 檔案讀取**：
-  - 解析 `path[:startLine[-endLine]]`，基準目錄為來源 pane 的 `cwd`（若位於 Git repo 則以 repo root 為界）。
-  - 嚴格執行 `URL.resolvingSymlinksInPath()` 邊界包含檢查（同 `GitDiffService` / `PreviewTarget` 做法），拒絕任何 `..` 逃逸、工作區外 symlink、非一般檔案（FIFO/device）、含 NUL 位元組之二進位檔或超過大小上限的檔案；單段引用最多截取 120 行。
-  - 失敗時回傳安全降級訊息（如「路徑超出工作區範圍，已略過」），絕不洩漏工作區外檔案或阻斷問答。
-- **`gitDiff` 讀取**：
-  - 複用 `GitDiffService` 的安全參數（`/usr/bin/git`、`--no-ext-diff --no-textconv`、`GIT_ATTR_SOURCE=<empty-tree>`、`-c core.fsmonitor=false`、`GIT_OPTIONAL_LOCKS=0`、timeout 與行數上限）僅抓取指定相對路徑的 unified diff，再交由 `GitDiffParser` 轉為紅綠差異行。
+遵守 `Core/Package.swift` 模組邊界（`LmuxTranscript` 僅依賴 `LmuxPrivateFile`，不引入 `LmuxHooks` 或 `LmuxUI`），拆成兩層組裝 **Session 上下文補充**：
 
-### 5. 純原生 SwiftUI「待確認面板」與注意力連動（`InspectorAskView.swift` + `RightInspectorView.swift` + `Agent.swift`）
+1. **`Core/Sources/LmuxTranscript/TranscriptContextExtractor.swift`**：
+   - 在 `TranscriptIndex` 標記 `message.model == "<synthetic>"` 的節點不納入回覆摘要（不影響既有 `TurnLocator` 行定位），並於 `CodexRollout` 補齊從 rollout 工具／patch 項目抽取異動檔案路徑至 `Turn.editedFiles`／`createdFiles`。
+   - 輸入標題（`customTitle`、`aiTitle`／Codex `withTitle: true` 取得的 `threadName`）與 `[TranscriptIndex.Turn]`，純函數產出 `TranscriptContextSummary`：`sessionTitle`、`initialGoal`（首輪 prompt 精簡摘要）、`recentTurns`（最近 3 輪非重複之 prompt 與非合成回覆重點）、`touchedFiles`（最近 5 輪去重之異動與新建檔案）。
+2. **`App/Sources/LmuxUI/AskContextBuilder.swift`**：
+   - 透過 `controller.transcripts`（嚴格在 `TranscriptCache.queue` 執行緒安全讀取）取得最新 `TranscriptContextSummary`。
+   - 合併來源 `pane.agent.toolStream.entries.suffix(5)`。
+   - **針對來源 `pane.cwd` 獨立取得 Git 摘要**：僅在 `model.gitDiffService.snapshot.cwd == pane.cwd` 時直接複用快取，否則在背景對 `pane.cwd` 執行輕量安全狀態查詢，絕不將當前選取 workspace A 的分支與變更誤貼到背景 workspace B 的提問上。
+- **呈現策略**：若 `--lenient` 或 `intro` 較短，**Session 上下文補充** 卡片預設展開；否則預設顯示單行摘要列（任務標題、近期異動檔數、最近一輪進度）供一鍵展開。
 
-- **`InspectorTab` 擴充**：新增 `.ask` case；`Persistence.swift` 存檔時若目前停在 `.ask`，改存 `previousInspectorTab`（不將暫時性的 `.ask` 寫進 `layout.json`）。
-- **動態頁籤與自動切換**：
-  - `RightInspectorView` 頂部 Segmented Control 僅在 `focusedPane` 有 `pending` **問答工作階段** 時顯示 `待確認` 頁籤與題數小圓點。
-  - 若新提問來自目前 **focused tab**：記下原 `inspectorVisible` 與 `inspectorTab`，自動展開 **右側 Inspector** 並切至 `.ask`；送出／取消後若該 tab 已無其他 pending 提問，自動還原原分頁與展開狀態並呼叫 `focusCurrent()` 把鍵盤交回終端機。
-  - 若新提問來自背景 tab／非選取 **workspace**：不打斷使用者目前畫面，將該 tab 的顯示狀態提升為需確認（`Pane.hasPendingAsk` 併入 `Pane.display` 優先序，不覆寫 `PaneAgent` 的 hook 狀態機），並透過既有 `Notifier`／**通知 bar** 發出 **通知卡片**（`paneID` 指向來源 tab）；使用者點擊該 **通知卡片** 時，`Controller` 切過去並直接展開 `.ask`。
-- **鍵盤焦點與互動**：
-  - `InspectorAskView` 內含原生多行輸入框（`TextField(..., axis: .vertical)`），於 `Controller.ensureFocus()` 比照 `InspectorPreviewPane` 允許在 `.ask` 分頁且使用者主動點入輸入框時保留焦點；送出、取消或切離 `.ask` 分頁時一律歸還焦點給終端機。
-  - 支援 `⌘↩` 送出（只要未按取消且有焦點即可送出；所有題目皆允許選選項、填自由文字或兩者兼具）。
-- **原生內容區塊解析（`AskMarkdownParser.swift`）**：
-  - 將 `detail` 拆成三類區塊：`markdown`（`AttributedString(markdown:)`）、`diff`（` ```diff ` 區塊交由 `GitDiffParser` 著色）、`code`（一般 fenced code block 等寬微凹卡片）。
-  - `mermaid` 欄位顯示折疊等寬碼塊 + 「在即時預覽檢視圖表」按鈕，點擊時寫入 App 暫存目錄下的 `.md` 檔（包進 ` ```mermaid ` fence）並交給 `WorkspacePreviewCoordinator` 開啟「即時預覽」——平常完全不建立 `WKWebView`。
-- **視覺一致性**：全部使用 `LmuxTokens` 既有玻璃色票（`glassCard`、`glassSurfaceRecessed`、`glassHighlightBorder`、`diffAddedFg`/`Bg`、`diffRemovedFg`/`Bg`、`statusNeedsInputPill`/`Text`），不新增任何 `NSVisualEffectView`（遵循 ADR-0003），並於 `liquid-glass-app-check` 確保淺深雙主題對比 >= 4.5:1。
+### 5. 安全本機引用載入（`AskRefLoader.swift`）
+
+- **`refs`（`path[:startLine[-endLine]]`，每題上限 8 筆）**：
+  - 基準目錄為來源 pane 的 `repoRoot ?? pane.cwd`。複用 `GitDiffService` 同等級防護：先驗證 `resolvingSymlinksInPath()` 嚴格位於基準目錄內，再以 `Darwin.open(canonicalPath, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)` 開啟、`fstat` 確認為一般檔案（`S_IFREG`，拒絕 FIFO／device）、限制讀取上限（512 KB）並拒絕含 NUL 位元組之二進位檔；單段最多截取 120 行。
+  - 點擊引用檔名時：先經 `PreviewTarget.resolve` 檢查，可預覽者載入「即時預覽」；若為無副檔名或系統未歸類 `public.text` 之檔案（如 `Makefile`、`.toml`），擴充 `PreviewTarget` 常見純文字檔名／副檔名白名單，仍不支援者顯示友善提示而不靜默失效。
+- **`gitDiff`（相對路徑，每題上限 8 筆）**：
+  - 直接共用 `GitDiffService` 的硬化執行環境（`filterOverrideEnv` 中和所有 `filter.*`、清空 `GIT_EXTERNAL_DIFF`/`GIT_ALLOW_PROTOCOL`、支援無初始提交之 unborn `HEAD` 與未追蹤新檔 `readUntrackedLines` fallback），再交由 `GitDiffParser` 產生紅綠差異行。
+
+### 6. 純原生 SwiftUI「待確認面板」、Markdown 分塊與 AppKit 焦點／快捷鍵防護
+
+- **動態頁籤與窄視窗適配（`RightInspectorView.swift`、`RootView.swift`、`Persistence.swift`）**：
+  - `InspectorTab` 新增 `.ask`；`AppModel` 維護 `lastNonAskInspectorTab`（持久化於 `layout.json`，絕不把 `.ask` 寫入磁碟）與 `inspectorAutoOpenedByAsk: Bool`。
+  - 當 `.ask` 頁籤顯示（共 4 頁籤）或 Inspector 寬度 `< 340pt` 時，頁籤列自動切換為緊湊標籤（`待確認`、`預覽`、`Diff`、`記錄`）並收斂非選中圖示，確保在最小寬度 `240pt` 下完整可讀。
+  - 窄視窗下 `RootView.layout()` 在隱藏右側欄前，先將有效寬度彈性夾緊至 `max(240, min(inspectorWidth, W - effectiveSw - 120))`，盡可能保留 **待確認面板** 可見。
+- **全路徑注意力與分頁同步（`Model.swift`、`Controller.swift`、`Wait.swift`）**：
+  - `Pane.hasPendingAsk` 變更時觸發 `agentStateChanged()`（更新 `stateChangedAt` 並喚醒 `lmux wait --until needs-you`／`any`）；`Pane.display` 中 `hasPendingAsk` 優先序高於 `.running`（讓正在執行 `Bash(lmux ask)` 的 tab 正確顯示 `🔔 需要確認`）；`Pane.needsInput` 納入 `hasPendingAsk`（支援 `⌘⇧J`、未聚焦琥珀光環與分頁圓點，且 `Controller.userTyped` 不會清除 `hasPendingAsk`）。
+  - 集中於 `Controller.syncInspectorForFocusedPane()` 處理所有焦點切換路徑（點選 workspace、切換 tab、點擊 **通知卡片**、系統通知喚醒、`⌘⇧J`）：切到有 pending ask 的 tab 自動顯示 `.ask`；切到無 pending ask 的 tab（或送出／取消最後一筆後）立即退回 `lastNonAskInspectorTab`（若當初為自動展開則還原收合）。
+- **原生分塊 Markdown 與 Mermaid 程式碼卡（`AskMarkdownParser.swift`、`InspectorAskView.swift`）**：
+  - 因 macOS `AttributedString(markdown:)` 預設 `.full` 交給 `SwiftUI.Text` 會抹除段落與清單換行，`AskMarkdownParser` 先按區塊切分為 `heading`、`paragraph`、`bulletItem`、`numberedItem`、`blockquote`、`codeBlock`、`diffBlock`，各區塊行內使用 `.inlineOnlyPreservingWhitespace` 渲染，並透過 `.environment(\.openURL)` 轉交 `GhosttyRuntime.openTerminalURL` 安全檢查。
+  - `mermaid` 欄位渲染為可折疊等寬程式碼卡＋「複製語法」按鈕，完全不啟動 `WKWebView`，也不污染 `WorkspacePreviewCoordinator` 的目前預覽檔。
+- **AppKit 鍵盤焦點與選單快捷鍵防護（`Controller.swift`、`Menu.swift`、`SidebarSelection.swift`）**：
+  1. **文字編輯快捷鍵**：當 `window.firstResponder is NSText` 時，`validateMenuItem` 停用 `menuUndoSend`，並在 Edit 選單提供／路由標準文字 `Undo (⌘Z)`、`Redo (⇧⌘Z)`、`Cut (⌘X)` 至現行 `NSText`／`UndoManager`，避免打字按 `⌘Z` 誤觸 Claude Rewind。
+  2. **`⌘↩` 攔截不漏入 PTY**：在 `LmuxWindow.performKeyEquivalent` 中，當 **待確認面板** 可見且 `focusedPane` 有待答工作階段時直接攔截 `⌘↩`——若全題已作答則送出，若有未答題目則發出提示音並捲動聚焦至第一道未答題，**絕不讓 `⌘↩` 穿透進 `SurfaceView` 終端機**。
+  3. **失焦與隱藏安全歸還**：`Controller.ensureFocus()` 對 `rightInspectorHost` 內 `NSText` 的保留條件嚴格限制為 `model.inspectorVisible && !rightInspectorHost.isHidden && model.inspectorTab == .ask`；一旦切離 `.ask`、按 `⌥⌘B` 收合或視窗過窄自動隱藏，立即（並搭配下一輪 runloop `DispatchQueue.main.async`）呼叫 `focusCurrent()` 將焦點歸還終端機。
 
 ---
 
 ## Key Decisions
 
-1. **純原生 SwiftUI + `ControlServer` 長連線，不內嵌 WebView 也不介入 `lmux-hook`** — 見 [docs/adr/0005-native-inspector-ask-cli.md](../../../docs/adr/0005-native-inspector-ask-cli.md)。
-2. **兩段式 Socket 回覆（先 ACK `created`，再等結果）**：讓 `lmux ask --spec` 在本機逾時前即掌握 `sessionId`，逾時後能直接印出正確的 `resume: "lmux ask --wait <sessionId>"` 且不需額外往返；client 逾時斷線不刪除 UI 中的工作階段，避免使用者填到一半表單突然消失。
-3. **純本地零 Token 抽取 `SessionContextSummary`**：直接從 `TranscriptIndex`／`CodexRollout`、`ToolCallStream` 與 `GitDiffService` 組出任務起點、近期輪次摘要、已異動檔案與工具狀態，延遲為毫秒級且零額外 API 費用，同時對無 transcript 的一般 shell 呼叫安全降級。
-4. **`Pane.hasPendingAsk` 與 `PaneAgent` 解耦**：不直接竄改 `PaneAgent.state`（避免與 Claude/Codex hook 的 `PreToolUse`/`Stop` 交錯打架），而是在 `Pane.display` 合成層反映待確認狀態與通知卡片，確保送出後立即乾淨回到原本的 agent 執行狀態。
+1. **純原生 SwiftUI + 兩階段 `ControlServer` RPC，不內嵌 WebView 也不介入 `lmux-hook`** — 見 [docs/adr/0005-native-inspector-ask-cli.md](../../../docs/adr/0005-native-inspector-ask-cli.md)。
+2. **`ask-create` + `ask-wait` 雙連線取代單連線雙行串流**：完全契合 `ControlServer` 與 `lmux-cli` 的單行 JSON framing，消除黏包解析失敗與雙 `DispatchSourceWrite` 競爭，並讓 `--spec` 與 `--wait` 共用同一套等待與權限檢核邏輯。
+3. **純本地零 Token 抽取並嚴守 `Core` 模組邊界**：`Core/LmuxTranscript` 負責無 UI 依賴的對話脈絡抽取（同時補齊 Codex 異動檔與 `<synthetic>` 過濾），`App/LmuxUI` 再結合 `ToolCallStream` 與按 `pane.cwd` 隔離的 Git 統計。
+4. **`Pane.hasPendingAsk` 高於 `.running` 並整合 `needsInput`／`lmux wait`**：解決 Agent 在 `Bash` 工具執行期間狀態為 `.running` 卻實際阻塞等待使用者決策的矛盾，同時不污染 `PaneAgent` 的 hook 狀態機。
 
 ---
 
@@ -126,10 +143,10 @@ stateDiagram-v2
 
 | 檔案 / 模組 | 職責與改動重點 |
 |---|---|
-| `Core/Sources/LmuxTranscript/SessionContextExtractor.swift` | 純值型別 `SessionContextSummary` 與抽取邏輯：從 `TranscriptIndex` / `CodexRollout` 產出任務起點、近期輪次摘要、異動檔案清單（零 LLM 呼叫、容錯降級）。 |
-| `App/Sources/LmuxUI/AskSession.swift`、`AskSessionStore.swift` | 定義 `AskSpec` / `AskQuestion` / `AskAnswer` / `AskSession` 模型與 `@Observable` per-pane 佇列、狀態機、答案短期快取與逾時重連管理。 |
-| `App/Sources/LmuxUI/AskRefLoader.swift` | 背景安全解析 `refs`（工作區包含驗證、symlink/二進位/行數防護）與 `gitDiff`（安全 git 參數 + `GitDiffParser`）。 |
-| `App/Sources/LmuxUI/AskMarkdownParser.swift`、`InspectorAskView.swift` | 原生 SwiftUI 區塊解析器（Markdown / 紅綠 Diff / Code）與 Liquid Glass **待確認面板**（**Session 上下文補充**、題目卡、引用卡、Mermaid 碼塊與「即時預覽」轉開、選項、自由輸入與 `⌘↩` 送出）。 |
-| `App/Sources/LmuxUI/ControlServer.swift`、`Controller.swift`、`Model.swift`、`RightInspectorView.swift`、`Persistence.swift` | 擴充 `cmd: ask` / `ask-wait` 兩段式長連線、`InspectorTab.ask` 動態顯示與原分頁還原、`Pane.display` 需確認整合、**通知 bar** 點擊跳轉與焦點歸還。 |
-| `App/Sources/lmux-cli/main.swift`、`skills/lmux/SKILL.md` | 實作 `lmux ask --spec <path|->` 與 `lmux ask --wait <id>` CLI 子命令（`poll` 逾時回 `pending` + `resume`），並更新內建 skill 文件。 |
-| `Core/Tests/LmuxTranscriptTests/SessionContextExtractorTests.swift`、`App/Sources/lmux-apptest/InspectorAskTests.swift` | 涵蓋上下文抽取、Spec 檢核、安全路徑越界防護、Socket 長連線／逾時續等／取消／tab 關閉、動態頁籤與多工作區通知連動測試。 |
+| `Core/Sources/LmuxTranscript/TranscriptContextExtractor.swift`、`TranscriptIndex.swift`、`CodexRollout.swift` | 產出純值型別 `TranscriptContextSummary`（任務起點、近期輪次摘要、異動檔案）；過濾 Claude `<synthetic>` 摘要並補齊 Codex 異動檔案抽取。 |
+| `App/Sources/LmuxUI/AskSpec.swift`、`AskSessionStore.swift`、`AskContextBuilder.swift` | 實作對齊 `ask-me` 的 Spec 正規化／防偷懶檢核、128-bit `sessionId`、per-pane FIFO 佇列、10 分鐘答案快取，以及結合 `TranscriptCache`＋`ToolCallStream`＋per-cwd Git 的上下文組裝。 |
+| `App/Sources/LmuxUI/AskRefLoader.swift`、`GitDiffService.swift`、`PreviewTarget.swift` | 複用 `O_NOFOLLOW` 邊界檢查與 `filterOverrideEnv` 安全讀取 `refs` 與 `gitDiff`（含 unborn HEAD 與未追蹤檔支援），擴充常見無副檔名純文字預覽白名單。 |
+| `App/Sources/LmuxUI/AskMarkdownParser.swift`、`InspectorAskView.swift` | 分塊解析 Markdown／紅綠 Diff／Code（行內 `.inlineOnlyPreservingWhitespace`＋安全連結攔截），實作 Liquid Glass **待確認面板**（**Session 上下文補充**、題目卡、引用卡、Mermaid 複製卡、全題必答檢核）。 |
+| `App/Sources/LmuxUI/ControlServer.swift`、`Controller.swift`、`Model.swift`、`Menu.swift`、`SidebarSelection.swift`、`RightInspectorView.swift`、`RootView.swift`、`Persistence.swift` | 實作 `ask-create`／`ask-wait` 與 `LMUX_PANE_NONCE` 驗權、`hasPendingAsk` 優先序與 `lmux wait` 連動、`syncInspectorForFocusedPane()`、緊湊頁籤與窄視窗夾緊、`NSText` 編輯快捷鍵（`⌘Z`/`⇧⌘Z`/`⌘X`）及 `⌘↩` 防穿透攔截。 |
+| `App/Sources/lmux-cli/main.swift`、`skills/lmux/SKILL.md` | 修復 `connectAndSend` 迴圈寫入，實作 `lmux ask --spec <path|-> [--lenient]` 與 `lmux ask --wait <id>`，更新內建 skill 文件。 |
+| `Core/Tests/LmuxTranscriptTests/TranscriptContextExtractorTests.swift`、`App/Sources/lmux-apptest/InspectorAskTests.swift` | 涵蓋 Claude/Codex 上下文抽取、Spec 正規化、跨 pane 未授權阻擋、`O_NOFOLLOW`/filter 安全防護、大 payload 寫入、逾時續等、AppKit `⌘Z`/`⌘↩`/失焦歸還與多工作區通知測試。 |
