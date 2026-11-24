@@ -2,6 +2,7 @@
 
 import Foundation
 import AppKit
+import SwiftUI
 import LmuxHooks
 @testable import LmuxUI
 
@@ -19,6 +20,7 @@ func runInspectorAsk() async -> Int32 {
     await runAskCliTests(r, ctrl: ctrl)
     await runAskAttentionTests(r, ctrl: ctrl)
     runAskMarkdownParserTests(r)
+    await runInspectorTabAndSyncTests(r, ctrl: ctrl)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -924,4 +926,98 @@ private func runAskMarkdownParserTests(_ r: Report) {
             unclosed == [.codeBlock(language: "python", code: "print('hi')")]
             && AskMarkdownParser.parse("").isEmpty
             && AskMarkdownParser.parse("   \n  ").isEmpty)
+}
+
+@MainActor
+private func runInspectorTabAndSyncTests(_ r: Report, ctrl: LmuxController) async {
+    let ws1 = ctrl.model.workspaces.first!
+    let pane1 = ws1.focusedPane!
+    let wsC = ctrl.newWorkspace()
+    let paneC = wsC.focusedPane!
+    ctrl.select(ws1)
+
+    let origVisible = ctrl.model.inspectorVisible
+    let origTab = ctrl.model.inspectorTab
+    defer {
+        ctrl.askStore.markAllLost()
+        ctrl.closeWorkspace(wsC)
+        ctrl.select(ws1)
+        ctrl.model.inspectorVisible = origVisible
+        ctrl.model.inspectorTab = origTab
+        ctrl.model.lastNonAskInspectorTab = .preview
+        ctrl.model.inspectorAutoOpenedByAsk = false
+    }
+
+    // 1. Dynamic tabs helper & compact label thresholds
+    r.check("RightInspectorView hides .ask tab when focused pane has no ask and uses 3 tabs",
+            RightInspectorView<EmptyView, EmptyView, EmptyView, EmptyView>.visibleTabs(hasAsk: false) == [.preview, .diff, .trace]
+            && RightInspectorView<EmptyView, EmptyView, EmptyView, EmptyView>.visibleTabs(hasAsk: true) == [.ask, .preview, .diff, .trace])
+    r.check("RightInspectorView uses compact labels when 4 tabs or narrow width (<340pt)",
+            RightInspectorView<EmptyView, EmptyView, EmptyView, EmptyView>.tabLabel(.preview, compact: true) == "預覽"
+            && RightInspectorView<EmptyView, EmptyView, EmptyView, EmptyView>.tabLabel(.ask, compact: true) == "待確認")
+
+    // 2. Collapsed Inspector on .diff auto-opens on ask and restores collapsed .diff when switching/resolving
+    ctrl.showInspectorTab(.diff)
+    ctrl.model.inspectorVisible = false
+    ctrl.syncInspectorForFocusedPane()
+
+    let specObj: [String: Any] = [
+        "intro": "短確認",
+        "questions": [["id": "qt", "question": "同意切換分頁測試？", "allowFreeText": true]]
+    ]
+    guard let tok1 = ctrl.token(for: pane1) else {
+        r.check("tab sync test has pane1 token", false)
+        return
+    }
+    let created = ctrl.handleControl(["cmd": "ask-create", "token": tok1, "lenient": true, "spec": specObj])
+    let sid = created["sessionId"] as? String ?? ""
+
+    r.check("pending ask auto-opens collapsed Inspector on .ask and remembers lastNonAskInspectorTab == .diff",
+            ctrl.model.inspectorVisible
+            && ctrl.model.inspectorTab == .ask
+            && ctrl.model.lastNonAskInspectorTab == .diff
+            && ctrl.model.inspectorAutoOpenedByAsk)
+
+    // Snapshot while on .ask MUST NOT persist "ask"
+    let snap = ctrl.snapshotLayout()
+    r.check("snapshotLayout writes lastNonAskInspectorTab (.diff) instead of .ask",
+            snap.inspectorTab == .diff)
+
+    // Decode legacy layout containing "inspectorTab": "ask" -> falls back to .preview
+    let legacyAskJSON = Data("""
+    {"version":1,"workspaces":[],"inspectorTab":"ask"}
+    """.utf8)
+    let decodedAsk = try? JSONDecoder().decode(LayoutFile.self, from: legacyAskJSON)
+    r.check("LayoutFile decodes legacy inspectorTab 'ask' safely as .preview",
+            decodedAsk?.inspectorTab == .preview)
+
+    // Switch to Tab C (no ask) -> restores .diff AND auto-collapses
+    ctrl.select(wsC, focusing: paneC)
+    r.check("selecting workspace without pending ask restores .diff and auto-collapses auto-opened Inspector",
+            !ctrl.model.inspectorVisible
+            && ctrl.model.inspectorTab == .diff
+            && !ctrl.model.inspectorAutoOpenedByAsk)
+
+    // Switch back to ws1 -> auto-opens .ask again
+    ctrl.select(ws1, focusing: pane1)
+    r.check("returning to workspace with pending ask switches back to .ask",
+            ctrl.model.inspectorVisible && ctrl.model.inspectorTab == .ask)
+
+    // Cancel resolves ask -> restores .diff and auto-collapses
+    ctrl.askStore.cancel(sessionID: sid)
+    r.check("cancelling pending ask restores .diff and auto-collapses auto-opened Inspector",
+            !ctrl.model.inspectorVisible && ctrl.model.inspectorTab == .diff)
+
+    // 3. Previously open Inspector (.trace) switches to .ask and restores .trace WITHOUT collapsing
+    ctrl.showInspectorTab(.trace)
+    let created2 = ctrl.handleControl(["cmd": "ask-create", "token": tok1, "lenient": true, "spec": specObj])
+    let sid2 = created2["sessionId"] as? String ?? ""
+    r.check("already-open Inspector switches to .ask without setting inspectorAutoOpenedByAsk",
+            ctrl.model.inspectorVisible
+            && ctrl.model.inspectorTab == .ask
+            && !ctrl.model.inspectorAutoOpenedByAsk
+            && ctrl.model.lastNonAskInspectorTab == .trace)
+    ctrl.askStore.cancel(sessionID: sid2)
+    r.check("resolving ask keeps previously-open Inspector visible and returns to .trace",
+            ctrl.model.inspectorVisible && ctrl.model.inspectorTab == .trace)
 }

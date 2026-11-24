@@ -64,13 +64,14 @@ public typealias RightInspectorResizeHandle = VerticalResizeHandle
 
 // MARK: - Right Inspector View
 
-public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceContent: View>: View {
+public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceContent: View, AskContent: View>: View {
     @Bindable var model: AppModel
     var onSelectTab: ((InspectorTab) -> Void)?
     var onLeavePreview: (() -> Void)?
     @ViewBuilder let previewContent: () -> PreviewContent
     @ViewBuilder let diffContent: () -> DiffContent
     @ViewBuilder let traceContent: () -> TraceContent
+    @ViewBuilder let askContent: () -> AskContent
 
     public init(
         model: AppModel,
@@ -78,7 +79,8 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
         onLeavePreview: (() -> Void)? = nil,
         @ViewBuilder previewContent: @escaping () -> PreviewContent,
         @ViewBuilder diffContent: @escaping () -> DiffContent,
-        @ViewBuilder traceContent: @escaping () -> TraceContent
+        @ViewBuilder traceContent: @escaping () -> TraceContent,
+        @ViewBuilder askContent: @escaping () -> AskContent
     ) {
         self.model = model
         self.onSelectTab = onSelectTab
@@ -86,7 +88,29 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
         self.previewContent = previewContent
         self.diffContent = diffContent
         self.traceContent = traceContent
+        self.askContent = askContent
     }
+
+    public static func visibleTabs(hasAsk: Bool) -> [InspectorTab] {
+        hasAsk ? [.ask, .preview, .diff, .trace] : [.preview, .diff, .trace]
+    }
+
+    public static func tabLabel(_ tab: InspectorTab, compact: Bool) -> String {
+        switch tab {
+        case .ask: return "待確認"
+        case .preview: return compact ? "預覽" : "即時預覽"
+        case .diff: return compact ? "Diff" : "變更 (Diff)"
+        case .trace: return compact ? "記錄" : "執行記錄"
+        }
+    }
+
+    private var activeAskSession: AskSession? {
+        guard let paneID = model.selected?.focusedPane?.id else { return nil }
+        return model.askStore.activeSession(for: paneID)
+    }
+
+    private var hasAsk: Bool { activeAskSession != nil }
+    private var compactTabs: Bool { hasAsk || model.inspectorWidth < 340 }
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -96,6 +120,12 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
 
             ZStack {
                 switch model.inspectorTab {
+                case .ask:
+                    if hasAsk {
+                        askContent()
+                    } else {
+                        nonAskFallbackContent
+                    }
                 case .preview:
                     previewContent()
                 case .diff:
@@ -109,11 +139,28 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    @ViewBuilder
+    private var nonAskFallbackContent: some View {
+        switch model.lastNonAskInspectorTab {
+        case .diff: diffContent()
+        case .trace: traceContent()
+        case .preview, .ask: previewContent()
+        }
+    }
+
     private var headerBar: some View {
-        HStack(spacing: 2) {
-            tabButton(.preview, label: "即時預覽", icon: "eye")
-            tabButton(.diff, label: "變更 (Diff)", icon: "doc.badge.plus")
-            tabButton(.trace, label: "執行記錄", icon: "list.bullet.rectangle")
+        let tabs = Self.visibleTabs(hasAsk: hasAsk)
+        let unanswered = activeAskSession.map { max(0, $0.spec.questions.count - $0.answeredCount) } ?? 0
+        return HStack(spacing: 2) {
+            ForEach(tabs, id: \.self) { tab in
+                tabButton(
+                    tab,
+                    label: Self.tabLabel(tab, compact: compactTabs),
+                    icon: iconName(for: tab),
+                    badgeCount: tab == .ask ? unanswered : 0,
+                    compactMode: hasAsk
+                )
+            }
         }
         .padding(2.5)
         .background(
@@ -128,14 +175,33 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
         .frame(height: 38)
     }
 
+    private func iconName(for tab: InspectorTab) -> String {
+        switch tab {
+        case .ask: return "questionmark.bubble"
+        case .preview: return "eye"
+        case .diff: return "doc.badge.plus"
+        case .trace: return "list.bullet.rectangle"
+        }
+    }
+
     @ViewBuilder
-    private func tabButton(_ tab: InspectorTab, label: String, icon: String) -> some View {
+    private func tabButton(
+        _ tab: InspectorTab,
+        label: String,
+        icon: String,
+        badgeCount: Int = 0,
+        compactMode: Bool = false
+    ) -> some View {
         let isSelected = model.inspectorTab == tab
         Button {
             if let onSelectTab {
                 onSelectTab(tab)
             } else {
                 let wasPreview = model.inspectorTab == .preview
+                if tab != .ask {
+                    model.lastNonAskInspectorTab = tab
+                    model.inspectorAutoOpenedByAsk = false
+                }
                 model.inspectorTab = tab
                 if wasPreview && tab != .preview {
                     onLeavePreview?()
@@ -143,13 +209,23 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
             }
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 10, weight: .medium))
+                if !compactMode || isSelected {
+                    Image(systemName: icon)
+                        .font(.system(size: 10, weight: .medium))
+                }
                 Text(label)
                     .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
                     .lineLimit(1)
+                if badgeCount > 0 {
+                    Text("\(badgeCount)")
+                        .font(.system(size: 9, weight: .bold).monospacedDigit())
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(T.Colors.accent.color.opacity(0.22)))
+                        .foregroundColor(T.Colors.accent.color)
+                }
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, compactMode ? 4 : 6)
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity)
             .background(
@@ -174,6 +250,27 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+}
+
+public extension RightInspectorView where AskContent == EmptyView {
+    init(
+        model: AppModel,
+        onSelectTab: ((InspectorTab) -> Void)? = nil,
+        onLeavePreview: (() -> Void)? = nil,
+        @ViewBuilder previewContent: @escaping () -> PreviewContent,
+        @ViewBuilder diffContent: @escaping () -> DiffContent,
+        @ViewBuilder traceContent: @escaping () -> TraceContent
+    ) {
+        self.init(
+            model: model,
+            onSelectTab: onSelectTab,
+            onLeavePreview: onLeavePreview,
+            previewContent: previewContent,
+            diffContent: diffContent,
+            traceContent: traceContent,
+            askContent: { EmptyView() }
+        )
     }
 }
 

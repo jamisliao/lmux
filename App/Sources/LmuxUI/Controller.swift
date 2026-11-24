@@ -206,6 +206,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             // The window may be closed (red button) or minimized: bring it back first.
             self.reopenWindow()
             self.focus(p)
+            self.syncInspectorForFocusedPane()
         }
         model.askStore.onChange = { [weak self] in
             self?.syncAskStates()
@@ -790,6 +791,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             scheduleTelemetryRefresh(activePane, delay: 0.02)
         }
         rebuildContent()
+        syncInspectorForFocusedPane()
         focusCurrent()
         scheduleSave()
     }
@@ -859,6 +861,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     public func toggleInspector() {
         model.inspectorVisible.toggle()
+        model.inspectorAutoOpenedByAsk = false
         if model.inspectorVisible && model.inspectorTab == .diff,
            !model.gitDiffService.snapshotHasHunks,
            let cwd = model.selected?.focusedPane?.cwd ?? model.selected?.panes.first?.cwd {
@@ -871,6 +874,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     public func showInspectorTab(_ tab: InspectorTab) {
         let wasPreview = model.inspectorTab == .preview
+        let wasAsk = model.inspectorTab == .ask
+        if tab != .ask {
+            model.lastNonAskInspectorTab = tab
+            model.inspectorAutoOpenedByAsk = false
+        }
         model.inspectorTab = tab
         if !model.inspectorVisible {
             model.inspectorVisible = true
@@ -882,7 +890,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         }
         root.needsLayout = true
         scheduleSave()
-        if wasPreview && tab != .preview {
+        if (wasPreview || wasAsk) && tab != .preview {
+            clearInspectorTextFocusIfNeeded()
             focusCurrent()
         }
     }
@@ -1141,6 +1150,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if let pane, pane.transcriptPath != nil {
             scheduleTelemetryRefresh(pane, delay: 0.02)
         }
+        syncInspectorForFocusedPane()
         root.updateHeader()
     }
 

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 extension LmuxController {
@@ -114,6 +115,51 @@ extension LmuxController {
         }
         refreshPaneChrome()
         scheduleWaitCheck()
+        syncInspectorForFocusedPane()
+    }
+
+    /// Synchronizes dynamic `.ask` tab visibility, auto-open/collapse restore, and inspector draft focus.
+    public func syncInspectorForFocusedPane() {
+        let focusedPane = model.selected?.focusedPane
+        let hasAsk = focusedPane.flatMap { askStore.activeSession(for: $0.id) } != nil
+
+        if model.inspectorTab != .ask {
+            model.lastNonAskInspectorTab = model.inspectorTab
+        }
+
+        if hasAsk {
+            if !model.inspectorVisible {
+                model.inspectorVisible = true
+                model.inspectorAutoOpenedByAsk = true
+            }
+            if model.inspectorTab != .ask {
+                let wasPreview = model.inspectorTab == .preview
+                model.inspectorTab = .ask
+                if wasPreview { focusCurrent() }
+            }
+        } else {
+            if model.inspectorTab == .ask {
+                model.inspectorTab = model.lastNonAskInspectorTab
+                clearInspectorTextFocusIfNeeded()
+            }
+            if model.inspectorAutoOpenedByAsk {
+                model.inspectorVisible = false
+                model.inspectorAutoOpenedByAsk = false
+                clearInspectorTextFocusIfNeeded()
+            }
+        }
+        root?.needsLayout = true
+    }
+
+    func clearInspectorTextFocusIfNeeded() {
+        guard let window,
+              let host = root?.rightInspectorHost,
+              let fr = window.firstResponder as? NSView,
+              fr is NSText,
+              fr.isDescendant(of: host) else {
+            return
+        }
+        focusCurrent()
     }
 
     private func recordAskNotification(for session: AskSession, target: Pane) {

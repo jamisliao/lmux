@@ -31,7 +31,8 @@ public struct LayoutFile: Codable, Equatable {
         inspectorVisible = try c.decodeIfPresent(Bool.self, forKey: .inspectorVisible) ?? true
         let rawInspectorWidth = try c.decodeIfPresent(Double.self, forKey: .inspectorWidth) ?? Double(LmuxTokens.Layout.rightInspectorWidthDefault)
         inspectorWidth = min(max(rawInspectorWidth, Double(LmuxTokens.Layout.rightInspectorWidthMin)), Double(LmuxTokens.Layout.rightInspectorWidthMax))
-        inspectorTab = (try? c.decodeIfPresent(String.self, forKey: .inspectorTab)).flatMap(InspectorTab.init(rawValue:)) ?? .preview
+        let rawTab = (try? c.decodeIfPresent(String.self, forKey: .inspectorTab)).flatMap(InspectorTab.init(rawValue:)) ?? .preview
+        inspectorTab = (rawTab == .ask) ? .preview : rawTab
     }
 
     public struct WorkspaceState: Codable, Equatable {
@@ -180,7 +181,7 @@ extension LmuxController {
         f.sidebarWidth = Double(model.sidebarWidth)
         f.inspectorVisible = model.inspectorVisible
         f.inspectorWidth = Double(model.inspectorWidth)
-        f.inspectorTab = model.inspectorTab
+        f.inspectorTab = model.inspectorTab == .ask ? model.lastNonAskInspectorTab : model.inspectorTab
         return f
     }
 
@@ -264,7 +265,10 @@ extension LmuxController {
         model.inspectorVisible = file.inspectorVisible
         model.inspectorWidth = min(max(CGFloat(file.inspectorWidth), LmuxTokens.Layout.rightInspectorWidthMin),
                                    LmuxTokens.Layout.rightInspectorWidthMax)
-        model.inspectorTab = file.inspectorTab
+        let restoredTab = file.inspectorTab == .ask ? .preview : file.inspectorTab
+        model.inspectorTab = restoredTab
+        model.lastNonAskInspectorTab = restoredTab
+        model.inspectorAutoOpenedByAsk = false
 
         var dropped = false
         defer { if dropped { keepAside() } }

@@ -477,26 +477,26 @@ git commit -m "feat(ui): add block-level AskMarkdownParser with inline Markdown 
   - `InspectorTab.ask`、`AppModel.lastNonAskInspectorTab`、`AppModel.inspectorAutoOpenedByAsk`
   - `Controller.syncInspectorForFocusedPane()`（自動切換 `.ask`／退回 `lastNonAskInspectorTab`／若為自動展開則還原收合、切換 tab 時清掉殘留 `NSText` 焦點）
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上動態頁籤、自動展開／收合還原與 Persistence 測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上動態頁籤、自動展開／收合還原與 Persistence 測試**
 
 涵蓋：
 - 無 pending ask 時維持 3 頁籤相容；有 pending ask 時動態出現 `.ask` 並顯示未答徽章與緊湊標籤；
 - 原先收合時因 ask 自動展開（`inspectorAutoOpenedByAsk == true`），送出／取消或切至無 ask 的 Tab C 時自動還原原分頁並收合；
 - `snapshotLayout()` 停在 `.ask` 時寫出 `lastNonAskInspectorTab`；舊檔含 `"inspectorTab": "ask"` 解碼降級為 `.preview`。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `Model.swift`、`Persistence.swift`、`RightInspectorView.swift` 與 `Controller.swift`**
+- [x] **Step 3: 實作 `Model.swift`、`Persistence.swift`、`RightInspectorView.swift` 與 `Controller.swift`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask && App/scripts/apptest.sh --liquid-glass`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 10**
+- [x] **Step 5: 提交 Task 10**
 
 ```bash
 git add App/Sources/LmuxUI/Model.swift App/Sources/LmuxUI/Persistence.swift App/Sources/LmuxUI/RightInspectorView.swift App/Sources/LmuxUI/Controller.swift App/Sources/lmux-apptest/InspectorAskTests.swift
