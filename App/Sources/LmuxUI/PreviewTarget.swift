@@ -8,26 +8,14 @@ enum PreviewTarget {
 
     private static let markdownType = UTType("net.daringfireball.markdown")
 
-    private static let plainTextExtensions: Set<String> = [
-        "toml", "feature", "mjs", "cjs", "mts", "cts", "env", "ini", "conf", "cfg", "yaml", "yml", "json", "lock"
-    ]
-    private static let plainTextFilenames: Set<String> = [
-        "makefile", "dockerfile", "procfile", "gemfile", "rakefile", "brewfile", "vagrantfile"
-    ]
-
     /// 種類：Markdown 與 HTML 沿用 `isMarkdown`／`isHTML`（規則只有一份）；其他副檔名問 macOS，
-    /// 屬於純文字（`public.text`）、而且不是 HTML、Markdown、RTF、SVG 的是純文字檔。另含常見無副檔名與設定純文字白名單。都不是回傳 nil。
-    /// 只看副檔名／檔名、不讀檔案：檔案被刪除後，監看仍要知道它是哪一種。
+    /// 屬於純文字（`public.text`）、而且不是 HTML、Markdown、RTF、SVG 的是純文字檔。都不是回傳 nil。
+    /// 只看副檔名、不讀檔案：檔案被刪除後，監看仍要知道它是哪一種。
     static func kind(_ url: URL) -> Kind? {
         if isMarkdown(url) { return .markdown }
         if isHTML(url) { return .html }
         let ext = url.pathExtension.lowercased()
-        if ext.isEmpty {
-            let name = url.lastPathComponent.lowercased()
-            return plainTextFilenames.contains(name) ? .text : nil
-        }
-        if plainTextExtensions.contains(ext) { return .text }
-        guard let type = UTType(filenameExtension: ext), type.conforms(to: .text) else { return nil }
+        guard !ext.isEmpty, let type = UTType(filenameExtension: ext), type.conforms(to: .text) else { return nil }
         if type.conforms(to: .html) || type.conforms(to: .rtf) || type.conforms(to: .svg) { return nil }
         if let markdownType, type.conforms(to: markdownType) { return nil }
         return .text

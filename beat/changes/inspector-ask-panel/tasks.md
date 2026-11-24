@@ -639,16 +639,16 @@ git commit -m "feat(ui): guard NSText Undo/Redo/Cut, Cmd+Return PTY leak, narrow
 **Interfaces:**
 - Consumes: Task 1–13 全部模組與 `lmux-cli` binary
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補齊跨元件 `@e2e` 整合驗收（確保 Scenarios 3, 6, 8, 9 完整走過真實 CLI + 視窗 + 渲染 + 焦點）**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補齊跨元件 `@e2e` 整合驗收（確保 Scenarios 3, 6, 8, 9 完整走過真實 CLI + 視窗 + 渲染 + 焦點）**
 
-- [ ] **Step 2: 更新 `skills/lmux/SKILL.md` 與 `App/scripts/apptest.sh` 主流程註冊**
+- [x] **Step 2: 更新 `skills/lmux/SKILL.md` 與 `App/scripts/apptest.sh` 主流程註冊**
 
-- [ ] **Step 3: 執行完整回歸測試套件**
+- [x] **Step 3: 執行完整回歸測試套件**
 
 Run: `swift test --package-path Core && App/scripts/apptest.sh --inspector-ask && App/scripts/apptest.sh --quick && beat/changes/preview-liquid-glass/dev.sh check`
 Expected: ALL PASS（0 failures）
 
-- [ ] **Step 4: 提交 Task 14**
+- [x] **Step 4: 提交 Task 14**
 
 ```bash
 git add App/Sources/lmux-apptest/InspectorAskTests.swift skills/lmux/SKILL.md App/scripts/apptest.sh

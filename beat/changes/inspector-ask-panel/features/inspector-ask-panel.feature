@@ -57,6 +57,7 @@
   # ===========================================================================
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/InspectorAskTests.swift
   場景: 透過 lmux ask 發起多題提問並在全題作答送出後回傳完整答案
     假設 來源 **終端機 tab** 透過 `lmux ask` 提交包含前情提要、單選題（含字串簡寫或推薦標記）、多選題與開放題的規格檔
     當 **右側 Inspector** 展開 **待確認面板** 且尚有題目未作答時送出操作應維持停用且快捷鍵不漏入終端機
@@ -87,6 +88,7 @@
   # ===========================================================================
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/InspectorAskTests.swift
   場景: 待確認面板以原生元件呈現分段 Markdown、Diff、本機引用與 Mermaid 程式碼卡
     假設 一個 **問答工作階段** 包含多段 Markdown 與清單說明、diff 程式碼區塊、本機檔案行號引用、Git Diff 引用與 Mermaid 語法
     當 **右側 Inspector** 渲染 **待確認面板**
@@ -107,6 +109,7 @@
   # ===========================================================================
 
   @e2e @happy-path
+  # @covered-by: App/Sources/lmux-apptest/InspectorAskTests.swift
   場景: 背景執行中的 workspace 提問時優先顯示需確認並發送通知卡片，點擊後切入待確認面板
     假設 使用者目前檢視 **workspace** A，而背景 **workspace** B 正在執行代理人的 **終端機 tab** 發起 **問答工作階段**
     當 提問建立完成
@@ -116,6 +119,7 @@
     那麼 視窗應聚焦 **workspace** B 的該來源 **終端機 tab**，並自動展開 **右側 Inspector** 顯示其 **待確認面板**
 
   @e2e @edge-case
+  # @covered-by: App/Sources/lmux-apptest/InspectorAskTests.swift
   場景: 多個 tab 各自擁有獨立問答工作階段且切換分頁或縮放視窗時同步隔離與歸還焦點
     假設 **終端機 tab** A 與 **終端機 tab** B 各自有未完成的 **問答工作階段**，且 **終端機 tab** C 沒有待答提問
     當 使用者在 tab A、tab B 與 tab C 之間切換 **focused tab**

@@ -115,8 +115,8 @@ func connectAndSend(_ obj: [String: Any]) -> Int32 {
     var line = (try? JSONSerialization.data(withJSONObject: obj)) ?? Data()
     line.append(0x0A)
     var sent = 0
-    let ok = line.withUnsafeBytes { (buf: UnsafeRawBufferPointer) -> Bool in
-        guard let base = buf.baseAddress else { return false }
+    line.withUnsafeBytes { (buf: UnsafeRawBufferPointer) in
+        guard let base = buf.baseAddress else { return }
         while sent < line.count {
             let n = write(fd, base + sent, line.count - sent)
             if n > 0 { sent += n; continue }
@@ -126,11 +126,10 @@ func connectAndSend(_ obj: [String: Any]) -> Int32 {
                 _ = poll(&pfd, 1, 2000)
                 continue
             }
-            return false
+            // Peer closed early (e.g. server refused connection at client cap): let readResponse report EOF / no response.
+            break
         }
-        return true
     }
-    if !ok { fail("failed writing request to lmux") }
     return fd
 }
 
