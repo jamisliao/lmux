@@ -66,8 +66,17 @@ extension LmuxController {
 
         let editItem = NSMenuItem()
         let edit = NSMenu(title: "Edit")
-        add(edit, "Undo Send", #selector(menuUndoSend(_:)), fallback: ("z", .command))
+        undoSendMenuItem = add(edit, "Undo Send", #selector(menuUndoSend(_:)), fallback: ("z", .command))
+        let undoItem = NSMenuItem(title: "Undo", action: NSSelectorFromString("undo:"), keyEquivalent: "z")
+        undoItem.keyEquivalentModifierMask = .command
+        edit.addItem(undoItem)
+        let redoItem = NSMenuItem(title: "Redo", action: NSSelectorFromString("redo:"), keyEquivalent: "Z")
+        redoItem.keyEquivalentModifierMask = [.command, .shift]
+        edit.addItem(redoItem)
         edit.addItem(.separator())
+        let cutItem = NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        cutItem.keyEquivalentModifierMask = .command
+        edit.addItem(cutItem)
         edit.addItem(withTitle: "Copy", action: #selector(SurfaceView.copy(_:)), keyEquivalent: "c")
         add(edit, "Copy Original Reply", #selector(menuCopyOriginal(_:)), fallback: ("c", [.command, .option]))
         edit.addItem(withTitle: "Paste", action: #selector(SurfaceView.paste(_:)), keyEquivalent: "v")

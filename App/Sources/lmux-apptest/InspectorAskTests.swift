@@ -25,6 +25,7 @@ func runInspectorAsk() async -> Int32 {
     await runInspectorTabAndSyncTests(r, ctrl: ctrl)
     runInspectorAskCardsTests(r, ctrl: ctrl)
     await runInspectorAskViewTests(r, ctrl: ctrl)
+    await runAskFocusAndShortcutTests(r, ctrl: ctrl)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -1186,4 +1187,175 @@ private func runInspectorAskViewTests(_ r: Report, ctrl: LmuxController) async {
     r.check("InspectorAskView cancel updates store and delivers cancelled status",
             (cancelRes?["status"] as? String) == "cancelled"
             && ctrl.askStore.pendingCount(for: pane.id) == 0)
+}
+
+@MainActor
+private func runAskFocusAndShortcutTests(_ r: Report, ctrl: LmuxController) async {
+    let ws1 = ctrl.model.workspaces.first!
+    let pane1 = ws1.focusedPane!
+    let wsC = ctrl.newWorkspace()
+    let paneC = wsC.focusedPane!
+    ctrl.select(ws1, focusing: pane1)
+
+    let win = ctrl.window!
+    let origFrame = win.frame
+    let origWidth = ctrl.model.inspectorWidth
+    defer {
+        ctrl.askStore.markAllLost()
+        ctrl.closeWorkspace(wsC)
+        ctrl.select(ws1, focusing: pane1)
+        win.setFrame(origFrame, display: false)
+        ctrl.model.inspectorWidth = origWidth
+        ctrl.root.layoutSubtreeIfNeeded()
+    }
+
+    guard let tok = ctrl.token(for: pane1) else {
+        r.check("shortcut test has pane1 token", false)
+        return
+    }
+
+    // 1. NSText Undo/Redo/Cut and Undo Send menu validation guard
+    let tv = NSTextView(frame: NSRect(x: 0, y: 0, width: 200, height: 80))
+    tv.allowsUndo = true
+    ctrl.root.rightInspectorHost.addSubview(tv)
+    defer { tv.removeFromSuperview() }
+
+    ctrl.model.inspectorVisible = true
+    ctrl.model.inspectorTab = .ask
+    let _ = ctrl.handleControl(["cmd": "ask-create", "token": tok, "lenient": true, "spec": [
+        "intro": "快捷鍵測試",
+        "questions": [
+            ["id": "q_u1", "question": "第一題", "options": ["選項 A"]],
+            ["id": "q_u2", "question": "第二題", "allowFreeText": true]
+        ]
+    ]])
+    ctrl.root.layoutSubtreeIfNeeded()
+    win.makeFirstResponder(tv)
+
+    let undoSendItem = ctrl.undoSendMenuItem
+    r.check("validateMenuItem disables Undo Send while NSText has focus",
+            undoSendItem != nil && !ctrl.validateMenuItem(undoSendItem!))
+
+    // Type text via NSTextInputClient / insertText so UndoManager records it, then dispatch Cmd+Z, Shift+Cmd+Z, Cmd+X
+    tv.insertText("draft-hello", replacementRange: NSRange(location: 0, length: 0))
+    let cmdZ = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                                timestamp: 0, windowNumber: win.windowNumber, context: nil,
+                                characters: "z", charactersIgnoringModifiers: "z", isARepeat: false, keyCode: 6)!
+    let shiftCmdZ = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command, .shift],
+                                     timestamp: 0, windowNumber: win.windowNumber, context: nil,
+                                     characters: "Z", charactersIgnoringModifiers: "z", isARepeat: false, keyCode: 6)!
+    let cmdX = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                                timestamp: 0, windowNumber: win.windowNumber, context: nil,
+                                characters: "x", charactersIgnoringModifiers: "x", isARepeat: false, keyCode: 7)!
+
+    _ = win.performKeyEquivalent(with: cmdZ)
+    let afterUndo = tv.string
+    _ = win.performKeyEquivalent(with: shiftCmdZ)
+    let afterRedo = tv.string
+    tv.setSelectedRange(NSRange(location: 0, length: (tv.string as NSString).length))
+    _ = win.performKeyEquivalent(with: cmdX)
+    let afterCut = tv.string
+
+    r.check("NSText executes Cmd+Z undo, Shift+Cmd+Z redo, and Cmd+X cut cleanly without triggering Undo Send",
+            afterUndo == "" && afterRedo == "draft-hello" && afterCut == "",
+            "undo='\(afterUndo)' redo='\(afterRedo)' cut='\(afterCut)'")
+
+    // 2. Cmd+Return & Keypad Enter with unanswered -> scrolls to first unanswered & never leaks to PTY sink
+    let bytesBefore = sinks.bytes(pane1.id).count
+
+    guard let activeSid = ctrl.askStore.activeSession(for: pane1.id)?.id,
+          let activeSess = ctrl.askStore.session(id: activeSid) else {
+        r.check("shortcut test has active session", false)
+        return
+    }
+    let cmdReturn = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                                     timestamp: 0, windowNumber: win.windowNumber, context: nil,
+                                     characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+    let cmdKeypadEnter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                                          timestamp: 0, windowNumber: win.windowNumber, context: nil,
+                                          characters: "\u{03}", charactersIgnoringModifiers: "\u{03}", isARepeat: false, keyCode: 76)!
+
+    // First from NSText focus
+    win.makeFirstResponder(tv)
+    let handledFromText = win.performKeyEquivalent(with: cmdReturn)
+    let scrollTarget1 = activeSess.scrollToQuestionID
+    activeSess.scrollToQuestionID = nil
+
+    // Next from SurfaceView focus
+    win.makeFirstResponder(pane1.surface)
+    let handledFromSurface = win.performKeyEquivalent(with: cmdKeypadEnter)
+    let scrollTarget2 = activeSess.scrollToQuestionID
+    let bytesAfterIncomplete = sinks.bytes(pane1.id).count
+
+    r.check("Cmd+Return/KeypadEnter while unanswered sets scrollToQuestionID to first unanswered and leaks 0 bytes to PTY",
+            handledFromText && handledFromSurface
+            && scrollTarget1 == "q_u1" && scrollTarget2 == "q_u1"
+            && bytesAfterIncomplete == bytesBefore)
+
+    // Complete answers -> Cmd+Return submits cleanly & leaks 0 bytes & returns focus to pane1.surface
+    activeSess.draftSelected["q_u1"] = ["選項 A"]
+    activeSess.draftFreeText["q_u2"] = "完成補充"
+    win.makeFirstResponder(tv)
+    let handledSubmit = win.performKeyEquivalent(with: cmdReturn)
+    await sleepMs(40)
+    let bytesAfterSubmit = sinks.bytes(pane1.id).count
+    r.check("Cmd+Return submits when all answered, leaks 0 bytes to PTY, and returns firstResponder to pane.surface",
+            handledSubmit
+            && ctrl.askStore.pendingCount(for: pane1.id) == 0
+            && bytesAfterSubmit == bytesBefore
+            && win.firstResponder === pane1.surface)
+
+    // 3. Cancel / tab switch / toggleInspector / narrow-window clamp & hide all return focus to pane.surface
+    let cCancel = ctrl.handleControl(["cmd": "ask-create", "token": tok, "lenient": true, "spec": [
+        "intro": "取消焦點歸還",
+        "questions": [["id": "qc", "question": "問題", "allowFreeText": true]]
+    ]])
+    win.makeFirstResponder(tv)
+    ctrl.askStore.cancel(sessionID: cCancel["sessionId"] as? String ?? "")
+    ctrl.ensureFocus()
+    r.check("cancelling ask returns firstResponder from NSText back to pane.surface",
+            win.firstResponder === pane1.surface)
+
+    let cKeep = ctrl.handleControl(["cmd": "ask-create", "token": tok, "lenient": true, "spec": [
+        "intro": "切換焦點歸還",
+        "questions": [["id": "qk", "question": "問題", "allowFreeText": true]]
+    ]])
+    let sidKeep = cKeep["sessionId"] as? String ?? ""
+    win.makeFirstResponder(tv)
+    ctrl.showInspectorTab(.diff)
+    r.check("switching to .diff returns firstResponder from NSText to pane.surface",
+            win.firstResponder === pane1.surface)
+
+    ctrl.showInspectorTab(.ask)
+    win.makeFirstResponder(tv)
+    ctrl.select(wsC, focusing: paneC)
+    r.check("switching to workspace C without ask returns firstResponder to paneC.surface",
+            win.firstResponder === paneC.surface)
+
+    ctrl.select(ws1, focusing: pane1)
+    win.makeFirstResponder(tv)
+    ctrl.toggleInspector()
+    r.check("toggleInspector returns firstResponder from NSText to pane.surface",
+            win.firstResponder === pane1.surface)
+
+    // Re-open inspector at 400pt width and resize window narrow to test clamp -> 240pt -> hide + focus return
+    ctrl.toggleInspector()
+    ctrl.model.inspectorWidth = 400
+    ctrl.model.sidebarVisible = true
+    ctrl.model.sidebarWidth = 220
+    win.setFrame(NSRect(x: 0, y: 0, width: 620, height: 800), display: false)
+    ctrl.root.layoutSubtreeIfNeeded()
+    let clampedW = ctrl.root.rightInspectorHost.frame.width
+    let visibleWhenClamped = !ctrl.root.rightInspectorHost.isHidden
+
+    win.makeFirstResponder(tv)
+    win.setFrame(NSRect(x: 0, y: 0, width: 420, height: 800), display: false)
+    ctrl.root.layoutSubtreeIfNeeded()
+    await sleepMs(30)
+    r.check("narrow window clamps inspector to >=240pt before hiding, and hiding returns focus to pane.surface",
+            visibleWhenClamped && clampedW >= 240 && clampedW < 400
+            && ctrl.root.rightInspectorHost.isHidden
+            && win.firstResponder === pane1.surface,
+            "clampedW=\(clampedW) visibleClamped=\(visibleWhenClamped) hiddenNarrow=\(ctrl.root.rightInspectorHost.isHidden)")
+    _ = sidKeep
 }

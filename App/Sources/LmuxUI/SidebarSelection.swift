@@ -174,6 +174,9 @@ extension LmuxController: NSMenuItemValidation {
             item.title = n > 1 ? closeTitle(count: n) : focusedLeafHasTabs ? "Close Tab" : "Close Pane"
         }
         if item.action == #selector(menuToggleSplitZoom(_:)) { item.title = model.selected?.isZoomed == true ? "Unzoom Split" : "Zoom Split" }
+        if window?.firstResponder is NSText, let action = item.action, Self.terminalOnlyActions.contains(action) {
+            return false
+        }
         if model.selected?.focusedPane?.preview != nil, let action = item.action, Self.terminalOnlyActions.contains(action) {
             return false
         }
