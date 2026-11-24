@@ -241,6 +241,8 @@ public final class CodexRollout: @unchecked Sendable {
             var replyIsFinal = false
             var reply: String?
             var replyHead: String?
+            var editedFiles: [String] = []
+            var createdFiles: [String] = []
             /// The turn id, else the prompt line's byte offset (stable across incremental reads).
             var uuid: String { turnID ?? "codex@\(promptLine.lowerBound)" }
         }
@@ -339,6 +341,10 @@ public final class CodexRollout: @unchecked Sendable {
                 threadName = n
                 return
             }
+            if o["type"] as? String == "response_item", let p, !recs.isEmpty {
+                recordResponseItemFiles(p)
+                return
+            }
             guard let (kind, text, turnID) = CodexRollout.classify(o) else { return }
             switch kind {
             case .prompt:
@@ -363,6 +369,52 @@ public final class CodexRollout: @unchecked Sendable {
             }
         }
 
+        mutating func recordResponseItemFiles(_ payload: [String: Any]) {
+            guard !recs.isEmpty else { return }
+            let lastIdx = recs.count - 1
+            let itemType = payload["type"] as? String
+            let name = payload["name"] as? String ?? ""
+            if itemType == "custom_tool_call", name == "apply_patch", let input = payload["input"] as? String {
+                for rawLine in input.split(whereSeparator: \.isNewline) {
+                    let line = rawLine.trimmingCharacters(in: .whitespaces)
+                    if line.hasPrefix("*** Update File: ") {
+                        let path = String(line.dropFirst("*** Update File: ".count)).trimmingCharacters(in: .whitespaces)
+                        if !path.isEmpty, !recs[lastIdx].editedFiles.contains(path) {
+                            recs[lastIdx].editedFiles.append(path)
+                        }
+                    } else if line.hasPrefix("*** Add File: ") {
+                        let path = String(line.dropFirst("*** Add File: ".count)).trimmingCharacters(in: .whitespaces)
+                        if !path.isEmpty, !recs[lastIdx].createdFiles.contains(path) {
+                            recs[lastIdx].createdFiles.append(path)
+                        }
+                    }
+                }
+                return
+            }
+            if itemType == "function_call" {
+                let args: [String: Any]?
+                if let dict = payload["arguments"] as? [String: Any] {
+                    args = dict
+                } else if let str = payload["arguments"] as? String, let data = str.data(using: .utf8) {
+                    args = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+                } else {
+                    args = nil
+                }
+                guard let path = (args?["file_path"] ?? args?["notebook_path"] ?? args?["target_file"]) as? String,
+                      !path.isEmpty else { return }
+                let lowerName = name.lowercased()
+                if lowerName.contains("write") || lowerName.contains("create") {
+                    if !recs[lastIdx].createdFiles.contains(path) {
+                        recs[lastIdx].createdFiles.append(path)
+                    }
+                } else if lowerName.contains("edit") || lowerName.contains("patch") || lowerName.contains("replace") {
+                    if !recs[lastIdx].editedFiles.contains(path) {
+                        recs[lastIdx].editedFiles.append(path)
+                    }
+                }
+            }
+        }
+
         static func cap(_ s: String) -> (String, Bool) {
             s.count > TranscriptIndex.promptCap ? (String(s.prefix(TranscriptIndex.promptCap)), true) : (s, false)
         }
@@ -372,7 +424,7 @@ public final class CodexRollout: @unchecked Sendable {
                 TranscriptIndex.Turn(index: i + 1, uuid: r.uuid, prompt: r.prompt,
                                      promptIsTruncated: r.promptTruncated, hasReply: r.replyLine != nil,
                                      replyHead: r.replyHead, assistantUuid: nil, beforeCompaction: false,
-                                     editedFiles: [], createdFiles: [], promptLine: r.promptLine,
+                                     editedFiles: r.editedFiles, createdFiles: r.createdFiles, promptLine: r.promptLine,
                                      replyLines: r.replyLine.map { [$0] } ?? [])
             }
         }

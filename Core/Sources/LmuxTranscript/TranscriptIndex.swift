@@ -74,6 +74,7 @@ public final class TranscriptIndex: @unchecked Sendable {
         var promptTruncated = false
         var messageID: String?
         var hasText = false
+        var isSynthetic = false
         var textHead: String?
         var editFiles: [String] = []
         var createdFiles: [String] = []
@@ -245,6 +246,8 @@ public final class TranscriptIndex: @unchecked Sendable {
             }
         }
         if n.isAssistant, let blocks = message?["content"] as? [[String: Any]] {
+            let assistantModel = (message?["model"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if assistantModel == "<synthetic>" { n.isSynthetic = true }
             n.messageID = message?["id"] as? String
             let texts = blocks.filter { $0["type"] as? String == "text" }.compactMap { $0["text"] as? String }
             if !texts.isEmpty {
@@ -366,7 +369,10 @@ public final class TranscriptIndex: @unchecked Sendable {
                 let same = mid == nil ? [last] : span.members.filter { nodes[$0].isAssistant && nodes[$0].messageID == mid }
                 replyLines = same.map { nodes[$0].line }
                 auuid = same.compactMap { nodes[$0].uuid }.first
-                head = String(same.compactMap { nodes[$0].textHead }.joined(separator: "\n\n").prefix(Self.replyHeadCap))
+                let nonSynthetic = same.filter { !nodes[$0].isSynthetic }
+                if !nonSynthetic.isEmpty {
+                    head = String(nonSynthetic.compactMap { nodes[$0].textHead }.joined(separator: "\n\n").prefix(Self.replyHeadCap))
+                }
             }
             var files: [String] = []
             var created: [String] = []

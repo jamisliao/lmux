@@ -42,7 +42,7 @@ If the main assertion is `toHaveBeenCalledWith`, rewrite to assert on the functi
   - `public enum TranscriptContextExtractor { public static func extract(title: String?, turns: [TranscriptIndex.Turn], maxRecentTurns: Int = 3, maxFileTurns: Int = 5) -> TranscriptContextSummary }`
   - `TranscriptIndex.Turn`: `editedFiles` 與 `createdFiles` 於 Codex rollout 亦有值；`replyHead` 略過 `model == "<synthetic>"` 助理訊息。
 
-- [ ] **Step 1: 建立失敗單元測試（`Core/Tests/LmuxTranscriptTests/TranscriptContextExtractorTests.swift`）**
+- [x] **Step 1: 建立失敗單元測試（`Core/Tests/LmuxTranscriptTests/TranscriptContextExtractorTests.swift`）**
 
 ```swift
 // @feature: inspector-ask-panel.feature
@@ -102,23 +102,23 @@ final class TranscriptContextExtractorTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `swift test --package-path Core --filter TranscriptContextExtractorTests`
 Expected: FAIL（`TranscriptContextExtractor` 尚未定義）
 
-- [ ] **Step 3: 實作 `TranscriptContextExtractor.swift`，並更新 `TranscriptIndex.swift` 與 `CodexRollout.swift`**
+- [x] **Step 3: 實作 `TranscriptContextExtractor.swift`，並更新 `TranscriptIndex.swift` 與 `CodexRollout.swift`**
 
 1. `TranscriptIndex.swift`：`Node` 新增 `var isSynthetic = false`（`message?["model"] as? String == "<synthetic>"`）；在 `computeTurns()` 產生 `replyHead` 時排除 `isSynthetic` 節點（保留 `hasText`/`replyLines` 維持 `TurnLocator` 不變）。
 2. `CodexRollout.swift`：`Accumulator.Rec` 新增 `editedFiles`/`createdFiles`；解析 `response_item` 的 `apply_patch`（`*** Update File: ` / `*** Add File: `）與 `function_call` JSON 參數內的 `file_path`，填入 `indexTurns()`。
 3. `TranscriptContextExtractor.swift`：對所有輸出字串欄位（`sessionTitle`、`initialGoal`、`recentTurns` 的 `promptSummary`/`replySummary`、`touchedFiles`）套用控制與雙向字元清理；`initialGoal` 限 200 字、`recentTurns` 取最新 `maxRecentTurns` 輪（排除重複首輪）、`touchedFiles` 取最近 `maxFileTurns` 輪去重上限 12 筆。
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `swift test --package-path Core --filter "TranscriptContextExtractorTests|AgentTelemetryTests|TranscriptIndexTests|CodexRolloutTests"`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 1**
+- [x] **Step 5: 提交 Task 1**
 
 ```bash
 git add Core/Sources/LmuxTranscript/TranscriptContextExtractor.swift Core/Sources/LmuxTranscript/TranscriptIndex.swift Core/Sources/LmuxTranscript/CodexRollout.swift Core/Tests/LmuxTranscriptTests/TranscriptContextExtractorTests.swift
