@@ -18,6 +18,7 @@ func runInspectorAsk() async -> Int32 {
     await runAskControlTests(r, ctrl: ctrl)
     await runAskCliTests(r, ctrl: ctrl)
     await runAskAttentionTests(r, ctrl: ctrl)
+    runAskMarkdownParserTests(r)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -874,4 +875,53 @@ private func runAskAttentionTests(_ r: Report, ctrl: LmuxController) async {
     ctrl.closeWorkspace(wsB)
     r.check("closing source pane marks pending ask session lost",
             (lostOutcome?["status"] as? String) == "lost")
+}
+
+@MainActor
+private func runAskMarkdownParserTests(_ r: Report) {
+    let md = """
+    ## 架構調整
+
+    第一段說明文字。
+
+    第二段說明文字。
+
+    - 項目一
+    * 項目二
+    1. 第一步
+    2. 第二步
+
+    > 注意相容性
+
+    ```swift
+    let x = 1
+    ```
+
+    ```diff
+    @@ -1,2 +1,2 @@
+    -oldLine()
+    +newLine()
+    ```
+    """
+    let blocks = AskMarkdownParser.parse(md)
+    let hasHeading = blocks.contains(.heading(level: 2, text: "架構調整"))
+    let paraCount = blocks.filter { if case .paragraph = $0 { return true }; return false }.count
+    let bulletCount = blocks.filter { if case .bulletItem = $0 { return true }; return false }.count
+    let numCount = blocks.filter { if case .numberedItem = $0 { return true }; return false }.count
+    let hasQuote = blocks.contains(.blockquote("注意相容性"))
+    let hasCode = blocks.contains(.codeBlock(language: "swift", code: "let x = 1"))
+    let diffLines: [GitDiffLine] = blocks.compactMap { if case .diffBlock(let l) = $0 { return l }; return nil }.first ?? []
+
+    r.check("AskMarkdownParser parses headings, separate paragraphs, bullets, numbered items, quotes, code, and diff blocks",
+            hasHeading && paraCount == 2 && bulletCount == 2 && numCount == 2 && hasQuote && hasCode
+            && diffLines.contains { $0.kind == .hunkHeader }
+            && diffLines.contains { $0.kind == .removed }
+            && diffLines.contains { $0.kind == .added })
+
+    // Unclosed fence & empty input degrade safely
+    let unclosed = AskMarkdownParser.parse("```python\nprint('hi')")
+    r.check("AskMarkdownParser degrades safely on unclosed fence and empty string",
+            unclosed == [.codeBlock(language: "python", code: "print('hi')")]
+            && AskMarkdownParser.parse("").isEmpty
+            && AskMarkdownParser.parse("   \n  ").isEmpty)
 }

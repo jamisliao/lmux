@@ -437,23 +437,23 @@ git commit -m "feat(ui): integrate pending ask sessions with Pane.needsInput, lm
   - `public enum AskMarkdownBlock: Sendable, Equatable { case heading(level: Int, text: String), paragraph(String), bulletItem(String), numberedItem(prefix: String, text: String), blockquote(String), codeBlock(language: String?, code: String), diffBlock([GitDiffLine]) }`
   - `public enum AskMarkdownParser { public static func parse(_ text: String) -> [AskMarkdownBlock] }`
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上 `AskMarkdownParser` 測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上 `AskMarkdownParser` 測試**
 
 涵蓋：多段落與 `- ` / `1. ` 清單保留為獨立區塊、標題／引用區塊、` ```diff ` 轉 `diffBlock` 含 `.added`/`.removed`/`.hunkHeader`、一般 ` ```swift ` 轉 `codeBlock`、未閉合 fence 與空字串安全降級。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `App/Sources/LmuxUI/AskMarkdownParser.swift`**
+- [x] **Step 3: 實作 `App/Sources/LmuxUI/AskMarkdownParser.swift`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 9**
+- [x] **Step 5: 提交 Task 9**
 
 ```bash
 git add App/Sources/LmuxUI/AskMarkdownParser.swift App/Sources/lmux-apptest/InspectorAskTests.swift
