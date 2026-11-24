@@ -38,6 +38,7 @@
   # ===========================================================================
 
   @behavior @happy-path
+  # @covered-by: Core/Tests/LmuxTranscriptTests/TranscriptContextExtractorTests.swift
   場景: 從 Claude 與 Codex 對話紀錄本機抽取 Session 上下文補充
     假設 來源 **終端機 tab** 具有多輪 Claude Code 或 Codex 對話紀錄、已修改檔案紀錄與近期工具呼叫
     當 該 tab 發起新的 **問答工作階段**
@@ -45,6 +46,7 @@
     而且 內容應包含任務標題或起點目標、最近數輪問答重點、已異動或新建檔案清單與屬於該 tab 工作目錄的近期工具及 Git 狀態
 
   @behavior @edge-case
+  # @covered-by: Core/Tests/LmuxTranscriptTests/TranscriptContextExtractorTests.swift
   場景: 對話紀錄缺少、含損毀行或合成佔位訊息時安全降級產生上下文補充
     假設 來源 **終端機 tab** 沒有對話紀錄檔，或紀錄檔包含不完整 JSON 行與合成佔位訊息
     當 系統為該 **問答工作階段** 抽取 **Session 上下文補充**
