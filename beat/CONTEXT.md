@@ -41,8 +41,20 @@ _Avoid_: inbox footer, notification drawer
 _Avoid_: toast, alert item
 
 **右側 Inspector**:
-停靠於視窗右側的可調寬面板（預設開啟），整合「即時預覽」、「變更 (Diff)」與「執行記錄」三個檢視分頁。
+停靠於視窗右側的可調寬面板（預設開啟），整合「即時預覽」、「變更 (Diff)」與「執行記錄」三個檢視分頁，並在 **focused tab** 有未完成的 **問答工作階段** 時動態顯示 **待確認面板**。
 _Avoid_: right sidebar, inspector drawer, preview panel
+
+**問答工作階段**:
+由 `lmux ask` 透過控制 socket 發起、綁定來源 **終端機 tab** 的一次結構化提問與回覆週期，會經歷待作答、已送出、已取消或來源遺失等狀態。
+_Avoid_: ask request, prompt session, form instance
+
+**待確認面板**:
+在 **右側 Inspector** 動態出現的純原生 SwiftUI 問答分頁，於 **focused tab** 存在未完成 **問答工作階段** 時自動切入，提供題目詳述、本機檔案與 Diff 引用、**Session 上下文補充**、選項作答與自由輸入，完成或取消後自動隱藏並還原先前分頁。
+_Avoid_: ask panel, question drawer, form tab
+
+**Session 上下文補充**:
+由 lmux 在本機零額外 Token 條件下，直接分析來源 **終端機 tab** 的對話紀錄、工具呼叫串流與工作區變更所萃取的脈絡摘要（任務起點、近期輪次重點、已異動檔案與近期關鍵工具），自動附在 **待確認面板** 幫助冷啟動使用者快速回憶前後文。
+_Avoid_: context summary, auto intro, transcript digest
 
 **底部狀態列**（原型稱 **視窗底部狀態列**）:
 跨越整個視窗底部的系統列，即時顯示目前 **workspace** 的 **Agent 遙測**、Git 變更統計與 **右側 Inspector** 快捷控制。
