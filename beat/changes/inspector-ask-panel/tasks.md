@@ -519,7 +519,7 @@ git commit -m "feat(ui): add dynamic InspectorTab.ask, persistence guard, compac
   - `struct AskRefCardView: View`（顯示程式碼／紅綠 Diff 或安全降級錯誤訊息，點擊檔名呼叫 `onOpenPreview` 並對不支援預覽的檔案顯示友善提示）
   - `struct AskMermaidCardView: View`（可折疊等寬碼塊＋「複製語法」按鈕寫入 `NSPasteboard`，不觸發 WebView 或改動即時預覽）
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上卡片呈現與安全連結測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上卡片呈現與安全連結測試**
 
 涵蓋：
 - `AskContextCardView` 展開策略（`lenient` 或 `intro < 80` 預設展開；詳盡 `intro` 預設收合；空上下文安全隱藏）；
@@ -527,19 +527,19 @@ git commit -m "feat(ui): add dynamic InspectorTab.ask, persistence guard, compac
 - `AskRefCardView` 呈現越界錯誤訊息、點擊可預覽檔切入預覽、不支援檔顯示提示；
 - `AskMermaidCardView` 複製語法至剪貼簿且不更動 `WorkspacePreviewCoordinator` 目前預覽檔。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `App/Sources/LmuxUI/InspectorAskCards.swift`**
+- [x] **Step 3: 實作 `App/Sources/LmuxUI/InspectorAskCards.swift`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 11**
+- [x] **Step 5: 提交 Task 11**
 
 ```bash
 git add App/Sources/LmuxUI/InspectorAskCards.swift App/Sources/lmux-apptest/InspectorAskTests.swift

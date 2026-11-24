@@ -2,6 +2,7 @@
 
 import Foundation
 import AppKit
+import GhosttyKit
 import SwiftUI
 import LmuxHooks
 @testable import LmuxUI
@@ -21,6 +22,7 @@ func runInspectorAsk() async -> Int32 {
     await runAskAttentionTests(r, ctrl: ctrl)
     runAskMarkdownParserTests(r)
     await runInspectorTabAndSyncTests(r, ctrl: ctrl)
+    runInspectorAskCardsTests(r, ctrl: ctrl)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -1020,4 +1022,66 @@ private func runInspectorTabAndSyncTests(_ r: Report, ctrl: LmuxController) asyn
     ctrl.askStore.cancel(sessionID: sid2)
     r.check("resolving ask keeps previously-open Inspector visible and returns to .trace",
             ctrl.model.inspectorVisible && ctrl.model.inspectorTab == .trace)
+}
+
+@MainActor
+private func runInspectorAskCardsTests(_ r: Report, ctrl: LmuxController) {
+    // 1. AskContextCardView expansion policy & empty suppression
+    let nonEmptyCtx = AskSessionContext(sessionTitle: "修補驗證", initialGoal: "重構認證模組")
+    r.check("AskContextCardView expands by default for lenient or short intro (<80 chars) and collapses for detailed intro",
+            AskContextCardView.defaultExpanded(lenient: true, intro: String(repeating: "長", count: 120))
+            && AskContextCardView.defaultExpanded(lenient: false, intro: "簡短介紹")
+            && !AskContextCardView.defaultExpanded(lenient: false, intro: String(repeating: "詳", count: 90))
+            && !AskContextCardView.hasVisibleContent(nil)
+            && !AskContextCardView.hasVisibleContent(AskSessionContext())
+            && AskContextCardView.hasVisibleContent(nonEmptyCtx))
+
+    // 2. AskMarkdownBlocksView link safety handler blocks javascript:, .app, and schemeless URLs
+    var openedTargets: [(String, ghostty_action_open_url_kind_e)] = []
+    let recorder: (String, ghostty_action_open_url_kind_e, NSWindow?) -> Void = { value, kind, _ in
+        openedTargets.append((value, kind))
+    }
+    let _: OpenURLAction.Result = AskMarkdownBlocksView.handleOpenURL(URL(string: "javascript:alert(1)")!, window: nil, opener: recorder)
+    let _: OpenURLAction.Result = AskMarkdownBlocksView.handleOpenURL(URL(string: "file:///Applications/Calculator.app")!, window: nil, opener: recorder)
+    let _: OpenURLAction.Result = AskMarkdownBlocksView.handleOpenURL(URL(string: "relative/path")!, window: nil, opener: recorder)
+    let _: OpenURLAction.Result = AskMarkdownBlocksView.handleOpenURL(URL(string: "https://example.com/docs")!, window: nil, opener: recorder)
+
+    r.check("AskMarkdownBlocksView blocks javascript:, .app, schemeless URLs and opens safe https URL with OSC8 kind",
+            !AskMarkdownBlocksView.isAllowedURL(URL(string: "javascript:alert(1)")!)
+            && !AskMarkdownBlocksView.isAllowedURL(URL(string: "file:///Applications/Calculator.app")!)
+            && !AskMarkdownBlocksView.isAllowedURL(URL(string: "relative/path")!)
+            && AskMarkdownBlocksView.isAllowedURL(URL(string: "https://example.com/docs")!)
+            && openedTargets.count == 1
+            && openedTargets[0].0 == "https://example.com/docs"
+            && openedTargets[0].1 == GHOSTTY_ACTION_OPEN_URL_KIND_OSC8)
+
+    // 3. AskRefCardView error rendering, previewable click, and unsupported file check
+    var previewedURL: URL?
+    let previewFile = URL(fileURLWithPath: "/tmp/example.swift")
+    let binFile = URL(fileURLWithPath: "/tmp/archive.bin")
+    let refOK = AskFileRefResult(id: "example.swift", raw: "example.swift:1-2", relativePath: "example.swift", resolvedURL: previewFile, startLine: 1, endLine: 2, lines: ["let a = 1", "let b = 2"])
+    let refBlocked = AskFileRefResult(id: "../secret", raw: "../secret", relativePath: "../secret", errorMessage: "Path outside workspace boundary")
+    let refUnpreviewable = AskFileRefResult(id: "archive.bin", raw: "archive.bin", relativePath: "archive.bin", resolvedURL: binFile, startLine: 1, endLine: 1, lines: ["abc"])
+
+    let clickRes1 = AskRefCardView.handlePreviewTap(for: refOK) { previewedURL = $0 }
+    let clickRes2 = AskRefCardView.handlePreviewTap(for: refUnpreviewable) { previewedURL = $0 }
+    r.check("AskRefCardView exposes error status, opens previewable files, and rejects unsupported binary extensions with hint",
+            refBlocked.errorMessage != nil
+            && clickRes1 == true && previewedURL == previewFile
+            && clickRes2 == false)
+
+    // 4. AskMermaidCardView copies syntax to pasteboard without changing WorkspacePreviewCoordinator currentURL
+    let prevURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("existing-preview-\(UUID().uuidString).md")
+        .resolvingSymlinksInPath()
+    try? "# Existing Preview\n".write(to: prevURL, atomically: true, encoding: .utf8)
+    defer { try? FileManager.default.removeItem(at: prevURL) }
+    ctrl.previewCoordinator.load(url: prevURL, workspaceID: ctrl.model.selected?.id ?? "w1")
+    let pb = NSPasteboard(name: NSPasteboard.Name("dev.lmux.askcard.test.\(UUID().uuidString)"))
+    let mermaidSrc = "flowchart LR\n  A-->B"
+    AskMermaidCardView.copyMermaid(mermaidSrc, to: pb)
+    r.check("AskMermaidCardView copies mermaid syntax to pasteboard without altering WorkspacePreviewCoordinator.currentURL",
+            pb.string(forType: .string) == mermaidSrc
+            && ctrl.previewCoordinator.currentURL == prevURL,
+            "currentURL=\(String(describing: ctrl.previewCoordinator.currentURL)) expected=\(prevURL)")
 }
