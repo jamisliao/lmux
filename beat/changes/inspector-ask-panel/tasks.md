@@ -400,23 +400,23 @@ git commit -m "feat(cli): implement lmux ask --spec/--wait and fix looped socket
   - `Pane.needsInput`：`hasPendingAsk || (agent.state is .needsInput)`（`Controller.userTyped` 絕不清除 `hasPendingAsk`）
   - 背景 tab 建立提問時發送 **通知卡片**（不打斷前景 workspace A），關閉 tab 時呼叫 `askStore.markPaneClosed(pane.id)`。
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上注意力、通知與 `lmux wait` 測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上注意力、通知與 `lmux wait` 測試**
 
 涵蓋：背景執行中的 workspace B 發起提問時，前景 workspace A 維持選取不被打斷、workspace B 與該 tab 轉為需確認（覆蓋 `.running`）、`lmux wait <pane> --until needs-you` 被喚醒、**通知 bar** 新增對應 **通知卡片**、在終端機打字（`userTyped`）不清除 `hasPendingAsk`、關閉來源 tab 觸發 `markPaneClosed`。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `Model.swift`、`Controller.swift` 與 `Notifications.swift` 注意力整合**
+- [x] **Step 3: 實作 `Model.swift`、`Controller.swift` 與 `Notifications.swift` 注意力整合**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 8**
+- [x] **Step 5: 提交 Task 8**
 
 ```bash
 git add App/Sources/LmuxUI/Model.swift App/Sources/LmuxUI/Controller.swift App/Sources/LmuxUI/Notifications.swift App/Sources/lmux-apptest/InspectorAskTests.swift

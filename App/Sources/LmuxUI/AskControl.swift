@@ -90,6 +90,8 @@ extension LmuxController {
         }
 
         populateSessionDetails(session, for: target)
+        syncAskStates()
+        recordAskNotification(for: session, target: target)
 
         return [
             "ok": true,
@@ -97,6 +99,47 @@ extension LmuxController {
             "pane": target.id,
             "queued": askStore.pendingCount(for: target.id)
         ]
+    }
+
+    func syncAskStates() {
+        for pane in model.workspaces.flatMap(\.panes) {
+            if let active = askStore.activeSession(for: pane.id) {
+                let title = active.spec.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                pane.pendingAskTitle = title.isEmpty ? nil : title
+                if !pane.hasPendingAsk { pane.hasPendingAsk = true }
+            } else {
+                pane.pendingAskTitle = nil
+                if pane.hasPendingAsk { pane.hasPendingAsk = false }
+            }
+        }
+        refreshPaneChrome()
+        scheduleWaitCheck()
+    }
+
+    private func recordAskNotification(for session: AskSession, target: Pane) {
+        let focused = isPaneFocused(target)
+        let titleText = session.spec.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summaryTitle = titleText.isEmpty ? "待確認問題" : titleText
+        target.lastAlertAt = Date()
+        if !focused {
+            target.unread += 1
+            noteAttentionNeeded(target)
+            notifier.post(
+                title: target.workspace?.title ?? "lmux",
+                body: summaryTitle,
+                paneID: target.id,
+                kind: "needsInput"
+            )
+        }
+        model.recordNotification(NotificationEntry(
+            paneID: target.id,
+            workspaceID: target.workspace?.id,
+            title: target.workspace?.title ?? "lmux",
+            message: summaryTitle,
+            kind: "needsInput",
+            read: focused
+        ))
+        refreshPaneChrome()
     }
 
     /// Attaches a long-lived `ask-wait` responder after strict tenant authorization checks.

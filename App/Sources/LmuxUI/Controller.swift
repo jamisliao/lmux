@@ -207,6 +207,9 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             self.reopenWindow()
             self.focus(p)
         }
+        model.askStore.onChange = { [weak self] in
+            self?.syncAskStates()
+        }
         runtime.actionHandler = { [weak self] target, action, view in
             self?.handleGhosttyAction(target: target, action: action, view: view)
         }
@@ -284,6 +287,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         didShutdown = true
         saveScrollback()
         saveNow()
+        model.askStore.markAllLost()
         hookServer?.stop()
         controlServer?.stop()
         previewCoordinator.reset()
@@ -721,6 +725,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         pane.programExitWatch?.cancel()
         pane.programArgvWatch?.cancel()
         panesByID[pane.id] = nil
+        model.askStore.markPaneClosed(pane.id)
         scheduleWaitCheck()  // (a wait on it, or on its workspace, may be over: target gone)
         if let s = pane.surface { panesBySurface[ObjectIdentifier(s)] = nil }
         dismissCard(pane)
@@ -1298,8 +1303,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if pane.runsCodex, let pending = codexPermissionWork.removeValue(forKey: pane.id) { pending.work.cancel() }
         guard pane.needsInput || pane.unread > 0 else { return }
         // (A codex reporting its own state says when its dialog is answered: arrows in it aren't.)
-        if pane.needsInput, pane.codexReport == nil, pane.programApp == nil { pane.agent.userTyped() }
-        pane.unread = 0
+        if case .needsInput = pane.agent.state, pane.codexReport == nil, pane.programApp == nil { pane.agent.userTyped() }
+        if !pane.hasPendingAsk { pane.unread = 0 }
         refreshPaneChrome()
     }
 
