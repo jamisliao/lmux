@@ -13,7 +13,8 @@ final class TitlebarBackdrop: GlassBackdropView {
             frame: frame,
             materialStyle: .titlebar,
             translucentTint: T.Colors.titlebarBackground,
-            opaqueTint: T.Colors.sidebarBackground
+            opaqueTint: T.Colors.sidebarBackground,
+            showsBottomHairline: true
         )
     }
 
@@ -26,6 +27,7 @@ final class TitlebarBackdrop: GlassBackdropView {
 @Observable
 public final class TitlebarChipState {
     public var availableWidth: CGFloat
+    public var renderedPillWidth: CGFloat = 0
     public var workspace: Workspace?
     public var modeBadge: String?
 
@@ -38,20 +40,14 @@ public final class TitlebarChipState {
 
 public struct TitlebarCenterChip: View {
     @Bindable var state: TitlebarChipState
+    public var onDoubleClickTitle: (() -> Void)?
 
-    public init(state: TitlebarChipState) {
+    public init(state: TitlebarChipState, onDoubleClickTitle: (() -> Void)? = nil) {
         self.state = state
+        self.onDoubleClickTitle = onDoubleClickTitle
     }
 
     public init(workspace: Workspace?, availableWidth: CGFloat = 400) {
-        self.state = TitlebarChipState(workspace: workspace, availableWidth: availableWidth)
-    }
-
-    public init(model _: AppModel, state: TitlebarChipState) {
-        self.state = state
-    }
-
-    public init(model _: AppModel, workspace: Workspace?, availableWidth: CGFloat = 400) {
         self.state = TitlebarChipState(workspace: workspace, availableWidth: availableWidth)
     }
 
@@ -88,6 +84,7 @@ public struct TitlebarCenterChip: View {
             Circle()
                 .fill(dotColor)
                 .frame(width: 7, height: 7)
+                .shadow(color: dotColor.opacity(0.6), radius: 3)
 
             // Title
             Text(title)
@@ -122,32 +119,56 @@ public struct TitlebarCenterChip: View {
                     Image(systemName: "arrow.triangle.branch")
                         .font(.system(size: 10))
                     Text(branch)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 10.5, weight: .medium, design: .monospaced))
                         .lineLimit(1)
                 }
-                .foregroundStyle(T.Colors.textSecondary.color)
+                .foregroundStyle(T.Colors.textTertiary.color)
             }
 
             // Working Directory Path
             if layout.showPath, let cwd = cwd, !cwd.isEmpty {
+                if layout.showBranch, let branch = branch, !branch.isEmpty {
+                    Text("·")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundStyle(T.Colors.textTertiary.color)
+                }
                 Text(compactPath(abbreviateHome(cwd)))
-                    .font(.system(size: 10))
+                    .font(.system(size: 10, design: .monospaced))
                     .lineLimit(1)
                     .truncationMode(.head)
                     .foregroundStyle(T.Colors.textTertiary.color)
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, 12)
         .padding(.vertical, 4)
         .background(
-            Capsule()
-                .fill(T.Colors.glassCard.color)
-                .overlay(
-                    Capsule()
-                        .stroke(T.Colors.glassHighlightBorder.color, lineWidth: 1)
-                )
+            GeometryReader { geo in
+                Capsule()
+                    .fill(T.Colors.glassCard.color)
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [T.Colors.glassHighlightBorder.color, T.Colors.glassBorder.color],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 0.75
+                            )
+                    )
+                    .onChange(of: geo.size.width, initial: true) { _, w in
+                        if abs(state.renderedPillWidth - w) > 0.5 {
+                            state.renderedPillWidth = w
+                        }
+                    }
+            }
         )
+        .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
         .frame(maxWidth: max(0, state.availableWidth))
+        .contentShape(Capsule())
+        .onTapGesture(count: 2) {
+            onDoubleClickTitle?()
+        }
     }
 
     private var dotColor: Color {
@@ -155,19 +176,7 @@ public struct TitlebarCenterChip: View {
     }
 
     public static func dotColor(for display: AgentDisplay?) -> LmuxTokens.DynamicColor {
-        guard let display else { return T.Colors.statusIdleText }
-        switch display {
-        case .running:
-            return T.Colors.statusRunningText
-        case .needsInput:
-            return T.Colors.statusNeedsInputText
-        case .done:
-            return T.Colors.statusDoneText
-        case .failed:
-            return T.Colors.diffRemovedFg
-        case .idle:
-            return T.Colors.statusIdleText
-        }
+        display.map(WorkspaceStatusPill.textColor(for:)) ?? T.Colors.statusIdleText
     }
 }
 

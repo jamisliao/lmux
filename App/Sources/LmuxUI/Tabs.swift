@@ -660,6 +660,8 @@ public final class TabStripView: NSView {
     public override func draw(_ dirtyRect: NSRect) {
         background.setFill()
         bounds.fill()
+        T.Colors.glassCard.nsColor.setFill()
+        bounds.fill()
         let active = T.Colors.textPrimary.nsColor, inactive = T.Colors.textSecondary.nsColor
         NSGraphicsContext.saveGraphicsState()
         NSRect(x: 0, y: 0, width: tabsClipWidth, height: bounds.height).clip()
@@ -667,23 +669,30 @@ public final class TabStripView: NSView {
             let r = tabRect(i)
             guard r.maxX > 0, r.minX < tabsClipWidth, r.intersects(dirtyRect) else { continue }
             let sel = i == selected
-            let pillRect = r.insetBy(dx: 2, dy: 3.5)
-            let path = NSBezierPath(roundedRect: pillRect, xRadius: 4, yRadius: 4)
+            let pillRect = r.insetBy(dx: 2, dy: 4)
+            let path = NSBezierPath(roundedRect: pillRect, xRadius: 6, yRadius: 6)
             if sel {
-                T.Colors.glassSurfaceRecessed.nsColor.setFill()
+                T.Colors.glassCardSelected.nsColor.setFill()
                 path.fill()
-                T.Colors.glassBorder.nsColor.setStroke()
-                path.lineWidth = 0.5
+                T.Colors.glassHighlightBorder.nsColor.setStroke()
+                path.lineWidth = 0.75
                 path.stroke()
             } else if i == hovered {
                 T.Colors.glassCardHover.nsColor.setFill()
                 path.fill()
+                T.Colors.glassBorder.nsColor.setStroke()
+                path.lineWidth = 0.5
+                path.stroke()
             }
             let color = sel ? active : inactive
 
-            // Status dot
-            let dotRect = NSRect(x: pillRect.minX + 6, y: pillRect.midY - 2.5, width: 5, height: 5)
+            // Status dot with subtle focus halo
+            let dotRect = NSRect(x: pillRect.minX + 7, y: pillRect.midY - 2.5, width: 5, height: 5)
             let dotColor: NSColor = sel ? T.Colors.activePaneRing.nsColor : (item.badge ? T.Colors.stateNeedsInput.nsColor : T.Colors.textTertiary.nsColor)
+            if sel {
+                dotColor.withAlphaComponent(0.28).setFill()
+                NSBezierPath(ovalIn: dotRect.insetBy(dx: -2, dy: -2)).fill()
+            }
             dotColor.setFill()
             NSBezierPath(ovalIn: dotRect).fill()
 
@@ -707,7 +716,11 @@ public final class TabStripView: NSView {
             let ntr = newTabRect
             if hoveredButton == 100 {
                 T.Colors.glassCardHover.nsColor.setFill()
-                NSBezierPath(roundedRect: ntr, xRadius: 4, yRadius: 4).fill()
+                let p = NSBezierPath(roundedRect: ntr, xRadius: 4, yRadius: 4)
+                p.fill()
+                T.Colors.glassBorder.nsColor.setStroke()
+                p.lineWidth = 0.5
+                p.stroke()
             }
             symbol("plus", 11, hoveredButton == 100 ? active : inactive, in: ntr, weight: .regular)
         }
@@ -724,7 +737,11 @@ public final class TabStripView: NSView {
             let br = buttonRect(b)
             if b == hoveredButton {
                 T.Colors.glassCardHover.nsColor.setFill()
-                NSBezierPath(roundedRect: br, xRadius: 4, yRadius: 4).fill()
+                let p = NSBezierPath(roundedRect: br, xRadius: 4, yRadius: 4)
+                p.fill()
+                T.Colors.glassBorder.nsColor.setStroke()
+                p.lineWidth = 0.5
+                p.stroke()
             }
             symbol(name, 11, b == hoveredButton ? active : inactive, in: br, weight: .regular)
         }

@@ -158,11 +158,11 @@ public final class PaneView: FlippedView {
     }
 
     public static func borderColor(isFocused: Bool) -> LmuxTokens.DynamicColor {
-        isFocused ? T.Colors.activePaneRing : T.Colors.glassBorder
+        T.Colors.glassBorder
     }
 
     public static func borderWidth(isFocused: Bool) -> CGFloat {
-        isFocused ? 1.5 : 0.5
+        0.5
     }
 
     public func updateBorder() {

@@ -346,7 +346,7 @@ git commit -m "feat(ui): add hardened background GitDiffService and wire --liqui
 **Interfaces:**
 - Produces (`LmuxTokens`):
   - `Colors`：新增 `windowBackgroundTint`、`titlebarBackground`、`rightSidebarTint`、`footerBackground`、`glassHighlightBorder`（Shallow White Crystal `0xFFFFFF @ 0.78` / Dark `0xFFFFFF @ 0.14`，同時保留既有 `glassBorder` hairline `lightAlpha: 0.09` 相容不破）、`glassCard`、`glassCardHover`、`glassCardSelected`、`glassSurfaceRecessed`、`activePaneRing`（`0x0A84FF`）、`statusRunningPill`/`Text`、`statusNeedsInputPill`/`Text`、`statusDonePill`/`Text`、`statusIdlePill`/`Text`、`diffAddedBg`/`Fg`、`diffRemovedBg`/`Fg`；調整 `sidebarTint`、`specularHighlight`。
-  - `Layout`：`titlebarHeight = 44`、`footerHeight = 32`、`sidebarWidthDefault = 260`（`180...400`）、`rightInspectorWidthDefault = 320`（`240...500`）、`paneCornerRadius = 10`、`paneGap = 8`、`paneTabStripHeight = 30`、`workspaceFilterHeaderHeight = 30`。
+  - `Layout`：`titlebarHeight = 44`、`footerHeight = 32`、`sidebarWidthDefault = 260`（`180...400`）、`rightInspectorWidthDefault = 320`（`240...1600`，拖曳上限為視窗寬度 50%）、`paneCornerRadius = 10`、`paneGap = 8`、`paneTabStripHeight = 30`、`workspaceFilterHeaderHeight = 30`。
 
 - [x] **Step 1: 更新 `App/scripts/liquid-glass-app-check.swift`（同步清除過時 `// @scenario:` 標頭並改用正確場景名）**
 
@@ -739,20 +739,22 @@ git commit -m "feat(ui): build InspectorTraceView context gauge and live Tool Ca
 
 ---
 
-### Task 10b-1: 雙軌 `OpenMenu`（新增「在右側欄即時預覽」與 `⌃⌘`-click）及選單測試更新
+### Task 10b-1: 雙軌 `OpenMenu`（新增「在右側欄即時預覽」）及選單測試更新
+
+> **範圍調整註記（見 `design.md` Key Decision 4）**：原規劃的 `⌃⌘`-click 捷徑與 `clickModifiersOverride` 已於設計定案時刻意移除，終端機 ⌘-click 一律透過 5 項 **開啟選單** 進入雙軌預覽，不實作隱性修飾鍵捷徑。
 
 **Files:**
 - Modify: `App/Sources/LmuxUI/OpenMenu.swift:6-115`
-- Modify: `App/Sources/LmuxUI/Controller.swift:1538-1557`（新增 test-only `clickModifiersOverride`）
-- Modify: `App/Sources/lmux-apptest/PreviewInteractions.swift:15-130`
+- Modify: `App/Sources/LmuxUI/Controller.swift`
+- Modify: `App/Sources/lmux-apptest/PreviewInteractions.swift:15-144`
 
 **Interfaces:**
 - Produces (`LmuxUI`):
   - `LmuxController.OpenChoice` 新增 `.inspectorPreview`；`openMenuItems` 為 `[("在右側欄即時預覽", .inspectorPreview), ("在新 tab 預覽", .preview), ("用預設 app 開", .defaultApp), ("在 Finder 顯示", .finder), ("複製路徑", .copyPath)]`。
-  - `openTerminalLink`: 當驗證為可預覽本機檔案後，先檢查 `guard isLivePane(pane)`，若同時按住 `.control` + `.command`（或 `clickModifiersOverride` 包含 `.control`），略過選單直接 `newPreviewTab(file, after: pane)`；否則顯示 5 項 **開啟選單**。
+  - `openTerminalLink`: 當驗證為可預覽本機檔案且 `isLivePane(pane)` 時，顯示 5 項 **開啟選單**。
   - `LmuxController.openInInspectorPreview(_ file: URL, workspace: Workspace? = nil)`：將目標記錄於該 workspace 的 `inspectorPreviewURLByWorkspace`，設定 `model.inspectorTab = .preview` 與 `model.inspectorVisible = true`。
 
-- [x] **Step 1: 更新 `PreviewInteractions.swift`（驗證 5 項選單順序、「在右側欄即時預覽」選後設定 `inspectorTab == .preview`／`inspectorVisible == true` 不更動分割數、`⌃⌘`-click 直開預覽 tab 且 stale pane 不觸發，RED）**
+- [x] **Step 1: 更新 `PreviewInteractions.swift`（驗證 5 項選單順序、「在右側欄即時預覽」選後設定 `inspectorTab == .preview`／`inspectorVisible == true` 不更動分割數，stale pane 不觸發）**
 
 - [x] **Step 2: 實作 `OpenMenu.swift` 與 `Controller.swift` `openInInspectorPreview` / `clickModifiersOverride`**
 

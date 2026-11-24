@@ -127,11 +127,19 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         c.model.inspectorVisible = false
         c.model.inspectorTab = .diff
         click("docs/design.md")
-        r.check("在右側欄即時預覽：設定 inspectorTab == .preview 且 inspectorVisible == true 不更動分割數",
+        let inspectorPV = c.previewCoordinator.previewView
+        if let inspectorPV, let hostView = c.window?.contentView {
+            inspectorPV.frame = NSRect(x: 0, y: 0, width: 420, height: 320)
+            hostView.addSubview(inspectorPV)
+        }
+        let inspectorDOMReady = await waitPreviewJS(inspectorPV?.webView, "document.querySelector('h1')?.textContent === 'Design'")
+        inspectorPV?.removeFromSuperview()
+        r.check("在右側欄即時預覽：設定 inspectorTab == .preview 且 inspectorVisible == true 不更動分割數，並完成 WKWebView DOM 載入",
                 c.model.inspectorVisible && c.model.inspectorTab == .preview
                 && c.model.inspectorPreviewURLByWorkspace[ws.id] == design
                 && c.previewCoordinator.currentURL == design
-                && c.previewCoordinator.previewView != nil
+                && inspectorPV != nil
+                && inspectorDOMReady
                 && ws.panes.count == 2)
         r.check("其他項目都不開出預覽 tab", ws.panes.count == 2, "\(ws.panes.count)")
         answer = .preview
@@ -384,6 +392,18 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
         r.check("切換 workspace 後 coordinator 狀態更新為新 workspace",
                 coord.workspaceID == ws2.id && coord.currentURL == page2)
 
+        // 5b. 直接呼叫 coord.load(url: workspaceID:) 傳入不存在檔案時會關閉舊 PreviewView 並清空狀態 (F24)
+        let pv2 = coord.previewView
+        let missingForWS1 = docs.appendingPathComponent("missing-\(UUID().uuidString).md")
+        coord.load(url: missingForWS1, workspaceID: ws1.id)
+        r.check("直接呼叫 coord.load(url: workspaceID:) 傳入無效檔案時關閉舊 PreviewView 並重設狀態",
+                pv2 != nil
+                && pv2?.isClosed == true
+                && coord.workspaceID == ws1.id
+                && coord.currentURL == nil
+                && coord.previewView == nil,
+                "pv2Closed=\(pv2?.isClosed ?? false) ws=\(String(describing: coord.workspaceID)) url=\(String(describing: coord.currentURL)) pv=\(String(describing: coord.previewView))")
+
         // 6. 導覽歷程：連結跳轉、‹ (goBack)、› (goForward) 與 ↻ (reload)
         let navA = docs.appendingPathComponent("nav-a.md")
         let navB = docs.appendingPathComponent("nav-b.md")
@@ -431,6 +451,38 @@ func runPreviewInteractionChecks(_ r: Report, _ c: LmuxController, _ fx: Preview
                 try? await Task.sleep(nanoseconds: 50_000_000)
             }
             r.check("WorkspacePreviewCoordinator reload() 重新載入磁碟內容並維持 currentURL", reloaded)
+
+            let savedNavB = (try? String(contentsOf: navB, encoding: .utf8)) ?? "# Page B\n"
+            try? FileManager.default.removeItem(at: navB)
+            coord.reload()
+            let mdShowedMissing = await waitPreviewJS(pvNav.webView, "document.body.innerText.includes('檔案已不存在')")
+            try? (savedNavB + "\nRestored after delete\n").write(to: navB, atomically: true, encoding: .utf8)
+            coord.reload()
+            let mdRecovered = await waitPreviewJS(pvNav.webView, "document.body.innerText.includes('Restored after delete')")
+
+            let navHTML = docs.appendingPathComponent("nav-fallback.html")
+            defer { try? FileManager.default.removeItem(at: navHTML) }
+            try? "<h1>Initial HTML</h1>".write(to: navHTML, atomically: true, encoding: .utf8)
+            coord.load(url: navHTML, workspaceID: ws1.id)
+            var htmlFallbackOK = false
+            var htmlRecoveredOK = false
+            if let pvHTML = coord.previewView {
+                pvHTML.frame = NSRect(x: 0, y: 0, width: 400, height: 400)
+                c.window!.contentView?.addSubview(pvHTML)
+                defer { pvHTML.removeFromSuperview() }
+                let loadedInitial = await waitPreviewJS(pvHTML.webView, "document.body.innerText.includes('Initial HTML')", timeout: 10)
+                try? FileManager.default.removeItem(at: navHTML)
+                coord.reload()
+                let becameFallback = await waitFor(10) { pvHTML.isShowingFallbackPage }
+                try? "<h1>Restored HTML</h1>".write(to: navHTML, atomically: true, encoding: .utf8)
+                coord.reload()
+                let loadedRestored = await waitPreviewJS(pvHTML.webView, "document.body.innerText.includes('Restored HTML')", timeout: 10)
+                htmlFallbackOK = loadedInitial && becameFallback
+                htmlRecoveredOK = loadedRestored && !pvHTML.isShowingFallbackPage
+            }
+            r.check("WorkspacePreviewCoordinator reload() 透過 PreviewView.reload() 在檔案消失時顯示 fallback 並在恢復後重新載入",
+                    mdShowedMissing && mdRecovered && htmlFallbackOK && htmlRecoveredOK,
+                    "mdMissing=\(mdShowedMissing) mdRec=\(mdRecovered) htmlFallback=\(htmlFallbackOK) htmlRec=\(htmlRecoveredOK)")
         } else {
             r.check("WorkspacePreviewCoordinator 支援連結跳轉後 canGoBack 響應式啟用", false)
             r.check("WorkspacePreviewCoordinator goBack() 退回上一頁並啟用 canGoForward", false)

@@ -11,7 +11,7 @@ extension LmuxController {
     /// 點展開箭頭：展開或收合這個 workspace 的 Tab 子列，並存檔。不切換 workspace。
     /// 動畫由這裡帶動（下面的 workspace 列跟著滑動）；系統開「減少動態效果」時不做動畫。
     public func toggleTabsExpanded(_ ws: Workspace) {
-        withAnimation(T.Motion.reduceMotion ? nil : .easeOut(duration: T.Motion.historyExpand)) {
+        withAnimation(model.reduceMotion ? nil : .easeOut(duration: T.Motion.historyExpand)) {
             ws.tabsExpanded.toggle()
         }
         scheduleSave()
@@ -150,10 +150,10 @@ struct SidebarTabChildRow: View {
         .accessibilityAddTraits(item.focused ? [.isSelected, .isButton] : [.isButton])
     }
 
-    /// 底色：有標示的那一列與 workspace 列的選取底色相同；滑鼠在上面時是 hover 色。
+    /// 底色：有標示的那一列與 workspace 列的玻璃選取底色一致；滑鼠在上面時是 glassCardHover。
     private var fill: Color {
-        if item.focused { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.rowSelected).color }
-        return hover ? T.Colors.rowHover.color : .clear
+        if item.focused { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.glassCardSelected).color }
+        return hover ? T.Colors.glassCardHover.color : .clear
     }
 }
 

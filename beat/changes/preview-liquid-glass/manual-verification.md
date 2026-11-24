@@ -16,7 +16,7 @@
 <!-- @scenario: 系統開啟減少動態效果時縮短過渡並停止呼吸動畫 -->
 <!-- @scenario: 標題列置中顯示目前 workspace 資訊膠囊與快速操作按鈕 -->
 <!-- @scenario: 左側 workspace 卡片顯示彩色識別條與狀態藥丸並保留多選與排序 -->
-<!-- @scenario: 中央終端窗格顯示圓角卡片、焦點光環與 Pane Tab Strip -->
+<!-- @scenario: 中央終端窗格顯示圓角卡片、玻璃外框與 Pane Tab Strip -->
 <!-- @scenario: 透過快捷鍵與標題列／狀態列控制右側 Inspector 展開、收合與分頁切換 -->
 <!-- @scenario: 右側 Inspector 即時預覽支援檔案切換、重整與雙軌開啟 -->
 <!-- @scenario: 切換不同 workspace 時右側 Inspector 與底部狀態列同步切換上下文 -->
@@ -38,9 +38,9 @@
 | 3 | **減少動態效果 (Reduce Motion) 降級** | `liquid-glass-app.feature`<br>系統開啟減少動態效果時縮短過渡並停止呼吸動畫 | 開啟系統「減少動態效果」或設 `c.reduceMotionOverride = true` | 呼吸動畫（Attention 綠色光環、Titlebar 狀態燈脈動、Footer 狀態點）全部停止靜態化；過渡動畫時長歸零 | **通過** |
 | 4 | **統一玻璃標題列 (44pt) 與置中膠囊** | `liquid-glass-app.feature`<br>標題列置中顯示目前 workspace 資訊膠囊與快速操作按鈕 | 檢視標題列左右按鈕叢集與中央區域 | 左側包含紅黃綠燈、側邊欄切換鈕、鈴鐺（帶未讀紅點）、新增 workspace 鈕；中央懸浮置中資訊膠囊（含狀態燈、工作區名稱、Git 分支、短路徑）；右側包含分割按鈕與右側 Inspector 切換鈕 | **通過** |
 | 5 | **左側工作區卡片、狀態藥丸、搜尋與通知列** | `liquid-glass-app.feature`<br>左側 workspace 卡片顯示彩色識別條與狀態藥丸並保留多選與排序 | 檢視左側邊欄各區塊渲染與滑鼠操作 | 工作區卡片左側垂直彩色識別條、右側狀態藥丸、最近訊息摘要與時間；支援 ⌘/⇧ 多選與拖曳排序；搜尋列呈微透膠囊；通知 bar 具備未讀紅點、收合切換與玻璃通知卡片（顯示分支） | **通過** |
-| 6 | **中央分塊 10pt 圓角卡片與 Pane Tab Strip** | `liquid-glass-app.feature`<br>中央終端窗格顯示圓角卡片、焦點光環與 Pane Tab Strip | 建立水平／垂直分割，切換焦點與分頁 | 分割格具備 `10pt` 圓角卡片；當前聚焦格顯示藍色 `activePaneRing`（1.5pt），非聚焦格維持細邊框；頂部整合式 `30pt` 膠囊 Tab Strip（含狀態圓點、關閉、新增按鈕與右側向右／向下／關閉分塊按鈕） | **通過** |
+| 6 | **中央分塊 10pt 圓角卡片與 Pane Tab Strip** | `liquid-glass-app.feature`<br>中央終端窗格顯示圓角卡片、玻璃外框與 Pane Tab Strip | 建立水平／垂直分割，切換焦點與分頁 | 分割格具備 `10pt` 圓角卡片與細緻 `glassBorder`（`0.5pt`，不繪製藍色外框），改以頂部整合式 `30pt` 膠囊 Tab Strip（焦點狀態圓點、關閉、新增按鈕與右側向右／向下／關閉分塊按鈕）區分焦點 | **通過** |
 | 7 | **右側 Inspector 三分頁導覽與寬度調整** | `liquid-glass-app.feature`<br>透過快捷鍵與標題列／狀態列控制右側 Inspector 展開、收合與分頁切換 | 1. 按 `⌥⌘B` 或點擊標題列/Footer 按鈕<br>2. 切換「即時預覽」、「變更 (Diff)」、「執行記錄」分頁<br>3. 拖曳手把調整寬度 | 展開收合順暢，寬度鉗製於 `240...500pt`；三分頁切換正常；切換離開預覽分頁時透過 `onLeavePreview()` 安全交還鍵盤焦點至終端機 | **通過** |
-| 8 | **Inspector 即時預覽 (WKWebView) 與安全外開** | `liquid-glass-app.feature`<br>右側 Inspector 即時預覽支援檔案切換、重整與雙軌開啟 | 1. 點擊候選檔案 chip 或 ⌘-click<br>2. 點擊 `‹`、`›`、`↻`<br>3. 點擊 `↗` 外開 | 預覽位址列顯示目前檔名與 `LIVE` 徽章，瀏覽歷史可上一頁／下一頁／重整；點擊 `↗` 外開經 `GhosttyRuntime.openTerminalURL` 與 `UntrustedURLAlert` 規則嚴格保護，阻擋 `.sh`、`/dev/zero` 與不安全字元 | **通過** |
+| 8 | **Inspector 即時預覽 (WKWebView) 與安全外開** | `liquid-glass-app.feature`<br>右側 Inspector 即時預覽支援檔案切換、重整與雙軌開啟 | 1. ⌘-click 或從「變更 (Diff)」開啟預覽<br>2. 點擊 `‹`、`›`、`↻`<br>3. 點擊 `↗` 外開 | 預覽位址列顯示目前檔名與 `LIVE` 徽章（不額外顯示候選檔案列），瀏覽歷史可上一頁／下一頁／重整；點擊 `↗` 外開經 `GhosttyRuntime.openTerminalURL` 與 `UntrustedURLAlert` 規則嚴格保護，阻擋 `.sh`、`/dev/zero` 與不安全字元 | **通過** |
 | 9 | **雙軌 OpenMenu 與關閉還原焦點** | `open-menu.feature`<br>⌘-click 可預覽檔案的路徑跳出開啟選單<br>選「在右側欄即時預覽」載入檔案至右側 Inspector<br>不選任何項目就關掉選單 | 1. ⌘-click 可預覽檔案路徑<br>2. 選擇「在右側欄即時預覽」<br>3. Esc / 點擊選單外取消 | 彈出 5 項選單首項為「在右側欄即時預覽」，選擇後展開右側 Inspector 預覽該檔案且中央分割維持不變；Esc / 外點關閉選單且不開啟預覽、鍵盤焦點回到終端機 | **通過** |
 | 10 | **Core Agent 遙測與背景 Git Diff 串流** | `liquid-glass-app.feature`<br>增量解析 Claude 與 Codex 對話紀錄取得模型、Turn 與 Token 用量<br>Hook 即時工具事件更新串流<br>Git Diff 服務讀取工作區統計 | 檢視「執行記錄」與「變更 (Diff)」分頁內容 | Context Window 儀表呈現已用/上限比例條與真實 4 項 API 統計；Tool Calls 串流分類圖示、參數摘要與耗時；Git Diff 呈現 Working Tree 分支統計、逐檔 Diff hunks，非 Git 目錄或乾淨工作樹呈現清楚空狀態 | **通過** |
 | 11 | **全寬玻璃 WindowFooterView (32pt) 交互** | `liquid-glass-app.feature`<br>切換不同 workspace 時右側 Inspector 與底部狀態列同步切換上下文 | 點擊 Footer 各統計按鈕並切換 workspace | 左側顯示模型名、最新 Tool、Turn 數與 Metal 渲染器；中央顯示 Context 進度條與 `%`；右側顯示 Git 分支與加減行統計；點擊各區塊自動展開 Inspector 並跳轉對應分頁；切換 workspace 遙測與 Diff 同步重置/切換 | **通過** |

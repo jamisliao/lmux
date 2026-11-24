@@ -78,6 +78,8 @@ public struct HookEvent: Sendable, Equatable {
     public var errorType: String?
     /// `permission_mode` ("default", "bypassPermissions", …).
     public var permissionMode: String?
+    /// Model identifier reported in hook payloads (e.g. SessionStart `model`).
+    public var model: String?
     /// Wall clock (unix ns) when lmux-hook started, if sent.
     public var sentAtNanos: UInt64?
     /// Wall clock (unix ns) when the server parsed the line.
@@ -122,7 +124,7 @@ public struct HookEvent: Sendable, Equatable {
         notificationType = s("notification_type")
         message = s("message")
         toolName = s("tool_name")
-        toolArgument = Self.argument(payload["tool_input"] as? [String: Any])
+        toolArgument = Self.argument(payload["tool_input"] as? [String: Any], toolName: toolName)
         toolUseID = s("tool_use_id")
         source = s("source")
         reason = s("reason")
@@ -134,20 +136,105 @@ public struct HookEvent: Sendable, Equatable {
         prompt = s("prompt")
         errorType = s("error") ?? s("error_type")
         permissionMode = s("permission_mode")
+        model = s("model")
     }
 
-    /// The one-line gist of a tool call: Bash's command, a file's name, a search pattern.
-    static func argument(_ input: [String: Any]?) -> String? {
+    /// The one-line gist of a tool call: Bash's command, a file's name, a search pattern, SendMessage recipient, etc.
+    static func argument(_ input: [String: Any]?, toolName: String? = nil) -> String? {
         guard let input else { return nil }
-        for k in ["command", "file_path", "notebook_path", "pattern", "url", "query", "description", "prompt"] {
-            guard var v = input[k] as? String else { continue }
-            v = v.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
-            v = v.trimmingCharacters(in: .whitespaces)
-            if k.hasSuffix("_path") { v = (v as NSString).lastPathComponent }
-            if v.isEmpty { continue }
-            return v.count > 80 ? String(v.prefix(79)) + "…" : v
+
+        func truncate(_ s: String) -> String {
+            s.count > 80 ? String(s.prefix(79)) + "…" : s
         }
+
+        func oneLine(_ raw: String, collapseIfUnclosed: Bool = false) -> String {
+            let lines = raw.split(whereSeparator: \.isNewline)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            guard let first = lines.first else { return "" }
+            if collapseIfUnclosed && lines.count > 1 && hasUnclosedShellLine(first) {
+                return raw.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            }
+            return first
+        }
+
+        func nonEmptyString(_ raw: Any?) -> String? {
+            guard let s = raw as? String else { return nil }
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? nil : t
+        }
+
+        // SendMessage / peer messaging: show recipient + summary/message
+        if let to = nonEmptyString(input["to"] ?? input["recipient"] ?? input["target_agent_id"]) {
+            let target = oneLine(to)
+            if let detail = nonEmptyString(input["summary"] ?? input["message"]) {
+                return truncate("→ \(target): \(oneLine(detail))")
+            }
+            return truncate("→ \(target)")
+        }
+
+        // Skill invocation: skill name + optional args
+        if let skill = nonEmptyString(input["skill"]) {
+            let s = oneLine(skill)
+            if let args = nonEmptyString(input["args"]) {
+                return truncate("\(s) \(oneLine(args))")
+            }
+            return truncate(s)
+        }
+
+        // AskUserQuestion: first question text
+        if let questions = input["questions"] as? [[String: Any]],
+           let q = nonEmptyString(questions.first?["question"]) {
+            return truncate(oneLine(q))
+        }
+
+        let stringKeys = [
+            "command", "file_path", "notebook_path", "path", "pattern", "url",
+            "query", "description", "prompt", "subject", "title", "name",
+            "summary", "message", "content_id", "pageId", "channel_id", "taskId", "id",
+        ]
+        for k in stringKeys {
+            guard let raw = input[k] as? String else { continue }
+            var v = oneLine(raw, collapseIfUnclosed: k == "command")
+            if k.hasSuffix("_path") || k == "path" {
+                let last = (v as NSString).lastPathComponent
+                if !last.isEmpty { v = last }
+            }
+            if v.isEmpty { continue }
+            return truncate(v)
+        }
+
+        for k in ["pageId", "content_id", "taskId", "id"] {
+            if let num = input[k] as? NSNumber, CFGetTypeID(num) != CFBooleanGetTypeID() {
+                return truncate(num.stringValue)
+            }
+        }
+
+        if let ids = input["ids"] as? [Any], !ids.isEmpty {
+            let parts = ids.compactMap { item -> String? in
+                if let s = nonEmptyString(item) { return s }
+                if let n = item as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() { return n.stringValue }
+                return nil
+            }
+            if !parts.isEmpty { return truncate(parts.joined(separator: ", ")) }
+        }
+
+        _ = toolName
         return nil
+    }
+
+    private static func hasUnclosedShellLine(_ line: String) -> Bool {
+        if line.hasSuffix("\\") { return true }
+        var inSingle = false
+        var inDouble = false
+        var escaped = false
+        for ch in line {
+            if escaped { escaped = false; continue }
+            if ch == "\\" && !inSingle { escaped = true; continue }
+            if ch == "'" && !inDouble { inSingle.toggle() }
+            else if ch == "\"" && !inSingle { inDouble.toggle() }
+        }
+        return inSingle || inDouble
     }
 
     /// Parses one wire line (without or with trailing newline).

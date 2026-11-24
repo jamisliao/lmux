@@ -79,3 +79,17 @@ everything before it is only in the summary text, so removing those turns is ref
 - Refuse if a kept `tool_result` would lose its `tool_use`.
 - Write atomically after copying the old file to `<file>.bak` (`.bak.N` if taken); refuse
   if the file changed since it was loaded.
+
+## Telemetry fields
+`TranscriptIndex` (`Core/Sources/LmuxTranscript/AgentTelemetry.swift` & `TranscriptIndex.swift`)
+and `CodexRollout` (`Core/Sources/LmuxTranscript/CodexRollout.swift`) extract per-pane telemetry
+incrementally alongside turn indexing:
+- **Claude Code JSONL** (non-sidechain `assistant` entries): reads `message.model` and
+  `message.usage` (`input_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`,
+  `output_tokens`), deduplicated by `message.id` across streaming chunks (`usageByMessageID`) and
+  clamped at zero.
+- **Codex Rollout JSONL**: reads `session_meta.payload.model` / `turn_context.payload.model`,
+  plus `event_msg` `payload.type == "token_count"` (`info.model_context_window` and
+  `info.last_token_usage.{input_tokens, cached_input_tokens, output_tokens}`). Explicit
+  `model_context_window` overrides heuristic defaults from `ModelPricing` until a different
+  model is reported.

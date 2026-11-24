@@ -214,6 +214,7 @@ struct NotificationBar: View {
             }
             NotificationSummaryRow(model: model, controller: controller, host: host, layout: layout)
             if !layout.isCollapsed {
+                Rectangle().fill(T.Colors.glassBorder.color).frame(height: 0.5)
                 NotificationList(model: model, controller: controller, host: host)
             }
         }
@@ -239,8 +240,8 @@ struct BarResizeHandle: View {
         let pill = Self.pillColor(hover: hover, isDragging: layout.isDragging)
         ZStack(alignment: .top) {
             VStack(spacing: 0) {
-                Rectangle().fill(T.Colors.separator.color).frame(height: 1)
-                Rectangle().fill(T.Colors.specularHighlight.color).frame(height: 1)
+                Rectangle().fill(T.Colors.glassBorder.color).frame(height: 0.5)
+                Rectangle().fill(T.Colors.specularHighlight.color).frame(height: 0.5)
             }
             Capsule()
                 .fill(pill.color)
@@ -364,7 +365,7 @@ struct NotificationList: View {
             ScrollView(.vertical) {
                 VStack(spacing: 0) {
                     if ordered.isEmpty {
-                        Text("No notifications")
+                        Text("尚無通知")
                             .font(.system(size: 12))
                             .foregroundStyle(T.Colors.textTertiary.color)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -415,12 +416,13 @@ struct NotificationSummaryRow: View {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: "bell")
                     .font(.system(size: 11))
-                    .foregroundStyle((unread > 0 ? T.Colors.textPrimary : T.Colors.textTertiary).color)
+                    .foregroundStyle((unread > 0 ? T.Colors.statusRunningText : T.Colors.textSecondary).color)
                     .frame(width: 14, height: 14)
                 if unread > 0 {
                     Circle()
-                        .fill(T.Colors.stateFailed.color)
+                        .fill(T.Colors.needsInputRing.color)
                         .frame(width: 5, height: 5)
+                        .shadow(color: T.Colors.needsInputRing.color.opacity(0.55), radius: 2)
                         .offset(x: 2, y: -2)
                 }
             }
@@ -437,6 +439,9 @@ struct NotificationSummaryRow: View {
                     .foregroundStyle(T.Colors.textTertiary.color)
                     .lineLimit(1)
                     .truncationMode(.head)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(T.Colors.glassSurfaceRecessed.color))
                     .layoutPriority(-1)
                     .help("lmux build \(v)")
             }
@@ -446,12 +451,16 @@ struct NotificationSummaryRow: View {
             if unread > 0 {
                 Text("\(unread)")
                     .font(.system(size: 10, weight: .semibold).monospacedDigit())
-                    .foregroundStyle(T.Colors.onAccent.color)
+                    .foregroundStyle(T.Colors.statusRunningText.color)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(
                         Capsule()
-                            .fill(T.Colors.accent.color)
+                            .fill(T.Colors.statusRunningPill.color)
+                    )
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(T.Colors.statusRunningText.color.opacity(0.25), lineWidth: 0.5)
                     )
             }
 
@@ -462,7 +471,7 @@ struct NotificationSummaryRow: View {
         }
         .padding(.horizontal, 12)
         .frame(height: NotificationBarPlugin.rowHeight)
-        .background(hover ? T.Colors.rowHover.color : .clear)
+        .background(hover ? T.Colors.glassCardHover.color : .clear)
         .contentShape(Rectangle())
         .onHover { hover = $0 }
         .onTapGesture {

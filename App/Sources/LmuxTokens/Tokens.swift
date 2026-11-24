@@ -109,12 +109,12 @@ public enum LmuxTokens {
         // Surfaces
         /// Terminal + titlebar over the content column. Matches the Ghostty "Nord Light" / "Nord" backgrounds.
         public static let windowBackground = DynamicColor(light: Nord.nord5, dark: Nord.nord0)
-        /// Sidebar + titlebar over the sidebar column. Light: paper (nord6). Dark: one step below nord0 (derived).
+        /// Sidebar + titlebar over the sidebar column.
         /// Polish: now the OPAQUE fallback only (Reduce Transparency, inactive-window snapshots, tests).
-        public static let sidebarBackground = DynamicColor(light: Nord.nord6, dark: 0x292E39)
+        public static let sidebarBackground = DynamicColor(light: 0xF3F5F9, dark: 0x141822)
         /// Translucent sidebar glass tint drawn over NSVisualEffectView (.sidebar, .behindWindow).
-        /// Aligned with High-Key Crystal (light) and Obsidian Midnight (dark) `rightSidebarTint`.
-        public static let sidebarTint = DynamicColor(light: 0xFFFFFF, dark: 0x141822, lightAlpha: 0.36, darkAlpha: 0.84)
+        /// Tuned so native macOS vibrancy shines through while matching High-Key Crystal (light) and Obsidian Midnight (dark).
+        public static let sidebarTint = DynamicColor(light: 0xFFFFFF, dark: 0x141822, lightAlpha: 0.34, darkAlpha: 0.44)
         /// Toasts, the History search field. Light: derived, a hair above nord6.
         public static let elevatedBackground = DynamicColor(light: 0xF5F7FA, dark: Nord.nord1)
         /// Hairlines: sidebar edge, pane split, content header bottom, History panel top.
@@ -123,23 +123,24 @@ public enum LmuxTokens {
         public static let separator = DynamicColor(light: Nord.nord0, dark: 0x000000, lightAlpha: 0.10, darkAlpha: 0.32)
         /// Field and popover outlines. Polish: hairline-weight, used at 0.5–1px only.
         public static let border = DynamicColor(light: Nord.nord0, dark: Nord.nord6, lightAlpha: 0.14, darkAlpha: 0.10)
-        /// Liquid Glass top 1pt specular edge on the sidebar and notification bar.
-        public static let specularHighlight = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.70, darkAlpha: 0.14)
+        /// Liquid Glass top 1pt specular edge on the sidebar, titlebar, inspector, and footer.
+        public static let specularHighlight = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.92, darkAlpha: 0.30)
         /// Subtle translucent border on selected workspace pills, highlighted notification cards, and the History search field.
-        public static let glassBorder = DynamicColor(light: Nord.nord0, dark: 0xFFFFFF, lightAlpha: 0.09, darkAlpha: 0.11)
-        public static let glassHighlightBorder = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.78, darkAlpha: 0.14)
+        public static let glassBorder = DynamicColor(light: Nord.nord0, dark: 0xFFFFFF, lightAlpha: 0.09, darkAlpha: 0.12)
+        public static let glassHighlightBorder = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.80, darkAlpha: 0.18)
         /// Center capsule indicator on the notification bar's resize handle (idle vs hover/dragging).
         public static let dragHandlePill = DynamicColor(light: Nord.nord0, dark: Nord.nord6, lightAlpha: 0.22, darkAlpha: 0.24)
         public static let dragHandlePillActive = DynamicColor(light: 0x46658E, dark: Nord.nord8, lightAlpha: 0.70, darkAlpha: 0.75)
 
         // Liquid Glass Surfaces & Chrome
-        public static let titlebarBackground = DynamicColor(light: 0xFFFFFF, dark: 0x121620, lightAlpha: 0.45, darkAlpha: 0.86)
-        public static let rightSidebarTint = DynamicColor(light: 0xFFFFFF, dark: 0x141822, lightAlpha: 0.36, darkAlpha: 0.84)
-        public static let footerBackground = DynamicColor(light: 0xFFFFFF, dark: 0x121620, lightAlpha: 0.42, darkAlpha: 0.88)
+        public static let canvasBackdrop = DynamicColor(light: 0xEFF4FB, dark: 0x10141C)
+        public static let titlebarBackground = DynamicColor(light: 0xFFFFFF, dark: 0x121620, lightAlpha: 0.38, darkAlpha: 0.48)
+        public static let rightSidebarTint = DynamicColor(light: 0xFFFFFF, dark: 0x141822, lightAlpha: 0.34, darkAlpha: 0.44)
+        public static let footerBackground = DynamicColor(light: 0xFFFFFF, dark: 0x121620, lightAlpha: 0.40, darkAlpha: 0.50)
         public static let glassCard = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.36, darkAlpha: 0.05)
         public static let glassCardHover = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.54, darkAlpha: 0.09)
         public static let glassCardSelected = DynamicColor(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0.75, darkAlpha: 0.14)
-        public static let glassSurfaceRecessed = DynamicColor(light: 0xFFFFFF, dark: 0x0B0E14, lightAlpha: 0.48, darkAlpha: 0.94)
+        public static let glassSurfaceRecessed = DynamicColor(light: 0xFFFFFF, dark: 0x0B0E14, lightAlpha: 0.48, darkAlpha: 0.90)
         public static let activePaneRing = DynamicColor(light: 0x0A84FF, dark: 0x0A84FF)
         /// Amber ring drawn over an unfocused pane that needs user input (distinct from blue `activePaneRing`).
         public static let needsInputRing = DynamicColor(light: 0xB45309, dark: 0xFF9F0A)
@@ -309,8 +310,8 @@ public enum LmuxTokens {
     public enum Radius {
         public static let badge: CGFloat = 999      // capsule
         public static let accentBar: CGFloat = 1.5
-        public static let control: CGFloat = 6      // icon buttons, hover action buttons
-        public static let row: CGFloat = 8          // sidebar row pill, History rows
+        public static let control: CGFloat = 8      // icon buttons, hover action buttons
+        public static let row: CGFloat = 10         // sidebar row pill, History rows, cards
         public static let field: CGFloat = 8        // History footer / search field
         public static let pane: CGFloat = 8         // ring corner (inner panes are square; ring is drawn inset)
         public static let accentChip: CGFloat = 2.5 // workspace color chip (8x8)
@@ -394,7 +395,7 @@ public enum LmuxTokens {
         public static let footerHeight: CGFloat = 32
         public static let rightInspectorWidthDefault: CGFloat = 320
         public static let rightInspectorWidthMin: CGFloat = 240
-        public static let rightInspectorWidthMax: CGFloat = 500
+        public static let rightInspectorWidthMax: CGFloat = 1600
         public static let paneCornerRadius: CGFloat = 10
         public static let paneGap: CGFloat = 8
         public static let paneTabStripHeight: CGFloat = 30

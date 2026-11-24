@@ -106,6 +106,11 @@ public final class PreviewView: NSView, WKNavigationDelegate {
     func show(_ file: URL, fromWatcher: Bool = false, preserveRoot: Bool = false) {
         showGeneration += 1
         let generation = showGeneration
+        if !fromWatcher, file.standardizedFileURL != fileURL.standardizedFileURL {
+            // Stop the previous file's watcher immediately so a queued debounce cannot hijack the new navigation.
+            watcher?.stop()
+            watcher = nil
+        }
         let real = PreviewTarget.resolvingPath(file)
         if PreviewTarget.hasUnsafeScalar(file.path) {
             if !fromWatcher {
@@ -205,7 +210,7 @@ public final class PreviewView: NSView, WKNavigationDelegate {
         }
     }
 
-    private var isShowingFallbackPage: Bool {
+    var isShowingFallbackPage: Bool {
         webView.url?.absoluteString.lowercased() == "about:blank"
     }
 
@@ -307,32 +312,43 @@ public final class PreviewView: NSView, WKNavigationDelegate {
         return contentView.hitTest(hitPoint)?.isDescendant(of: webView) == true
     }
 
+    /// 重新載入目前預覽檔案；若目前處於錯誤／降級頁面或檔案沙盒狀態已改變，重新走 `show(_:fromWatcher:preserveRoot:)` 驗證與恢復。
+    public func reload() {
+        guard !isClosed else { return }
+        let real = PreviewTarget.resolvingPath(fileURL)
+        if PreviewTarget.usesPreviewScheme(fileURL) {
+            if PreviewTarget.hasUnsafeScalar(real.path) || PreviewTarget.kind(real) != PreviewTarget.kind(fileURL)
+                || isShowingFallbackPage {
+                show(fileURL, fromWatcher: true, preserveRoot: true)
+            } else {
+                webView.reload()
+            }
+            return
+        }
+        // HTML 僅在仍位於鎖定資料夾、為合法一般 HTML 且未超過大小限制時原地重整；否則走 show(_:fromWatcher:true) 阻擋或切換錯誤頁。
+        let insidePinnedRoot = pinnedHTMLRoot.map { Self.isInsideDirectory(real, directory: $0) } ?? true
+        if insidePinnedRoot,
+           !PreviewTarget.hasUnsafeScalar(fileURL.path),
+           !PreviewTarget.hasUnsafeScalar(real.path),
+           PreviewTarget.isHTML(fileURL), PreviewTarget.isHTML(real),
+           case .ok = PreviewSchemeHandler.inspectRegularFile(real),
+           !isShowingFallbackPage {
+            webView.reload()
+        } else {
+            show(fileURL, fromWatcher: true, preserveRoot: true)
+        }
+    }
+
     private func watch(_ file: URL) {
         watcher?.stop()
+        let watched = file.standardizedFileURL
         watcher = PreviewWatcher(file: file) { [weak self] in
-            guard let self, !self.isClosed else { return }
-            let real = PreviewTarget.resolvingPath(self.fileURL)
-            if PreviewTarget.usesPreviewScheme(self.fileURL) {
-                if PreviewTarget.hasUnsafeScalar(real.path) || PreviewTarget.kind(real) != PreviewTarget.kind(self.fileURL)
-                    || self.isShowingFallbackPage {
-                    self.show(self.fileURL, fromWatcher: true, preserveRoot: true)
-                } else {
-                    self.webView.reload()
-                }
-                return
+            guard let self, !self.isClosed, self.fileURL.standardizedFileURL == watched else { return }
+            if let inFlight = self.pendingShowURL ?? self.activeNavigationURL {
+                let targetFile = (PreviewSchemeHandler.file(for: inFlight) ?? inFlight).standardizedFileURL
+                if targetFile != watched { return }
             }
-            // HTML 僅在仍位於鎖定資料夾、為合法一般 HTML 且未超過大小限制時原地重整；否則走 show(_:fromWatcher:true) 阻擋或切換錯誤頁。
-            let insidePinnedRoot = self.pinnedHTMLRoot.map { Self.isInsideDirectory(real, directory: $0) } ?? true
-            if insidePinnedRoot,
-               !PreviewTarget.hasUnsafeScalar(self.fileURL.path),
-               !PreviewTarget.hasUnsafeScalar(real.path),
-               PreviewTarget.isHTML(self.fileURL), PreviewTarget.isHTML(real),
-               case .ok = PreviewSchemeHandler.inspectRegularFile(real),
-               !self.isShowingFallbackPage {
-                self.webView.reload()
-            } else {
-                self.show(self.fileURL, fromWatcher: true, preserveRoot: true)
-            }
+            self.reload()
         }
     }
 }

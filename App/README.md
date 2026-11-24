@@ -20,6 +20,7 @@ App/scripts/apptest.sh           # app harness, headless: workspaces, splits, fo
 App/scripts/apptest.sh --quick   # main pass only (incl. preview checks); scripts/install-git-hooks.sh (opt-in) runs it
                                  #   + Core swift test before every git push
 App/scripts/apptest.sh --preview # Markdown/HTML/plain-text preview suite alone (preview-check, WKWebView checks, preview UI)
+App/scripts/apptest.sh --liquid-glass # Liquid Glass chrome, telemetry, workbench, and layout-restore checks
 App/scripts/apptest.sh --screenshots DIR   # + DIR/p1-*.png, DIR/p2-*.png, dark and light (offscreen render)
 App/scripts/apptest.sh --real-window [DIR] # CI ONLY (refuses unless GITHUB_ACTIONS=true): VISIBLE window driven by real
                                  #   CGEvents: window drag, traffic lights, titlebar buttons, divider/sidebar/window
@@ -80,8 +81,9 @@ App/scripts/readme.sh hero       # site hero video (2000 px, H.264 CRF 21 / VP9 
 - **Focus (R6)**: any click on a pane (terminal or header) focuses it; after any click the keyboard is
   always on a visible pane of the selected workspace (never the sidebar, never a hidden pane).
 - **Agent state (R13-R15)**: each pane gets `LMUX_PANE_ID`, `LMUX_SOCKET` (hooks) and `LMUX_CONTROL_SOCKET`
-  (CLI). Hook events drive `PaneAgent` per pane -> row state (running = neutral spinner, needs input = frost
-  dot + ring on the pane, done = check, failed = x), unread badges, bell count. A pane is bound to its first live
+  (CLI). Hook events drive `PaneAgent` per pane -> row status pills (`⚡ 執行中` with neutral spinner,
+  `🔔 需要確認`, `✓ 完成`, `✕ 失敗`) + blue `activePaneRing` (focused pane) vs amber `needsInputRing`
+  (unfocused needs-input pane), unread badges, and bell count. A pane is bound to its first live
   top-level session: lmux-hook reports the claude that ran it (pid, process group, its ancestors' groups), and a
   `claude -p` started inside it (Claude's Bash tool) is in another group with the pane's claude among its ancestors,
   so its events never change the pane's session, state or title. `/clear`, `/resume` and a new claude after quitting
@@ -102,8 +104,9 @@ App/scripts/readme.sh hero       # site hero video (2000 px, H.264 CRF 21 / VP9 
   runs in its own session on the wrapper's pty, which looks the same to lmux as a claude that isn't the pane's.
   Deciding by claude's controlling tty instead of the foreground group wouldn't change that: script and tmux give
   claude a pty of their own, never the pane's. Run claude directly in the pane.
-- **Persistence (R11)**: `layout.json` (workspaces, split tree + ratios, cwd, titles, accents, Claude session
-  per pane) in the state dir, saved 1s after a change and on quit. At SessionStart lmux captures how that claude was
+- **Persistence (R11)**: `layout.json` (workspaces, split tree + ratios, cwd, titles, accents,
+  inspector state `inspectorVisible`/`inspectorWidth`/`inspectorTab`, Claude session per pane)
+  in the state dir, saved 1s after a change and on quit. At SessionStart lmux captures how that claude was
   started (`ClaudeCommand`: argv minus prompt / `-p` / `--resume` / `--continue` / `--session-id`, multi-value flags
   such as `--add-dir a b` kept whole) and, apart from it, the claude's environment limited to an explicit allowlist
   of non-secret settings (`HookClient.replayableNames`: CLAUDE_CONFIG_DIR, model names, timeouts, Bedrock/Vertex

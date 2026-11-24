@@ -406,6 +406,7 @@ extension LmuxController {
 /// Hidden while there is no history at all. The first index runs when the field is first focused.
 struct HistorySection: View {
     @Bindable var history: HistoryModel
+    var reduceMotion = false
     @FocusState private var searchFocused: Bool
     @State private var hoverField = false
 
@@ -418,16 +419,17 @@ struct HistorySection: View {
         } else {
             let items = Array(history.items.prefix(T.Layout.historyMaxResults))
             VStack(alignment: .leading, spacing: 0) {
+                Rectangle().fill(T.Colors.glassBorder.color).frame(height: 0.5)
                 if expanded {
                     panel(items)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
                 field
                     .padding(.horizontal, T.Layout.rowInsetX)
-                    .padding(.top, expanded ? 4 : 0)
-                    .padding(.bottom, T.Spacing.s)
+                    .padding(.top, expanded ? 4 : 8)
+                    .padding(.bottom, 8)
             }
-            .animation(T.Motion.reduceMotion ? nil : .easeOut(duration: T.Motion.historyExpand), value: expanded)
+            .animation(reduceMotion ? nil : .easeOut(duration: T.Motion.historyExpand), value: expanded)
             .onChange(of: history.focusRequest) { searchFocused = true }
             .onChange(of: searchFocused) {
                 history.fieldFocused = searchFocused
@@ -486,7 +488,7 @@ struct HistorySection: View {
                 .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(T.Colors.textTertiary.color)
             TextField("", text: $history.query,
-                      prompt: Text(history.indexing && history.totalCount == 0 ? "Indexing history…" : "Search history")
+                      prompt: Text(history.indexing && history.totalCount == 0 ? "正在索引歷史紀錄…" : "搜尋歷史紀錄…")
                           .foregroundStyle(T.Colors.textTertiary.color))
                 .textFieldStyle(.plain)
                 .font(T.Typography.field.font)
@@ -510,6 +512,7 @@ struct HistorySection: View {
                 }
                 .onKeyPress(.upArrow) { history.selection = max(0, history.selection - 1); return .handled }
                 .accessibilityLabel("History search, \(history.totalCount) sessions")
+                .accessibilityIdentifier("history-search-field")
             if history.indexing && history.totalCount == 0 {
                 Spinner(color: T.Colors.textTertiary).frame(width: 10, height: 10)
             } else if focused || !history.query.isEmpty {
@@ -520,11 +523,11 @@ struct HistorySection: View {
         }
         .padding(.horizontal, T.Layout.rowPaddingX)
         .frame(height: T.Layout.historySearchHeight)
-        .background(Capsule()
+        .background(RoundedRectangle(cornerRadius: T.Radius.field, style: .continuous)
             .fill(Self.searchFieldFillColor(focused: focused, hover: hoverField).color))
-        .overlay(Capsule()
+        .overlay(RoundedRectangle(cornerRadius: T.Radius.field, style: .continuous)
             .strokeBorder(Self.searchFieldBorderColor(focused: focused).color, lineWidth: focused ? 1 : 0.5))
-        .overlay(Capsule()
+        .overlay(RoundedRectangle(cornerRadius: T.Radius.field, style: .continuous)
             .stroke(T.Colors.focusRing.color, lineWidth: 2).padding(-2).opacity(focused ? 1 : 0))
         .contentShape(Rectangle())
         .onHover { hoverField = $0 }

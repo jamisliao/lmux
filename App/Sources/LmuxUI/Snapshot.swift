@@ -45,9 +45,10 @@ extension LmuxController {
             let img = CIImage(ioSurface: surf)
             guard let cg = ci.createCGImage(img, from: img.extent) else { continue }
             let r = s.convert(s.bounds, to: nil)
+            let cardRect = pane.view.convert(pane.view.bounds, to: nil)
             ctx.saveGState()
             let corner = T.Layout.paneCornerRadius
-            let clipPath = CGPath(roundedRect: r, cornerWidth: corner, cornerHeight: corner, transform: nil)
+            let clipPath = CGPath(roundedRect: cardRect, cornerWidth: corner, cornerHeight: corner, transform: nil)
             ctx.addPath(clipPath)
             ctx.clip()
             ctx.draw(cg, in: r)

@@ -52,7 +52,7 @@ struct NotificationCard: View {
         let first = task ?? workspace
         HStack(alignment: .top, spacing: 6) {
             Circle()
-                .fill(entry.read ? Color.clear : T.Colors.accent.color)
+                .fill(entry.read ? Color.clear : T.Colors.activePaneRing.color)
                 .frame(width: 6, height: 6)
                 .frame(width: 14, height: Self.lineHeight(T.Typography.rowTitle.size))
             VStack(alignment: .leading, spacing: T.Layout.rowLineGap) {
@@ -93,6 +93,12 @@ struct NotificationCard: View {
                         .opacity(Self.showsGlassBorder(highlighted: highlighted, hover: hover) ? 1 : 0)
                 )
         )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(T.Colors.glassBorder.color.opacity(0.45))
+                .frame(height: 0.5)
+                .padding(.horizontal, Self.innerPaddingX)
+        }
         .padding(.horizontal, Self.outerPaddingX)
         .padding(.vertical, Self.outerPaddingY)
         .contentShape(Rectangle())
@@ -103,10 +109,11 @@ struct NotificationCard: View {
         .accessibilityValue(entry.read ? "" : "unread")
     }
 
-    /// 反白：與 sidebar 選取列同色（視窗不在前景時用淡的那個）。反白時 hover 不改變底色。
+    /// 反白：與 sidebar 選取列同色（視窗不在前景時用淡的那個）；未讀通知帶淡藍底色。
     private var background: Color {
         if highlighted { return (activeState == .inactive ? T.Colors.rowSelectedInactive : T.Colors.glassCardSelected).color }
-        return hover ? T.Colors.glassCardHover.color : .clear
+        if hover { return T.Colors.glassCardHover.color }
+        return entry.read ? .clear : T.Colors.activePaneRing.color.opacity(0.04)
     }
 
     static func showsGlassBorder(highlighted: Bool, hover: Bool) -> Bool {

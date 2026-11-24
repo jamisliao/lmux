@@ -250,6 +250,7 @@ public final class CodexRollout: @unchecked Sendable {
         var threadName: String?
         var recs: [Rec] = []
         var telemetry = AgentTelemetrySnapshot()
+        var hasAuthoritativeContextWindow = false
         var firstTimestamp: Date?
         var lastTimestamp: Date?
         nonisolated(unsafe) static let iso: ISO8601DateFormatter = {
@@ -289,21 +290,28 @@ public final class CodexRollout: @unchecked Sendable {
                 if let b = (p["git"] as? [String: Any])?["branch"] as? String, !b.isEmpty { meta.gitBranch = b }
                 if let s = p["source"] as? [String: Any], s["subagent"] != nil { meta.isSubagent = true }
                 if let m = p["model"] as? String {
+                    if !hasAuthoritativeContextWindow || telemetry.model != m {
+                        if telemetry.model != m { hasAuthoritativeContextWindow = false }
+                        telemetry.contextLimitTokens = ModelPricing.contextLimit(for: m)
+                    }
                     telemetry.model = m
-                    telemetry.contextLimitTokens = ModelPricing.contextLimit(for: m)
                 }
                 return
             }
             if o["type"] as? String == "turn_context", let p = o["payload"] as? [String: Any] {
                 if let m = p["model"] as? String {
+                    if !hasAuthoritativeContextWindow || telemetry.model != m {
+                        if telemetry.model != m { hasAuthoritativeContextWindow = false }
+                        telemetry.contextLimitTokens = ModelPricing.contextLimit(for: m)
+                    }
                     telemetry.model = m
-                    telemetry.contextLimitTokens = ModelPricing.contextLimit(for: m)
                 }
                 return
             }
             if p?["type"] as? String == "token_count", let info = p?["info"] as? [String: Any] {
                 if let limit = (info["model_context_window"] as? NSNumber)?.intValue, limit > 0 {
                     telemetry.contextLimitTokens = limit
+                    hasAuthoritativeContextWindow = true
                 }
                 if let usage = info["last_token_usage"] as? [String: Any] {
                     let input = max(0, (usage["input_tokens"] as? NSNumber)?.intValue ?? 0)

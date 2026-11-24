@@ -149,6 +149,7 @@ enum GitDiffParser {
         var currentFile: GitDiffFile?
         var lineIndex = 0
         var sawPlusPath = false
+        var inHunk = false
 
         func flushCurrent() {
             if let f = currentFile, !f.path.isEmpty {
@@ -156,6 +157,7 @@ enum GitDiffParser {
             }
             currentFile = nil
             sawPlusPath = false
+            inHunk = false
         }
 
         for line in lines {
@@ -169,32 +171,35 @@ enum GitDiffParser {
 
             guard currentFile != nil else { continue }
 
-            if line.hasPrefix("new file mode") {
-                currentFile?.status = "A"
-                continue
-            } else if line.hasPrefix("deleted file mode") {
-                currentFile?.status = "D"
-                continue
-            } else if line.hasPrefix("rename from ") {
-                currentFile?.status = "R"
-                continue
-            } else if line.hasPrefix("--- a/") && !sawPlusPath {
-                let p = PreviewTarget.replacingUnsafeScalars(String(line.dropFirst(6)))
-                if !p.isEmpty { currentFile?.path = p }
-                continue
-            } else if line.hasPrefix("+++ b/") {
-                let p = PreviewTarget.replacingUnsafeScalars(String(line.dropFirst(6)))
-                if !p.isEmpty {
-                    currentFile?.path = p
-                    sawPlusPath = true
+            if !inHunk {
+                if line.hasPrefix("new file mode") {
+                    currentFile?.status = "A"
+                    continue
+                } else if line.hasPrefix("deleted file mode") {
+                    currentFile?.status = "D"
+                    continue
+                } else if line.hasPrefix("rename from ") {
+                    currentFile?.status = "R"
+                    continue
+                } else if line.hasPrefix("--- a/") && !sawPlusPath {
+                    let p = PreviewTarget.replacingUnsafeScalars(String(line.dropFirst(6)))
+                    if !p.isEmpty { currentFile?.path = p }
+                    continue
+                } else if line.hasPrefix("+++ b/") {
+                    let p = PreviewTarget.replacingUnsafeScalars(String(line.dropFirst(6)))
+                    if !p.isEmpty {
+                        currentFile?.path = p
+                        sawPlusPath = true
+                    }
+                    continue
+                } else if line.hasPrefix("---") || line.hasPrefix("+++") {
+                    continue
                 }
-                continue
-            } else if line.hasPrefix("---") || line.hasPrefix("+++") {
-                continue
             }
 
             let kind: GitDiffLine.Kind?
             if line.hasPrefix("@@") {
+                inHunk = true
                 kind = .hunkHeader
             } else if line.hasPrefix("+") {
                 kind = .added
