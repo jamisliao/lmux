@@ -88,8 +88,8 @@ final class TranscriptCache: @unchecked Sendable {
     }
 
     /// Bring the pane's index up to date with the file and return its turns.
-    func snapshot(pane: String, path: String) async -> Snapshot? {
-        if CodexRollout.isRollout(path) { return await codexSnapshot(pane: pane, path: path) }
+    func snapshot(pane: String, path: String, withCodexTitle: Bool = false) async -> Snapshot? {
+        if CodexRollout.isRollout(path) { return await codexSnapshot(pane: pane, path: path, withTitle: withCodexTitle) }
         return await withCheckedContinuation { c in
             queue.async {
                 let idx = self.index(pane, path)

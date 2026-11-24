@@ -270,26 +270,26 @@ git commit -m "feat(ui): add hardened AskRefLoader with static Git filter isolat
 - Produces (`LmuxUI`):
   - `enum AskContextBuilder { @MainActor static func build(for pane: Pane, transcripts: TranscriptCache, activeGitSnapshot: GitDiffSnapshot?) async -> AskSessionContext }`
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上帶 `// @scenario: 從 Claude 與 Codex 對話紀錄本機抽取 Session 上下文補充` 與降級場景測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上帶 `// @scenario: 從 Claude 與 Codex 對話紀錄本機抽取 Session 上下文補充` 與降級場景測試**
 
 涵蓋：
 - 從臨時 Claude JSONL 與 Codex Rollout（含 `session_index.jsonl`）經 `TranscriptCache` 組出 `AskSessionContext`（含最近 5 筆工具）；
 - 背景 **workspace** B 位於 Repo B 而全域 `activeGitSnapshot` 指向 Repo A 時，驗證回傳 Repo B 分支與變更數，絕不混入 Repo A；
 - 非 Git 目錄與無 `transcriptPath` 之純 shell tab 安全降級不報錯。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `App/Sources/LmuxUI/AskContextBuilder.swift` 與 `MessageActions.swift`**
+- [x] **Step 3: 實作 `App/Sources/LmuxUI/AskContextBuilder.swift` 與 `MessageActions.swift`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 5**
+- [x] **Step 5: 提交 Task 5**
 
 ```bash
 git add App/Sources/LmuxUI/AskContextBuilder.swift App/Sources/LmuxUI/MessageActions.swift App/Sources/lmux-apptest/InspectorAskTests.swift
