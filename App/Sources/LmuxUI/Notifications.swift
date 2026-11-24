@@ -104,6 +104,7 @@ extension LmuxController {
             select(w)
         }
         model.markNotificationsRead(id: e.id)
+        syncInspectorForFocusedPane()
         refreshPaneChrome()
     }
 

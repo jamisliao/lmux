@@ -759,6 +759,7 @@ public struct NotificationEntry: Identifiable, Equatable {
 }
 
 public enum InspectorTab: String, Codable, CaseIterable {
+    case ask
     case preview
     case diff
     case trace
@@ -801,6 +802,8 @@ public final class AppModel {
     public var inspectorVisible: Bool = true
     public var inspectorWidth: CGFloat = LmuxTokens.Layout.rightInspectorWidthDefault
     public var inspectorTab: InspectorTab = .preview
+    public var lastNonAskInspectorTab: InspectorTab = .preview
+    public var inspectorAutoOpenedByAsk: Bool = false
     /// Changing it drops the multi-selection, so ⌘W never closes rows the filter hides.
     public var workspaceFilter: WorkspaceFilter = .all { didSet { if workspaceFilter != oldValue { selection = [] } } }
     public var filteredWorkspaces: [Workspace] {
