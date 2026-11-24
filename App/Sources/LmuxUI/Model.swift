@@ -801,6 +801,7 @@ public final class AppModel {
     public var reduceMotionOverride: Bool?
     @ObservationIgnored var telemetryStore: AgentTelemetryStore?
     @ObservationIgnored public let gitDiffService = GitDiffService()
+    public let askStore = AskSessionStore()
     /// What the sidebar's elapsed times are measured against: moved by a minute tick that
     /// only runs while a visible sidebar shows a Done / Failed row.
     public var clock = Date()
