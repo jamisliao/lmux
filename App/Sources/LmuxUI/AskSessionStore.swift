@@ -145,6 +145,7 @@ public final class AskSession: Identifiable {
     public var loadedGitDiffs: [String: [AskGitDiffRefResult]]
     public var draftSelected: [String: [String]]
     public var draftFreeText: [String: String]
+    public var scrollToQuestionID: String?
 
     public init(
         id: String,

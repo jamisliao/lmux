@@ -316,6 +316,30 @@ public struct InspectorContainerView: View {
                 let disp = controller?.model.telemetryStore?.display(for: model.selected?.focusedPane)
                     ?? PaneTelemetryDisplay(model: nil, turnCount: 0, contextUsedTokens: 0, contextLimitTokens: 200_000, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, estimatedCostUSD: nil, contextPercent: 0, toolCalls: [], isActiveAgent: false)
                 InspectorTraceView(display: disp)
+            },
+            askContent: { [weak controller] in
+                if let paneID = model.selected?.focusedPane?.id,
+                   let session = model.askStore.activeSession(for: paneID) {
+                    InspectorAskView(
+                        session: session,
+                        queueCount: model.askStore.pendingCount(for: paneID),
+                        onOpenPreview: { [weak controller] url in
+                            if let sel = controller?.model.selected {
+                                controller?.openInInspectorPreview(url, workspace: sel)
+                            }
+                        },
+                        onSubmit: { [weak controller] in
+                            guard let controller else { return }
+                            _ = controller.model.askStore.submit(sessionID: session.id)
+                            controller.focusCurrent()
+                        },
+                        onCancel: { [weak controller] in
+                            guard let controller else { return }
+                            controller.model.askStore.cancel(sessionID: session.id)
+                            controller.focusCurrent()
+                        }
+                    )
+                }
             }
         )
     }

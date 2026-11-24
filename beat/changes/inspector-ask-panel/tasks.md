@@ -560,23 +560,23 @@ git commit -m "feat(ui): add native InspectorAskCards for context, Markdown/Diff
 - Produces (`LmuxUI`):
   - `public struct InspectorAskView: View`（含 `Presentation` 靜態模型、`1 / N` 多工作階段佇列頁首、題目快速跳轉 chip、`ScrollViewReader` 支援 `scrollToQuestionID`、單選／多選卡片含 `推薦` 徽章、多行 `freeText`、全題皆作答才啟用的送出鈕與取消鈕）
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上 `InspectorAskView` 表單狀態與渲染測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上 `InspectorAskView` 表單狀態與渲染測試**
 
 涵蓋：零 `WKWebView` 建立；`1 / N` 多工作階段顯示；未全題作答時送出停用與未答題數提示；勾選單／多選與填寫 `freeText` 後啟用送出；取消鈕與送出鈕正確更新 `AskSessionStore`。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `App/Sources/LmuxUI/InspectorAskView.swift` 並接入 `RightInspectorView.swift`**
+- [x] **Step 3: 實作 `App/Sources/LmuxUI/InspectorAskView.swift` 並接入 `RightInspectorView.swift`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 12**
+- [x] **Step 5: 提交 Task 12**
 
 ```bash
 git add App/Sources/LmuxUI/InspectorAskView.swift App/Sources/LmuxUI/RightInspectorView.swift App/Sources/lmux-apptest/InspectorAskTests.swift
