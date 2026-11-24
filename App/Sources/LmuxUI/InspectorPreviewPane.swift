@@ -1,118 +1,8 @@
 import AppKit
 import SwiftUI
-import WebKit
-import GhosttyKit
-import LmuxTerminal
 import LmuxTokens
 
 private typealias T = LmuxTokens
-
-// MARK: - Workspace Preview Coordinator
-
-@MainActor
-@Observable
-public final class WorkspacePreviewCoordinator {
-    public weak var window: NSWindow?
-    public private(set) var workspaceID: String?
-    public private(set) var currentURL: URL?
-    public private(set) var previewView: PreviewView?
-    public private(set) var canGoBack = false
-    public private(set) var canGoForward = false
-    public var onFileChange: ((URL) -> Void)?
-
-    @ObservationIgnored
-    private var backObserver: NSKeyValueObservation?
-    @ObservationIgnored
-    private var forwardObserver: NSKeyValueObservation?
-
-    public init(window: NSWindow? = nil) {
-        self.window = window
-    }
-
-    public func load(url: URL, workspaceID: String) {
-        guard url.isFileURL,
-              !PreviewTarget.hasUnsafeScalar(url.path),
-              let resolved = PreviewTarget.resolve(url.path, cwd: nil) else { return }
-        if self.workspaceID == workspaceID, let existing = previewView {
-            if self.currentURL == resolved { return }
-            self.currentURL = resolved
-            existing.show(resolved)
-            return
-        }
-        closeCurrent()
-        self.workspaceID = workspaceID
-        self.currentURL = resolved
-        let pv = PreviewView(fileURL: resolved)
-        pv.openExternal = { [weak self] target in
-            self?.openExternalTarget(target)
-        }
-        pv.onFileChange = { [weak self] newURL in
-            self?.currentURL = newURL
-            self?.onFileChange?(newURL)
-        }
-        backObserver = pv.webView.observe(\.canGoBack, options: [.initial, .new]) { [weak self] wv, _ in
-            MainActor.assumeIsolated { self?.canGoBack = wv.canGoBack }
-        }
-        forwardObserver = pv.webView.observe(\.canGoForward, options: [.initial, .new]) { [weak self] wv, _ in
-            MainActor.assumeIsolated { self?.canGoForward = wv.canGoForward }
-        }
-        self.previewView = pv
-    }
-
-    public func switchWorkspace(to newID: String?, targetURL: URL? = nil) {
-        if workspaceID != newID || previewView == nil {
-            closeCurrent()
-            self.workspaceID = newID
-            if let targetURL, let newID {
-                load(url: targetURL, workspaceID: newID)
-            }
-        }
-    }
-
-    public func reset() {
-        closeCurrent()
-        workspaceID = nil
-        currentURL = nil
-    }
-
-    public func closeCurrent() {
-        backObserver?.invalidate()
-        backObserver = nil
-        forwardObserver?.invalidate()
-        forwardObserver = nil
-        canGoBack = false
-        canGoForward = false
-        currentURL = nil
-        previewView?.close()
-        previewView = nil
-    }
-
-    public func goBack() {
-        previewView?.webView.goBack()
-    }
-
-    public func goForward() {
-        previewView?.webView.goForward()
-    }
-
-    public func reload() {
-        previewView?.webView.reload()
-    }
-
-    public func openCurrentExternally() {
-        guard let currentURL else { return }
-        openExternalTarget(currentURL)
-    }
-
-    func openExternalTarget(_ url: URL) {
-        let target = url.isFileURL ? url.path : url.absoluteString
-        GhosttyRuntime.openTerminalURL(
-            target,
-            kind: GHOSTTY_ACTION_OPEN_URL_KIND_UNKNOWN,
-            window: window
-        )
-    }
-}
 
 // MARK: - Preview Representable
 
@@ -130,43 +20,63 @@ struct PreviewRepresentable: NSViewRepresentable {
 
 public struct InspectorPreviewPane: View {
     @Bindable var coordinator: WorkspacePreviewCoordinator
-    let candidates: [URL]
     let workspaceCwd: String?
-    var onSelectCandidate: ((URL) -> Void)?
+    private let resolvedBasePath: String?
 
     public init(
         coordinator: WorkspacePreviewCoordinator,
-        candidates: [URL] = [],
-        workspaceCwd: String? = nil,
-        onSelectCandidate: ((URL) -> Void)? = nil
+        workspaceCwd: String? = nil
     ) {
         self.coordinator = coordinator
-        self.candidates = candidates
         self.workspaceCwd = workspaceCwd
-        self.onSelectCandidate = onSelectCandidate
+        self.resolvedBasePath = workspaceCwd.flatMap {
+            $0.isEmpty ? nil : URL(fileURLWithPath: $0).resolvingSymlinksInPath().path
+        }
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 10) {
             browserBar
-            if !candidates.isEmpty {
-                candidateChipsBar
-            }
-            Divider()
-                .overlay(T.Colors.glassBorder.color)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(T.Colors.glassCard.color)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [T.Colors.glassHighlightBorder.color, T.Colors.glassBorder.color],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 0.75
+                        )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            if let pv = coordinator.previewView {
-                PreviewRepresentable(previewView: pv)
-                    .id(ObjectIdentifier(pv))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                emptyState
+            Group {
+                if let pv = coordinator.previewView {
+                    PreviewRepresentable(previewView: pv)
+                        .id(ObjectIdentifier(pv))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    emptyState
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(T.Colors.glassCard.color)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            Divider()
-                .overlay(T.Colors.glassBorder.color)
             bottomStatusBar
         }
+        .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -177,6 +87,8 @@ public struct InspectorPreviewPane: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(!coordinator.canGoBack)
@@ -187,6 +99,8 @@ public struct InspectorPreviewPane: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(!coordinator.canGoForward)
@@ -197,86 +111,61 @@ public struct InspectorPreviewPane: View {
             } label: {
                 Image(systemName: "arrow.clockwise")
                     .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(coordinator.currentURL == nil)
             .accessibilityLabel("重新整理")
 
-            if let url = coordinator.currentURL {
-                Image(systemName: fileIconName(for: url))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(T.Colors.stateDone.color)
-            }
-
-            Text(displayPath(for: coordinator.currentURL))
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(T.Colors.textPrimary.color)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if coordinator.currentURL != nil {
-                HStack(spacing: 3) {
-                    Circle()
-                        .fill(T.Colors.stateDone.color)
-                        .frame(width: 5, height: 5)
-                    Text("LIVE")
-                        .font(.system(size: 9, weight: .bold))
+            HStack(spacing: 5) {
+                if let url = coordinator.currentURL {
+                    Image(systemName: fileIconName(for: url))
+                        .font(.system(size: 10.5, weight: .medium))
                         .foregroundColor(T.Colors.stateDone.color)
                 }
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(
-                    Capsule()
-                        .fill(T.Colors.glassSurfaceRecessed.color)
-                )
+
+                Text(displayPath(for: coordinator.currentURL))
+                    .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                    .foregroundColor(T.Colors.textSecondary.color)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if coordinator.currentURL != nil {
+                    Text("LIVE")
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundColor(T.Colors.diffAddedFg.color)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(T.Colors.statusDonePill.color))
+                }
             }
+            .padding(.horizontal, 8)
+            .frame(height: 22)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(T.Colors.glassSurfaceRecessed.color)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)
+            )
 
             Button {
                 coordinator.openCurrentExternally()
             } label: {
                 Image(systemName: "arrow.up.right.square")
                     .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 20, height: 20)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(coordinator.currentURL == nil)
             .accessibilityLabel("用外部程式開啟")
         }
         .padding(.horizontal, 8)
-        .frame(height: 32)
-        .background(T.Colors.glassSurfaceRecessed.color.opacity(0.3))
-    }
-
-    private var candidateChipsBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach(candidates, id: \.self) { candidate in
-                    let isSelected = candidate.standardizedFileURL == coordinator.currentURL?.standardizedFileURL
-                    Button {
-                        onSelectCandidate?(candidate)
-                    } label: {
-                        Text(candidate.lastPathComponent)
-                            .font(.system(size: 10, weight: isSelected ? .semibold : .regular))
-                            .lineLimit(1)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(isSelected ? T.Colors.glassCardSelected.color : T.Colors.glassSurfaceRecessed.color)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .stroke(isSelected ? T.Colors.glassHighlightBorder.color : Color.clear, lineWidth: 0.5)
-                            )
-                            .foregroundColor(isSelected ? T.Colors.textPrimary.color : T.Colors.textSecondary.color)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-        }
-        .frame(height: 26)
+        .frame(height: 34)
     }
 
     private var emptyState: some View {
@@ -287,7 +176,7 @@ public struct InspectorPreviewPane: View {
             Text("尚無開啟的預覽檔案")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(T.Colors.textPrimary.color)
-            Text("在終端機中 ⌘-點擊 支援的檔案\n或點擊上方變更候選檔快速開啟")
+            Text("在終端機中 ⌘-點擊 支援的檔案\n或從「變更 (Diff)」點選檔案開啟預覽")
                 .font(.system(size: 11))
                 .foregroundColor(T.Colors.textSecondary.color)
                 .multilineTextAlignment(.center)
@@ -297,19 +186,22 @@ public struct InspectorPreviewPane: View {
     }
 
     private var bottomStatusBar: some View {
-        HStack {
-            Image(systemName: "sparkles")
-                .font(.system(size: 9))
+        HStack(spacing: 4) {
             Text("WKWebView Pipeline (Metal)")
-                .font(.system(size: 10))
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(T.Colors.textTertiary.color)
             Spacer()
-            Text("Auto-reload on save")
-                .font(.system(size: 10))
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(T.Colors.stateDone.color)
+                    .frame(width: 5, height: 5)
+                Text("Auto-reload on save")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(T.Colors.stateDone.color)
+            }
         }
-        .foregroundColor(T.Colors.textSecondary.color)
-        .padding(.horizontal, 8)
-        .frame(height: 22)
-        .background(T.Colors.glassSurfaceRecessed.color.opacity(0.3))
+        .padding(.horizontal, 4)
+        .frame(height: 18)
     }
 
     private func fileIconName(for url: URL) -> String {
@@ -322,9 +214,8 @@ public struct InspectorPreviewPane: View {
 
     private func displayPath(for url: URL?) -> String {
         guard let url else { return "無開啟預覽" }
-        if let base = workspaceCwd, !base.isEmpty {
-            let rootPath = URL(fileURLWithPath: base).resolvingSymlinksInPath().path
-            let filePath = url.resolvingSymlinksInPath().path
+        if let rootPath = resolvedBasePath {
+            let filePath = url.standardizedFileURL.path
             let prefix = rootPath == "/" ? "/" : rootPath + "/"
             if filePath.hasPrefix(prefix) {
                 return String(filePath.dropFirst(prefix.count))

@@ -33,17 +33,37 @@ public struct InspectorDiffView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            headerSummary
-            Divider().overlay(T.Colors.glassBorder.color)
-            switch Self.displayState(for: snapshot) {
-            case .notGitRepo: emptyState(icon: "folder.badge.questionmark", text: "非 Git 版本控制目錄")
-            case .clean(let branch): emptyState(icon: "checkmark.circle", text: "工作樹乾淨無變更", branch: branch)
-            case .diff: filesList
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 0) {
+                    headerSummary
+                    Divider().overlay(T.Colors.glassBorder.color)
+                    switch Self.displayState(for: snapshot) {
+                    case .notGitRepo: emptyState(icon: "folder.badge.questionmark", text: "非 Git 版本控制目錄")
+                    case .clean(let branch): emptyState(icon: "checkmark.circle", text: "工作樹乾淨無變更", branch: branch)
+                    case .diff: filesList
+                    }
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(T.Colors.glassCard.color)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [T.Colors.glassHighlightBorder.color, T.Colors.glassBorder.color],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 0.75
+                        )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
+            .padding(12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(T.Colors.windowBackground.color.opacity(0.2))
     }
 
     private var headerSummary: some View {
@@ -72,37 +92,35 @@ public struct InspectorDiffView: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: 34)
+        .frame(height: 36)
     }
 
     private func emptyState(icon: String, text: String, branch: String? = nil) -> some View {
-        VStack(spacing: 12) {
-            Spacer()
+        VStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 28, weight: .light))
+                .font(.system(size: 24, weight: .light))
                 .foregroundColor(T.Colors.textTertiary.color)
             Text(text)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12.5, weight: .medium))
                 .foregroundColor(T.Colors.textSecondary.color)
             if let b = branch, !b.isEmpty {
                 Text("分支：\(b)")
                     .font(.system(size: 11))
                     .foregroundColor(T.Colors.textTertiary.color)
             }
-            Spacer()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 36)
+        .padding(.horizontal, 12)
     }
 
     private var filesList: some View {
-        ScrollView(.vertical, showsIndicators: true) {
-            LazyVStack(spacing: 8) {
-                ForEach(snapshot.files) { file in
-                    fileDiffCard(file)
-                }
+        LazyVStack(spacing: 8) {
+            ForEach(snapshot.files) { file in
+                fileDiffCard(file)
             }
-            .padding(10)
         }
+        .padding(10)
     }
 
     private func fileDiffCard(_ file: GitDiffFile) -> some View {
@@ -119,10 +137,17 @@ public struct InspectorDiffView: View {
         }
         .background(T.Colors.glassSurfaceRecessed.color.opacity(0.6))
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(T.Colors.glassHighlightBorder.color, lineWidth: 0.5)
         )
-        .cornerRadius(6)
+        .cornerRadius(8)
+    }
+
+    private func openPreview(for file: GitDiffFile) {
+        let baseDir = snapshot.repoRoot ?? snapshot.cwd
+        if let liveURL = Self.resolvePreviewURL(file: file.path, cwd: baseDir) {
+            onOpenPreview?(liveURL)
+        }
     }
 
     private func fileHeader(_ file: GitDiffFile) -> some View {
@@ -134,13 +159,10 @@ public struct InspectorDiffView: View {
 
             if file.previewURL != nil {
                 Button {
-                    let baseDir = snapshot.repoRoot ?? snapshot.cwd
-                    if let liveURL = Self.resolvePreviewURL(file: file.path, cwd: baseDir) {
-                        onOpenPreview?(liveURL)
-                    }
+                    openPreview(for: file)
                 } label: {
                     Text(file.path)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundColor(T.Colors.textPrimary.color)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -150,7 +172,7 @@ public struct InspectorDiffView: View {
                 .help("在即時預覽中開啟")
             } else {
                 Text(file.path)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundColor(T.Colors.textPrimary.color)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -159,10 +181,7 @@ public struct InspectorDiffView: View {
 
             if file.previewURL != nil {
                 Button {
-                    let baseDir = snapshot.repoRoot ?? snapshot.cwd
-                    if let liveURL = Self.resolvePreviewURL(file: file.path, cwd: baseDir) {
-                        onOpenPreview?(liveURL)
-                    }
+                    openPreview(for: file)
                 } label: {
                     Image(systemName: "eye")
                         .font(.system(size: 10))
@@ -171,11 +190,14 @@ public struct InspectorDiffView: View {
                 }
                 .buttonStyle(.plain)
                 .help("在預覽中開啟")
+                .accessibilityLabel("在即時預覽開啟 \(file.path)")
             }
 
-            Text("+\(file.added) -\(file.deleted)")
-                .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(T.Colors.textTertiary.color)
+            HStack(spacing: 4) {
+                Text("+\(file.added)").foregroundColor(T.Colors.diffAddedFg.color)
+                Text("-\(file.deleted)").foregroundColor(T.Colors.diffRemovedFg.color)
+            }
+            .font(.system(size: 10, weight: .medium, design: .monospaced))
         }
         .padding(.horizontal, 8)
         .frame(height: 26)
@@ -213,9 +235,9 @@ public struct InspectorDiffView: View {
 
     private func lineBgColor(_ kind: GitDiffLine.Kind) -> Color {
         switch kind {
-        case .added: return T.Colors.diffAddedBg.color.opacity(0.4)
-        case .removed: return T.Colors.diffRemovedBg.color.opacity(0.4)
-        case .hunkHeader: return T.Colors.glassSurfaceRecessed.color.opacity(0.3)
+        case .added: return T.Colors.diffAddedBg.color
+        case .removed: return T.Colors.diffRemovedBg.color
+        case .hunkHeader: return T.Colors.glassSurfaceRecessed.color.opacity(0.45)
         case .context: return Color.clear
         }
     }

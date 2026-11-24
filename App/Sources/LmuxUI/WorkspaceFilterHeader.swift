@@ -18,8 +18,9 @@ public struct WorkspaceFilterHeader: View {
     public var body: some View {
         HStack(spacing: 4) {
             Text("工作區")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(T.Colors.textSecondary.color)
+                .font(.system(size: 10.5, weight: .semibold))
+                .tracking(0.4)
+                .foregroundStyle(T.Colors.textTertiary.color)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Menu {
@@ -33,25 +34,31 @@ public struct WorkspaceFilterHeader: View {
                     }
                 }
             } label: {
-                HStack(spacing: 2) {
-                    Image(systemName: model.workspaceFilter == .all ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
-                        .font(.system(size: 12, weight: .medium))
+                HStack(spacing: 3) {
+                    Image(systemName: model.workspaceFilter == .all ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                        .font(.system(size: 11, weight: .medium))
                     if model.workspaceFilter != .all {
                         Text(model.workspaceFilter.title)
                             .font(.system(size: 9.5, weight: .semibold))
                     }
                 }
-                .foregroundStyle((model.workspaceFilter == .all ? T.Colors.textTertiary : T.Colors.accent).color)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
+                .foregroundStyle((model.workspaceFilter == .all ? T.Colors.textTertiary : T.Colors.statusRunningText).color)
+                .padding(.horizontal, model.workspaceFilter == .all ? 5 : 6)
+                .frame(height: 20)
                 .background(
-                    RoundedRectangle(cornerRadius: T.Radius.control, style: .continuous)
-                        .fill(model.workspaceFilter == .all ? Color.clear : T.Colors.glassCardSelected.color)
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(model.workspaceFilter == .all ? Color.clear : T.Colors.statusRunningPill.color)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .strokeBorder(model.workspaceFilter == .all ? Color.clear : T.Colors.statusRunningText.color.opacity(0.25), lineWidth: 0.5)
                 )
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .fixedSize()
             .help("篩選工作區")
+            .accessibilityIdentifier("workspace-filter-menu")
         }
         .padding(.horizontal, T.Layout.rowInsetX + T.Layout.rowPaddingX)
         .frame(height: T.Layout.workspaceFilterHeaderHeight)

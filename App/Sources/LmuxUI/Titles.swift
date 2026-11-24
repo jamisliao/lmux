@@ -84,6 +84,13 @@ extension LmuxController {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
+    /// Cancels debounced telemetry/title work and bumps the pane's telemetry epoch so in-flight async reads drop stale snapshots.
+    func resetTelemetryWork(for pane: Pane) {
+        telemetryGeneration[pane.id, default: 0] &+= 1
+        telemetryWork.removeValue(forKey: pane.id)?.cancel()
+        titleWork.removeValue(forKey: pane.id)?.cancel()
+    }
+
     /// Debounced incremental telemetry refresh from the active transcript/rollout via `TranscriptCache`.
     func scheduleTelemetryRefresh(_ pane: Pane, delay: TimeInterval = 0.2) {
         guard pane.transcriptPath != nil else { return }
@@ -105,16 +112,19 @@ extension LmuxController {
         let sid = pane.titleSession
         let state = pane.titleState
         let codex = pane.runsCodex
+        let gen = telemetryGeneration[pane.id, default: 0]
         Task { [weak self, weak pane] in
             guard let self, let pane else { return }
             let snap = codex ? await self.transcripts.codexSnapshot(pane: pane.id, path: path, withTitle: true)
                              : await self.transcripts.snapshot(pane: pane.id, path: path)
-            guard let snap else { return }
-            self.model.telemetryStore?.recordSnapshot(snap.telemetry, for: pane.id)
+            guard let snap, pane.transcriptPath == path, pane.titleSession == sid else { return }
+            if self.telemetryGeneration[pane.id, default: 0] == gen {
+                self.model.telemetryStore?.recordSnapshot(snap.telemetry, for: pane.id)
+            }
             var s = state
             s.apply(customTitle: snap.customTitle, aiTitle: snap.aiTitle)
             // A rename (or another session) while the file was read wins.
-            guard s != state, pane.titleSession == sid, pane.titleState == state else { return }
+            guard s != state, pane.titleState == state else { return }
             pane.titleState = s
             self.titlesChanged(pane)
         }

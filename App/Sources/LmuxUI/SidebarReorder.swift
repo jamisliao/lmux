@@ -80,7 +80,7 @@ extension LmuxController {
     }
 
     /// Reduce Motion: rows jump instead of sliding (the lifted ones still follow the pointer).
-    private var reorderAnimation: Animation? { T.Motion.reduceMotion ? nil : T.Motion.reorder }
+    private var reorderAnimation: Animation? { model.reduceMotion ? nil : T.Motion.reorder }
 
     /// Near the top or bottom of the visible rows while dragging, nudge the list toward that end
     /// (only while a drag is in progress: no polling otherwise).

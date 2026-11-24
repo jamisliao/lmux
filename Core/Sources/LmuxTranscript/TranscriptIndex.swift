@@ -201,15 +201,20 @@ public final class TranscriptIndex: @unchecked Sendable {
             n.createdFiles.append(f)
         }
         if n.isAssistant && !n.isSidechain {
-            if let m = message?["model"] as? String {
+            let msgModel = (message?["model"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isSynthetic = msgModel == "<synthetic>"
+            if let m = msgModel, !m.isEmpty, !isSynthetic {
                 telemetry.model = m
                 telemetry.contextLimitTokens = ModelPricing.contextLimit(for: m)
             }
-            if let usage = message?["usage"] as? [String: Any] {
+            if !isSynthetic, let usage = message?["usage"] as? [String: Any] {
                 let input = max(0, (usage["input_tokens"] as? NSNumber)?.intValue ?? 0)
                 let cacheCreation = max(0, (usage["cache_creation_input_tokens"] as? NSNumber)?.intValue ?? 0)
                 let cacheRead = max(0, (usage["cache_read_input_tokens"] as? NSNumber)?.intValue ?? 0)
                 let output = max(0, (usage["output_tokens"] as? NSNumber)?.intValue ?? 0)
+                let ccDetail = usage["cache_creation"] as? [String: Any]
+                let cc5 = (ccDetail?["ephemeral_5m_input_tokens"] as? NSNumber).map { max(0, $0.intValue) }
+                let cc1h = (ccDetail?["ephemeral_1h_input_tokens"] as? NSNumber).map { max(0, $0.intValue) }
                 telemetry.contextUsedTokens = input + cacheCreation + cacheRead
                 telemetry.inputTokens = input
                 telemetry.cacheCreationTokens = cacheCreation
@@ -219,7 +224,9 @@ public final class TranscriptIndex: @unchecked Sendable {
                     input: input,
                     cacheCreation: cacheCreation,
                     cacheRead: cacheRead,
-                    output: output
+                    output: output,
+                    cacheCreation5m: cc5,
+                    cacheCreation1h: cc1h
                 )
                 if let msgID = message?["id"] as? String {
                     if let prev = usageByMessageID[msgID] {

@@ -285,11 +285,12 @@ extension LmuxController {
         }
         pane.hover.loading = true
         pane.hover.needsReload = false
+        let telemetryGen = telemetryGeneration[pane.id, default: 0]
         Task { [weak self, weak pane] in
             guard let self, let pane else { return }
             let snap = await self.transcripts.snapshot(pane: pane.id, path: path)
             pane.hover.loading = false
-            if let snap { self.apply(snap, path: path, to: pane) }
+            if let snap { self.apply(snap, path: path, to: pane, telemetryGen: telemetryGen) }
             let queued = pane.hover.pendingThens
             pane.hover.pendingThens.removeAll()
             let needAnother = pane.hover.needsReload
@@ -300,7 +301,7 @@ extension LmuxController {
         }
     }
 
-    private func apply(_ snap: TranscriptCache.Snapshot, path: String, to pane: Pane) {
+    private func apply(_ snap: TranscriptCache.Snapshot, path: String, to pane: Pane, telemetryGen: UInt64? = nil) {
         guard pane.transcriptPath == path else { return }
         var turns = snap.turns
         // After a rewind: the turns Claude dropped, until its next prompt starts the new branch.
@@ -312,13 +313,18 @@ extension LmuxController {
         pane.hover.stamp = snap.stamp
         pane.hover.loadedPath = path
         transcriptReads[pane.id] = (snap.bytesParsed, snap.fullReads)
-        model.telemetryStore?.recordSnapshot(snap.telemetry, for: pane.id)
+        if telemetryGen == nil || telemetryGeneration[pane.id, default: 0] == telemetryGen {
+            model.telemetryStore?.recordSnapshot(snap.telemetry, for: pane.id)
+        }
     }
 
     /// Fresh turns, awaited (used by actions, not by hover).
     func loadTurns(_ pane: Pane) async -> [TranscriptIndex.Turn] {
         guard let path = pane.transcriptPath else { return [] }
-        if let snap = await transcripts.snapshot(pane: pane.id, path: path) { apply(snap, path: path, to: pane) }
+        let telemetryGen = telemetryGeneration[pane.id, default: 0]
+        if let snap = await transcripts.snapshot(pane: pane.id, path: path) {
+            apply(snap, path: path, to: pane, telemetryGen: telemetryGen)
+        }
         return pane.hover.turns
     }
 

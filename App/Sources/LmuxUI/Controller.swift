@@ -67,6 +67,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     }
     /// Test tap: every hook event as received (e2e instrumentation).
     var hookTap: ((HookEvent) -> Void)?
+    /// Test tap: invoked when `promptRename(_:)` runs (before headless guard).
+    var renamePromptTap: ((Workspace) -> Void)?
     /// How long a claude may run in a pane without a hook event before the hooks hint (tests: shorter).
     var hooksHintDelay: TimeInterval = 10
     /// Tests: where to look for other Claude config dirs instead of the home folder.
@@ -104,6 +106,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     var sharedCodexServers: [Int32: Bool] = [:]
     var overlayWork: [String: DispatchWorkItem] = [:]
     var telemetryWork: [String: DispatchWorkItem] = [:]
+    var telemetryGeneration: [String: UInt64] = [:]
     /// Per pane: the pending look at the transcript after Esc / Ctrl+C (`interruptKeyPressed`).
     var interruptChecks: [String: UUID] = [:]
     /// `lmux wait` calls in progress (Wait.swift), looked at once per runloop turn a state changed in.
@@ -192,14 +195,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if model.telemetryStore == nil {
             model.telemetryStore = AgentTelemetryStore()
         }
-        model.telemetryStore?.onRefreshTranscript = { [weak self] pane in
-            self?.scheduleTelemetryRefresh(pane)
-        }
         previewCoordinator.onFileChange = { [weak self] newURL in
             guard let self,
                   let wsID = self.previewCoordinator.workspaceID ?? self.model.selectedID else { return }
             self.model.inspectorPreviewURLByWorkspace[wsID] = newURL
-            self.scheduleSave()
         }
         history = HistoryModel(paths: paths, controller: self)
         notifier.onActivate = { [weak self] paneID in
@@ -551,12 +550,19 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             self.checkClaudeStillRunning(pane)
             self.noticeCodexStarting(pane, title: clean)
             self.considerHooksHint(pane)
-            // Titles change after each command: a cheap moment to notice `git checkout`.
+            // Titles change after each command: a cheap moment to notice `git checkout` without
+            // spawning `git` on every spinner/output title change while an agent is active.
             if let c = pane.cwd {
                 let b = GitBranch.read(cwd: c)
-                if b != pane.branch { pane.branch = b }
-                if pane.workspace === self.model.selected && pane === pane.workspace?.focusedPane {
-                    self.model.gitDiffService.refresh(cwd: c)
+                let branchChanged = b != pane.branch
+                if branchChanged { pane.branch = b }
+                if pane.workspace === self.model.selected && pane === pane.workspace?.focusedPane,
+                   branchChanged || pane.agent.state == .idle {
+                    self.model.gitDiffService.refresh(
+                        cwd: c,
+                        debounceMs: branchChanged ? 250 : 1200,
+                        includeHunks: self.model.inspectorVisible && self.model.inspectorTab == .diff
+                    )
                 }
             }
             // A hidden workspace's pane headers are refreshed when it is shown (rebuildContent).
@@ -708,6 +714,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         titleWork.removeValue(forKey: pane.id)?.cancel()
         overlayWork.removeValue(forKey: pane.id)?.cancel()
         telemetryWork.removeValue(forKey: pane.id)?.cancel()
+        telemetryGeneration[pane.id] = nil
         model.telemetryStore?.clear(paneID: pane.id)
         interruptChecks[pane.id] = nil
         transcriptReads[pane.id] = nil
@@ -770,14 +777,13 @@ public final class LmuxController: NSObject, NSWindowDelegate {
             // Switching workspace any other way (⌘1, jump to unread, …) ends a multi-selection.
             model.selection = []
             model.selectionAnchorID = ws.id
-            if let targetURL = model.inspectorPreviewURLByWorkspace[ws.id] {
-                previewCoordinator.load(url: targetURL, workspaceID: ws.id)
-            } else {
-                previewCoordinator.switchWorkspace(to: ws.id)
-            }
+            previewCoordinator.switchWorkspace(to: ws.id, targetURL: model.inspectorPreviewURLByWorkspace[ws.id])
         }
         model.selectedID = ws.id
-        model.gitDiffService.refresh(cwd: ws.focusedPane?.cwd ?? ws.panes.first?.cwd)
+        model.gitDiffService.refresh(
+            cwd: ws.focusedPane?.cwd ?? ws.panes.first?.cwd,
+            includeHunks: model.inspectorVisible && model.inspectorTab == .diff
+        )
         if let activePane = ws.focusedPane ?? ws.panes.first, activePane.transcriptPath != nil {
             scheduleTelemetryRefresh(activePane, delay: 0.02)
         }
@@ -820,6 +826,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     }
 
     public func promptRename(_ ws: Workspace) {
+        renamePromptTap?(ws)
         guard !headless else { return }
         let alert = NSAlert()
         alert.messageText = "Rename Workspace"
@@ -850,6 +857,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     public func toggleInspector() {
         model.inspectorVisible.toggle()
+        if model.inspectorVisible && model.inspectorTab == .diff,
+           !model.gitDiffService.snapshotHasHunks,
+           let cwd = model.selected?.focusedPane?.cwd ?? model.selected?.panes.first?.cwd {
+            model.gitDiffService.refresh(cwd: cwd, immediate: true, includeHunks: true)
+        }
         root.needsLayout = true
         scheduleSave()
         focusCurrent()
@@ -860,6 +872,11 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         model.inspectorTab = tab
         if !model.inspectorVisible {
             model.inspectorVisible = true
+        }
+        if tab == .diff,
+           !model.gitDiffService.snapshotHasHunks,
+           let cwd = model.selected?.focusedPane?.cwd ?? model.selected?.panes.first?.cwd {
+            model.gitDiffService.refresh(cwd: cwd, immediate: true, includeHunks: true)
         }
         root.needsLayout = true
         scheduleSave()
@@ -1050,8 +1067,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         // rest stay out of the hierarchy (and occluded, below) exactly like a hidden workspace.
         let zoomed = ws.zoomedPane
         let v: NSView = zoomed?.view ?? buildView(ws.root)
-        v.frame = root.content.bounds
-        v.autoresizingMask = [.width, .height]
+        v.frame = root.content.paneFrame
+        v.autoresizingMask = []
         root.content.addSubview(v)
         refreshHeaders(ws)
         let shown = ws.visiblePanes
@@ -1115,7 +1132,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
 
     func activePaneDidChange(to pane: Pane?, in ws: Workspace) {
         guard ws === model.selected else { return }
-        model.gitDiffService.refresh(cwd: pane?.cwd)
+        model.gitDiffService.refresh(
+            cwd: pane?.cwd,
+            includeHunks: model.inspectorVisible && model.inspectorTab == .diff
+        )
         if let pane, pane.transcriptPath != nil {
             scheduleTelemetryRefresh(pane, delay: 0.02)
         }
@@ -1211,7 +1231,7 @@ public final class LmuxController: NSObject, NSWindowDelegate {
                 if focused && active && p.unread > 0 { p.unread = 0 }
                 if ws === sel {
                     p.view.isFocused = focused
-                    p.view.ring.setShown(p.showsRing && settings.unreadRing)
+                    p.view.ring.setShown(p.showsRing && settings.unreadRing, animated: !model.reduceMotion)
                     p.view.header.focused = focused
                     p.view.header.needsInput = p.needsInput
                     p.view.header.modeBadge = p.modeBadge
@@ -1478,7 +1498,10 @@ public final class LmuxController: NSObject, NSWindowDelegate {
         if pane.workspace === model.selected {
             root.updateHeader()
             if pane === pane.workspace?.focusedPane {
-                model.gitDiffService.refresh(cwd: dir)
+                model.gitDiffService.refresh(
+                    cwd: dir,
+                    includeHunks: model.inspectorVisible && model.inspectorTab == .diff
+                )
             }
         }
         scheduleSave()
@@ -1644,9 +1667,13 @@ public final class LmuxWindow: NSWindow {
     /// gesture when it likes; NSApp.currentEvent by then can be another event (a click delivered
     /// while the queue held others read the previous click's ⌘ / ⇧, or none).
     @MainActor public static var clickModifiers: NSEvent.ModifierFlags = []
+    @MainActor public static var lastClickCount: Int = 1
 
     public override func sendEvent(_ event: NSEvent) {
-        if event.type == .leftMouseDown || event.type == .leftMouseUp { Self.clickModifiers = event.modifierFlags }
+        if event.type == .leftMouseDown || event.type == .leftMouseUp {
+            Self.clickModifiers = event.modifierFlags
+            Self.lastClickCount = event.clickCount
+        }
         if event.type == .keyDown, controller?.handleSidebarKey(event) == true { return }
         if event.type == .leftMouseDown { controller?.sidebarDragCancelled = false; controller?.handleMouseDown(event) }
         if event.type == .leftMouseDragged, let p = controller?.pressedPane, !p.hover.selecting {

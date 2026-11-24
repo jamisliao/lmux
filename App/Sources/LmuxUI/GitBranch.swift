@@ -4,6 +4,10 @@ import Foundation
 /// No `git` process, no polling; callers refresh on cwd/title changes.
 enum GitBranch {
     static func read(cwd: String) -> String? {
+        readStatus(cwd: cwd)?.name
+    }
+
+    static func readStatus(cwd: String) -> (name: String, isDetached: Bool)? {
         var dir = URL(fileURLWithPath: cwd).standardizedFileURL
         let fm = FileManager.default
         for _ in 0..<64 {
@@ -19,7 +23,7 @@ enum GitBranch {
                     let p = line.dropFirst("gitdir:".count).trimmingCharacters(in: .whitespaces)
                     gitDir = p.hasPrefix("/") ? URL(fileURLWithPath: p) : dir.appendingPathComponent(p)
                 }
-                return parseHEAD(try? String(contentsOf: gitDir.appendingPathComponent("HEAD"), encoding: .utf8))
+                return parseHEADStatus(try? String(contentsOf: gitDir.appendingPathComponent("HEAD"), encoding: .utf8))
             }
             let parent = dir.deletingLastPathComponent()
             if parent.path == dir.path { return nil }
@@ -29,12 +33,17 @@ enum GitBranch {
     }
 
     static func parseHEAD(_ text: String?) -> String? {
+        parseHEADStatus(text)?.name
+    }
+
+    static func parseHEADStatus(_ text: String?) -> (name: String, isDetached: Bool)? {
         guard let head = text?.trimmingCharacters(in: .whitespacesAndNewlines), !head.isEmpty else { return nil }
         if head.hasPrefix("ref:") {
             let ref = head.dropFirst(4).trimmingCharacters(in: .whitespaces)
-            return ref.hasPrefix("refs/heads/") ? String(ref.dropFirst("refs/heads/".count)) : ref
+            let name = ref.hasPrefix("refs/heads/") ? String(ref.dropFirst("refs/heads/".count)) : ref
+            return (name, false)
         }
-        return String(head.prefix(7))  // detached
+        return (String(head.prefix(7)), true)  // detached
     }
 }
 

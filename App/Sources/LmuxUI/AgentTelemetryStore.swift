@@ -43,7 +43,6 @@ public struct PaneTelemetryDisplay: Equatable {
 @MainActor @Observable
 public final class AgentTelemetryStore {
     private var snapshotsByPane: [String: AgentTelemetrySnapshot] = [:]
-    @ObservationIgnored var onRefreshTranscript: (@MainActor (Pane) -> Void)?
 
     public init() {}
 
@@ -51,15 +50,17 @@ public final class AgentTelemetryStore {
         guard let pane else { return PaneTelemetryDisplay() }
         let snap = snapshotsByPane[pane.id] ?? AgentTelemetrySnapshot()
         let toolStream = pane.agent.toolStream
-        let model = snap.model ?? (pane.agent.state == .idle ? nil : (pane.agentKind == .codex ? "codex" : "claude"))
+        let hasLiveAgent = pane.agent.state != .idle || pane.runsClaude || pane.codexReport != nil
+        let model = snap.model ?? pane.hookModel ?? (hasLiveAgent ? (pane.agentKind == .codex ? "codex" : "claude") : nil)
+        let contextLimit = snap.model != nil ? snap.contextLimitTokens : ModelPricing.contextLimit(for: model)
         let turns = max(snap.turnCount, toolStream.turnCount)
-        let isActive = pane.agent.state != .idle
+        let isActive = hasLiveAgent
 
         return PaneTelemetryDisplay(
             model: model,
             turnCount: turns,
             contextUsedTokens: snap.contextUsedTokens,
-            contextLimitTokens: snap.contextLimitTokens,
+            contextLimitTokens: contextLimit,
             inputTokens: snap.inputTokens,
             outputTokens: snap.outputTokens,
             cacheReadTokens: snap.cacheReadTokens,

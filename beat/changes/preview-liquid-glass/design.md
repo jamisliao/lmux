@@ -48,14 +48,14 @@ flowchart TB
   - 在 `PaneAgent` 維護上限 50 筆的 `ToolCallStream`（`entries: [ToolCallEntry]`，含 `id`、`name`、`category` [`read`/`edit`/`bash`/`search`/`other`]、`argument`、`startedAtNanos`、`durationMs: Int?`、`status`）；同時補齊 `Agent.swift` 中 Codex `codexReport` early-return 路徑，確保 Codex 工具事件也送入 `ToolCallStream`。
 
 ### 2. 背景 `GitDiffService` 與檔案掃描（`App/Sources/LmuxUI/GitDiffService.swift`）
-- 追蹤目前選取 `Workspace` 的作用目錄（取 `focusedPane?.cwd` 或最近已知有效目錄），切換 **workspace** 或收到 Hook／檔案觸發時在背景佇列 debounce（200ms）以直接 `/usr/bin/git` `Process`（禁用 shell、帶 `--no-ext-diff --no-textconv -c core.fsmonitor=false --`、`GIT_OPTIONAL_LOCKS=0`、concurrent pipe 讀取、硬性位元組與行數上限、timeout 與 `process.terminate()` 取消機制）執行 `rev-parse`、`branch --show-current`、`status --porcelain=v1 -z`、`diff --numstat` 與 `diff --unified=3`（包含 unborn HEAD fallback），並用 `PreviewTarget.replacingUnsafeScalars` 過濾路徑。
+- 追蹤目前選取 `Workspace` 的作用目錄（取 `focusedPane?.cwd` 或最近已知有效目錄），切換 **workspace** 或收到 Hook／檔案觸發時在背景佇列 debounce（200ms）以直接 `/usr/bin/git` `Process`（禁用 shell、帶 `--no-ext-diff --no-textconv -c core.fsmonitor=false --`、`GIT_OPTIONAL_LOCKS=0`、`GIT_ATTR_SOURCE=<該 repo 的空 tree>`（以 `git hash-object -t tree /dev/null` 取得，SHA-1／SHA-256 repo 都適用；不用 `--attr-source` 選項，因為不支援它的 git 會以 exit 129 失敗，不認得的環境變數則會被忽略）、concurrent pipe 讀取、硬性位元組與行數上限、timeout 與 `process.terminate()` 取消機制）執行 `rev-parse`、`branch --show-current`、`status --porcelain=v1 -z`、`diff --numstat` 與 `diff --unified=3`（包含 unborn HEAD fallback），並用 `PreviewTarget.replacingUnsafeScalars` 過濾路徑。
 - 發布 `@Observable` `GitDiffSnapshot`：`cwd: String?`、`isGitRepo: Bool`、`branch: String?`、`totalAdded: Int`、`totalDeleted: Int`、`files: [GitDiffFile]`、`previewCandidates: [URL]`（以 `PreviewTarget.resolve` 驗證之一般檔案清單）。非 Git 目錄設定 `isGitRepo = false`，讓 **右側 Inspector** 與 **底部狀態列** 呈現清晰空狀態。
 
 ### 3. 1:1 Apple Liquid Glass Token（`App/Sources/LmuxTokens/Tokens.swift`）
 - 對照 [preview-mockup.html](../../../preview-mockup.html) 重調淺色（High-Key Crystal）與深色（Obsidian Midnight）全套色彩與版面常數：
   - **標題列與雙側邊欄玻璃**：新增 `titlebarBackground`、`rightSidebarTint`、`footerBackground`、`glassCard`、`glassCardHover`、`glassCardSelected`、`glassSurfaceRecessed`、`activePaneRing`（`0x0A84FF`），更新 `sidebarTint`、`specularHighlight`；既有 `glassBorder` 保留給傳統邊線呼叫點相容檢查，並新增 `glassHighlightBorder` 供 1:1 淺色高透白邊與深色亮邊卡片使用。
   - **狀態藥丸與 Diff 色彩**：`statusRunningPill`/`Text`、`statusNeedsInputPill`/`Text`、`statusDonePill`/`Text`、`statusIdlePill`/`Text`、`diffAddedBg`/`Fg`、`diffRemovedBg`/`Fg`。
-  - **尺寸常數**：`titlebarHeight = 44`、`footerHeight = 32`、`sidebarWidthDefault = 260`（180–400）、`rightInspectorWidthDefault = 320`（240–500）、`paneCornerRadius = 10`、`paneGap = 8`、`paneTabStripHeight = 30`、`workspaceFilterHeaderHeight = 30`。
+  - **尺寸常數**：`titlebarHeight = 44`、`footerHeight = 32`、`sidebarWidthDefault = 260`（180–400）、`rightInspectorWidthDefault = 320`（240–1600，拖曳上限為視窗寬度 50%）、`paneCornerRadius = 10`、`paneGap = 8`、`paneTabStripHeight = 30`、`workspaceFilterHeaderHeight = 30`。
   - **對比與降級**：保留 `AccessibilityTests` / `liquid-glass-app-check` 對全部選取列、狀態藥丸、搜尋框、Diff 標籤與 **底部狀態列** 文字對比 >= 4.5:1 的檢核；`accessibilityDisplayShouldReduceTransparency` 與 `Motion.reduceMotion` 全域生效（含測試專用 `reduceMotionOverride`）。
 
 ### 4. 三欄＋狀態列視窗骨架與 1:1 原生元件（`App/Sources/LmuxUI/` + `LmuxNotificationBar/`）
@@ -67,13 +67,13 @@ flowchart TB
     2. 中央終端畫布：窄視窗（如 `600×360` / `420×260`）自動依序暫時折疊右側 Inspector／鉗製側欄寬度以維持至少 `120pt` 終端可用寬度；內部配置帶 `paneGap` 之圓角分割窗格。
     3. 右側調整手把 `RightInspectorResizeHandle` + **右側 Inspector**（`RightInspectorBackdrop` + `RightInspectorView`，預設展開，寬度持久化於 `layout.json`）。
 - **Workspace 卡片重構（`Sidebar.swift`）**：
-  - 卡片改為圓角 `8pt` 玻璃卡片，左側 `3pt` 垂直 Accent 條（與 `TabDisclosureButton` 水平座標錯開不重疊），第 1 行左側標題／右側狀態藥丸（`⚡ 執行中` / `🔔 需要確認` / `✓ 測試通過`；閒置列保持乾淨留白，hover 時保留快速關閉 ×），第 2 行左側最新 agent 摘要／目錄、右側相對時間。
+  - 卡片改為圓角 `8pt` 玻璃卡片，左側 `3pt` 垂直 Accent 條（與 `TabDisclosureButton` 水平座標錯開不重疊），第 1 行左側標題／右側狀態藥丸（`⚡ 執行中` / `🔔 需要確認` / `✓ 完成`；閒置列保持乾淨留白，hover 時保留快速關閉 ×），第 2 行左側最新 agent 摘要／目錄、右側相對時間。
   - **100% 保留** `SidebarTabChildren`（Tab 子樹展開）、`⌘`/`⇧` 多選、`SidebarRowMotion` 拖曳重排（`workspaceFilter != .all` 時顯示提示並停用拖曳重排與無結果空狀態）與右鍵選單，加上標題列篩選（全部／進行中／需要確認）。
 - **History 與 NotificationBar（`History.swift`、`NotificationBar.swift`、`NotificationCard.swift`）**：
   - `HistorySection` 固定置於 Workspace 清單底部、**通知 bar** 上方，採用玻璃膠囊搜尋框（`⇧⌘H` 快捷與既有搜尋結果清單向上／浮層展開不遮擋下方通知列）。
   - `NotificationBar` 呈現圓角玻璃配件框（上緣 `6pt` 膠囊拖曳把手、Inbox 標題＋鈴鐺紅點＋未讀藍數膠囊＋可點擊摘要列收合 `BarLayout.isCollapsed` 與下拉過低自動收合閾值、圓角玻璃 **通知卡片** 含未讀藍點、標題、經過時間、`workspace · branch` 與兩行摘要）。
 - **中央圓角分塊與 `Pane Tab Strip`（`PaneViews.swift`、`Tabs.swift`）**：
-  - 每個終端分割葉節點改包進帶有圓角 `10pt`、`1px` 玻璃邊框與聚焦 `active-ring` 藍光邊框的容器內（與非焦點待輸入 `RingView` 琥珀色明確區別）。
+  - 每個終端分割葉節點改包進帶有圓角 `10pt` 與細緻 `0.5pt` `glassBorder` 玻璃邊框的容器內（聚焦狀態由 **Pane Tab Strip** 圓點與標題區分，不再繪製藍色外框；非焦點待輸入維持 `RingView` 琥珀色光環）。
   - 上方統一渲染 **`Pane Tab Strip`（`30pt`）**，左側列出分頁膠囊（活躍狀態亮點、標題、關閉 `×`）與 `+` 開分頁鈕，右側列出向右分割、向下分割與關閉分塊鈕；既有分頁拖拽重排／跨格分割、雙擊改名、點選切換與 `libghostty` 鍵盤轉發維持完整行為。
 - **右側 Inspector（`RightInspectorView.swift`、`InspectorDiffView.swift`、`InspectorTraceView.swift`、`InspectorPreviewPane.swift`）**：
   - Segmented Control 切換三個分頁：
@@ -109,7 +109,7 @@ flowchart TB
 | `App/Sources/LmuxUI/AgentTelemetryStore.swift`、`MessageActions.swift`、`Agent.swift` | 彙整 Hook（含 Codex tool events）與 `TranscriptCache` 增量結果，提供 per-Pane／per-Workspace 模型、Turn、Token 與 Tool Calls。 |
 | `App/Sources/LmuxUI/RootView.swift`、`WindowFooterView.swift`、`TitlebarView.swift`、`SidebarAccessory.swift` | 重構為 `titlebarHost` 整合之 44pt Titlebar + 窄視窗保護三欄工作區 + 32pt 全寬 **底部狀態列**，統一 `setAllBackdropsResizing(_:)` 協調。 |
 | `App/Sources/LmuxUI/Sidebar.swift`、`History.swift`、`HooksSetup.swift` | 升級 **workspace** 玻璃卡片（垂直色條、狀態藥丸、篩選鈕，保留多選／拖曳／子樹）；將 History 搜尋移動至 **通知 bar** 上方。 |
-| `App/Sources/LmuxUI/PaneViews.swift`、`Tabs.swift`、`Snapshot.swift` | 升級中央分割葉為 `10pt` 圓角卡片 + Focus `active-ring` 藍光與整合式 **Pane Tab Strip**。 |
+| `App/Sources/LmuxUI/PaneViews.swift`、`Tabs.swift`、`Snapshot.swift` | 升級中央分割葉為 `10pt` 圓角玻璃卡片（`glassBorder` 細邊框）與整合式 **Pane Tab Strip**。 |
 | `App/Sources/LmuxUI/RightInspectorView.swift`、`InspectorDiffView.swift`、`InspectorTraceView.swift`、`InspectorPreviewPane.swift`、`OpenMenu.swift`、`Persistence.swift` | 實作 **右側 Inspector** 三分頁（含 `WorkspacePreviewCoordinator`、`PreviewView` 乾淨隔離、`Diff`、`執行記錄`）；更新 **開啟選單**（`GhosttyRuntime.openTerminalURL` 安全外開）與持久化欄位。 |
 | `App/Sources/LmuxNotificationBar/NotificationBar.swift`、`NotificationCard.swift` | 調整 **通知 bar** 為玻璃圓角配件、未讀藍點、摘要列折疊切換與鐘形紅點回饋，同步全域 `setSidebarResizing` 降級。 |
 | `Core/Tests/`、`App/Sources/lmux-apptest/`、`App/scripts/` | 補齊 Telemetry 單元測試、更新 `OpenMenu`/`PaneTabs`/`Titlebar` 相容測試、加入 `ReduceMotion`/`ReduceTransparency` 與實機雙主題截圖／還原驗收。 |

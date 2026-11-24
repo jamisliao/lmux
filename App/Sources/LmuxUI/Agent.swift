@@ -127,7 +127,9 @@ extension LmuxController {
             titleSessionStarted(pane, e)
             let isResumed = e.source != "clear" && pane.restoredDoneSession != nil && e.sessionID == pane.restoredDoneSession
             if e.source != "compact" && !isResumed {
+                resetTelemetryWork(for: pane)
                 model.telemetryStore?.clear(paneID: pane.id)
+                pane.hookModel = nil
                 attended(pane)
             }
             pane.relaunchingSessionID = nil
@@ -148,11 +150,18 @@ extension LmuxController {
         default:
             break
         }
-        if [.postToolUse, .postToolUseFailure, .stop].contains(e.kind),
+        if !e.isSubagent, e.kind != .sessionEnd, let m = e.model, !m.isEmpty, pane.hookModel != m {
+            pane.hookModel = m
+        }
+        if (e.kind == .stop || (Self.shouldRefreshGitAfterTool(e.toolName) && (e.kind == .postToolUse || e.kind == .postToolUseFailure))),
            pane.workspace === model.selected,
            pane === pane.workspace?.focusedPane,
            let cwd = pane.cwd {
-            model.gitDiffService.refresh(cwd: cwd)
+            model.gitDiffService.refresh(
+                cwd: cwd,
+                debounceMs: e.kind == .stop ? 400 : 1500,
+                includeHunks: model.inspectorVisible && model.inspectorTab == .diff
+            )
         }
         if [.sessionStart, .userPromptSubmit, .postToolUse, .postToolUseFailure, .stop].contains(e.kind) {
             scheduleTelemetryRefresh(pane, delay: e.kind == .stop ? 0.05 : 0.2)
@@ -221,6 +230,17 @@ extension LmuxController {
         apply(t, to: pane, focused: focused)
     }
 
+    private static let readOnlyTools: Set<String> = [
+        "Read", "Grep", "Glob", "LS", "WebFetch", "WebSearch",
+        "TodoRead", "TodoWrite", "TaskOutput", "TaskList", "TaskGet",
+        "AskUserQuestion", "NotebookRead",
+    ]
+
+    static func shouldRefreshGitAfterTool(_ toolName: String?) -> Bool {
+        guard let name = toolName, !name.isEmpty else { return false }
+        return !readOnlyTools.contains(name)
+    }
+
     /// Badge, row detail, bell list and the one notification for a state transition.
     func apply(_ t: AgentTransition?, to pane: Pane, focused: Bool) {
         if let alert = t?.alert {
@@ -280,7 +300,7 @@ extension LmuxController {
             if focused && active && p.unread > 0 { p.unread = 0 }
             if ws === sel {
                 shown = true
-                p.view.ring.setShown(p.showsRing && settings.unreadRing)
+                p.view.ring.setShown(p.showsRing && settings.unreadRing, animated: !model.reduceMotion)
                 p.view.header.focused = focused
                 p.view.header.needsInput = p.needsInput
                 p.view.header.modeBadge = p.modeBadge
@@ -300,9 +320,11 @@ extension LmuxController {
     /// is a shell again: no agent state, no input label, and its title goes back to the shell's
     /// (the session's auto title lives on in History). A title the user set stays.
     func resetAfterClaude(_ pane: Pane) {
+        resetTelemetryWork(for: pane)
         model.telemetryStore?.clear(paneID: pane.id)
         forgetCodexReport(pane)
         pane.claudeSessionID = nil
+        pane.hookModel = nil
         pane.lastReply = nil
         pane.claudePID = nil
         pane.resumeCommand = nil
@@ -382,6 +404,7 @@ extension LmuxController {
     /// missed (cmux #1027/#2576): the agent process is untouched, and the next hook event updates
     /// the pane normally again.
     public func clearStatus(_ pane: Pane) {
+        resetTelemetryWork(for: pane)
         model.telemetryStore?.clear(paneID: pane.id)
         pane.agent = PaneAgent()
         pane.failed = false

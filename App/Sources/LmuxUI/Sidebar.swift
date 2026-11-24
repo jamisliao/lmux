@@ -81,8 +81,6 @@ struct SidebarView: View {
                         }
                         .padding(.top, T.Spacing.s)
                         .padding(.bottom, T.Spacing.m)
-                        .animation(T.Motion.reduceMotion ? nil : .easeOut(duration: T.Motion.selection), value: model.selectedID)
-                        .animation(T.Motion.reduceMotion ? nil : .easeOut(duration: T.Motion.selection), value: model.selection)
                     }
                     .scrollIndicators(.never)
                     .coordinateSpace(name: sidebarRowsSpace)
@@ -91,7 +89,7 @@ struct SidebarView: View {
                                                       viewportHeight: viewport.size.height))
                 }
             }
-            HistorySection(history: controller.history)
+            HistorySection(history: controller.history, reduceMotion: model.reduceMotion)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .environment(\.lmuxMotion, model.pulseMotion)
@@ -136,7 +134,7 @@ struct SidebarRowMotion<Content: View>: View {
             .scaleEffect(lifted ? 1.02 : 1)
             .offset(y: shift + follow)
             // Slot changes, lift, drop and Esc animate; the pointer itself is followed as is.
-            .animation(T.Motion.reduceMotion ? nil : T.Motion.reorder, value: Pose(shift: shift, lifted: lifted))
+            .animation(model.reduceMotion ? nil : T.Motion.reorder, value: Pose(shift: shift, lifted: lifted))
             .zIndex(lifted ? 1 : 0)
             // After the offset: the frame as laid out, so the drag geometry never sees its own shifts.
             .background(GeometryReader { geo in
@@ -213,11 +211,16 @@ struct WorkspaceRow: View {
                             unattended: ws.unattendedSince != nil, pulse: controller.model.pulseMotion,
                             reduceMotion: controller.model.reduceMotion, waiting: ws.waitsForUsageLimit)
             .contentShape(Rectangle())
-            .onTapGesture { controller.clickRow(ws, modifiers: LmuxWindow.clickModifiers) }
-            .simultaneousGesture(TapGesture(count: 2).onEnded {
-                if LmuxWindow.clickModifiers.isDisjoint(with: [.command, .shift]) { controller.promptRename(ws) }
-            })
-            // A small threshold so a plain click (select), ⌘/⇧-click and the double-click above
+            .onTapGesture {
+                let mods = LmuxWindow.clickModifiers
+                controller.clickRow(ws, modifiers: mods)
+                // Handle unmodified double-clicks inline instead of attaching a competing TapGesture(count: 2),
+                // which can suppress a subsequent DragGesture within the double-tap window on the same row.
+                if LmuxWindow.lastClickCount == 2 && mods.isDisjoint(with: [.command, .shift]) {
+                    controller.promptRename(ws)
+                }
+            }
+            // A small threshold so a plain click (select), ⌘/⇧-click and double-click
             // all still land as taps: this only starts once the pointer has moved past it.
             // The named space is the scroll content, not this row: the row moving under the
             // pointer (it follows it) doesn't feed back into the location.
@@ -400,9 +403,18 @@ public struct WorkspaceRowContent: View {
                 .fill(pillColor)
                 .overlay(
                     RoundedRectangle(cornerRadius: T.Radius.row, style: .continuous)
-                        .strokeBorder(T.Colors.glassHighlightBorder.color, lineWidth: 0.5)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [T.Colors.specularHighlight.color, T.Colors.glassBorder.color],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 0.75
+                        )
                         .opacity(Self.showsGlassBorder(selected: selected, inSelection: inSelection) ? 1 : 0)
                 )
+                .animation(reduceMotion ? nil : .easeOut(duration: T.Motion.selection), value: selected)
+                .animation(reduceMotion ? nil : .easeOut(duration: T.Motion.selection), value: inSelection)
         )
         .padding(.horizontal, T.Layout.rowInsetX)
     }
@@ -450,7 +462,7 @@ public struct WorkspaceStatusPill: View {
         switch display {
         case .running: return "⚡ 執行中"
         case .needsInput: return "🔔 需要確認"
-        case .done: return "✓ 測試通過"
+        case .done: return "✓ 完成"
         case .failed: return "✕ 失敗"
         case .idle: return ""
         }
@@ -487,6 +499,12 @@ public struct WorkspaceStatusPill: View {
         } else {
             let content = HStack(spacing: 3) {
                 HStack(spacing: 4) {
+                    let displayLabel: String = {
+                        if case .running = display, !waiting {
+                            return text.replacingOccurrences(of: "⚡ ", with: "")
+                        }
+                        return text
+                    }()
                     if case .running = display {
                         if waiting {
                             Image(systemName: "clock")
@@ -497,7 +515,7 @@ public struct WorkspaceStatusPill: View {
                                 .frame(width: 10, height: 10)
                         }
                     }
-                    Text(text)
+                    Text(displayLabel)
                         .font(.system(size: 9.5, weight: .semibold))
                         .foregroundStyle(Self.textColor(for: display).color)
                         .lineLimit(1)
@@ -505,7 +523,7 @@ public struct WorkspaceStatusPill: View {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 1.5)
                 .background(Capsule().fill(Self.pillColor(for: display).color))
-                .overlay(Capsule().strokeBorder(Self.pillColor(for: display).color.opacity(0.35), lineWidth: 0.5))
+                .overlay(Capsule().strokeBorder(Self.textColor(for: display).color.opacity(0.28), lineWidth: 0.5))
                 if unread > 0 {
                     Badge(count: unread)
                 }
@@ -684,9 +702,15 @@ struct TitlebarCluster: View {
     let model: AppModel
     let controller: LmuxController
 
+    static func isSidebarToggleActive(model: AppModel) -> Bool { model.sidebarVisible }
+
     var body: some View {
         HStack(spacing: 2) {
-            IconButton(symbol: "sidebar.left", help: "Toggle Sidebar (⌘B / ⌃⌘S)") { controller.toggleSidebar() }
+            IconButton(
+                symbol: "sidebar.left",
+                help: "Toggle Sidebar (⌘B / ⌃⌘S)",
+                active: Self.isSidebarToggleActive(model: model)
+            ) { controller.toggleSidebar() }
             ZStack(alignment: .topTrailing) {
                 IconButton(symbol: "bell", help: "Notifications (⌥-click: Jump to Latest Unread, ⇧⌘U)") {
                     controller.bellClicked(modifiers: LmuxWindow.clickModifiers)
@@ -721,11 +745,17 @@ struct IconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 15, weight: .regular))
+                .font(.system(size: 14, weight: .regular))
                 .frame(width: T.Layout.titlebarButtonSize, height: T.Layout.titlebarButtonSize)
-                .foregroundStyle((active ? T.Colors.activePaneRing : (hover ? T.Colors.titlebarIconHover : T.Colors.titlebarIcon)).color)
-                .background(RoundedRectangle(cornerRadius: T.Radius.control)
-                    .fill(active ? T.Colors.glassCardSelected.color : (hover ? T.Colors.controlHover.color : .clear)))
+                .foregroundStyle((active ? T.Colors.statusRunningText : (hover ? T.Colors.titlebarIconHover : T.Colors.titlebarIcon)).color)
+                .background(
+                    RoundedRectangle(cornerRadius: T.Radius.control, style: .continuous)
+                        .fill(active ? T.Colors.statusRunningPill.color : (hover ? T.Colors.controlHover.color : .clear))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: T.Radius.control, style: .continuous)
+                        .strokeBorder(active ? T.Colors.statusRunningText.color.opacity(0.28) : .clear, lineWidth: 0.5)
+                )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -253,6 +253,8 @@ final class ContrastBench {
         await sleepMs(60)
         c.root.updateHeader()
         c.window.contentView?.layoutSubtreeIfNeeded()
+        c.root.centerChipHost.displayIfNeeded()
+        await Task.yield()
         guard let img = c.snapshotImage(scale: 2) else { return [] }
         let W = img.width, H = img.height
         var buf = [UInt8](repeating: 0, count: W * H * 4)
@@ -272,17 +274,19 @@ final class ContrastBench {
             }
         }
         var out: [(String, Double, String, String)] = []
-        for (name, l) in [("title", h.title), ("branch", h.branch), ("path", h.subtitle)] where !l.stringValue.isEmpty && !l.isHidden {
-            let r = l.convert(l.bounds, to: nil)
+        let chipHost = c.root.centerChipHost
+        if !chipHost.isHidden, !chipHost.bounds.isEmpty {
+            let r = chipHost.convert(chipHost.bounds, to: nil)
             let x0 = Int(r.minX * 2), x1 = Int(r.maxX * 2), y0 = H - Int(r.maxY * 2), y1 = H - Int(r.minY * 2)
             var counts: [UInt32: Int] = [:]
             for y in max(0, y0)..<min(H, y1) { for x in max(0, x0)..<min(W, x1) {
                 let i = (y * W + x) * 4
                 counts[UInt32(buf[i]) << 16 | UInt32(buf[i + 1]) << 8 | UInt32(buf[i + 2]), default: 0] += 1
             } }
-            guard let bg = counts.max(by: { $0.value < $1.value })?.key else { continue }
-            let fg = counts.keys.max { wcagRatio(lum($0), lum(bg)) < wcagRatio(lum($1), lum(bg)) } ?? bg
-            out.append((name, (wcagRatio(lum(fg), lum(bg)) * 100).rounded() / 100, hex(fg), hex(bg)))
+            if let bg = counts.max(by: { $0.value < $1.value })?.key {
+                let fg = counts.keys.max { wcagRatio(lum($0), lum(bg)) < wcagRatio(lum($1), lum(bg)) } ?? bg
+                out.append(("centerChip", (wcagRatio(lum(fg), lum(bg)) * 100).rounded() / 100, hex(fg), hex(bg)))
+            }
         }
         return out
     }

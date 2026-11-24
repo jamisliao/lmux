@@ -110,14 +110,22 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
     }
 
     private var headerBar: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 2) {
             tabButton(.preview, label: "即時預覽", icon: "eye")
             tabButton(.diff, label: "變更 (Diff)", icon: "doc.badge.plus")
             tabButton(.trace, label: "執行記錄", icon: "list.bullet.rectangle")
         }
-        .padding(.horizontal, 8)
+        .padding(2.5)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(T.Colors.glassCard.color)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(T.Colors.glassBorder.color, lineWidth: 0.5)
+        )
+        .padding(.horizontal, 10)
         .frame(height: 38)
-        .background(T.Colors.glassSurfaceRecessed.color.opacity(0.4))
     }
 
     @ViewBuilder
@@ -139,19 +147,30 @@ public struct RightInspectorView<PreviewContent: View, DiffContent: View, TraceC
                     .font(.system(size: 10, weight: .medium))
                 Text(label)
                     .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                    .lineLimit(1)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? T.Colors.glassCardSelected.color : Color.clear)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(isSelected ? T.Colors.glassSurfaceRecessed.color : Color.clear)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(isSelected ? T.Colors.glassBorder.color : Color.clear, lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: isSelected
+                                ? [T.Colors.glassHighlightBorder.color, T.Colors.glassBorder.color]
+                                : [.clear, .clear],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.75
+                    )
             )
             .foregroundColor(isSelected ? T.Colors.textPrimary.color : T.Colors.textSecondary.color)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
@@ -182,11 +201,7 @@ public struct InspectorContainerView: View {
                 if let controller {
                     InspectorPreviewPane(
                         coordinator: controller.previewCoordinator,
-                        candidates: model.gitDiffService.snapshot.previewCandidates,
-                        workspaceCwd: model.gitDiffService.snapshot.repoRoot ?? model.gitDiffService.snapshot.cwd ?? model.selected?.focusedPane?.cwd,
-                        onSelectCandidate: { [weak controller] url in
-                            controller?.openInInspectorPreview(url)
-                        }
+                        workspaceCwd: model.gitDiffService.snapshot.repoRoot ?? model.gitDiffService.snapshot.cwd ?? model.selected?.focusedPane?.cwd
                     )
                 }
             },

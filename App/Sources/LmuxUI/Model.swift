@@ -128,6 +128,8 @@ public final class Pane: Identifiable {
     public var claudeSessionID: String?
     /// Which agent that session belongs to (the hook events say; persisted).
     public var agentKind: AgentKind = .claude
+    /// Model identifier reported by hook events before transcript usage arrives.
+    public var hookModel: String?
     /// pid of the claude process running that session (from lmux-hook), if known.
     @ObservationIgnored var claudePID: Int32?
     /// Its replayable environment (`CLAUDE_CONFIG_DIR`, …) as lmux-hook reported it.

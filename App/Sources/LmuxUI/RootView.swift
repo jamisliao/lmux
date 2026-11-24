@@ -4,6 +4,22 @@ import SwiftUI
 
 private typealias T = LmuxTokens
 
+/// Titlebar chip host: avoids stealing keyboard focus, handles first mouse, and passes hits
+/// outside the centered capsule bounds through to the underlying titlebar drag strip.
+final class CenterChipHostingView<Content: View>: NSHostingView<Content> {
+    weak var chipState: TitlebarChipState?
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override var acceptsFirstResponder: Bool { false }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = convert(point, from: superview)
+        let measured = chipState?.renderedPillWidth ?? 0
+        let pillW = measured > 1 ? min(bounds.width, ceil(measured)) : bounds.width
+        let pillRect = NSRect(x: (bounds.width - pillW) / 2, y: 0, width: pillW, height: bounds.height)
+        guard pillRect.contains(local) else { return nil }
+        return super.hitTest(point)
+    }
+}
+
 /// Window content: sidebar column (titlebar strip + SwiftUI list), titlebar
 /// buttons, content header and the workspace's split tree.
 ///
@@ -25,19 +41,20 @@ final class RootView: FlippedView {
     let sidebarTitlebar = TitlebarDragView()
     let workspaceFilterHeaderHost: SidebarHostingView<WorkspaceFilterHeader>
     let sidebarHost: SidebarHostingView<SidebarView>
-    let sidebarEdge = ColorView(T.Colors.separator.nsColor)
+    let sidebarEdge = ColorView(T.Colors.glassBorder.nsColor)
     let resizeHandle = SidebarResizeHandle()
     private var resizeObservers: [NSObjectProtocol] = []
     private var titlebarHostObserver: NSObjectProtocol?
     let chipState: TitlebarChipState
     let cluster: SidebarHostingView<TitlebarCluster>
-    let centerChipHost: SidebarHostingView<TitlebarCenterChip>
+    let centerChipHost: CenterChipHostingView<TitlebarCenterChip>
     let rightClusterHost: SidebarHostingView<TitlebarRightCluster>
     let header = ContentHeaderView(frame: .zero)
-    /// Holds the selected workspace's split tree.
-    let content = FlippedView()
+    /// Holds the selected workspace's split tree with `paneGap` canvas margin.
+    let content = ContentCanvasView()
     /// Right inspector column
     let rightInspectorBackdrop = RightInspectorBackdrop()
+    let rightInspectorEdge = ColorView(T.Colors.glassBorder.nsColor)
     let rightInspectorHost: SidebarHostingView<InspectorContainerView>
     let rightInspectorHandle = RightInspectorResizeHandle()
     /// Full-width 32pt footer
@@ -65,7 +82,10 @@ final class RootView: FlippedView {
         sidebarHost = SidebarHostingView(rootView: SidebarView(model: model, controller: controller))
         workspaceFilterHeaderHost = SidebarHostingView(rootView: WorkspaceFilterHeader(model: model, controller: controller))
         cluster = SidebarHostingView(rootView: TitlebarCluster(model: model, controller: controller))
-        centerChipHost = SidebarHostingView(rootView: TitlebarCenterChip(state: chipState))
+        centerChipHost = CenterChipHostingView(rootView: TitlebarCenterChip(state: chipState, onDoubleClickTitle: { [weak controller] in
+            if let ws = controller?.model.selected { controller?.promptRename(ws) }
+        }))
+        centerChipHost.chipState = chipState
         rightClusterHost = SidebarHostingView(rootView: TitlebarRightCluster(model: model, controller: controller))
         rightInspectorHost = SidebarHostingView(rootView: InspectorContainerView(model: model, controller: controller))
         footerHost = SidebarHostingView(rootView: WindowFooterView(model: model, onInspectTab: { [weak controller] tab in
@@ -95,7 +115,7 @@ final class RootView: FlippedView {
             content, header,
             titlebarBackdrop,
             sidebarBackdrop, sidebarTitlebar, workspaceFilterHeaderHost, sidebarHost, sidebarEdge, resizeHandle,
-            rightInspectorBackdrop, rightInspectorHost, rightInspectorHandle,
+            rightInspectorBackdrop, rightInspectorHost, rightInspectorEdge, rightInspectorHandle,
             footerBackdrop, footerHost,
             cluster, centerChipHost, rightClusterHost
         ] as [NSView] {
@@ -113,7 +133,11 @@ final class RootView: FlippedView {
         rightInspectorHandle.onDrag = { [weak self] x in
             guard let self else { return }
             let W = self.bounds.width
-            let newWidth = min(max(W - x, T.Layout.rightInspectorWidthMin), T.Layout.rightInspectorWidthMax)
+            let effectiveSw: CGFloat = self.model.sidebarVisible ? min(self.model.sidebarWidth, max(0, W - 120)) : 0
+            let maxByHalf = floor(W * 0.5)
+            let maxByCenter = max(T.Layout.rightInspectorWidthMin, W - effectiveSw - 120)
+            let maxWidth = max(T.Layout.rightInspectorWidthMin, min(T.Layout.rightInspectorWidthMax, min(maxByHalf, maxByCenter)))
+            let newWidth = min(max(W - x, T.Layout.rightInspectorWidthMin), maxWidth)
             self.model.inspectorWidth = newWidth
             self.needsLayout = true
             self.controller?.scheduleSave()
@@ -142,10 +166,6 @@ final class RootView: FlippedView {
             }
         })
         trackSidebarState()
-        header.onDoubleClickTitle = { [weak self] in
-            guard let self, let ws = self.model.selected else { return }
-            self.controller?.promptRename(ws)
-        }
     }
     required init?(coder: NSCoder) { fatalError() }
 
@@ -286,12 +306,14 @@ final class RootView: FlippedView {
         let rw: CGFloat = canFitInspector ? iw : 0
 
         rightInspectorBackdrop.isHidden = !canFitInspector
+        rightInspectorEdge.isHidden = !canFitInspector
         rightInspectorHost.isHidden = !canFitInspector
         rightInspectorHandle.isHidden = !canFitInspector
 
         if canFitInspector {
             let ix = W - rw
             rightInspectorBackdrop.frame = NSRect(x: ix, y: tb, width: rw, height: midH)
+            rightInspectorEdge.frame = NSRect(x: ix, y: tb, width: 1, height: midH)
             rightInspectorHost.frame = NSRect(x: ix, y: tb, width: rw, height: midH)
             rightInspectorHandle.frame = NSRect(x: ix - 4, y: tb, width: 8, height: midH)
         }
@@ -352,9 +374,10 @@ final class RootView: FlippedView {
             centerChipHost.frame = NSRect(x: chipX, y: (tb - bs) / 2, width: chipW, height: bs)
         }
 
-        // Content & Content Header layout
+        // Content & Content Header layout (extend header across inspector gap to rightClusterX
+        // so the full non-button titlebar area remains draggable / double-clickable)
         let contentX = visible ? effectiveSw : clusterX + cw + 8
-        header.frame = NSRect(x: contentX, y: 0, width: max(0, W - rw - contentX), height: tb)
+        header.frame = NSRect(x: contentX, y: 0, width: max(0, rightClusterX - contentX), height: tb)
         content.frame = NSRect(x: effectiveSw, y: tb, width: max(0, W - effectiveSw - rw), height: midH)
 
         // plugin 的 bar 放在 sidebar 最底部。集中寫在 layout() 最後：上面的版面計算怎麼改，
@@ -387,7 +410,7 @@ final class RootView: FlippedView {
         footerHost.appearance = appAppearance
     }
 
-    /// Content header (POLISH.md 5): chip · title · `⎇ branch · ~/path`, without repeats.
+    /// Content header (`TitlebarCenterChip`): keeps chip state synced with the active workspace.
     func updateHeader() {
         guard let ws = model.selected else { return }
         header.dotColor = T.Colors.workspaceAccents[ws.accent % T.Colors.workspaceAccents.count].nsColor
@@ -404,17 +427,6 @@ final class RootView: FlippedView {
         updateClusterAppearance()
         if chipState.workspace !== ws { chipState.workspace = ws }
         if chipState.modeBadge != header.modeBadge { chipState.modeBadge = header.modeBadge }
-        let (branch, path) = ws.headerMeta
-        // Same texts (most calls: a hook event, a focus refresh): no layout or redraw.
-        var changed = false
-        for (field, text) in [(header.title, ws.title), (header.branch, branch ?? ""), (header.subtitle, path ?? "")]
-            where field.stringValue != text {
-            field.stringValue = text
-            changed = true
-        }
-        guard changed else { return }
-        header.needsLayout = true
-        header.needsDisplay = true
     }
 }
 
@@ -510,113 +522,68 @@ class TitlebarDragView: FlippedView {
     }
 }
 
-/// The content column's titlebar: draggable, draws the terminal background and a bottom rule.
+/// The content column's titlebar: draggable strip (retired labels kept hidden as compatibility anchors).
 final class ContentHeaderView: TitlebarDragView {
     let title = NSTextField(labelWithString: "")
-    /// `branch ·` (cut at its end when space runs out) and `~/…/folder` (kept whole).
     let branch = NSTextField(labelWithString: "")
     let subtitle = NSTextField(labelWithString: "")
-    /// A tiny glyph after the title while the workspace is split-zoomed (POLISH.md-style subtle
-    /// indicator): the only sign besides the menu item that the rest of the split is hidden.
     let zoomIcon = NSImageView()
-    var dotColor: NSColor = .clear { didSet { if dotColor != oldValue { needsDisplay = true } } }
-    var background: NSColor = T.Colors.windowBackground.nsColor { didSet { if background != oldValue { needsDisplay = true } } }
-    var zoomed = false { didSet { if zoomed != oldValue { zoomIcon.isHidden = !zoomed; needsLayout = true } } }
-    /// The shown pane's mode badge ("bypass", "auto") while no pane header shows it (one pane, or zoomed).
-    var modeBadge: String? { didSet { if modeBadge != oldValue { needsLayout = true; needsDisplay = true } } }
-    private var badgeRect: NSRect?
+    var dotColor: NSColor = .clear
+    var background: NSColor = T.Colors.windowBackground.nsColor
+    var zoomed = false
+    var modeBadge: String?
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        title.font = T.Typography.windowTitle.nsFont
-        title.textColor = .clear
-        title.lineBreakMode = .byTruncatingTail
-        for l in [branch, subtitle] {
-            l.font = .systemFont(ofSize: 11.5)
-            l.textColor = .clear
-        }
-        branch.lineBreakMode = .byTruncatingTail
-        subtitle.lineBreakMode = .byTruncatingMiddle
         for l in [title, branch, subtitle] {
-            // Labels pass clicks to the header (drag / double-click), never select.
+            // Labels stay hidden and pass clicks to the header (drag / double-click).
             l.isSelectable = false
             l.refusesFirstResponder = true
+            l.isHidden = true
             addSubview(l)
         }
-        zoomIcon.image = NSImage(systemSymbolName: "arrow.up.left.and.arrow.down.right",
-                                 accessibilityDescription: "Zoomed")?.withSymbolConfiguration(.init(pointSize: 9.5, weight: .regular))
-        zoomIcon.contentTintColor = .clear
-        zoomIcon.alphaValue = 0
         zoomIcon.isHidden = true
         addSubview(zoomIcon)
     }
     required init?(coder: NSCoder) { fatalError() }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        // The labels are decoration: the whole header is one drag / double-click target.
+        // The labels are decoration: the whole header stays a standard titlebar drag / zoom strip.
         frame.contains(point) ? self : nil
-    }
-
-    /// Double-click on the title renames the workspace.
-    var onDoubleClickTitle: (() -> Void)?
-    override func mouseDown(with event: NSEvent) {
-        if event.clickCount == 2, title.frame.insetBy(dx: -6, dy: -6).contains(convert(event.locationInWindow, from: nil)) {
-            onDoubleClickTitle?()
-        } else {
-            super.mouseDown(with: event)
-        }
     }
 
     private let padX = T.Layout.contentHeaderPaddingX
     private let chip: CGFloat = 9
-    private static let branchGlyph = NSImage(systemSymbolName: "arrow.triangle.branch", accessibilityDescription: "branch")?
-        .withSymbolConfiguration(.init(pointSize: 10, weight: .regular))
-    private var branchGlyphX: CGFloat?
-    private var separatorX: CGFloat?
 
     override func layout() {
         super.layout()
-        let midY = (bounds.height - 1) / 2
-        var x = padX + chip + T.Spacing.m
-        let tw = min(ceil(title.attributedStringValue.size().width) + 4, max(0, bounds.width * 0.6))
-        let th = title.intrinsicContentSize.height
-        title.frame = NSRect(x: x, y: midY - th / 2, width: tw, height: th)
-        x += tw + 10
-        if zoomed {
-            zoomIcon.frame = NSRect(x: x, y: midY - 6, width: 13, height: 13)
-            x += 13 + 8
+        // Labels are retired (TitlebarCenterChip renders workspace metadata); keep `title.frame`
+        // as an anchor in the empty left drag strip for drag / double-click callers.
+        let x = padX + chip + T.Spacing.m
+        title.frame = NSRect(x: x, y: 0, width: min(160, max(0, bounds.width - x)), height: bounds.height)
+    }
+}
+
+/// Center canvas host: paints the subtle Liquid Glass canvas backdrop and insets the active
+/// split tree or pane view by `paneGap` so floating `10pt` rounded pane cards breathe cleanly.
+final class ContentCanvasView: FlippedView {
+    var paneFrame: NSRect {
+        let padX = bounds.width >= 32 ? T.Layout.paneGap : 0
+        let padY = bounds.height >= 32 ? T.Layout.paneGap : 0
+        return bounds.insetBy(dx: padX, dy: padY)
+    }
+
+    override func layout() {
+        super.layout()
+        let target = paneFrame
+        for sub in subviews where !(sub is TabDropPreview) {
+            sub.frame = target
         }
-        badgeRect = nil
-        if let b = modeBadge {
-            let sz = ModeBadge.size(b)
-            badgeRect = NSRect(x: x, y: midY - sz.height / 2, width: sz.width, height: sz.height)
-            x += sz.width + 8
-        }
-        let sh = subtitle.intrinsicContentSize.height
-        let y = midY - sh / 2 + 0.5   // the 11.5pt meta sits on the 13pt title's baseline
-        let hasBranch = !branch.stringValue.isEmpty, hasPath = !subtitle.stringValue.isEmpty
-        let glyphW: CGFloat = hasBranch ? 14 : 0
-        let sepW: CGFloat = hasBranch && hasPath ? 14 : 0
-        let avail = max(0, bounds.width - x - padX - glyphW - sepW)
-        // The branch keeps at least 12 characters; the path is middle-truncated into what is left.
-        let bNat = hasBranch ? ceil(branch.attributedStringValue.size().width) + 4 : 0
-        let bMin = hasBranch ? min(bNat, ceil(NSAttributedString(string: String(repeating: "m", count: 12),
-                                                                 attributes: [.font: branch.font!]).size().width)) : 0
-        let pNat = hasPath ? ceil(subtitle.attributedStringValue.size().width) + 4 : 0
-        let bw = min(bNat, max(bMin, avail - pNat))
-        let pw = min(pNat, max(0, avail - bw))
-        branchGlyphX = hasBranch ? x : nil
-        x += glyphW
-        branch.frame = NSRect(x: x, y: y, width: bw, height: sh)
-        x += bw
-        separatorX = sepW > 0 ? x : nil
-        x += sepW
-        subtitle.frame = NSRect(x: x, y: y, width: pw, height: sh)
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        T.Colors.separator.nsColor.setFill()
-        NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: 1).fill()
+        T.Colors.canvasBackdrop.nsColor.setFill()
+        dirtyRect.fill()
     }
 }
 

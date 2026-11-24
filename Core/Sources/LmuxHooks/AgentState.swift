@@ -303,6 +303,7 @@ public struct PaneAgent: Sendable, Equatable {
             blockingAgent = ""
             alert = .needsInput(r, message: message)
         case .done:
+            toolStream.finalizeRunning(as: .succeeded)
             blockingAgent = nil
             activeSubagents.removeAll()
             if state != .done {
@@ -310,9 +311,13 @@ public struct PaneAgent: Sendable, Equatable {
                 alert = .done(lastMessage: lastMessage)
             }
         case .idle:
-            if state != .done { reset() }
+            if state != .done {
+                toolStream.finalizeRunning(as: .interrupted)
+                clearSessionState()
+            }
         case .error:
-            reset()
+            toolStream.finalizeRunning(as: .failed)
+            clearSessionState()
             state = .done
             alert = .failed(errorType: nil)
         case .clear:
@@ -345,10 +350,8 @@ public struct PaneAgent: Sendable, Equatable {
         if awaitingBackgroundSubagents { return AgentTransition(from: from, to: state, alert: nil, notify: nil) }
         switch state {
         case .running, .needsInput:
-            state = .idle
-            blockingAgent = nil
-            activeSubagents.removeAll()
-            clearUsageLimit()
+            toolStream.finalizeRunning(as: .interrupted)
+            clearSessionState()
         case .idle, .done:
             break
         }
@@ -375,12 +378,16 @@ public struct PaneAgent: Sendable, Equatable {
     }
 
     private mutating func reset() {
+        clearSessionState()
+        toolStream = ToolCallStream()
+    }
+
+    private mutating func clearSessionState() {
         state = .idle
         blockingAgent = nil
         stateBeforeCompaction = nil
         activeSubagents.removeAll()
         awaitingBackgroundSubagents = false
-        toolStream = ToolCallStream()
         clearUsageLimit()
     }
 

@@ -16,7 +16,7 @@ public enum ToolCategory: String, Sendable, Equatable, CaseIterable {
             return .edit
         case "bash", "run":
             return .bash
-        case "grep", "glob", "search":
+        case "grep", "glob", "search", "websearch", "webfetch", "toolsearch", "searchtools":
             return .search
         default:
             return .other
@@ -33,6 +33,7 @@ public enum ToolStatus: String, Sendable, Equatable {
 
 public struct ToolCallEntry: Sendable, Equatable, Identifiable {
     public var id: String
+    public var toolUseID: String?
     public var name: String
     public var category: ToolCategory
     public var argument: String?
@@ -47,9 +48,11 @@ public struct ToolCallEntry: Sendable, Equatable, Identifiable {
         argument: String? = nil,
         status: ToolStatus = .running,
         startedAtNanos: UInt64,
-        durationMs: Int? = nil
+        durationMs: Int? = nil,
+        toolUseID: String? = nil
     ) {
         self.id = id
+        self.toolUseID = toolUseID
         self.name = name
         self.category = category
         self.argument = argument
@@ -65,6 +68,18 @@ public struct ToolCallStream: Sendable, Equatable {
     public private(set) var turnCount: Int = 0
 
     public init() {}
+
+    /// Marks any `.running` entries with `finalStatus` and records elapsed durations.
+    public mutating func finalizeRunning(as finalStatus: ToolStatus, at nowNanos: UInt64? = nil) {
+        let resolvedNow = nowNanos ?? unixNanosNow()
+        for i in entries.indices where entries[i].status == .running {
+            entries[i].status = finalStatus
+            if entries[i].durationMs == nil {
+                let dur = resolvedNow >= entries[i].startedAtNanos ? resolvedNow - entries[i].startedAtNanos : 0
+                entries[i].durationMs = Int(dur / 1_000_000)
+            }
+        }
+    }
 
     public mutating func record(_ event: HookEvent) {
         let kind = event.kind
@@ -86,7 +101,8 @@ public struct ToolCallStream: Sendable, Equatable {
                 category: cat,
                 argument: event.toolArgument,
                 status: .running,
-                startedAtNanos: nowNanos
+                startedAtNanos: nowNanos,
+                toolUseID: rawID
             )
             entries.append(entry)
             if entries.count > Self.cap {
@@ -99,7 +115,8 @@ public struct ToolCallStream: Sendable, Equatable {
             let status: ToolStatus = (kind == .postToolUseFailure || event.name == HookEvent.Kind.postToolUseFailure.rawValue) ? .failed : .succeeded
             let matchIndex: Int? = {
                 if let uid = event.toolUseID, !uid.isEmpty {
-                    return entries.lastIndex(where: { $0.id == uid })
+                    return entries.lastIndex(where: { $0.status == .running && ($0.toolUseID == uid || $0.id == uid) })
+                        ?? entries.lastIndex(where: { $0.toolUseID == uid || $0.id == uid })
                 }
                 if let name = event.toolName {
                     return entries.lastIndex(where: { $0.status == .running && $0.name.caseInsensitiveCompare(name) == .orderedSame })
@@ -111,19 +128,16 @@ public struct ToolCallStream: Sendable, Equatable {
                 let dur = nowNanos >= entries[idx].startedAtNanos ? nowNanos - entries[idx].startedAtNanos : 0
                 entries[idx].durationMs = Int(dur / 1_000_000)
                 entries[idx].status = status
+                if (entries[idx].argument ?? "").isEmpty, let arg = event.toolArgument, !arg.isEmpty {
+                    entries[idx].argument = arg
+                }
             }
             return
         }
 
         if kind == .interrupt || (!event.isSubagent && (kind == .stop || kind == .stopFailure)) {
             let finalStatus: ToolStatus = kind == .interrupt ? .interrupted : (kind == .stopFailure ? .failed : .succeeded)
-            for i in entries.indices where entries[i].status == .running {
-                entries[i].status = finalStatus
-                if entries[i].durationMs == nil {
-                    let dur = nowNanos >= entries[i].startedAtNanos ? nowNanos - entries[i].startedAtNanos : 0
-                    entries[i].durationMs = Int(dur / 1_000_000)
-                }
-            }
+            finalizeRunning(as: finalStatus, at: nowNanos)
             return
         }
     }

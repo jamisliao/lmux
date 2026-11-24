@@ -151,9 +151,24 @@ func event(_ payload: String, pane: String = "pane-1") throws -> HookEvent {
         let bash = try HookEvent(paneID: "p", payload: ["hook_event_name": "PreToolUse", "tool_name": "Bash",
                                                         "tool_input": ["command": "swift test --filter IME\necho done"]])
         #expect(bash.toolArgument == "swift test --filter IME")
+        let multilineQuote = try HookEvent(paneID: "p", payload: ["hook_event_name": "PreToolUse", "tool_name": "Bash",
+                                                                  "tool_input": ["command": "printf '%s' '\n\n## Title\nbody'"]])
+        #expect(multilineQuote.toolArgument == "printf '%s' ' ## Title body'")
         let edit = try HookEvent(paneID: "p", payload: ["hook_event_name": "PreToolUse", "tool_name": "Edit",
                                                         "tool_input": ["file_path": "/a/b/refund.ts", "old_string": "x"]])
         #expect(edit.toolArgument == "refund.ts")
+        let sendMsg = try HookEvent(paneID: "p", payload: ["hook_event_name": "PreToolUse", "tool_name": "SendMessage",
+                                                           "tool_input": ["to": "jkopay-agent-cs", "message": "Q52=A\ndetails"]])
+        #expect(sendMsg.toolArgument == "→ jkopay-agent-cs: Q52=A")
+        let skill = try HookEvent(paneID: "p", payload: ["hook_event_name": "PreToolUse", "tool_name": "Skill",
+                                                         "tool_input": ["skill": "pr-review", "args": "--base main"]])
+        #expect(skill.toolArgument == "pr-review --base main")
+        let ask = try HookEvent(paneID: "p", payload: ["hook_event_name": "PreToolUse", "tool_name": "AskUserQuestion",
+                                                       "tool_input": ["questions": [["question": "Which option?"]]]])
+        #expect(ask.toolArgument == "Which option?")
+        let describe = try HookEvent(paneID: "p", payload: ["hook_event_name": "PreToolUse", "tool_name": "describeTool",
+                                                            "tool_input": ["name": "mcp__slack_read"]])
+        #expect(describe.toolArgument == "mcp__slack_read")
         let none = try HookEvent(paneID: "p", payload: ["hook_event_name": "PreToolUse", "tool_name": "TodoWrite"])
         #expect(none.toolArgument == nil)
     }

@@ -26,7 +26,7 @@ public enum LmuxThemes {
                                "GitHub Light Default", "Ayu Light"]
     public static let dark = ["Nord", "Catppuccin Mocha", "Catppuccin Macchiato", "Catppuccin Frappe", "TokyoNight",
                               "TokyoNight Storm", "Dracula", "Gruvbox Dark", "iTerm2 Solarized Dark", "Atom One Dark",
-                              "Rose Pine", "Kanagawa Wave", "Everforest Dark Med", "GitHub Dark Default", "Ayu"]
+                              "Rose Pine", "Kanagawa Wave", "Everforest Dark Med", "GitHub Dark Default", "Ayu", "Hiberbee"]
     /// Every bundled theme name.
     public static var all: [String] { Array(Set(light + dark)).sorted() }
 
