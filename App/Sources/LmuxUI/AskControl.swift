@@ -56,7 +56,7 @@ extension LmuxController {
             } else {
                 targetPane = model.selected?.focusedPane
             }
-            createdInsidePane = pidPane != nil
+            createdInsidePane = false
         }
 
         guard let target = targetPane else {
