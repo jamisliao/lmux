@@ -1,6 +1,6 @@
 name: inspector-ask-panel
 created: 2026-11-24
-phase: verify
+phase: archive
 pipeline:
   proposal: { status: done }
   gherkin: { status: done }

@@ -7,5 +7,6 @@
 | [build](build/README.md) | 自己編的 lmux.app 的 build 版號 |
 | [preview](preview/README.md) | 預覽 tab：⌘-click 終端機裡的 `.md`／`.html`／純文字檔路徑，在 lmux 裡顯示並自動更新 |
 | [sidebar-tab-tree](sidebar-tab-tree/README.md) | 在 sidebar 展開 workspace 的 tab：顯示每個 tab 的類型、標題與 agent 狀態，點一下切換或關閉 |
+| [inspector-ask](inspector-ask/README.md) | 右側 Inspector 原生 SwiftUI 待確認面板、零 Token Session 上下文補充與 `lmux ask` CLI |
 
 用詞見 [`GLOSSARY.md`](../../GLOSSARY.md)。已封存的 change 在 `../changes/archive/`。
