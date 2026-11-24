@@ -123,7 +123,7 @@ func connectAndSend(_ obj: [String: Any]) -> Int32 {
             if n < 0, errno == EINTR { continue }
             if n < 0, errno == EAGAIN {
                 var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
-                _ = poll(&pfd, 1, 2000)
+                if poll(&pfd, 1, 2000) <= 0 { break }
                 continue
             }
             // Peer closed early (e.g. server refused connection at client cap): let readResponse report EOF / no response.
@@ -249,7 +249,7 @@ func ask(_ args: ArraySlice<String>) -> Never {
     guard rest.allSatisfy({ $0 == "--lenient" }) else { usage() }
     let lenient = rest.contains("--lenient")
 
-    var timeout: Double?
+    var timeout: Double = 540
     if let rawTimeout = o["--timeout"] {
         guard let v = Double(rawTimeout), v.isFinite, v > 0, v <= 3600 else {
             fail("--timeout must be finite and between 0 and 3600 seconds")

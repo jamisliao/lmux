@@ -324,7 +324,10 @@ public final class AskSessionStore {
         return true
     }
 
-    public func cancel(sessionID: String, note: String = "User cancelled the ask prompt.") {
+    public func cancel(
+        sessionID: String,
+        note: String = "使用者在待確認面板點選取消；請勿立即重開相同問題，先在終端機確認使用者意圖。"
+    ) {
         guard sessionsByID[sessionID] != nil else { return }
         resolveSession(sessionID, outcome: AskWaitOutcome(status: "cancelled", note: note))
     }

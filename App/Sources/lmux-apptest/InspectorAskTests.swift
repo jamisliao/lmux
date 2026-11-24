@@ -417,6 +417,21 @@ private func runAskRefLoaderTests(_ r: Report) async {
     r.check("GitDiffService.readUntrackedLines & AskRefLoader reject untracked NUL binary file",
             nulDiffRes.errorMessage != nil && nulDiffRes.lines.isEmpty)
 
+    // Committed unchanged tracked file must report "No changes" (never all-added via untracked fallback)
+    let cleanRepo = root.appendingPathComponent("cleanrepo")
+    try? fm.createDirectory(at: cleanRepo, withIntermediateDirectories: true)
+    let trackedURL = cleanRepo.appendingPathComponent("Committed.swift")
+    try? "let stable = true\n".write(to: trackedURL, atomically: true, encoding: .utf8)
+    _ = await runProcess("/usr/bin/git", ["-C", cleanRepo.path, "init"])
+    _ = await runProcess("/usr/bin/git", ["-C", cleanRepo.path, "config", "user.name", "Test"])
+    _ = await runProcess("/usr/bin/git", ["-C", cleanRepo.path, "config", "user.email", "t@example.com"])
+    _ = await runProcess("/usr/bin/git", ["-C", cleanRepo.path, "add", "Committed.swift"])
+    _ = await runProcess("/usr/bin/git", ["-C", cleanRepo.path, "-c", "commit.gpgsign=false", "commit", "-m", "track Committed.swift"])
+    let unchangedRes = await AskRefLoader.loadGitDiff("Committed.swift", cwd: cleanRepo.path)
+    r.check("AskRefLoader.loadGitDiff reports no changes for unmodified tracked file instead of all-added",
+            unchangedRes.errorMessage != nil && unchangedRes.lines.isEmpty,
+            "err=\(String(describing: unchangedRes.errorMessage)) lines=\(unchangedRes.lines.count)")
+
     // 4. PreviewTarget preserves extensionless Makefile exclusion while reading UTF-8 Makefile safely via AskRefLoader
     let mkURL = gitRepo.appendingPathComponent("Makefile")
     try? "all:\n\techo ok\n".write(to: mkURL, atomically: true, encoding: .utf8)
@@ -644,11 +659,43 @@ private func runAskControlTests(_ r: Report, ctrl: LmuxController) async {
     r.check("allowCrossPaneSend allows ask-wait from another pane holding a valid pane token",
             (crossWaitReply?["ok"] as? Bool) == true && (crossWaitReply?["status"] as? String) == "submitted")
 
-    // 3c. PeerPID inside pane A without token CANNOT spoof target pane B even when allowExternalSend == true
-    let myPID = Int(getpid())
-    if let ttyGroup = LmuxController.terminalForegroundGroup(pid_t(myPID)) {
-        _ = ttyGroup // Only enforce if apptest runs under a PTY foreground group matching a pane; skip else
+    // 3c. Process inside a pane without LMUX_PANE_NONCE CANNOT spoof target pane B via peerPID even when allowExternalSend == true
+    let cli = paths.binDir!.appendingPathComponent("lmux").path
+    let spoofDir = FileManager.default.temporaryDirectory.appendingPathComponent("ask-spoof-\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(at: spoofDir, withIntermediateDirectories: true)
+    let spoofSpec = spoofDir.appendingPathComponent("spec.json")
+    let spoofErr = spoofDir.appendingPathComponent("err.txt")
+    let spoofRC = spoofDir.appendingPathComponent("rc.txt")
+    let spoofScript = spoofDir.appendingPathComponent("spoof.sh")
+    if let data = try? JSONSerialization.data(withJSONObject: validSpec) {
+        try? data.write(to: spoofSpec)
     }
+    let scriptBody = """
+    #!/bin/sh
+    env -u LMUX_PANE_NONCE -u LMUX_PANE_TOKEN LMUX_CONTROL_SOCKET='\(ctrl.paths.controlSocket)' '\(cli)' ask --spec '\(spoofSpec.path)' --pane '\(paneB.id)' --timeout 2 > /dev/null 2> '\(spoofErr.path)'
+    printf '%d' $? > '\(spoofRC.path)'
+    exec sleep 100000
+    """
+    try? scriptBody.write(to: spoofScript, atomically: true, encoding: .utf8)
+    chmod(spoofScript.path, 0o755)
+    let wsSpoof = ctrl.newWorkspace(select: false, program: spoofScript.path)
+    defer {
+        ctrl.closeWorkspace(wsSpoof)
+        try? FileManager.default.removeItem(at: spoofDir)
+    }
+    var spoofDone = false
+    for _ in 0..<150 {
+        if FileManager.default.fileExists(atPath: spoofRC.path) {
+            spoofDone = true
+            break
+        }
+        await sleepMs(20)
+    }
+    let spoofRCVal = (try? String(contentsOf: spoofRC, encoding: .utf8)) ?? ""
+    let spoofErrVal = (try? String(contentsOf: spoofErr, encoding: .utf8)) ?? ""
+    r.check("process inside pane without token cannot spoof target pane B via peerPID even when allowExternalSend is enabled",
+            spoofDone && spoofRCVal == "1" && spoofErrVal.contains("cannot target another pane"),
+            "done=\(spoofDone) rc=\(spoofRCVal) err=\(spoofErrVal)")
 
     // 3d. Positive external-create + external-wait when allowExternalSend == true
     let extCreate = ctrl.handleControl(["cmd": "ask-create", "pane": paneB.id, "spec": validSpec])
@@ -1485,9 +1532,9 @@ private func runFullInspectorAskE2ETests(_ r: Report, ctrl: LmuxController) asyn
         return
     }
 
-    // Wait briefly for async AskContextBuilder + AskRefLoader to populate
-    for _ in 0..<50 {
-        if sess.context != nil && sess.loadedFileRefs["q_strategy"] != nil && sess.loadedGitDiffs["q_strategy"] != nil {
+    // Wait for async AskContextBuilder + AskRefLoader to populate (up to 5s under load)
+    for _ in 0..<250 {
+        if !sess.isLoadingContext && sess.context != nil && sess.loadedFileRefs["q_strategy"] != nil && sess.loadedGitDiffs["q_strategy"] != nil {
             break
         }
         await sleepMs(20)
@@ -1603,4 +1650,50 @@ private func runFullInspectorAskE2ETests(_ r: Report, ctrl: LmuxController) asyn
     r.check("E2E background workspace lmux ask keeps wsA focus, fires notification card, switches to Ask on click, and delivers answer",
             focusKeptOnA && bgIsNeedsInput && notif != nil && switchedToBAndAsk && bgRes.status == 0,
             "focusKept=\(focusKeptOnA) needsInput=\(bgIsNeedsInput) notif=\(notif != nil) switched=\(switchedToBAndAsk) exit=\(bgRes.status)")
+
+    // Scenario 9: Concurrent Tab A <-> Tab B independent drafts & Tab C hides .ask; background ask doesn't yank focused pane's tab
+    let wsC = ctrl.newWorkspace()
+    let paneC = wsC.focusedPane!
+    defer {
+        if ctrl.model.workspaces.contains(where: { $0.id == wsC.id }) {
+            ctrl.closeWorkspace(wsC)
+        }
+    }
+    if let tokA = ctrl.token(for: paneA) {
+        let cA = ctrl.handleControl(["cmd": "ask-create", "token": tokA, "lenient": true, "spec": [
+            "title": "Tab A 問題", "intro": "Tab A 獨立草稿",
+            "questions": [["id": "qa", "question": "A 題", "allowFreeText": true]]
+        ]])
+        let cB = ctrl.handleControl(["cmd": "ask-create", "token": tokE2E, "lenient": true, "spec": [
+            "title": "Tab B 問題", "intro": "Tab B 獨立草稿",
+            "questions": [["id": "qb", "question": "B 題", "allowFreeText": true]]
+        ]])
+        let sidA = cA["sessionId"] as? String ?? ""
+        let sidB = cB["sessionId"] as? String ?? ""
+        ctrl.askStore.session(id: sidA)?.draftFreeText["qa"] = "草稿-A"
+        ctrl.askStore.session(id: sidB)?.draftFreeText["qb"] = "草稿-B"
+
+        ctrl.select(wsA, focusing: paneA)
+        let activeA = ctrl.askStore.activeSession(for: paneA.id)
+        let tabAOK = ctrl.model.inspectorTab == .ask && activeA?.id == sidA && activeA?.draftFreeText["qa"] == "草稿-A"
+
+        // User intentionally switches to .diff on Tab A; background ask on Tab B must NOT yank Tab A back to .ask
+        ctrl.showInspectorTab(.diff)
+        _ = ctrl.handleControl(["cmd": "ask-create", "token": tokE2E, "lenient": true, "spec": [
+            "title": "Tab B 第二題", "intro": "背景新增提問",
+            "questions": [["id": "qb2", "question": "B2", "allowFreeText": true]]
+        ]])
+        let stayedOnDiff = ctrl.model.inspectorTab == .diff
+
+        ctrl.select(wsE2E, focusing: paneE2E)
+        let activeB = ctrl.askStore.activeSession(for: paneE2E.id)
+        let tabBOK = ctrl.model.inspectorTab == .ask && activeB?.id == sidB && activeB?.draftFreeText["qb"] == "草稿-B"
+
+        ctrl.select(wsC, focusing: paneC)
+        let tabCOK = ctrl.model.inspectorTab != .ask && win.firstResponder === paneC.surface
+
+        r.check("E2E concurrent Tab A <-> Tab B drafts stay isolated, background ask does not yank .diff, and Tab C hides .ask + focuses terminal",
+                tabAOK && stayedOnDiff && tabBOK && tabCOK,
+                "tabAOK=\(tabAOK) stayedOnDiff=\(stayedOnDiff) tabBOK=\(tabBOK) tabCOK=\(tabCOK)")
+    }
 }

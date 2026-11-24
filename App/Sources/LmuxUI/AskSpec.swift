@@ -210,7 +210,7 @@ public struct AskSpec: Sendable, Equatable {
     }
 
     private static let recommendedSuffixRE = try? NSRegularExpression(
-        pattern: #"(?:\s*(?:\(recommended\)|（推薦）|\(推薦\)|\[recommended\]))+$"#,
+        pattern: #"(?:\s*(?:\(recommended\)|（推薦）|\(推薦\)|（建議）|\(建議\)|\[recommended\]))+$"#,
         options: [.caseInsensitive]
     )
 
@@ -227,7 +227,10 @@ public struct AskSpec: Sendable, Equatable {
 
     /// Removes unsafe control/BiDi scalars and collapses newlines for single-line fields.
     static func sanitizeSingleLine(_ value: String) -> String {
-        let stripped = PreviewTarget.replacingUnsafeScalars(value)
+        let singleLine = value.replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+        let stripped = PreviewTarget.replacingUnsafeScalars(singleLine)
         return stripped.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 

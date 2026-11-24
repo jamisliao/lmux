@@ -103,6 +103,8 @@ extension LmuxController {
     }
 
     func syncAskStates() {
+        let focusedPane = model.selected?.focusedPane
+        let focusedBefore = focusedPane?.hasPendingAsk ?? false
         for pane in model.workspaces.flatMap(\.panes) {
             if let active = askStore.activeSession(for: pane.id) {
                 let title = active.spec.title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -115,7 +117,10 @@ extension LmuxController {
         }
         refreshPaneChrome()
         scheduleWaitCheck()
-        syncInspectorForFocusedPane()
+        let focusedAfter = focusedPane?.hasPendingAsk ?? false
+        if focusedBefore != focusedAfter || (!focusedAfter && (model.inspectorTab == .ask || model.inspectorAutoOpenedByAsk)) {
+            syncInspectorForFocusedPane()
+        }
     }
 
     /// Synchronizes dynamic `.ask` tab visibility, auto-open/collapse restore, and inspector draft focus.
@@ -256,8 +261,9 @@ extension LmuxController {
             let ctx = await AskContextBuilder.build(
                 for: target,
                 transcripts: self.transcripts,
-                activeGitSnapshot: nil
+                activeGitSnapshot: self.model.gitDiffService.snapshot
             )
+            guard self.askStore.session(id: session.id) != nil else { return }
             session.context = ctx
 
             if hasRefs {
@@ -269,18 +275,22 @@ extension LmuxController {
                 }
 
                 for q in session.spec.questions {
+                    guard self.askStore.session(id: session.id) != nil else { return }
                     if !q.refs.isEmpty {
                         let rootPath = repoRoot
                         let loadedRefs = await Task.detached(priority: .utility) {
                             q.refs.map { AskRefLoader.loadFileRef($0, baseDir: cwd, repoRoot: rootPath) }
                         }.value
+                        guard self.askStore.session(id: session.id) != nil else { return }
                         session.loadedFileRefs[q.id] = loadedRefs
                     }
                     if !q.gitDiff.isEmpty {
                         var diffs: [AskGitDiffRefResult] = []
                         for rel in q.gitDiff {
+                            guard self.askStore.session(id: session.id) != nil else { return }
                             diffs.append(await AskRefLoader.loadGitDiff(rel, cwd: cwd))
                         }
+                        guard self.askStore.session(id: session.id) != nil else { return }
                         session.loadedGitDiffs[q.id] = diffs
                     }
                 }

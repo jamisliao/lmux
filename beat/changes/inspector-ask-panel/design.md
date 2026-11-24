@@ -107,7 +107,7 @@ stateDiagram-v2
 
 - **`refs`（`path[:startLine[-endLine]]`，每題上限 8 筆）**：
   - 基準目錄為來源 pane 的 `repoRoot ?? pane.cwd`。複用 `GitDiffService` 同等級防護：先驗證 `resolvingSymlinksInPath()` 嚴格位於基準目錄內，再以 `Darwin.open(canonicalPath, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)` 開啟、`fstat` 確認為一般檔案（`S_IFREG`，拒絕 FIFO／device）、限制讀取上限（512 KB）並拒絕含 NUL 位元組之二進位檔；單段最多截取 120 行。
-  - 點擊引用檔名時：先經 `PreviewTarget.resolve` 檢查，可預覽者載入「即時預覽」；若為無副檔名或系統未歸類 `public.text` 之檔案（如 `Makefile`、`.toml`），擴充 `PreviewTarget` 常見純文字檔名／副檔名白名單，仍不支援者顯示友善提示而不靜默失效。
+  - 點擊引用檔名時：先經 `PreviewTarget.resolve` 檢查，可預覽者載入「即時預覽」；維持既有 `PreviewTarget.kind` 規則（不破壞既有 `Makefile`/`.env` 預覽契約），無法直接預覽者由 `AskRefCardView` 顯示友善提示而不靜默失效。
 - **`gitDiff`（相對路徑，每題上限 8 筆）**：
   - 直接共用 `GitDiffService` 的硬化執行環境（`filterOverrideEnv` 中和所有 `filter.*`、清空 `GIT_EXTERNAL_DIFF`/`GIT_ALLOW_PROTOCOL`、支援無初始提交之 unborn `HEAD` 與未追蹤新檔 `readUntrackedLines` fallback），再交由 `GitDiffParser` 產生紅綠差異行。
 
@@ -116,7 +116,7 @@ stateDiagram-v2
 - **動態頁籤與窄視窗適配（`RightInspectorView.swift`、`RootView.swift`、`Persistence.swift`）**：
   - `InspectorTab` 新增 `.ask`；`AppModel` 維護 `lastNonAskInspectorTab`（持久化於 `layout.json`，絕不把 `.ask` 寫入磁碟）與 `inspectorAutoOpenedByAsk: Bool`。
   - 當 `.ask` 頁籤顯示（共 4 頁籤）或 Inspector 寬度 `< 340pt` 時，頁籤列自動切換為緊湊標籤（`待確認`、`預覽`、`Diff`、`記錄`）並收斂非選中圖示，確保在最小寬度 `240pt` 下完整可讀。
-  - 窄視窗下 `RootView.layout()` 在隱藏右側欄前，先將有效寬度彈性夾緊至 `max(240, min(inspectorWidth, W - effectiveSw - 120))`，盡可能保留 **待確認面板** 可見。
+  - 窄視窗下 `RootView.layout()` 維持既有 `W - effectiveSw - iw >= 120` 保護中央終端畫布的收合臨界值，並在隱藏右側欄時觸發 `controller?.ensureFocus()` 立即歸還終端機焦點。
 - **全路徑注意力與分頁同步（`Model.swift`、`Controller.swift`、`Wait.swift`）**：
   - `Pane.hasPendingAsk` 變更時觸發 `agentStateChanged()`（更新 `stateChangedAt` 並喚醒 `lmux wait --until needs-you`／`any`）；`Pane.display` 中 `hasPendingAsk` 優先序高於 `.running`（讓正在執行 `Bash(lmux ask)` 的 tab 正確顯示 `🔔 需要確認`）；`Pane.needsInput` 納入 `hasPendingAsk`（支援 `⌘⇧J`、未聚焦琥珀光環與分頁圓點，且 `Controller.userTyped` 不會清除 `hasPendingAsk`）。
   - 集中於 `Controller.syncInspectorForFocusedPane()` 處理所有焦點切換路徑（點選 workspace、切換 tab、點擊 **通知卡片**、系統通知喚醒、`⌘⇧J`）：切到有 pending ask 的 tab 自動顯示 `.ask`；切到無 pending ask 的 tab（或送出／取消最後一筆後）立即退回 `lastNonAskInspectorTab`（若當初為自動展開則還原收合）。
