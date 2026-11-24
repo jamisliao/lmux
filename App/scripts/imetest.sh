@@ -12,6 +12,7 @@
 set -euo pipefail
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
+source "$APP_DIR/scripts/swift-sdk.sh"
 cd "$APP_DIR"
 swift build --product lmux-imetest >/dev/null
 BIN="$(swift build --show-bin-path)/lmux-imetest"
@@ -30,9 +31,34 @@ RES="$APP_DIR/build/test-resources/ghostty"
 mkdir -p "$RES/themes" && cp "$APP_DIR/Resources/themes/"* "$RES/themes/"
 export GHOSTTY_RESOURCES_DIR="$RES"
 set +e
-"$BIN" "$@" 2>/dev/null | grep -v '^\(info\|debug\|warning\)('
+ERRLOG="$TMPDIR/stderr.log"
+touch "$ERRLOG.start"
+"$BIN" "$@" 2>"$ERRLOG" | grep -v '^\(info\|debug\|warning\)('
 st=${PIPESTATUS[0]}
 set -e
+# 0 = passed, 1 = a check failed; anything else is the harness dying mid-run: show what it said last.
+if [ "$st" -gt 1 ]; then
+  echo "FAIL  [harness] lmux-imetest exited $st before reporting (a crash?); its last stderr lines:"
+  grep -v '^\(info\|debug\)(' "$ERRLOG" | tail -25 | sed 's/^/      /'
+  # …and the crash report macOS wrote for it, if any: why it stopped and the crashed thread's top frames.
+  IPS="$(ls -t "$HOME/Library/Logs/DiagnosticReports"/lmux-imetest*.ips 2>/dev/null | head -1 || true)"
+  if [ -n "$IPS" ] && [ "$IPS" -nt "$ERRLOG.start" ]; then
+    echo "      crash report: $IPS"
+    python3 - "$IPS" <<'PY' | sed 's/^/      /'
+import json, sys
+raw = open(sys.argv[1]).read()
+body = json.loads(raw[raw.index('\n') + 1:])
+print("exception:", body.get("exception"), "termination:", body.get("termination", {}).get("indicator"))
+print("asi:", body.get("asi"))
+images = body.get("usedImages", [])
+for t in body.get("threads", []):
+    if t.get("triggered"):
+        for f in t.get("frames", [])[:15]:
+            img = images[f["imageIndex"]].get("name", "?") if f.get("imageIndex") is not None and f["imageIndex"] < len(images) else "?"
+            print(f"{img}  {f.get('symbol', '?')}  +{f.get('symbolLocation', '')}")
+PY
+  fi
+fi
 if ls -d "$TMPDIR"/lmux-imetest-* >/dev/null 2>&1; then
   echo "FAIL  [hygiene] the harness left its temp dir behind: $(ls -d "$TMPDIR"/lmux-imetest-*)"; st=1
 else

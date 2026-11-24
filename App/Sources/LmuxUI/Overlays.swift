@@ -345,6 +345,10 @@ final class ConfirmCard: PanelView {
     let confirm: OverlayButton
     /// Local key monitor attached when the card sits on a preview pane (no `SurfaceView` interceptor).
     var keyMonitor: Any?
+    /// A second action between Cancel and the default (× with files edited: Remove and Restore Files).
+    private(set) var alternate: OverlayButton?
+    /// "Don't ask again" under the text (×'s card).
+    private(set) var remember: NSButton?
     init(message: NSAttributedString, detail: String, confirmTitle: String, accent: NSColor?,
          onCancel: @escaping () -> Void, onConfirm: @escaping () -> Void) {
         cancel = OverlayButton(title: "Cancel", shortcut: "esc", style: .secondary, action: onCancel)
@@ -365,6 +369,28 @@ final class ConfirmCard: PanelView {
         if let m = keyMonitor { NSEvent.removeMonitor(m) }
     }
 
+    func addAlternate(_ title: String, action: @escaping () -> Void) {
+        let b = OverlayButton(title: title, style: .secondary, action: action)
+        alternate = b
+        addSubview(b)
+        needsLayout = true
+    }
+
+    /// A small checkbox for `addRemember` (made first, so the card's actions can read it).
+    static func checkbox(_ title: String) -> NSButton {
+        let b = NSButton(checkboxWithTitle: title, target: nil, action: nil)
+        b.font = .systemFont(ofSize: 11)
+        // Never takes the keyboard from the terminal: ⏎ / esc stay the card's.
+        b.refusesFirstResponder = true
+        return b
+    }
+
+    func addRemember(_ b: NSButton) {
+        remember = b
+        addSubview(b)
+        needsLayout = true
+    }
+    private var rememberHeight: CGFloat { remember == nil ? 0 : 20 }
     /// Card width that shows everything on one line without truncation.
     var naturalWidth: CGFloat {
         let m = ceil(message.attributedStringValue.size().width) + 4
@@ -379,25 +405,31 @@ final class ConfirmCard: PanelView {
         let dh = detail.stringValue.isEmpty ? 0 : (detail.stringValue as NSString).boundingRect(
             with: NSSize(width: textW, height: 400), options: [.usesLineFragmentOrigin],
             attributes: [.font: detail.font!]).height + 2
-        return max(48, ceil(mh + dh) + 22)
+        return max(48, ceil(mh + dh + rememberHeight) + 22)
     }
-    private var buttonsWidth: CGFloat { cancel.fittingWidth + 8 + confirm.fittingWidth }
+    private var buttonsWidth: CGFloat { cancel.fittingWidth + 8 + confirm.fittingWidth + (alternate.map { $0.fittingWidth + 8 } ?? 0) }
 
     override func layout() {
         super.layout()
         let bh: CGFloat = 26
         let cw = confirm.fittingWidth, xw = cancel.fittingWidth
         confirm.frame = NSRect(x: bounds.width - 12 - cw, y: (bounds.height - bh) / 2, width: cw, height: bh)
-        cancel.frame = NSRect(x: confirm.frame.minX - 8 - xw, y: (bounds.height - bh) / 2, width: xw, height: bh)
+        var left = confirm.frame.minX
+        if let a = alternate {
+            a.frame = NSRect(x: left - 8 - a.fittingWidth, y: (bounds.height - bh) / 2, width: a.fittingWidth, height: bh)
+            left = a.frame.minX
+        }
+        cancel.frame = NSRect(x: left - 8 - xw, y: (bounds.height - bh) / 2, width: xw, height: bh)
         let textW = cancel.frame.minX - 12 - 16
         let mh = ceil(message.attributedStringValue.boundingRect(with: NSSize(width: textW, height: 400),
                                                                 options: [.usesLineFragmentOrigin]).height) + 2
         let dh = detail.stringValue.isEmpty ? 0 : ceil((detail.stringValue as NSString).boundingRect(
             with: NSSize(width: textW, height: 400), options: [.usesLineFragmentOrigin],
             attributes: [.font: detail.font!]).height) + 2
-        let top = (bounds.height - mh - dh) / 2
+        let top = (bounds.height - mh - dh - rememberHeight) / 2
         message.frame = NSRect(x: 16, y: top, width: textW, height: mh)
         detail.frame = NSRect(x: 16, y: top + mh, width: textW, height: dh)
+        remember?.frame = NSRect(x: 14, y: top + mh + dh + 2, width: textW, height: 18)
     }
 }
 

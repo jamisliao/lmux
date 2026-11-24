@@ -29,6 +29,7 @@ if headless, (env["LMUX_STATE_DIR"] ?? "").isEmpty {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var runtime: GhosttyRuntime!
     var controller: LmuxController!
+    private var pendingDirectories: [String] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Debug aid: force the app appearance without touching the system setting.
@@ -44,13 +45,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.runtime = runtime
         let controller = LmuxController(runtime: runtime, headless: headless)
-        self.controller = controller
+        // AppKit can deliver folder opens before applicationDidFinishLaunching.
+        let openingDirectories = pendingDirectories
+        pendingDirectories = []
         controller.buildMainMenu()
         let size = (headless ? env["LMUX_WINDOW_SIZE"] : nil)?.split(separator: "x").compactMap { Double($0) }
         if let size, size.count == 2 {
-            controller.start(windowFrame: NSRect(x: 0, y: 0, width: size[0], height: size[1]))
+            controller.start(windowFrame: NSRect(x: 0, y: 0, width: size[0], height: size[1]),
+                             openingDirectories: openingDirectories)
         } else {
-            controller.start()
+            controller.start(openingDirectories: openingDirectories)
         }
         if controller.unsafeStateDir {
             let msg = "lmux's state folder isn't private to you: \(controller.paths.stateDir.path)"
@@ -67,6 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             _ = ControlServer.handOff(path: controller.paths.controlSocket)
             exit(0)
         }
+        self.controller = controller
+        openPendingDirectories()
         // plugin：sidebar 底部的通知 bar（start() 提早 return 的情況上面已經 exit）。
         NotificationBarPlugin.install(on: controller)
         if !headless {
@@ -82,6 +88,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         }
+    }
+
+    func application(_ sender: NSApplication, open urls: [URL]) {
+        for url in urls where url.isFileURL {
+            let path = url.path
+            var isDirectory: ObjCBool = false
+            if FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue {
+                pendingDirectories.append(path)
+            }
+        }
+        openPendingDirectories()
+    }
+
+    @MainActor
+    private func openPendingDirectories() {
+        guard let controller, !pendingDirectories.isEmpty else { return }
+        let directories = pendingDirectories
+        pendingDirectories = []
+        for cwd in directories { controller.newWorkspace(cwd: cwd) }
+        if !headless { controller.reopenWindow() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

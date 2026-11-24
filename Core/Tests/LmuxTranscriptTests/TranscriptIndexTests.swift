@@ -35,11 +35,18 @@ import Testing
 
     static let extras = #"{"type":"last-prompt","leafUuid":"as4","explicit":true,"sessionId":"S"}"# + "\n"
 
-    @Test(arguments: [Fixtures.basic, Fixtures.compacted, Fixtures.crossTurnTool, Fixtures.basic + extras,
-                      Fixtures.basic + #"{"type":"last-prompt","leafUuid":"as4","sessionId":"S"}"# + "\n",
-                      Fixtures.rewoundThenPrompted, Fixtures.explicitThenStraggler,
-                      Fixtures.basic + #"{"type":"last-prompt","leafUuid":"int","explicit":true,"sessionId":"S"}"# + "\n"
-                          + #"{"parentUuid":"int","isSidechain":false,"type":"user","message":{"role":"user","content":"again"},"uuid":"u9","timestamp":"T11","turnOrigin":"human"}"# + "\n"] as [String])
+    // A typed constant, not a literal in the macro: Swift 6.4 can't type-check that one in time.
+    static let parserCases: [String] = {
+        let implicitPrompt: String = #"{"type":"last-prompt","leafUuid":"as4","sessionId":"S"}"# + "\n"
+        let explicitInt: String = #"{"type":"last-prompt","leafUuid":"int","explicit":true,"sessionId":"S"}"# + "\n"
+        let again: String = #"{"parentUuid":"int","isSidechain":false,"type":"user","message":{"role":"user","content":"again"},"uuid":"u9","timestamp":"T11","turnOrigin":"human"}"# + "\n"
+        return [Fixtures.basic, Fixtures.compacted, Fixtures.crossTurnTool, Fixtures.basic + extras,
+                Fixtures.basic + implicitPrompt,
+                Fixtures.rewoundThenPrompted, Fixtures.explicitThenStraggler,
+                Fixtures.basic + explicitInt + again]
+    }()
+
+    @Test(arguments: parserCases)
     func agreesWithTheFullParser(_ text: String) throws {
         let url = try temp(text)
         let idx = TranscriptIndex(url: url)
@@ -107,6 +114,26 @@ import Testing
         #expect(idx.customTitle == "my name" && idx.aiTitle == "AI name")
         #expect(idx.turns.first?.firstLine == "first prompt")
         #expect(try idx.fullPrompt(idx.turns[0]) == "first prompt\nsecond line")
+    }
+
+    // Claude Code 2.1.330 wraps pasted text in <pasted_content> lines: the prompt is the text alone.
+    @Test func pastedContentTagsAreUnwrapped() throws {
+        let c = Fixtures.common
+        let pasted = #"\n\n<pasted_content id=\"f287\">\nPASTED LINE 1\nPASTED LINE 2\n</pasted_content id=\"f287\">\n"#
+        let mixed = #"look at this\n\n<pasted_content id=\"a1\">\nline A\n</pasted_content id=\"a1\">\n"#
+        let text = """
+        {"parentUuid":null,\(c),"type":"user","message":{"role":"user","content":"\(pasted)"},"uuid":"u1","timestamp":"T0","turnOrigin":"human"}
+        {"parentUuid":"u1",\(c),"type":"user","message":{"role":"user","content":[{"type":"text","text":"\(mixed)"}]},"uuid":"u2","timestamp":"T1","turnOrigin":"human"}
+        {"parentUuid":"u2",\(c),"type":"user","message":{"role":"user","content":"a <pasted_content> tag typed mid-line stays"},"uuid":"u3","timestamp":"T2","turnOrigin":"human"}
+
+        """
+        let idx = TranscriptIndex(url: try temp(text))
+        try idx.update()
+        #expect(try idx.turns.map { try idx.fullPrompt($0) }
+                == ["PASTED LINE 1\nPASTED LINE 2", "look at this\n\nline A", "a <pasted_content> tag typed mid-line stays"])
+        #expect(idx.turns.first?.firstLine == "PASTED LINE 1")
+        #expect(Transcript(data: Data(text.utf8)).turns().map(\.prompt)
+                == ["PASTED LINE 1\nPASTED LINE 2", "look at this\n\nline A", "a <pasted_content> tag typed mid-line stays"])
     }
 
     // Forget offers to delete memory files a turn created: Write results say "type":"create".

@@ -8,6 +8,7 @@ CONFIG="${1:-release}"
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 GHOSTTY="$APP_DIR/../vendor/ghostty"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
+source "$APP_DIR/scripts/swift-sdk.sh"
 
 cd "$APP_DIR"
 # vendor/ghostty must carry scripts/ghostty.patch (idle GPU release). Checked only on a git checkout
@@ -73,6 +74,15 @@ cat > "$OUT/Contents/Info.plist" <<'PLIST'
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleShortVersionString</key><string>0.0.1</string>
 	<key>CFBundleVersion</key><string>1</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key><string>Folder</string>
+			<key>CFBundleTypeRole</key><string>Editor</string>
+			<key>LSHandlerRank</key><string>Alternate</string>
+			<key>LSItemContentTypes</key><array><string>public.folder</string></array>
+		</dict>
+	</array>
 	<key>LSMinimumSystemVersion</key><string>14.0</string>
 	<key>NSHumanReadableCopyright</key><string>Copyright © 2026 Soohwan Kim. MIT License.</string>
 	<key>NSHighResolutionCapable</key><true/>

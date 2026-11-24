@@ -147,6 +147,10 @@ func runSettings() async -> Int32 {
             == #selector(LmuxController.openSettings))
     guard let m = c.settingsModel else { r.check("settings model", false); return finish(r, c) }
     r.check("first open: the current theme is selected (Nord Light / Nord)", m.lightTheme == "Nord Light" && m.darkTheme == "Nord")
+    r.check("a theme given as a file path shows only its file name (#7)",
+            SettingsModel.themeLabel("/Users/woo/.config/ghostty/themes/Concoctis-Dark-Soft") == "Concoctis-Dark-Soft"
+            && SettingsModel.themeLabel("Nord") == "Nord"
+            && SettingsModel.themeLabel(String(repeating: "x", count: 80)).count == 24)
     let reloads0 = c.configReloads
     m.galleryDark = true
     m.chooseTheme("Dracula")
@@ -323,6 +327,14 @@ func runSettingsShots(_ dir: URL) async -> Int32 {
             await render(SettingsShotFrame(tab: tab, model: m), "settings-\(tab.title.lowercased())", dark: dark)
         }
     }
+    // #7: a theme given as a long file path (cmux import) must not push the window wider.
+    NSApp.appearance = NSAppearance(named: .aqua)
+    let (light0, dark0) = (m.lightTheme, m.darkTheme)
+    m.lightTheme = "/Users/someone/.config/ghostty/themes/Concoctis-Dark-Soft"
+    m.darkTheme = "/Users/someone/.config/ghostty/themes/A-Very-Long-Theme-Name-From-Somewhere"
+    m.galleryDark = false
+    await render(SettingsShotFrame(tab: .appearance, model: m), "settings-appearance-theme-path", dark: false)
+    (m.lightTheme, m.darkTheme) = (light0, dark0)
     let home = paths.stateDir.appendingPathComponent("cmux-home", isDirectory: true)
     _ = writeCmuxFixture(home)
     let vm = CmuxImportModel(plan: CmuxImport.plan(CmuxSources(home: home)), firstLaunch: true)

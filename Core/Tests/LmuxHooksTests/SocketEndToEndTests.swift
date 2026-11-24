@@ -56,8 +56,11 @@ func runHook(_ bin: URL, stdin: String, env: [String: String]) throws -> (Int32,
     p.standardError = FileHandle.nullDevice
     let t0 = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)
     try p.run()
-    inPipe.fileHandleForWriting.write(Data(stdin.utf8))
-    try inPipe.fileHandleForWriting.close()
+    // A hook that exits before reading all of stdin (no socket, say) must not take the test
+    // process down: EPIPE instead of SIGPIPE, and the throwing write instead of an ObjC exception.
+    signal(SIGPIPE, SIG_IGN)
+    try? inPipe.fileHandleForWriting.write(contentsOf: Data(stdin.utf8))
+    try? inPipe.fileHandleForWriting.close()
     p.waitUntilExit()
     let t1 = clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)
     let out = outPipe.fileHandleForReading.readDataToEndOfFile()
@@ -120,6 +123,10 @@ func percentile(_ xs: [Double], _ p: Double) -> Double {
         var mixed = Array("garbage\n".utf8) + good("a") + Array("{\"pane\":\"x\"}\n\n".utf8)
         mixed += good("b").dropLast()
         #expect(HookClient.send(mixed, socketPath: path))
+        // "b" only arrives when the server sees that connection close, so after this it no longer
+        // counts against maxClients (64) and all 64 clients below get in. Without the wait, 65
+        // connections can overlap on a slow runner and the server rightly turns one away.
+        #expect(inbox.wait(count: 2 + 2))
 
         DispatchQueue.concurrentPerform(iterations: 64) { i in
             _ = HookClient.send(good("c\(i)"), socketPath: path)

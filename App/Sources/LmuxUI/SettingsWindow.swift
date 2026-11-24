@@ -59,6 +59,13 @@ public final class SettingsModel {
     @ObservationIgnored weak var controller: LmuxController?
     public var appearance: LmuxSettings.Appearance = .system
     public var lightTheme = "Nord Light"
+
+    /// A theme can be a file path (`theme = /Users/me/.config/ghostty/themes/X`, common after a cmux import).
+    /// Show only the file name, capped, so a long path can't push the Settings window wider (#7).
+    public static func themeLabel(_ theme: String) -> String {
+        let name = theme.contains("/") ? (theme as NSString).lastPathComponent : theme
+        return name.count > 24 ? String(name.prefix(23)) + "…" : name
+    }
     public var darkTheme = "Nord"
     /// The gallery shows the light or the dark themes.
     public var galleryDark = true
@@ -75,6 +82,7 @@ public final class SettingsModel {
     public var remindNotification = false
     public var warnBeforeQuit = true
     public var restoreScrollback = true
+    public var removeAction: LmuxSettings.RemoveAction = .ask
     public var allowExternalSend = false
     public var hooksInstalled = false
     /// Codex CLI: found on this Mac, lmux's hooks installed, and whether Codex trusted them.
@@ -110,6 +118,7 @@ public final class SettingsModel {
         remindNotification = c.settings.remindNotification
         warnBeforeQuit = c.settings.warnBeforeQuit
         restoreScrollback = c.settings.restoreScrollback
+        removeAction = c.settings.removeAction
         allowExternalSend = c.defaults.bool(forKey: "allowExternalSend")
         refreshHooks()
         cmuxFound = CmuxSources.current.exists
@@ -182,6 +191,7 @@ public final class SettingsModel {
     func setRemindNotification(_ on: Bool) { remindNotification = on; controller?.settings.remindNotification = on }
     func setWarnBeforeQuit(_ on: Bool) { warnBeforeQuit = on; controller?.settings.warnBeforeQuit = on }
     func setRestoreScrollback(_ on: Bool) { restoreScrollback = on; controller?.settings.restoreScrollback = on }
+    func setRemoveAction(_ a: LmuxSettings.RemoveAction) { removeAction = a; controller?.settings.removeAction = a }
     func setAllowExternalSend(_ on: Bool) { allowExternalSend = on; controller?.defaults.set(on, forKey: "allowExternalSend") }
 
     var filteredFamilies: [String] {
@@ -275,7 +285,7 @@ enum SettingsTab: CaseIterable {
         case .appearance: return 650
         case .font: return 470
         case .notifications: return 330
-        case .general: return 310
+        case .general: return 370
         }
     }
 }
@@ -318,8 +328,8 @@ struct AppearanceTab: View {
             }
             Section {
                 Picker("Theme for", selection: $model.galleryDark) {
-                    Text("Light mode · \(model.lightTheme)").tag(false)
-                    Text("Dark mode · \(model.darkTheme)").tag(true)
+                    Text("Light mode · \(SettingsModel.themeLabel(model.lightTheme))").tag(false)
+                    Text("Dark mode · \(SettingsModel.themeLabel(model.darkTheme))").tag(true)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -336,7 +346,7 @@ struct AppearanceTab: View {
             } header: {
                 Text("Theme")
             } footer: {
-                Text("lmux follows the appearance: light mode uses \(model.lightTheme), dark mode uses \(model.darkTheme).")
+                Text("lmux follows the appearance: light mode uses \(SettingsModel.themeLabel(model.lightTheme)), dark mode uses \(SettingsModel.themeLabel(model.darkTheme)).")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
         }
@@ -545,6 +555,17 @@ struct GeneralTab: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Restore terminal output after relaunch")
                         Text("Shell panes show their last output again. Saved privately at quit, deleted once shown.")
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                }
+                Picker(selection: Binding(get: { model.removeAction }, set: { model.setRemoveAction($0) })) {
+                    Text("Ask").tag(LmuxSettings.RemoveAction.ask)
+                    Text("Remove").tag(LmuxSettings.RemoveAction.remove)
+                    Text("Remove and restore files").tag(LmuxSettings.RemoveAction.removeAndRestoreFiles)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("× on a Claude message")
+                        Text("Also ⌘Z after a send. Restoring files puts back the ones Claude edited with its own tools.")
                             .font(.system(size: 11)).foregroundStyle(.secondary)
                     }
                 }

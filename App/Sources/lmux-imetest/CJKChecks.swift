@@ -442,16 +442,25 @@ func runCJKRenderChecks(_ r: Report, runtime: GhosttyRuntime) async {
         await sleepMs(250)
         let g = geometry(v), end = grabFrame(v)
         await post([.left, .left], to: t.window)
-        await sleepMs(250)
-        let mid = grabFrame(v)
+        // Wait for the redraw: on a slow runner 250 ms isn't always enough, and the frame was unchanged.
+        func changed(_ a: Frame, _ b: Frame, _ g: (x0: Double, top: Int, cw: Double, ch: Int)) -> [Int] {
+            var xs: [Int] = []
+            for y in g.top..<(g.top + g.ch) {
+                for x in max(0, Int(g.x0) - 4)..<min(a.w, Int(g.x0 + 8 * g.cw)) where a.rgb(x, y) != b.rgb(x, y) { xs.append(x) }
+            }
+            return xs
+        }
+        var mid: Frame?
+        for _ in 0..<8 {
+            await sleepMs(250)
+            mid = grabFrame(v)
+            if let g, let a = end, let b = mid, a.w == b.w, a.h == b.h, !changed(a, b, g).isEmpty { break }
+        }
         var detail = "no frame"
         var ok = false
         if let g, let a = end, let b = mid, a.w == b.w, a.h == b.h {
             let edge = Int((g.x0 + 3 * g.cw).rounded())
-            var diffX: [Int] = []
-            for y in g.top..<(g.top + g.ch) {
-                for x in max(0, Int(g.x0) - 4)..<min(a.w, Int(g.x0 + 8 * g.cw)) where a.rgb(x, y) != b.rgb(x, y) { diffX.append(x) }
-            }
+            let diffX = changed(a, b, g)
             ok = !diffX.isEmpty && diffX.allSatisfy { abs($0 - edge) <= Int(g.cw / 2) }
             detail = "changed pixels x=\(diffX.min() ?? -1)...\(diffX.max() ?? -1), caret edge x=\(edge), cell \(g.cw)px, preedit=\"\(v.currentPreedit)\""
         }

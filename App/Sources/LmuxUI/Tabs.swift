@@ -45,6 +45,25 @@ extension LmuxController {
         return tab
     }
 
+    /// Fork Session: what a fork of `pane`'s Claude Code session types, the command restore would
+    /// (the captured flags, else plain `claude --resume <id>`) plus `--fork-session`. Nil when the
+    /// pane runs no Claude Code session lmux knows (Codex has no fork of a session by id).
+    static func forkCommand(_ pane: Pane) -> String? {
+        guard pane.agentKind == .claude,
+              let resume = resumeCommand(pane.claudeSessionID, saved: pane.resumeCommand ?? "") else { return nil }
+        return String(resume.dropLast()) + " --fork-session\n"
+    }
+
+    /// Fork Session: a new tab right after `pane`, in its directory and with its session's env,
+    /// running a fork of its conversation. `pane` itself is left as it is.
+    @discardableResult
+    public func forkSession(_ pane: Pane) -> Pane? {
+        guard let command = Self.forkCommand(pane), let ws = pane.workspace, let leaf = ws.root.find(pane) else { return nil }
+        let tab = makePane(cwd: pane.cwd, initialInput: command, extraEnvironment: pane.resumeEnvironment)
+        insert(tab, into: leaf, at: (leaf.tabs.firstIndex { $0 === pane } ?? leaf.tabs.count - 1) + 1, ws, select: true)
+        return tab
+    }
+
     /// Put `tab` (new, or moved from another pane) into `leaf` at `index` (kept on its side of the
     /// pinned tabs), shown and focused unless `select` is false.
     func insert(_ tab: Pane, into leaf: SplitNode, at index: Int, _ ws: Workspace, select: Bool) {
@@ -340,6 +359,7 @@ extension LmuxController {
         add("Move to Right Pane", enabled: right != nil) { [weak self] in if let right { self?.moveTab(tab, into: right) } }
         menu.addItem(.separator())
         add("New Terminal Tab to Right", "t", .command) { [weak self] in self?.newTab(tab, after: tab) }
+        add("Fork Session", enabled: Self.forkCommand(tab) != nil) { [weak self] in self?.forkSession(tab) }
         menu.addItem(.separator())
         if ws.isSplit || ws.isZoomed {
             add(ws.isZoomed ? "Exit Zoom" : "Zoom Pane") { [weak self] in self?.toggleZoom(for: tab) }

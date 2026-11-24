@@ -22,6 +22,7 @@ if [ "${1:-}" = "--real-window" ] && [ "${GITHUB_ACTIONS:-}" != "true" ]; then
 fi
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
+source "$APP_DIR/scripts/swift-sdk.sh"
 cd "$APP_DIR"
 swift build --product lmux-apptest >/dev/null
 swift build --product lmux-cli >/dev/null
@@ -30,7 +31,11 @@ BIN="$(swift build --show-bin-path)"
 
 # Short temp path: Unix socket paths are limited to ~104 bytes.
 T="$(mktemp -d /tmp/lmux-apptest.XXXXXX)"
-trap 'rm -rf "$T"' EXIT
+# #14: a run ended with exit 1 and no FAIL line. Name whatever fails: a command that trips set -e,
+# a failed cleanup, and the status the script really exits with. (Not under set +e, where a
+# non-zero wait is expected.)
+trap 'rc=$? ln=$LINENO cmd=$BASH_COMMAND; [[ $- == *e* ]] && echo "FAIL  [harness] apptest.sh line $ln: \"$cmd\" exited $rc"' ERR
+trap 'st=$?; rm -rf "$T" || echo "FAIL  [harness] cleanup: rm -rf $T exited $?"; [ "$st" = 0 ] || echo "INFO  [harness] apptest.sh exits $st"' EXIT
 mkdir -p "$T/bin" "$T/sink" "$T/state" "$T/tmp"
 # Panes that run a shell get an isolated zsh (temp ZDOTDIR and HISTFILE), never the user's.
 source "$APP_DIR/scripts/isolated-shell.sh"
@@ -98,14 +103,16 @@ export GHOSTTY_RESOURCES_DIR="$RES"
 
 filter() { grep -v '^\(info\|debug\|warning\)(' || true; }
 status=0
+# A phase that exits non-zero fails the run; say which, since it may have printed no FAIL line.
+phase_failed() { echo "FAIL  [harness] the phase on apptest.sh line ${BASH_LINENO[0]} exited $1"; status=1; }
 if [ "${1:-}" = "--real-window" ]; then
   unset LMUX_HEADLESS
   [ -n "${2:-}" ] && export LMUX_SHOTS_DIR="$2"
-  LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --real-window 2>/dev/null | filter || status=1
+  LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --real-window 2>/dev/null | filter || phase_failed $?
   exit $status
 fi
 if [ "${1:-}" = "--rewind" ]; then
-  LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --rewind 2>/dev/null | filter || status=1
+  LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --rewind 2>/dev/null | filter || phase_failed $?
   exit $status
 fi
 run_preview_suite() {
@@ -130,7 +137,7 @@ run_preview_suite() {
   fi
   for phase in --preview --preview-restore; do
     LMUX_STATE_DIR="$T/preview" LMUX_PANE_COMMAND="$T/sink.sh" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/preview/lmux-config" \
-      "$BIN/lmux-apptest" $phase 2>/dev/null | filter || status=1
+      "$BIN/lmux-apptest" $phase 2>/dev/null | filter || phase_failed $?
   done
 }
 if [ "${1:-}" = "--preview" ]; then
@@ -141,28 +148,28 @@ fi
 run_sidebar_tabs_suite() {
   mkdir -p "$T/sidebar-tabs"
   for phase in --sidebar-tabs --sidebar-tabs-restore; do
-    LMUX_STATE_DIR="$T/sidebar-tabs" LMUX_IGNORE_GHOSTTY_CONFIG=1 "$BIN/lmux-apptest" $phase 2>/dev/null | filter || status=1
+    LMUX_STATE_DIR="$T/sidebar-tabs" LMUX_IGNORE_GHOSTTY_CONFIG=1 "$BIN/lmux-apptest" $phase 2>/dev/null | filter || phase_failed $?
   done
 }
 if [ "${1:-}" = "--sidebar-tabs" ]; then
   run_sidebar_tabs_suite
   exit $status
 fi
-LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
+LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || phase_failed $?
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"
-LMUX_STATE_DIR="$T/titlebar" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --titlebar 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/titlebar" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --titlebar 2>/dev/null | filter || phase_failed $?
 # Sidebar: the row × on hover, ⌘/⇧-click multi-selection, closing idle shells and busy panes.
 mkdir -p "$T/sidebar"
-LMUX_STATE_DIR="$T/sidebar" "$BIN/lmux-apptest" --sidebar 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/sidebar" "$BIN/lmux-apptest" --sidebar 2>/dev/null | filter || phase_failed $?
 run_sidebar_tabs_suite
 # Split zoom, manual Clear Status, and sidebar drag-to-reorder.
 mkdir -p "$T/zoomclear"
-LMUX_STATE_DIR="$T/zoomclear" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --zoom-clear-reorder 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/zoomclear" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --zoom-clear-reorder 2>/dev/null | filter || phase_failed $?
 # Tabs inside a pane (keys, strip, status across tabs, splits, CLI, layout.json), then the relaunch.
 mkdir -p "$T/tabs"
 for phase in --pane-tabs --pane-tabs-restore; do
-  LMUX_STATE_DIR="$T/tabs" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" $phase 2>/dev/null | filter || status=1
+  LMUX_STATE_DIR="$T/tabs" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" $phase 2>/dev/null | filter || phase_failed $?
 done
 # Where a new workspace / split starts (Ghostty's working-directory keys, written to a temp lmux config;
 # never the user's Ghostty config), then a relaunch: saved panes keep their directories.
@@ -176,50 +183,50 @@ chmod +x "$T/nwd/pwd.sh"
 for phase in --new-workspace-dir --new-workspace-dir-restore; do
   LMUX_STATE_DIR="$T/nwd/state" LMUX_SINK_DIR="$T/nwd/sink" LMUX_PANE_COMMAND="$T/nwd/pwd.sh" \
     LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/nwd/lmux-config" \
-    "$BIN/lmux-apptest" $phase 2>/dev/null | filter || status=1
+    "$BIN/lmux-apptest" $phase 2>/dev/null | filter || phase_failed $?
 done
 # Settings (themes, font, toggles; lmux's config is $LMUX_CONFIG_FILE) and the cmux import from fixtures.
 mkdir -p "$T/settings"
-LMUX_STATE_DIR="$T/settings" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/settings/lmux-config" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --settings 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/settings" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/settings/lmux-config" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --settings 2>/dev/null | filter || phase_failed $?
 # Unattended rows: the breathing reminder (fake clock) and its idle cost.
 mkdir -p "$T/attention"
-LMUX_STATE_DIR="$T/attention" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --attention 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/attention" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --attention 2>/dev/null | filter || phase_failed $?
 # Running rows' subagent count, the bypass / auto badge, the usage-limit wait, the quiet hint (fake clock).
 mkdir -p "$T/extras"
-LMUX_STATE_DIR="$T/extras" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --status-extras 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/extras" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --status-extras 2>/dev/null | filter || phase_failed $?
 # The bell's notification list.
 mkdir -p "$T/bell"
-LMUX_STATE_DIR="$T/bell" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --bell 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/bell" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --bell 2>/dev/null | filter || phase_failed $?
 # Esc / Ctrl+C stops Claude with no hook: the transcript's interrupt marker turns the row idle.
 mkdir -p "$T/escidle"
-LMUX_STATE_DIR="$T/escidle" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --esc-idle 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/escidle" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --esc-idle 2>/dev/null | filter || phase_failed $?
 # Any agent's own status (OSC 7501 app=), lmux wait, lmux list --json.
 mkdir -p "$T/agents"
-LMUX_STATE_DIR="$T/agents" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --agents 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/agents" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --agents 2>/dev/null | filter || phase_failed $?
 # Codex CLI: a fake codex in a pane (real payloads, real lmux-hook), then the restore of that pane.
 mkdir -p "$T/codex-state"
-LMUX_STATE_DIR="$T/codex-state" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --codex 2>/dev/null | filter || status=1
-LMUX_STATE_DIR="$T/codex-state" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --codex-restore 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/codex-state" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --codex 2>/dev/null | filter || phase_failed $?
+LMUX_STATE_DIR="$T/codex-state" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --codex-restore 2>/dev/null | filter || phase_failed $?
 # Security: pane tokens on both sockets, external send off by default, typed commands, transcript
 # paths, the state dir, link labels, socket read caps.
 mkdir -p "$T/security"
-LMUX_STATE_DIR="$T/security" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --security 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/security" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --security 2>/dev/null | filter || phase_failed $?
 # Contrast: Claude Code's real output (its dark and light themes) and ls / git / ANSI samples stay
 # readable in every theme pair, measured from the renderer's pixels (fixtures: scripts/contrast).
 mkdir -p "$T/contrast"
 # Hermetic: lmux's defaults only, never the user's Ghostty config (LMUX_CONFIG_FILE is a temp path).
 LMUX_STATE_DIR="$T/contrast" LMUX_CONTRAST_DIR="$APP_DIR/scripts/contrast" LMUX_PANE_COMMAND="$T/sink.sh" \
   LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/contrast/lmux-config" \
-  "$BIN/lmux-apptest" --contrast 2>/dev/null | filter || status=1
+  "$BIN/lmux-apptest" --contrast 2>/dev/null | filter || phase_failed $?
 # Ghostty parity: the scrollback's overlay scroller, link hover and ⌘-click (opening is captured).
 mkdir -p "$T/parity"
-LMUX_STATE_DIR="$T/parity" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --parity 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/parity" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --parity 2>/dev/null | filter || phase_failed $?
 # 預覽 tab 與 ⌘-click 的開啟選單（beat: md-html-preview）。不讀使用者的 Ghostty 設定（⌘T 沿用目錄的檢查）。
 run_preview_suite
 # A new user's first days: the README's shortcut table on a real (isolated) zsh, a keybind in the
 # "user's" Ghostty config (XDG_CONFIG_HOME on a temp dir), edge cases, cmux leftovers.
 mkdir -p "$T/newuser" "$T/xdg"
-LMUX_STATE_DIR="$T/newuser" XDG_CONFIG_HOME="$T/xdg" "$BIN/lmux-apptest" --newuser 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/newuser" XDG_CONFIG_HOME="$T/xdg" "$BIN/lmux-apptest" --newuser 2>/dev/null | filter || phase_failed $?
 # Where features meet (restore without hooks, zoom + arrows / attention, undo with an image, Clear
 # Status vs pending work, drag + selection change): a real isolated zsh with a fake claude / codex
 # first on its PATH (the phase writes them), so a resumed session never starts a real agent.
@@ -228,7 +235,7 @@ mkdir -p "$T/regress/state" "$T/regress/fakebin"
   echo "PATH='$T/regress/fakebin':\$PATH" >> "$T/regress/shell/zdot/.zshrc"
   LMUX_STATE_DIR="$T/regress/state" LMUX_QA_FAKEBIN="$T/regress/fakebin" \
     GHOSTTY_RESOURCES_DIR="$APP_DIR/../vendor/ghostty/zig-out/share/ghostty" \
-    "$BIN/lmux-apptest" --regressions 2>/dev/null | filter ) || status=1
+    "$BIN/lmux-apptest" --regressions 2>/dev/null | filter ) || phase_failed $?
 # Quitting by signal (kill, logout) hangs up the panes' processes like ⌘Q: none is orphaned.
 swift build --product lmux >/dev/null
 mkdir -p "$T/term"
@@ -303,36 +310,36 @@ fi
 rm -f "$T/sink/race.pids"
 if [ "${1:-}" = "--quick" ]; then leftovers || status=1; history_unchanged || status=1; windows_unseen || status=1; exit $status; fi
 rm -f "$T/sink/"*
-LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --restore 2>/dev/null | filter || status=1
+LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --restore 2>/dev/null | filter || phase_failed $?
 # A fresh process (no panes left over from the run above), so its memory is the app's.
 mkdir -p "$T/big"
-LMUX_STATE_DIR="$T/big" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --big 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/big" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --big 2>/dev/null | filter || phase_failed $?
 # Idle surfaces release their GPU memory and rebuild it on the next frame (scripts/ghostty.patch),
 # under output, resize, zoom, split / close, occlusion, an appearance change and 220 cycles.
 mkdir -p "$T/gpuidle"
 LMUX_STATE_DIR="$T/gpuidle" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_CONFIG_FILE="$T/gpuidle/lmux-config" \
-  "$BIN/lmux-apptest" --gpu-idle 2>/dev/null | filter || status=1
+  "$BIN/lmux-apptest" --gpu-idle 2>/dev/null | filter || phase_failed $?
 # Clicks the event queue held back (delivered directly, the queued copy later): every one still
 # lands once and keeps its ⌘ / ⇧ / ⌥ (they used to come from whatever event was current).
 mkdir -p "$T/late-titlebar" "$T/late-sidebar"
-LMUX_APPTEST_LATE_COPY=1 LMUX_STATE_DIR="$T/late-titlebar" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --titlebar 2>/dev/null | filter || status=1
-LMUX_APPTEST_LATE_COPY=1 LMUX_STATE_DIR="$T/late-sidebar" "$BIN/lmux-apptest" --sidebar 2>/dev/null | filter || status=1
+LMUX_APPTEST_LATE_COPY=1 LMUX_STATE_DIR="$T/late-titlebar" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --titlebar 2>/dev/null | filter || phase_failed $?
+LMUX_APPTEST_LATE_COPY=1 LMUX_STATE_DIR="$T/late-sidebar" "$BIN/lmux-apptest" --sidebar 2>/dev/null | filter || phase_failed $?
 # Key -> pty latency (headless; reported, not asserted against Ghostty).
 mkdir -p "$T/lat"
-LMUX_STATE_DIR="$T/lat" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --latency 2>/dev/null | filter || status=1
+LMUX_STATE_DIR="$T/lat" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --latency 2>/dev/null | filter || phase_failed $?
 # Everyday terminal work off the happy path: real programs (python fixtures, vim, less, top) in the
 # isolated shell, wide text, huge output, storms, kitty keys, mouse, pastes, resizes, corrupted state files.
 mkdir -p "$T/compat"
 # vim / less / top need xterm-ghostty's terminfo (the test resources dir has themes only).
 LMUX_COMPAT_TERMINFO="$APP_DIR/../vendor/ghostty/zig-out/share/terminfo" LMUX_STATE_DIR="$T/compat" "$BIN/lmux-apptest" --compat 2>/dev/null \
-  | filter || status=1
+  | filter || phase_failed $?
 # Terminal output across a relaunch: plain shell panes save it at quit, the next launch shows it
 # above the new prompt. Real isolated zsh with Ghostty's shell integration (knows "at a prompt").
 mkdir -p "$T/scrollback"
 GHOSTTY_RESOURCES_DIR="$APP_DIR/../vendor/ghostty/zig-out/share/ghostty" LMUX_STATE_DIR="$T/scrollback" \
-  "$BIN/lmux-apptest" --scrollback 2>/dev/null | filter || status=1
+  "$BIN/lmux-apptest" --scrollback 2>/dev/null | filter || phase_failed $?
 GHOSTTY_RESOURCES_DIR="$APP_DIR/../vendor/ghostty/zig-out/share/ghostty" LMUX_STATE_DIR="$T/scrollback" \
-  "$BIN/lmux-apptest" --scrollback-restore 2>/dev/null | filter || status=1
+  "$BIN/lmux-apptest" --scrollback-restore 2>/dev/null | filter || phase_failed $?
 if [ "${1:-}" = "--screenshots" ]; then
   mkdir -p "$T/shots"
   # Real shells with shell integration (titles, OSC 7 cwd) need the bundle's resources.

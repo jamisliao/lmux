@@ -93,7 +93,7 @@ func runSecurity() async -> Int32 {
     // Oversized request: the server drops the connection once 1 MB is read, without waiting for the end.
     let ctlPath = paths.controlSocket
     let ctlDropped = await Task.detached { oversizedDropped(ctlPath, bytes: 3 << 20) }.value
-    r.check("a control request over 1 MB is dropped while it's still being sent", ctlDropped)
+    r.check("a control request over 1 MB is dropped while it's still being sent", ctlDropped.0, ctlDropped.1)
     // `lmux list`: titles and cwds come from programs; no control character reaches the terminal.
     let cwd0 = p2.cwd
     p2.cwd = "/tmp/\u{1b}]52;c;cHduZWQ=\u{07}x"
@@ -211,7 +211,7 @@ func runSecurity() async -> Int32 {
     r.section = "dos"
     let hookPath = paths.hookSocket
     let hookDropped = await Task.detached { oversizedDropped(hookPath, bytes: 24 << 20) }.value
-    r.check("a hook line over 8 MB is dropped while it's still being sent", hookDropped)
+    r.check("a hook line over 8 MB is dropped while it's still being sent", hookDropped.0, hookDropped.1)
     _ = sendHook(pane: p1.id, hook("Stop", session: sid1), token: tok1)
     let served = await waitFor { p1.agent.state != .running }
     r.check("…and the server keeps serving", served)
@@ -220,11 +220,13 @@ func runSecurity() async -> Int32 {
 
 /// Writes `bytes` without a newline; true when the server closes the connection before all of it
 /// was sent (EPIPE / reset), i.e. it enforces its cap per read instead of buffering everything.
-func oversizedDropped(_ path: String, bytes: Int) -> Bool {
+/// Whether the server drops a connection that sends `bytes` without a newline before it all goes out,
+/// and what happened (bytes sent, the error the write ended with) for the check's detail.
+func oversizedDropped(_ path: String, bytes: Int) -> (Bool, String) {
     var addr = sockaddr_un()
     addr.sun_family = sa_family_t(AF_UNIX)
     let pb = Array(path.utf8)
-    guard pb.count < MemoryLayout.size(ofValue: addr.sun_path) else { return false }
+    guard pb.count < MemoryLayout.size(ofValue: addr.sun_path) else { return (false, "path too long") }
     withUnsafeMutableBytes(of: &addr.sun_path) { $0.copyBytes(from: pb); $0[pb.count] = 0 }
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)
     defer { close(fd) }
@@ -233,15 +235,19 @@ func oversizedDropped(_ path: String, bytes: Int) -> Bool {
     let rc = withUnsafePointer(to: &addr) {
         $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
     }
-    guard rc == 0 else { return false }
-    var tv = timeval(tv_sec: 5, tv_usec: 0)
+    guard rc == 0 else { return (false, "connect: errno \(errno)") }
+    // Long enough for a slow runner's server to read up to its cap; a timeout shows as EAGAIN below.
+    var tv = timeval(tv_sec: 20, tv_usec: 0)
     setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
     let block = [UInt8](repeating: UInt8(ascii: "a"), count: 64 * 1024)
     var sent = 0
     while sent < bytes {
         let n = block.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
-        if n <= 0 { return errno == EPIPE || errno == ECONNRESET }
+        if n <= 0 {
+            let e = errno
+            return (e == EPIPE || e == ECONNRESET, "write ended after \(sent >> 10) KB: errno \(e) (\(String(cString: strerror(e))))")
+        }
         sent += n
     }
-    return false
+    return (false, "all \(sent >> 10) KB went out")
 }

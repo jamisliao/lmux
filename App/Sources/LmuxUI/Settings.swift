@@ -6,6 +6,8 @@ import LmuxTerminal
 @MainActor
 public final class LmuxSettings {
     public enum Appearance: String, CaseIterable { case system, light, dark }
+    /// What × (and ⌘Z) on a Claude turn does: ask with a card, or run the remembered choice.
+    public enum RemoveAction: String, CaseIterable { case ask, remove, removeAndRestoreFiles }
 
     let url: URL
     private var values: [String: Any]
@@ -103,6 +105,11 @@ public final class LmuxSettings {
     public var remindNotification: Bool {
         get { get("remindNotification") as? Bool ?? false }
         set { put("remindNotification", newValue) }
+    }
+    /// × on a turn: ask (default), or the choice its card's "Don't ask again" remembered.
+    public var removeAction: RemoveAction {
+        get { (get("removeAction") as? String).flatMap(RemoveAction.init) ?? .ask }
+        set { put("removeAction", newValue.rawValue) }
     }
     /// lmux-only shortcuts the user changed: action id -> "cmd+shift+u".
     public var shortcuts: [String: String] {

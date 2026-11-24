@@ -50,6 +50,8 @@ BUDGET = {
 CI_SLOW = max(1.0, float(os.environ.get("LMUX_CI_SLOW") or 1))
 CI_ALLOWANCE = {
     "event_cpu_ms": CI_SLOW,                # the same work on a slower CPU: 1.4-2.4ms vs ~0.5ms
+    "running_cpu_pct": CI_SLOW,             # those events, 12/s: 1.1-1.84% there vs the 1.5% budget
+    "idle20_cpu_pct": 1.25 if CI_SLOW > 1 else 1.0,  # 0.27-0.87% over 30 runs there (0.8% budget); kept tight
     "restore120_ready_s": 2 * CI_SLOW,      # 120 shells forked at launch: 7.4s vs 1.0s (process spawn in the VM)
     "tab_bar_40_mb": CI_SLOW,               # on minus off: 15MB there vs ~0 here (the VM's footprint of 40 strips)
 }
@@ -222,7 +224,7 @@ def s_idle20():
     with Lmux(20, 2) as L:
         L.wait_shells(40); time.sleep(10)
         cpu, foot = cpu_pct(L.pid, 20)
-        check("idle 20x2 CPU", cpu, BUDGET["idle20_cpu_pct"], "%")
+        check("idle 20x2 CPU", cpu, BUDGET["idle20_cpu_pct"] * CI_ALLOWANCE["idle20_cpu_pct"], "%")
         check("idle 20x2 footprint", foot, BUDGET["idle20_foot_mb"], "MB")
 
 
@@ -249,7 +251,7 @@ def s_running():
                           "tool_input": {"command": "npm test"}, "hook_event_name": "PreToolUse" if n % 2 == 0 else "PostToolUse"})
             n += 1; time.sleep(1 / 12)
         c1, _ = usage(L.pid); s.close()
-        check("18 hidden panes running, 12 tool events/s: CPU", 100 * (c1 - c0) / (time.time() - t0), BUDGET["running_cpu_pct"], "%")
+        check("18 hidden panes running, 12 tool events/s: CPU", 100 * (c1 - c0) / (time.time() - t0), BUDGET["running_cpu_pct"] * CI_ALLOWANCE["running_cpu_pct"], "%")
 
 
 def s_events():
