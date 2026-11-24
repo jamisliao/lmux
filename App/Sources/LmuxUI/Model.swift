@@ -108,6 +108,12 @@ public final class Pane: Identifiable {
     public var failed = false {
         didSet { if failed != oldValue { agentStateChanged() } }
     }
+    /// True while one or more native ask sessions are queued for this pane.
+    public var hasPendingAsk = false {
+        didSet { if hasPendingAsk != oldValue { agentStateChanged() } }
+    }
+    /// Title of the active pending ask session shown in sidebar/notification detail.
+    public var pendingAskTitle: String?
     /// When the state `lmux list` shows last changed, and when lmux last typed into the pane on
     /// request (`lmux send`, `new-workspace --cmd`): `lmux wait` only ends on a state that came after.
     @ObservationIgnored var stateChangedAt = Date.distantPast
@@ -255,6 +261,9 @@ public final class Pane: Identifiable {
     }
 
     public var display: AgentDisplay {
+        if hasPendingAsk {
+            return .needsInput(pendingAskTitle ?? "待確認")
+        }
         switch agent.state {
         case .idle: return .idle
         case .running: return .running(runningDetail)
@@ -296,6 +305,7 @@ public final class Pane: Identifiable {
     }
 
     public var needsInput: Bool {
+        if hasPendingAsk { return true }
         if case .needsInput = agent.state { return true }
         return false
     }

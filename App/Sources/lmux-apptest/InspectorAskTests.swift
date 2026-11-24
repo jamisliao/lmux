@@ -17,6 +17,7 @@ func runInspectorAsk() async -> Int32 {
     await runAskContextBuilderTests(r, ctrl: ctrl)
     await runAskControlTests(r, ctrl: ctrl)
     await runAskCliTests(r, ctrl: ctrl)
+    await runAskAttentionTests(r, ctrl: ctrl)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -795,4 +796,82 @@ private func runAskCliTests(_ r: Report, ctrl: LmuxController) async {
     r.check("lmux ask exits 1 on malformed spec and 2 on invalid timeout or unknown flags",
             badSpecRes.status == 1 && !badSpecRes.err.isEmpty
             && negTimeout.status == 2 && nanTimeout.status == 2 && badFlag.status == 2)
+}
+
+@MainActor
+private func runAskAttentionTests(_ r: Report, ctrl: LmuxController) async {
+    let wsA = ctrl.model.workspaces.first!
+    let wsB = ctrl.newWorkspace()
+    let paneB = wsB.focusedPane!
+    ctrl.select(wsA)
+
+    defer {
+        ctrl.askStore.markAllLost()
+        if ctrl.model.workspaces.contains(where: { $0.id == wsB.id }) {
+            ctrl.closeWorkspace(wsB)
+        }
+    }
+
+    guard let tokenB = ctrl.token(for: paneB) else {
+        r.check("attention test has paneB token", false)
+        return
+    }
+
+    // Put background workspace B into `.running` state
+    if let startEv = try? HookEvent(paneID: paneB.id, payload: ["hook_event_name": "SessionStart", "session_id": "bg-attn"]),
+       let promptEv = try? HookEvent(paneID: paneB.id, payload: ["hook_event_name": "UserPromptSubmit", "session_id": "bg-attn", "prompt": "run"]) {
+        ctrl.handleHook(startEv)
+        ctrl.handleHook(promptEv)
+    }
+
+    // Attach an `lmux wait` waiter on paneB for `needs-you` BEFORE creating the ask session
+    var waitReply: [String: Any]?
+    let cancelWait = ctrl.startWait(["cmd": "wait", "target": paneB.id, "until": "needs-you"]) {
+        waitReply = $0
+    }
+    defer { cancelWait() }
+
+    let spec: [String: Any] = [
+        "title": "背景確認卡片",
+        "intro": "背景工作區在執行期間需要使用者確認設定策略與部署方向。",
+        "questions": [[
+            "id": "qb",
+            "question": "是否繼續部署？",
+            "detail": "這裡提供超過二十個字的補充背景描述內容。",
+            "options": ["繼續", "暫停"]
+        ]]
+    ]
+    let notifBefore = ctrl.model.notifications.count
+    let res = ctrl.handleControl(["cmd": "ask-create", "token": tokenB, "spec": spec])
+    let sid = res["sessionId"] as? String ?? ""
+    await sleepMs(40)
+
+    let isNeedsInputDisplay: Bool = {
+        if case .needsInput = paneB.display { return true }
+        return false
+    }()
+    r.check("background ask keeps foreground wsA selected and overrides .running with .needsInput",
+            ctrl.model.selectedID == wsA.id
+            && paneB.hasPendingAsk
+            && paneB.needsInput
+            && isNeedsInputDisplay)
+    r.check("lmux wait --until needs-you wakes up when ask session arrives",
+            (waitReply?["ok"] as? Bool) == true && (waitReply?["state"] as? String) == "needs input",
+            "\(String(describing: waitReply))")
+    r.check("background ask records unread notification card",
+            ctrl.model.notifications.count > notifBefore
+            && ctrl.model.notifications.first?.paneID == paneB.id
+            && ctrl.model.notifications.first?.kind == "needsInput"
+            && ctrl.model.notifications.first?.read == false)
+
+    // Typing into terminal MUST NOT clear hasPendingAsk
+    ctrl.userTyped(paneB)
+    r.check("userTyped does not clear hasPendingAsk", paneB.hasPendingAsk && paneB.needsInput)
+
+    // Closing background pane ends ask session with lost
+    var lostOutcome: [String: Any]?
+    _ = ctrl.startAskWait(["cmd": "ask-wait", "sessionId": sid, "token": tokenB]) { lostOutcome = $0 }
+    ctrl.closeWorkspace(wsB)
+    r.check("closing source pane marks pending ask session lost",
+            (lostOutcome?["status"] as? String) == "lost")
 }
