@@ -147,28 +147,30 @@ public enum AskRefLoader {
             }
         }
 
-        // Fall back to safe untracked / newly added file inspection (including unborn HEAD repositories).
-        let (lines, _, truncated) = GitDiffService.readUntrackedLines(at: targetURL, cwd: repoRoot)
-        if !lines.isEmpty {
-            return AskGitDiffRefResult(id: relPath, relativePath: trimmed, lines: lines, truncated: truncated)
-        }
-
         let statusRes = await GitDiffService.runGitHardened(
             ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=all", "--", trimmed],
             env: diffEnv,
             cwd: cwd
         )
-        if statusRes.stdout.isEmpty {
+        if statusRes.status == 0 && statusRes.stdout.isEmpty {
             return AskGitDiffRefResult(id: relPath, relativePath: trimmed, errorMessage: "No changes for \(trimmed)")
+        }
+
+        // Fall back to safe untracked / newly added file inspection (including unborn HEAD repositories).
+        let (lines, _, truncated) = GitDiffService.readUntrackedLines(at: targetURL, cwd: repoRoot)
+        if !lines.isEmpty {
+            return AskGitDiffRefResult(id: relPath, relativePath: trimmed, lines: lines, truncated: truncated)
         }
         return AskGitDiffRefResult(id: relPath, relativePath: trimmed, errorMessage: "Binary or unreadable changed file")
     }
 
     private static func parsePathAndRange(_ raw: String, baseDir: String) -> (String, Int?, Int?) {
-        let baseURL = URL(fileURLWithPath: baseDir)
-        let exactURL = baseURL.appendingPathComponent(raw)
-        if FileManager.default.fileExists(atPath: exactURL.path) {
-            return (raw, nil, nil)
+        if isSafeRelativePath(raw) {
+            let baseURL = URL(fileURLWithPath: baseDir)
+            let exactURL = baseURL.appendingPathComponent(raw)
+            if FileManager.default.fileExists(atPath: exactURL.path) {
+                return (raw, nil, nil)
+            }
         }
         guard let re = suffixRE else { return (raw, nil, nil) }
         let nsRange = NSRange(raw.startIndex..<raw.endIndex, in: raw)

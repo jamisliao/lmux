@@ -6,3 +6,4 @@ pipeline:
   gherkin: { status: done }
   design: { status: done }
   tasks: { status: done }
+verification: { status: issues-found, critical: 2, date: 2026-11-24 }
