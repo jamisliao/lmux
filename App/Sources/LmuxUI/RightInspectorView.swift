@@ -339,6 +339,7 @@ public struct InspectorContainerView: View {
                             controller.focusCurrent()
                         }
                     )
+                    .id(session.id)
                 }
             }
         )

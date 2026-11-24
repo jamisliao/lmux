@@ -22,20 +22,29 @@ public enum AskRefLoader {
             return AskFileRefResult(id: raw, raw: raw, relativePath: trimmedRaw, errorMessage: "No workspace directory available")
         }
 
-        let (relPath, startLine, endLine) = parsePathAndRange(trimmedRaw, baseDir: baseDir)
+        let baseURL = URL(fileURLWithPath: baseDir).resolvingSymlinksInPath()
+        let rootURL: URL
+        if let repoRoot, !repoRoot.isEmpty, GitDiffService.isPathContained(baseURL, inDirectory: repoRoot) {
+            rootURL = URL(fileURLWithPath: repoRoot).resolvingSymlinksInPath()
+        } else {
+            rootURL = baseURL
+        }
+        let rootPath = rootURL.path
+
+        let (relPath, startLine, endLine) = parsePathAndRange(trimmedRaw, baseDir: rootPath)
         guard isSafeRelativePath(relPath) else {
             return AskFileRefResult(id: raw, raw: raw, relativePath: relPath, errorMessage: "Path outside workspace boundary")
         }
 
-        let baseURL = URL(fileURLWithPath: baseDir).resolvingSymlinksInPath()
-        let rootPath: String
-        if let repoRoot, !repoRoot.isEmpty, GitDiffService.isPathContained(baseURL, inDirectory: repoRoot) {
-            rootPath = URL(fileURLWithPath: repoRoot).resolvingSymlinksInPath().path
+        let rootCandidate = rootURL.appendingPathComponent(relPath)
+        let candidateURL: URL
+        if rootURL.path != baseURL.path,
+           !FileManager.default.fileExists(atPath: rootCandidate.path),
+           FileManager.default.fileExists(atPath: baseURL.appendingPathComponent(relPath).path) {
+            candidateURL = baseURL.appendingPathComponent(relPath)
         } else {
-            rootPath = baseURL.path
+            candidateURL = rootCandidate
         }
-
-        let candidateURL = baseURL.appendingPathComponent(relPath)
         guard GitDiffService.isPathContained(candidateURL, inDirectory: rootPath) else {
             return AskFileRefResult(id: raw, raw: raw, relativePath: relPath, errorMessage: "Blocked symlink or path outside repository")
         }

@@ -837,13 +837,19 @@ private func runAskCliTests(_ r: Report, ctrl: LmuxController) async {
             && !((stdinJSON?["note"] as? String) ?? "").isEmpty,
             "exit=\(stdinRes.status) out=\(stdinRes.out) err=\(stdinRes.err)")
 
-    // 3.gone:true from isolated server translates to status: lost + note, exit 0
+    // 3. gone:true from isolated server translates to status: lost + note, exit 0
     let goneSock = tmpDir.appendingPathComponent("gone.sock").path
+    var goneWaitRegistered = false
     let goneSrv = ControlServer(path: goneSock) { _ in ["ok": true, "sessionId": "00112233445566778899aabbccddeeff", "pane": pane.id] }
-    goneSrv.handleAskWait = { _, _ in return {} }
+    goneSrv.handleAskWait = { _, _ in
+        goneWaitRegistered = true
+        return {}
+    }
     try? goneSrv.start()
     let stopTask = Task { @MainActor in
-        await sleepMs(80)
+        for _ in 0..<150 where !goneWaitRegistered {
+            await sleepMs(10)
+        }
         goneSrv.stop()
     }
     let goneEnv = ["LMUX_CONTROL_SOCKET": goneSock, "LMUX_PANE_NONCE": token]
@@ -851,20 +857,26 @@ private func runAskCliTests(_ r: Report, ctrl: LmuxController) async {
     _ = await stopTask.value
     let goneJSON = (goneRes.out.data(using: .utf8)).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
     r.check("lmux ask translates gone:true into status:lost JSON with note and exit 0",
-            goneRes.status == 0
+            goneWaitRegistered && goneRes.status == 0
             && (goneJSON?["status"] as? String) == "lost"
             && !((goneJSON?["note"] as? String) ?? "").isEmpty,
-            "exit=\(goneRes.status) out=\(goneRes.out) err=\(goneRes.err)")
+            "registered=\(goneWaitRegistered) exit=\(goneRes.status) out=\(goneRes.out) err=\(goneRes.err)")
 
-    // 4. Invalid spec / JSON -> exit 1; bad flags / NaN / <=0 timeout -> exit 2
+    // 4. Invalid spec / JSON / >1MB / non-regular file -> exit 1; bad flags / NaN / <=0 timeout -> exit 2
     let badSpecFile = tmpDir.appendingPathComponent("bad-spec.json")
     try? "{corrupt json".write(to: badSpecFile, atomically: true, encoding: .utf8)
+    let oversizedSpec = tmpDir.appendingPathComponent("oversized-spec.json")
+    try? Data(repeating: 0x20, count: (1 << 20) + 16).write(to: oversizedSpec)
+    let dirSpecRes = await runProcess(cli, ["ask", "--spec", tmpDir.path], env: cliEnv)
+    let oversizedRes = await runProcess(cli, ["ask", "--spec", oversizedSpec.path], env: cliEnv)
     let badSpecRes = await runProcess(cli, ["ask", "--spec", badSpecFile.path], env: cliEnv)
     let negTimeout = await runProcess(cli, ["ask", "--wait", "abc", "--timeout", "-1"], env: cliEnv)
     let nanTimeout = await runProcess(cli, ["ask", "--wait", "abc", "--timeout", "NaN"], env: cliEnv)
     let badFlag = await runProcess(cli, ["ask", "--bogus"], env: cliEnv)
-    r.check("lmux ask exits 1 on malformed spec and 2 on invalid timeout or unknown flags",
+    r.check("lmux ask exits 1 on malformed, oversized (>1MB), or non-regular spec and 2 on invalid timeout or unknown flags",
             badSpecRes.status == 1 && !badSpecRes.err.isEmpty
+            && oversizedRes.status == 1 && !oversizedRes.err.isEmpty
+            && dirSpecRes.status == 1 && !dirSpecRes.err.isEmpty
             && negTimeout.status == 2 && nanTimeout.status == 2 && badFlag.status == 2)
 }
 

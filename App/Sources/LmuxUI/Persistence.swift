@@ -179,7 +179,7 @@ extension LmuxController {
         f.selected = f.workspaces.contains { $0.id == model.selectedID } ? model.selectedID : f.workspaces.first?.id
         f.sidebarVisible = model.sidebarVisible
         f.sidebarWidth = Double(model.sidebarWidth)
-        f.inspectorVisible = model.inspectorVisible
+        f.inspectorVisible = model.inspectorAutoOpenedByAsk ? false : model.inspectorVisible
         f.inspectorWidth = Double(model.inspectorWidth)
         f.inspectorTab = model.inspectorTab == .ask ? model.lastNonAskInspectorTab : model.inspectorTab
         return f
