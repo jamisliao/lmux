@@ -601,26 +601,26 @@ git commit -m "feat(ui): build InspectorAskView form with FIFO header, option ca
   - `.ask` 可見且活躍時 `⌘↩`（含 keypad Enter）全題作答即送出、未答滿則提示音＋捲動至第一道未答題且絕不漏進 PTY；
   - 送出／取消／切分頁／`⌥⌘B` 收合／視窗縮窄自動隱藏時，鍵盤焦點一律歸還 `pane.surface`。
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上完整 AppKit 焦點與快捷鍵測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上完整 AppKit 焦點與快捷鍵測試**
 
 涵蓋：
 - 聚焦自由輸入框輸入文字後實際派發 `⌘Z`／`⇧⌘Z`／`⌘X`，驗證草稿文字復原／重做／剪下生效且 `validateMenuItem(Undo Send) == false`；
 - 在 `SurfaceView` 與 `NSText` 兩種焦點狀態下分別按下 `⌘↩`：有未答題目時設定 `scrollToQuestionID` 為第一道未答題且終端機 sink 收不到位元組；全題作答後按 `⌘↩` 完成送出且終端機 sink 仍不收位元組；
 - 聚焦輸入框時執行：送出、取消、切至 `.diff`、切至無 ask 的 Tab C、按 `⌥⌘B` 收合、以及視窗縮窄至隱藏右側欄，驗證每一條路徑皆將 `window.firstResponder` 歸還給 `pane.surface`。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `Menu.swift`、`SidebarSelection.swift`、`Controller.swift` 與 `RootView.swift` 防護**
+- [x] **Step 3: 實作 `Menu.swift`、`SidebarSelection.swift`、`Controller.swift` 與 `RootView.swift` 防護**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 13**
+- [x] **Step 5: 提交 Task 13**
 
 ```bash
 git add App/Sources/LmuxUI/Menu.swift App/Sources/LmuxUI/SidebarSelection.swift App/Sources/LmuxUI/Controller.swift App/Sources/LmuxUI/RootView.swift App/Sources/lmux-apptest/InspectorAskTests.swift

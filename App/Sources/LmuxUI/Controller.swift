@@ -139,6 +139,8 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     var closePaneMenuItem: NSMenuItem?
     /// View > Zoom Split: its title tracks "Zoom Split" / "Unzoom Split".
     var splitZoomMenuItem: NSMenuItem?
+    /// Edit > Undo Send (`⌘Z`): disabled while `NSText` has keyboard focus so standard text Undo handles `⌘Z`.
+    var undoSendMenuItem: NSMenuItem?
     /// A ⌘/⇧-click in the sidebar made the list the thing the user is working with: the next Esc
     /// clears the multi-selection instead of reaching the terminal (any click in a pane or other key disarms it).
     var sidebarEscapeArmed = false
@@ -1186,7 +1188,17 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     func ensureFocus() {
         guard let ws = model.selected, let pane = ws.focusedPane else { return }
         let fr = window.firstResponder
-        if fr is NSText { return }
+        if fr is NSText {
+            if let v = fr as? NSView, let host = root?.rightInspectorHost, v.isDescendant(of: host) {
+                let askActive = model.inspectorVisible
+                    && !host.isHidden
+                    && model.inspectorTab == .ask
+                    && pane.hasPendingAsk
+                if askActive { return }
+            } else {
+                return
+            }
+        }
         if let s = fr as? SurfaceView, ws.visiblePanes.contains(where: { $0.surface === s }) { return }
         if let v = fr as? NSView, ws.visiblePanes.contains(where: { $0.preview.map { v.isDescendant(of: $0) } == true }) { return }
         if let v = fr as? NSView,
@@ -1597,6 +1609,35 @@ public final class LmuxController: NSObject, NSWindowDelegate {
     func isPaneFocused(_ pane: Pane) -> Bool {
         isAppActive && pane.workspace === model.selected && pane.workspace?.focusedPane === pane
     }
+
+    /// Intercepts `⌘↩` (and keypad Enter) while the native Ask tab is visible and active so it never leaks to the PTY.
+    func handleAskSubmitKey(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown else { return false }
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        guard flags == .command else { return false }
+        let isEnterKey = event.keyCode == 36 || event.keyCode == 76
+            || event.charactersIgnoringModifiers == "\r"
+            || event.charactersIgnoringModifiers == "\u{03}"
+        guard isEnterKey else { return false }
+        guard model.inspectorVisible,
+              !(root?.rightInspectorHost.isHidden ?? true),
+              model.inspectorTab == .ask,
+              let paneID = model.selected?.focusedPane?.id,
+              let session = askStore.activeSession(for: paneID) else {
+            return false
+        }
+        if session.isAllAnswered {
+            _ = askStore.submit(sessionID: session.id)
+            focusCurrent()
+            DispatchQueue.main.async { [weak self] in
+                MainActor.assumeIsolated { self?.focusCurrent() }
+            }
+        } else {
+            session.scrollToQuestionID = session.firstUnansweredQuestionID
+            if !headless { NSSound.beep() }
+        }
+        return true
+    }
 }
 
 /// The lmux window. Focus-on-click and the focus invariant live here so they
@@ -1608,6 +1649,22 @@ public final class LmuxWindow: NSWindow {
     /// (libghostty would close just the focused pane).
     public override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if controller?.handleCloseSelectionKey(event) == true { return true }
+        if controller?.handleAskSubmitKey(event) == true { return true }
+        if let text = firstResponder as? NSText, NSApp.keyWindow !== self {
+            let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+            let ch = (event.charactersIgnoringModifiers ?? "").lowercased()
+            if flags == .command && ch == "z" {
+                let sel = NSSelectorFromString("undo:")
+                if responds(to: sel) { return NSApp.sendAction(sel, to: self, from: nil) }
+            }
+            if flags == [.command, .shift] && ch == "z" {
+                let sel = NSSelectorFromString("redo:")
+                if responds(to: sel) { return NSApp.sendAction(sel, to: self, from: nil) }
+            }
+            if flags == .command && ch == "x", text.responds(to: #selector(NSText.cut(_:))) {
+                return NSApp.sendAction(#selector(NSText.cut(_:)), to: text, from: nil)
+            }
+        }
         if super.performKeyEquivalent(with: event) { return true }
         if let menu = NSApp.mainMenu, menu.performKeyEquivalent(with: event) { return true }
         // A non-Latin input source (Korean 2-Set: ⌃⌘S is "ㄴ" ignoring modifiers): menus match ⌃/⌥ shortcuts

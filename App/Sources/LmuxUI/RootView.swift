@@ -300,15 +300,24 @@ final class RootView: FlippedView {
             footerHost.frame = NSRect(x: 0, y: H - footerH, width: W, height: footerH)
         }
 
-        // Right Inspector layout & Narrow Window clamp
-        let iw = model.inspectorWidth
-        let canFitInspector = model.inspectorVisible && (W - effectiveSw - iw >= 120)
-        let rw: CGFloat = canFitInspector ? iw : 0
+        // Right Inspector layout & Narrow Window clamp (clamp down to 240pt before hiding)
+        let wasInspectorHidden = rightInspectorHost.isHidden
+        let availableInspectorWidth = W - effectiveSw - 120
+        let canFitInspector = model.inspectorVisible && availableInspectorWidth >= T.Layout.rightInspectorWidthMin
+        let rw: CGFloat = canFitInspector
+            ? min(model.inspectorWidth, max(T.Layout.rightInspectorWidthMin, availableInspectorWidth))
+            : 0
 
         rightInspectorBackdrop.isHidden = !canFitInspector
         rightInspectorEdge.isHidden = !canFitInspector
         rightInspectorHost.isHidden = !canFitInspector
         rightInspectorHandle.isHidden = !canFitInspector
+
+        if !wasInspectorHidden && rightInspectorHost.isHidden {
+            DispatchQueue.main.async { [weak controller] in
+                MainActor.assumeIsolated { controller?.ensureFocus() }
+            }
+        }
 
         if canFitInspector {
             let ix = W - rw
