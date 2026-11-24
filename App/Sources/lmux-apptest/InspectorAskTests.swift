@@ -10,6 +10,7 @@ func runInspectorAsk() async -> Int32 {
     r.section = "inspector-ask"
 
     await runAskSpecTests(r)
+    await runAskSessionStoreTests(r)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -158,4 +159,140 @@ private func runAskSpecTests(_ r: Report) async {
             && (json["header"] as? String) == ""
             && (json["freeText"] as? String) == ""
             && (json["selected"] as? [String]) == ["方案 A"])
+}
+
+@MainActor
+private func runAskSessionStoreTests(_ r: Report) async {
+    let paneA = UUID()
+    let paneB = UUID()
+    func makeSpec(id: String = "q1", allowFreeText: Bool = false) -> AskSpec {
+        AskSpec(
+            title: "確認",
+            eyebrow: "",
+            intro: "請確認這組設定選項的細節與影響範圍。",
+            questions: [
+                AskQuestion(id: id, question: "請選一個", detail: "", allowFreeText: allowFreeText,
+                            options: [AskOption(label: "A"), AskOption(label: "B")])
+            ],
+            lenient: true
+        )
+    }
+
+    var now = Date(timeIntervalSince1970: 1_000_000)
+    let store = AskSessionStore(now: { now })
+
+    // 1. Per-pane FIFO preserves active session draft when second arrives
+    guard let s1 = try? store.create(spec: makeSpec(id: "q1"), paneID: paneA, createdInsidePane: true),
+          let s2 = try? store.create(spec: makeSpec(id: "q2"), paneID: paneA, createdInsidePane: true) else {
+        r.check("AskSessionStore creates queued sessions", false)
+        return
+    }
+    s1.draftSelected["q1"] = ["A"]
+    r.check("AskSessionStore per-pane FIFO keeps s1 active with draft while s2 waits",
+            store.activeSession(for: paneA)?.id == s1.id
+            && store.pendingCount(for: paneA) == 2
+            && s1.draftSelected["q1"] == ["A"])
+
+    // 2. Unanswered question blocks submit and exposes firstUnansweredQuestionID
+    s1.draftSelected["q1"] = []
+    r.check("AskSessionStore blocks submit when unanswered and identifies question",
+            !s1.isAllAnswered && s1.firstUnansweredQuestionID == "q1" && !store.submit(sessionID: s1.id))
+
+    // 3. Submit without waiter stores in cache; attachWaiter later delivers & pops cache
+    s1.draftSelected["q1"] = ["B"]
+    r.check("AskSessionStore submit succeeds when answered even before waiter attaches",
+            s1.isAllAnswered && s1.answeredCount == 1 && store.submit(sessionID: s1.id))
+    r.check("AskSessionStore advances FIFO to s2 after s1 submits",
+            store.activeSession(for: paneA)?.id == s2.id && store.pendingCount(for: paneA) == 1)
+
+    var deliveredOutcome: AskWaitOutcome?
+    let cancel1 = store.attachWaiter(sessionID: s1.id) { outcome in
+        deliveredOutcome = outcome
+    }
+    r.check("AskSessionStore cached outcome delivered immediately and cleared afterwards",
+            cancel1 == nil
+            && deliveredOutcome?.status == "submitted"
+            && deliveredOutcome?.answers.first?.selected == ["B"]
+            && deliveredOutcome?.answers.first?.freeText == "")
+    var secondAttempt: AskWaitOutcome?
+    _ = store.attachWaiter(sessionID: s1.id) { secondAttempt = $0 }
+    r.check("AskSessionStore cached outcome consumed once (second lookup sees nil/notFound)",
+            secondAttempt?.status == "not_found")
+
+    // 4. Supersede old waiter cleanly; detach does not destroy form
+    var oldOutcome: AskWaitOutcome?
+    var newOutcome: AskWaitOutcome?
+    let detachOld = store.attachWaiter(sessionID: s2.id) { oldOutcome = $0 }
+    let detachNew = store.attachWaiter(sessionID: s2.id) { newOutcome = $0 }
+    r.check("AskSessionStore supersedes earlier waiter with superseded error",
+            oldOutcome?.status == "superseded" && newOutcome == nil && store.activeSession(for: paneA)?.id == s2.id)
+    detachOld?()
+    detachNew?()
+    r.check("AskSessionStore detaching waiter keeps pending form alive",
+            store.activeSession(for: paneA)?.id == s2.id)
+
+    // 5. Cancel delivers cancelled with non-empty note
+    var cancelOutcome: AskWaitOutcome?
+    _ = store.attachWaiter(sessionID: s2.id) { cancelOutcome = $0 }
+    store.cancel(sessionID: s2.id)
+    r.check("AskSessionStore cancel delivers cancelled outcome with note",
+            cancelOutcome?.status == "cancelled"
+            && !(cancelOutcome?.note ?? "").isEmpty
+            && store.pendingCount(for: paneA) == 0)
+
+    // 6. markPaneClosed & markAllLost notify active waiters
+    if let s3 = try? store.create(spec: makeSpec(id: "q3"), paneID: paneB, createdInsidePane: false),
+       let s4 = try? store.create(spec: makeSpec(id: "q4"), paneID: paneA, createdInsidePane: true) {
+        var o3: AskWaitOutcome?
+        var o4: AskWaitOutcome?
+        _ = store.attachWaiter(sessionID: s3.id) { o3 = $0 }
+        _ = store.attachWaiter(sessionID: s4.id) { o4 = $0 }
+        store.markPaneClosed(paneB)
+        r.check("AskSessionStore markPaneClosed ends only that pane's sessions with lost+note",
+                o3?.status == "lost" && !(o3?.note ?? "").isEmpty && o4 == nil && store.pendingCount(for: paneA) == 1)
+        store.markAllLost()
+        r.check("AskSessionStore markAllLost clears remaining sessions with lost+note",
+                o4?.status == "lost" && !(o4?.note ?? "").isEmpty && store.totalPendingCount == 0)
+    }
+
+    // 7. Outcome cache TTL (10m) & LRU cap (32)
+    for i in 1...34 {
+        let sid = "cache-\(i)"
+        if let s = try? store.create(spec: makeSpec(id: "qc", allowFreeText: true), paneID: paneA, createdInsidePane: true, sessionID: sid) {
+            s.draftFreeText["qc"] = "note \(i)"
+            _ = store.submit(sessionID: sid)
+        }
+    }
+    var evictedOutcome: AskWaitOutcome?
+    _ = store.attachWaiter(sessionID: "cache-1") { evictedOutcome = $0 }
+    r.check("AskSessionStore evicts oldest cached outcome beyond 32 entries",
+            evictedOutcome?.status == "not_found")
+    now.addTimeInterval(AskSessionStore.cacheTTL + 1)
+    var expiredOutcome: AskWaitOutcome?
+    _ = store.attachWaiter(sessionID: "cache-34") { expiredOutcome = $0 }
+    r.check("AskSessionStore expires cached outcome after 10 minutes",
+            expiredOutcome?.status == "not_found")
+
+    // 8. Per-pane cap (16) and global cap (64) fail closed
+    var createdOnA = 0
+    for _ in 0..<20 {
+        if (try? store.create(spec: makeSpec(), paneID: paneA, createdInsidePane: true)) != nil {
+            createdOnA += 1
+        }
+    }
+    r.check("AskSessionStore caps per-pane pending at 16", createdOnA == AskSessionStore.maxPendingPerPane)
+    var globalTotal = store.totalPendingCount
+    for idx in 0..<6 {
+        let p = UUID()
+        for _ in 0..<16 {
+            if (try? store.create(spec: makeSpec(), paneID: p, createdInsidePane: true)) != nil {
+                globalTotal += 1
+            } else if idx >= 3 {
+                break
+            }
+        }
+    }
+    r.check("AskSessionStore caps global pending at 64",
+            store.totalPendingCount == AskSessionStore.maxPendingGlobal)
+    store.markAllLost()
 }
