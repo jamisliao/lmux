@@ -2,6 +2,7 @@
 
 import Foundation
 import AppKit
+import LmuxHooks
 @testable import LmuxUI
 
 @MainActor
@@ -12,6 +13,7 @@ func runInspectorAsk() async -> Int32 {
     await runAskSpecTests(r)
     await runAskSessionStoreTests(r)
     await runAskRefLoaderTests(r)
+    await runAskContextBuilderTests(r)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -408,4 +410,120 @@ private func runAskRefLoaderTests(_ r: Report) async {
             && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/Dockerfile")) == .text
             && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/spec.feature")) == .text
             && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/Cargo.toml")) == .text)
+}
+
+// @scenario: 從 Claude 與 Codex 對話紀錄本機抽取 Session 上下文補充
+// @scenario: 對話紀錄缺少、含損毀行或合成佔位訊息時安全降級產生上下文補充
+@MainActor
+private func runAskContextBuilderTests(_ r: Report) async {
+    let fm = FileManager.default
+    let root = fm.temporaryDirectory.appendingPathComponent("ask-ctx-\(UUID().uuidString)")
+    try? fm.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? fm.removeItem(at: root) }
+
+    func gitCmd(_ args: [String], cwd: URL) {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        p.arguments = args
+        p.currentDirectoryURL = cwd
+        try? p.run()
+        p.waitUntilExit()
+    }
+
+    // Repo A (global active snapshot) vs Repo B (background pane)
+    let repoA = root.appendingPathComponent("repoA")
+    let repoB = root.appendingPathComponent("repoB")
+    let plainDir = root.appendingPathComponent("plain")
+    try? fm.createDirectory(at: repoA, withIntermediateDirectories: true)
+    try? fm.createDirectory(at: repoB, withIntermediateDirectories: true)
+    try? fm.createDirectory(at: plainDir, withIntermediateDirectories: true)
+    gitCmd(["init", "-b", "branch-a"], cwd: repoA)
+    gitCmd(["init", "-b", "branch-b"], cwd: repoB)
+    try? "b1\n".write(to: repoB.appendingPathComponent("b.swift"), atomically: true, encoding: .utf8)
+    try? "b2\n".write(to: repoB.appendingPathComponent("c.swift"), atomically: true, encoding: .utf8)
+
+    let cache = TranscriptCache()
+    let ctrl = makeController()
+    let ws1 = ctrl.model.workspaces.first!
+    let ws2 = ctrl.newWorkspace()
+    let ws3 = ctrl.newWorkspace()
+    defer {
+        ctrl.closeWorkspace(ws3)
+        ctrl.closeWorkspace(ws2)
+    }
+
+    // 1. Claude transcript + ToolCallStream + per-cwd git isolation (even with foreign activeGitSnapshot)
+    let claudeJSONL = root.appendingPathComponent("claude.jsonl")
+    let claudeLines = [
+        #"{"type":"custom-title","customTitle":"修補驗證"}"#,
+        #"{"type":"user","uuid":"u1","parentUuid":null,"turnOrigin":"human","message":{"role":"user","content":"實作登入重試"}}"#,
+        #"{"type":"assistant","uuid":"a1","parentUuid":"u1","message":{"id":"m1","role":"assistant","model":"claude-opus-5-5","content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"/repo/Auth.swift"}},{"type":"text","text":"完成第一版。"}]}}"#,
+        #"{"type":"user","uuid":"u2","parentUuid":"a1","turnOrigin":"human","message":{"role":"user","content":"要加退避嗎？"}}"#,
+        #"{"type":"assistant","uuid":"a2","parentUuid":"u2","message":{"id":"m2","role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"建議指數退避。"}]}}"#
+    ]
+    try? (claudeLines.joined(separator: "\n") + "\n").write(to: claudeJSONL, atomically: true, encoding: .utf8)
+
+    let paneClaude = ws1.focusedPane!
+    if let startEv = try? HookEvent(paneID: paneClaude.id, payload: [
+        "hook_event_name": "SessionStart",
+        "session_id": "ask-ctx-s1"
+    ]) {
+        ctrl.handleHook(startEv)
+    }
+    for i in 1...7 {
+        if let ev = try? HookEvent(paneID: paneClaude.id, payload: [
+            "hook_event_name": "PreToolUse",
+            "session_id": "ask-ctx-s1",
+            "tool_name": "Bash",
+            "tool_input": ["command": "cmd-\(i)"],
+            "tool_use_id": "tool-\(i)"
+        ]) {
+            ctrl.handleHook(ev)
+        }
+    }
+    paneClaude.cwd = repoB.path
+    paneClaude.transcriptPath = claudeJSONL.path
+    let foreignSnapshot = GitDiffSnapshot(cwd: repoA.path, repoRoot: repoA.path, isGitRepo: true, branch: "branch-a", files: [])
+    let ctxClaude = await AskContextBuilder.build(for: paneClaude, transcripts: cache, activeGitSnapshot: foreignSnapshot)
+    r.check("AskContextBuilder builds Claude summary with recent 5 tools and isolates Repo B git state from foreign activeGitSnapshot",
+            ctxClaude.sessionTitle == "修補驗證"
+            && ctxClaude.initialGoal == "實作登入重試"
+            && ctxClaude.touchedFiles == ["/repo/Auth.swift"]
+            && ctxClaude.recentTools.count == 5
+            && ctxClaude.recentTools.last?.contains("cmd-7") == true
+            && ctxClaude.gitBranch == "branch-b"
+            && ctxClaude.gitChangedCount == 2)
+
+    // 2. Codex rollout with $CODEX_HOME/session_index.jsonl title lookup
+    let codexHome = root.appendingPathComponent("codex-home")
+    let dayDir = codexHome.appendingPathComponent("sessions/2026/11/24")
+    try? fm.createDirectory(at: dayDir, withIntermediateDirectories: true)
+    try? "{\"id\":\"codex-1\",\"thread_name\":\"Codex 索引標題\",\"updated_at\":\"2026-11-24T00:00:00Z\"}\n"
+        .write(to: codexHome.appendingPathComponent("session_index.jsonl"), atomically: true, encoding: .utf8)
+    let rolloutURL = dayDir.appendingPathComponent("rollout-test.jsonl")
+    let codexLines = [
+        #"{"timestamp":"2026-11-24T01:00:00Z","type":"session_meta","payload":{"id":"codex-1","cwd":"/repo"}}"#,
+        #"{"timestamp":"2026-11-24T01:00:02Z","type":"event_msg","payload":{"type":"user_message","message":"檢查 Codex rollout 解析"}}"#,
+        #"{"timestamp":"2026-11-24T01:00:03Z","type":"response_item","payload":{"type":"custom_tool_call","name":"apply_patch","input":"*** Begin Patch\n*** Update File: /repo/Codex.swift\n@@\n*** End Patch"}}"#,
+        #"{"timestamp":"2026-11-24T01:00:04Z","type":"event_msg","payload":{"type":"agent_message","message":"已檢查完畢。"}}"#
+    ]
+    try? (codexLines.joined(separator: "\n") + "\n").write(to: rolloutURL, atomically: true, encoding: .utf8)
+
+    let paneCodex = ws2.focusedPane!
+    paneCodex.cwd = plainDir.path
+    paneCodex.transcriptPath = rolloutURL.path
+    let ctxCodex = await AskContextBuilder.build(for: paneCodex, transcripts: cache, activeGitSnapshot: foreignSnapshot)
+    r.check("AskContextBuilder builds Codex summary including session_index title and handles non-git cwd",
+            ctxCodex.sessionTitle == "Codex 索引標題"
+            && ctxCodex.initialGoal == "檢查 Codex rollout 解析"
+            && ctxCodex.touchedFiles == ["/repo/Codex.swift"]
+            && ctxCodex.gitBranch == nil
+            && ctxCodex.gitChangedCount == 0)
+
+    // 3. Missing transcript degrades safely without crashing
+    let panePlain = ws3.focusedPane!
+    panePlain.cwd = plainDir.path
+    let ctxPlain = await AskContextBuilder.build(for: panePlain, transcripts: cache, activeGitSnapshot: nil)
+    r.check("AskContextBuilder degrades gracefully when transcriptPath is missing in non-git directory",
+            ctxPlain.isEmpty)
 }
