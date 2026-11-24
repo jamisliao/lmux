@@ -183,6 +183,8 @@ final class Delegate: NSObject, NSApplicationDelegate {
                 code = await runPolishShots(URL(fileURLWithPath: args[i + 1]))
             } else if let i = args.firstIndex(of: "--screenshots"), i + 1 < args.count {
                 code = await runScreenshots(URL(fileURLWithPath: args[i + 1]))
+            } else if args.contains("--inspector-ask") {
+                code = await runInspectorAsk()
             } else {
                 code = await runMain()
             }

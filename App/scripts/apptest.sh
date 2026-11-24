@@ -277,6 +277,15 @@ if [ "${1:-}" = "--zoom-clear-reorder" ]; then
   run_zoom_clear_reorder_suite
   exit $status
 fi
+run_inspector_ask_suite() {
+  mkdir -p "$T/inspector-ask"
+  LMUX_STATE_DIR="$T/inspector-ask" LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" \
+    "$BIN/lmux-apptest" --inspector-ask 2>/dev/null | filter || status=1
+}
+if [ "${1:-}" = "--inspector-ask" ]; then
+  run_inspector_ask_suite
+  exit $status
+fi
 LMUX_IGNORE_GHOSTTY_CONFIG=1 LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" 2>/dev/null | filter || status=1
 # Titlebar buttons and ⇧⌘H in the real titled chrome (built off screen, never shown).
 mkdir -p "$T/titlebar"

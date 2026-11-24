@@ -143,7 +143,7 @@ git commit -m "feat(core): add zero-token TranscriptContextExtractor with synthe
   - `public struct AskAnswer: Sendable, Equatable { public var id: String; public var header: String; public var question: String; public var selected: [String]; public var freeText: String; public func toJSONObject() -> [String: Any] }`
   - `public enum AskSpecError: Error, Equatable, CustomStringConvertible`
 
-- [ ] **Step 1: 建立 `InspectorAskTests.swift`（含 `// @feature: inspector-ask-panel.feature` 標頭）並註冊 `--inspector-ask`**
+- [x] **Step 1: 建立 `InspectorAskTests.swift`（含 `// @feature: inspector-ask-panel.feature` 標頭）並註冊 `--inspector-ask`**
 
 測試涵蓋：
 - 字串簡寫選項 `["方案 A (Recommended)", "方案 B（推薦）"]` 自動剝除後綴且設 `recommended == true`；
@@ -152,19 +152,19 @@ git commit -m "feat(core): add zero-token TranscriptContextExtractor with synthe
 - 針對 `title`/`eyebrow`/`intro`/`detail`/`option.label` 清理不安全控制／BiDi 字元（`PreviewTarget.replacingUnsafeScalars`）；
 - `AskAnswer.toJSONObject()` 固定輸出 `header: ""` 與 `freeText: ""`。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL（`AskSpec` 尚未定義）
 
-- [ ] **Step 3: 實作 `App/Sources/LmuxUI/AskSpec.swift`**
+- [x] **Step 3: 實作 `App/Sources/LmuxUI/AskSpec.swift`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: PASS
 
-- [ ] **Step 5: 提交 Task 2**
+- [x] **Step 5: 提交 Task 2**
 
 ```bash
 git add App/Sources/LmuxUI/AskSpec.swift App/Sources/lmux-apptest/InspectorAskTests.swift App/Sources/lmux-apptest/main.swift App/scripts/apptest.sh
