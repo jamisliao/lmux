@@ -230,26 +230,26 @@ git commit -m "feat(ui): add AskSessionStore state machine, FIFO queue, capacity
   - `GitDiffService.runGitHardened(...)`、`GitDiffService.buildFilterOverrideEnv(in:)`、`GitDiffService.emptyTreeHash(in:)`（皆為 `nonisolated static`，可安全與 UI `GitDiffService.refresh` 併發執行）
   - `public enum AskRefLoader { public static func loadFileRef(_ raw: String, baseDir: String?, repoRoot: String?) -> AskFileRefResult; public static func loadGitDiff(_ relPath: String, cwd: String?) async -> AskGitDiffRefResult }`
 
-- [ ] **Step 1: 在 `InspectorAskTests.swift` 補上帶 `// @feature: inspector-ask-panel.feature` 與 `// @scenario: 本機檔案與 Git 引用越界、指向危險／二進位檔案或新倉庫未追蹤檔時安全處理` 測試**
+- [x] **Step 1: 在 `InspectorAskTests.swift` 補上帶 `// @feature: inspector-ask-panel.feature` 與 `// @scenario: 本機檔案與 Git 引用越界、指向危險／二進位檔案或新倉庫未追蹤檔時安全處理` 測試**
 
 涵蓋：
 - `loadFileRef`：合法相對路徑＋行號 `src/App.swift:2-4`（含超過 120 行自動截斷與含冒號檔名處理）；拒絕 `../outside.txt`、symlink 逃逸、目錄（`S_IFDIR`）、FIFO（`mkfifo`）、超過 `512 KB` 大檔、含 NUL 位元組（有效 UTF-8 內嵌 `\0`）二進位檔、`file://` 與 `baseDir == nil`；
 - `loadGitDiff`：拒絕 `-` 開頭旗標注入（如 `--output=/tmp/pwned`）、`../` 遍歷、絕對路徑、不安全控制字元；必定使用 `--` 分隔符；含惡意 `filter.evil.clean` 之 repo 不執行 filter；無初始 commit（unborn `HEAD`）倉庫中的未追蹤純文字新檔正確產出新增行；
 - `PreviewTarget.kind` 接受 `Makefile`、`Dockerfile`、`spec.feature`、`Cargo.toml`。
 
-- [ ] **Step 2: 執行測試確認 RED**
+- [x] **Step 2: 執行測試確認 RED**
 
 Run: `App/scripts/apptest.sh --inspector-ask`
 Expected: FAIL
 
-- [ ] **Step 3: 實作 `AskRefLoader.swift`（明確落實 `O_NOFOLLOW | O_NONBLOCK`、`fstat` `S_IFREG`、`512 KB` 上限、`!data.contains(0)`、120 行上限）並抽出 `GitDiffService` `nonisolated static` 硬化方法與更新 `PreviewTarget.swift`**
+- [x] **Step 3: 實作 `AskRefLoader.swift`（明確落實 `O_NOFOLLOW | O_NONBLOCK`、`fstat` `S_IFREG`、`512 KB` 上限、`!data.contains(0)`、120 行上限）並抽出 `GitDiffService` `nonisolated static` 硬化方法與更新 `PreviewTarget.swift`**
 
-- [ ] **Step 4: 執行測試確認 GREEN**
+- [x] **Step 4: 執行測試確認 GREEN**
 
 Run: `App/scripts/apptest.sh --inspector-ask && App/scripts/apptest.sh --liquid-glass`
 Expected: ALL PASS
 
-- [ ] **Step 5: 提交 Task 4**
+- [x] **Step 5: 提交 Task 4**
 
 ```bash
 git add App/Sources/LmuxUI/AskRefLoader.swift App/Sources/LmuxUI/GitDiffService.swift App/Sources/LmuxUI/PreviewTarget.swift App/Sources/lmux-apptest/InspectorAskTests.swift
