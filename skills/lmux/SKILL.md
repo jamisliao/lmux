@@ -22,6 +22,15 @@ reference: https://github.com/sooftware/lmux/blob/main/docs/agents.md
   of a done turn or the row's detail; `--json` adds `reply` (the last reply, when the agent's
   hooks gave it), `agent`, `session`. Exit 0 got there, 1 timeout, 2 target gone, 3 error.
 - `lmux notify "TEXT"` notifies the user from your pane.
+- `lmux ask --spec PATH|- [--timeout SECS] [--pane ID] [--lenient]` presents a native multi-question
+  form (with zero-token session context) in the pane's right Inspector and waits for the user's
+  JSON answer on stdout (`status: "submitted" | "cancelled" | "pending" | "lost"`). Use `PATH` or `-`
+  for stdin. Strict mode validates `intro` (>= 25 chars), `header`, `detail` (>= 20 chars when options
+  are present), and at least 1 question (pass `--lenient` for short/quick prompts). You can attach
+  workspace file references (`refs`: path + line range), `gitDiff` paths, or `mermaid` strings (shown
+  as collapsible copyable code cards without overwriting the user's live preview).
+- `lmux ask --wait SESSION_ID [--timeout SECS]` resumes waiting on a `pending` ask session from the
+  same authorized pane after a timeout.
 
 ## Hand a task to another agent
 

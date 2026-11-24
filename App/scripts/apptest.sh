@@ -351,6 +351,8 @@ LMUX_STATE_DIR="$T/codex-state" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptes
 # paths, the state dir, link labels, socket read caps.
 mkdir -p "$T/security"
 LMUX_STATE_DIR="$T/security" LMUX_PANE_COMMAND="$T/sink.sh" "$BIN/lmux-apptest" --security 2>/dev/null | filter || phase_failed $?
+# Right Inspector native Ask panel, CLI/socket flow, context extraction, security refs, focus & shortcuts.
+run_inspector_ask_suite
 # Contrast: Claude Code's real output (its dark and light themes) and ls / git / ANSI samples stay
 # readable in every theme pair, measured from the renderer's pixels (fixtures: scripts/contrast).
 mkdir -p "$T/contrast"

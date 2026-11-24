@@ -26,6 +26,7 @@ func runInspectorAsk() async -> Int32 {
     runInspectorAskCardsTests(r, ctrl: ctrl)
     await runInspectorAskViewTests(r, ctrl: ctrl)
     await runAskFocusAndShortcutTests(r, ctrl: ctrl)
+    await runFullInspectorAskE2ETests(r, ctrl: ctrl)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -416,12 +417,16 @@ private func runAskRefLoaderTests(_ r: Report) async {
     r.check("GitDiffService.readUntrackedLines & AskRefLoader reject untracked NUL binary file",
             nulDiffRes.errorMessage != nil && nulDiffRes.lines.isEmpty)
 
-    // 4. PreviewTarget whitelist includes extensionless & config text files
-    r.check("PreviewTarget accepts Makefile, Dockerfile, .feature, and .toml",
-            PreviewTarget.kind(URL(fileURLWithPath: "/tmp/Makefile")) == .text
-            && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/Dockerfile")) == .text
-            && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/spec.feature")) == .text
-            && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/Cargo.toml")) == .text)
+    // 4. PreviewTarget preserves extensionless Makefile exclusion while reading UTF-8 Makefile safely via AskRefLoader
+    let mkURL = gitRepo.appendingPathComponent("Makefile")
+    try? "all:\n\techo ok\n".write(to: mkURL, atomically: true, encoding: .utf8)
+    let mkRef = AskRefLoader.loadFileRef("Makefile:1-2", baseDir: gitRepo.path, repoRoot: gitRepo.path)
+    r.check("PreviewTarget keeps Makefile unpreviewable while AskRefLoader reads UTF-8 Makefile snippets safely",
+            PreviewTarget.kind(mkURL) == nil
+            && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/doc.md")) == .markdown
+            && PreviewTarget.kind(URL(fileURLWithPath: "/tmp/notes.txt")) == .text
+            && mkRef.errorMessage == nil
+            && mkRef.lines == ["all:", "\techo ok"])
 }
 
 // @scenario: 從 Claude 與 Codex 對話紀錄本機抽取 Session 上下文補充
@@ -660,20 +665,30 @@ private func runAskControlTests(_ r: Report, ctrl: LmuxController) async {
     let sockPath = FileManager.default.temporaryDirectory
         .appendingPathComponent("ask-srv-\(UUID().uuidString.prefix(8)).sock").path
     defer { try? FileManager.default.removeItem(atPath: sockPath) }
+    var waitRegistered = false
     let srv = ControlServer(path: sockPath) { ctrl.handleControl($0) }
-    srv.handleAskWait = { req, reply in ctrl.startAskWait(req, reply: reply) }
+    srv.handleAskWait = { req, reply in
+        waitRegistered = true
+        return ctrl.startAskWait(req, reply: reply)
+    }
     try? srv.start()
     let extPaneReq = ctrl.handleControl(["cmd": "ask-create", "pane": paneA.id, "spec": validSpec])
     let liveSid = extPaneReq["sessionId"] as? String ?? ""
     if let fd = ControlServer.connect(sockPath) {
         let msg = Array("{\"cmd\":\"ask-wait\",\"sessionId\":\"\(liveSid)\"}\n".utf8)
         _ = msg.withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
-        await sleepMs(60)
+        for _ in 0..<50 where !waitRegistered {
+            await sleepMs(10)
+        }
         srv.stop()
-        var buf = [UInt8](repeating: 0, count: 512)
-        let n = Darwin.read(fd, &buf, buf.count)
-        Darwin.close(fd)
-        let line = n > 0 ? String(decoding: buf[0..<n], as: UTF8.self) : ""
+        let line: String = await Task.detached {
+            var tv = timeval(tv_sec: 2, tv_usec: 0)
+            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
+            var buf = [UInt8](repeating: 0, count: 512)
+            let n = Darwin.read(fd, &buf, buf.count)
+            Darwin.close(fd)
+            return n > 0 ? String(decoding: buf[0..<n], as: UTF8.self) : ""
+        }.value
         r.check("ControlServer.stop sends gone:true to connected ask-wait client", line.contains("\"gone\":true"))
     } else {
         r.check("ControlServer test socket connects", false)
@@ -1338,24 +1353,254 @@ private func runAskFocusAndShortcutTests(_ r: Report, ctrl: LmuxController) asyn
     r.check("toggleInspector returns firstResponder from NSText to pane.surface",
             win.firstResponder === pane1.surface)
 
-    // Re-open inspector at 400pt width and resize window narrow to test clamp -> 240pt -> hide + focus return
+    // Re-open inspector at 400pt width and resize window narrow to test >=120pt center guard -> hide + focus return
     ctrl.toggleInspector()
     ctrl.model.inspectorWidth = 400
     ctrl.model.sidebarVisible = true
     ctrl.model.sidebarWidth = 220
-    win.setFrame(NSRect(x: 0, y: 0, width: 620, height: 800), display: false)
+    win.setFrame(NSRect(x: 0, y: 0, width: 740, height: 800), display: false)
     ctrl.root.layoutSubtreeIfNeeded()
-    let clampedW = ctrl.root.rightInspectorHost.frame.width
-    let visibleWhenClamped = !ctrl.root.rightInspectorHost.isHidden
+    let visibleWhenFit = !ctrl.root.rightInspectorHost.isHidden
+    let widthWhenFit = ctrl.root.rightInspectorHost.frame.width
 
     win.makeFirstResponder(tv)
-    win.setFrame(NSRect(x: 0, y: 0, width: 420, height: 800), display: false)
+    win.setFrame(NSRect(x: 0, y: 0, width: 739, height: 800), display: false)
     ctrl.root.layoutSubtreeIfNeeded()
     await sleepMs(30)
-    r.check("narrow window clamps inspector to >=240pt before hiding, and hiding returns focus to pane.surface",
-            visibleWhenClamped && clampedW >= 240 && clampedW < 400
+    r.check("narrow window hides inspector below 120pt center budget and returns focus to pane.surface",
+            visibleWhenFit && abs(widthWhenFit - 400) < 0.5
             && ctrl.root.rightInspectorHost.isHidden
             && win.firstResponder === pane1.surface,
-            "clampedW=\(clampedW) visibleClamped=\(visibleWhenClamped) hiddenNarrow=\(ctrl.root.rightInspectorHost.isHidden)")
+            "visibleFit=\(visibleWhenFit) widthFit=\(widthWhenFit) hiddenNarrow=\(ctrl.root.rightInspectorHost.isHidden)")
     _ = sidKeep
+}
+
+// @scenario: 透過 lmux ask 發起多題提問並在全題作答送出後回傳完整答案
+// @scenario: 待確認面板以原生元件呈現分段 Markdown、Diff、本機引用與 Mermaid 程式碼卡
+// @scenario: 背景執行中的 workspace 提問時優先顯示需確認並發送通知卡片，點擊後切入待確認面板
+// @scenario: 多個 tab 各自擁有獨立問答工作階段且切換分頁或縮放視窗時同步隔離與歸還焦點
+@MainActor
+private func runFullInspectorAskE2ETests(_ r: Report, ctrl: LmuxController) async {
+    let cli = paths.binDir!.appendingPathComponent("lmux").path
+    let fm = FileManager.default
+    let tmpRoot = fm.temporaryDirectory.appendingPathComponent("ask-e2e-\(UUID().uuidString)")
+    let repo = tmpRoot.appendingPathComponent("repo")
+    let srcDir = repo.appendingPathComponent("src")
+    try? fm.createDirectory(at: srcDir, withIntermediateDirectories: true)
+
+    let wsA = ctrl.model.workspaces.first!
+    let paneA = wsA.focusedPane!
+    let wsE2E = ctrl.newWorkspace()
+    let paneE2E = wsE2E.focusedPane!
+
+    let prevURL = tmpRoot.appendingPathComponent("live-preview.md").resolvingSymlinksInPath()
+    try? "# Existing Live Preview\n".write(to: prevURL, atomically: true, encoding: .utf8)
+
+    let appSwift = srcDir.appendingPathComponent("App.swift")
+    try? "let version = 1\nlet feature = false\n".write(to: appSwift, atomically: true, encoding: .utf8)
+    _ = await runProcess("/usr/bin/git", ["-C", repo.path, "init"])
+    _ = await runProcess("/usr/bin/git", ["-C", repo.path, "config", "user.name", "E2E"])
+    _ = await runProcess("/usr/bin/git", ["-C", repo.path, "config", "user.email", "e2e@example.com"])
+    _ = await runProcess("/usr/bin/git", ["-C", repo.path, "add", "."])
+    _ = await runProcess("/usr/bin/git", ["-C", repo.path, "commit", "-m", "initial"])
+    try? "let version = 2\nlet feature = true\n".write(to: appSwift, atomically: true, encoding: .utf8)
+
+    let transcriptURL = tmpRoot.appendingPathComponent("session-e2e.jsonl")
+    let transcriptLines = [
+        #"{"type":"user","uuid":"u1","parentUuid":null,"turnOrigin":"human","message":{"role":"user","content":"重構 E2E Inspector 問答管線"}}"#,
+        #"{"type":"assistant","uuid":"a1","parentUuid":"u1","message":{"id":"m1","role":"assistant","model":"claude-opus-5-5","content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"src/App.swift"}},{"type":"text","text":"已完成初版調整，待使用者確認發布選項。"}]}}"#
+    ]
+    try? (transcriptLines.joined(separator: "\n") + "\n").write(to: transcriptURL, atomically: true, encoding: .utf8)
+
+    paneE2E.cwd = repo.resolvingSymlinksInPath().path
+    paneE2E.transcriptPath = transcriptURL.path
+
+    defer {
+        ctrl.askStore.markAllLost()
+        ctrl.select(wsA, focusing: paneA)
+        if ctrl.model.workspaces.contains(where: { $0.id == wsE2E.id }) {
+            ctrl.closeWorkspace(wsE2E)
+        }
+        try? fm.removeItem(at: tmpRoot)
+    }
+
+    guard let tokE2E = ctrl.token(for: paneE2E), let win = ctrl.window else {
+        r.check("E2E test has paneE2E token and window", false)
+        return
+    }
+    let envE2E: [String: String] = [
+        "LMUX_CONTROL_SOCKET": ctrl.paths.controlSocket,
+        "LMUX_STATE_DIR": ctrl.paths.stateDir.path,
+        "LMUX_PANE_NONCE": tokE2E
+    ]
+
+    // Set initial workspace state: focused on paneE2E, existing preview URL loaded, inspector hidden on .diff
+    ctrl.previewCoordinator.load(url: prevURL, workspaceID: wsE2E.id)
+    ctrl.select(wsE2E, focusing: paneE2E)
+    ctrl.model.inspectorTab = .diff
+    ctrl.model.inspectorVisible = false
+    ctrl.syncInspectorForFocusedPane()
+
+    let e2eSpec: [String: Any] = [
+        "title": "端到端發布確認",
+        "eyebrow": "E2E 驗收",
+        "intro": "## 變更摘要\n\n本次更新調整核心版本設定。\n\n- 升級版本號\n\n```diff\n@@ -1 +1 @@\n-let version = 1\n+let version = 2\n```",
+        "questions": [
+            [
+                "id": "q_strategy",
+                "header": "策略",
+                "question": "請選擇發布模式",
+                "detail": "這是一段肯定超過二十個字的完整 E2E 選項背景說明文字內容。",
+                "options": ["藍綠發布 (Recommended)", "就地更新"],
+                "refs": ["src/App.swift:1-2"],
+                "gitDiff": ["src/App.swift"],
+                "mermaid": "flowchart LR\n  CLI-->Inspector"
+            ],
+            [
+                "id": "q_note",
+                "header": "備註",
+                "question": "請填寫發布備註",
+                "allowFreeText": true
+            ]
+        ]
+    ]
+    let e2eSpecFile = tmpRoot.appendingPathComponent("e2e-spec.json")
+    try? JSONSerialization.data(withJSONObject: e2eSpec).write(to: e2eSpecFile)
+
+    let cliTask = Task {
+        await runProcess(cli, ["ask", "--spec", e2eSpecFile.path, "--timeout", "10"], env: envE2E)
+    }
+
+    var liveSession: AskSession?
+    for _ in 0..<150 {
+        if let s = ctrl.askStore.activeSession(for: paneE2E.id) {
+            liveSession = s
+            break
+        }
+        await sleepMs(20)
+    }
+    guard let sess = liveSession else {
+        r.check("E2E lmux ask creates AskSession and auto-opens Inspector", false)
+        _ = await cliTask.value
+        return
+    }
+
+    // Wait briefly for async AskContextBuilder + AskRefLoader to populate
+    for _ in 0..<50 {
+        if sess.context != nil && sess.loadedFileRefs["q_strategy"] != nil && sess.loadedGitDiffs["q_strategy"] != nil {
+            break
+        }
+        await sleepMs(20)
+    }
+
+    ctrl.root.rightInspectorHost.frame = NSRect(x: 0, y: 0, width: 340, height: 760)
+    ctrl.root.layoutSubtreeIfNeeded()
+    await sleepMs(30)
+
+    func hasWKWebView(_ view: NSView) -> Bool {
+        if view is WKWebView { return true }
+        return view.subviews.contains { hasWKWebView($0) }
+    }
+    let pb = NSPasteboard(name: NSPasteboard.Name("dev.lmux.e2e.mermaid.\(UUID().uuidString)"))
+    AskMermaidCardView.copyMermaid("flowchart LR\n  CLI-->Inspector", to: pb)
+
+    r.check("E2E lmux ask auto-opens native Ask panel with transcript context, refs, gitDiff, zero WKWebView, and preserves preview on Mermaid copy",
+            ctrl.model.inspectorVisible == true
+            && ctrl.model.inspectorTab == .ask
+            && sess.context?.initialGoal == "重構 E2E Inspector 問答管線"
+            && (sess.context?.gitChangedCount ?? 0) >= 1
+            && (sess.loadedFileRefs["q_strategy"]?.first?.lines.count ?? 0) == 2
+            && (sess.loadedGitDiffs["q_strategy"]?.isEmpty == false)
+            && !hasWKWebView(ctrl.root.rightInspectorHost)
+            && pb.string(forType: .string) == "flowchart LR\n  CLI-->Inspector"
+            && ctrl.previewCoordinator.currentURL == prevURL,
+            "visible=\(ctrl.model.inspectorVisible) tab=\(ctrl.model.inspectorTab) goal=\(String(describing: sess.context?.initialGoal))")
+
+    // Select normalized shorthand "(Recommended)" option, verify unanswered Cmd+Return doesn't submit or leak, then answer freeText and submit via Cmd+Return
+    let normalizedOpt = sess.spec.questions[0].options.first
+    InspectorAskView.toggleOption(normalizedOpt?.label ?? "", in: sess.spec.questions[0], session: sess)
+    let bytesBefore = sinks.bytes(paneE2E.id).count
+    let cmdReturn = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command,
+                                     timestamp: 0, windowNumber: win.windowNumber, context: nil,
+                                     characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+    win.makeFirstResponder(paneE2E.surface)
+    _ = win.performKeyEquivalent(with: cmdReturn)
+    let blockedScroll = sess.scrollToQuestionID
+
+    let tv = NSTextView(frame: NSRect(x: 0, y: 0, width: 200, height: 60))
+    ctrl.root.rightInspectorHost.addSubview(tv)
+    defer { tv.removeFromSuperview() }
+    win.makeFirstResponder(tv)
+    tv.insertText("已完成檢查並核准發布", replacementRange: NSRange(location: 0, length: 0))
+    sess.draftFreeText["q_note"] = tv.string
+    _ = win.performKeyEquivalent(with: cmdReturn)
+
+    let cliRes = await cliTask.value
+    let cliJSON = cliRes.out.data(using: .utf8).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+    let answers = cliJSON?["answers"] as? [[String: Any]] ?? []
+    let a0Selected = answers.first?["selected"] as? [String] ?? []
+    let a1FreeText = answers.dropFirst().first?["freeText"] as? String
+    let bytesAfter = sinks.bytes(paneE2E.id).count
+
+    r.check("E2E Cmd+Return blocks while unanswered, submits normalized JSON to lmux ask stdout with 0 PTY leak, restores .diff/hidden, and focuses pane",
+            normalizedOpt?.label == "藍綠發布"
+            && normalizedOpt?.recommended == true
+            && blockedScroll == "q_note"
+            && cliRes.status == 0
+            && (cliJSON?["status"] as? String) == "submitted"
+            && a0Selected == ["藍綠發布"]
+            && a1FreeText == "已完成檢查並核准發布"
+            && bytesAfter == bytesBefore
+            && ctrl.model.inspectorVisible == false
+            && ctrl.model.inspectorTab == .diff
+            && win.firstResponder === paneE2E.surface,
+            "exit=\(cliRes.status) out=\(cliRes.out) err=\(cliRes.err)")
+
+    // Background workspace ask via real CLI keeps focus on wsA, sets needsInput, creates notification, and opens on click
+    ctrl.select(wsA, focusing: paneA)
+    if let startEv = try? HookEvent(paneID: paneE2E.id, payload: ["hook_event_name": "SessionStart", "session_id": "e2e-bg"]),
+       let promptEv = try? HookEvent(paneID: paneE2E.id, payload: ["hook_event_name": "UserPromptSubmit", "session_id": "e2e-bg", "prompt": "bg"]) {
+        ctrl.handleHook(startEv)
+        ctrl.handleHook(promptEv)
+    }
+    let bgSpec: [String: Any] = [
+        "title": "背景通知端到端",
+        "intro": "背景工作區通知點擊測試",
+        "questions": [["id": "qbg", "question": "確認背景任務？", "options": ["好"]]]
+    ]
+    let bgSpecFile = tmpRoot.appendingPathComponent("bg-spec.json")
+    try? JSONSerialization.data(withJSONObject: bgSpec).write(to: bgSpecFile)
+    let bgTask = Task {
+        await runProcess(cli, ["ask", "--spec", bgSpecFile.path, "--lenient", "--timeout", "10"], env: envE2E)
+    }
+
+    var bgSession: AskSession?
+    for _ in 0..<150 {
+        if let s = ctrl.askStore.activeSession(for: paneE2E.id) {
+            bgSession = s
+            break
+        }
+        await sleepMs(20)
+    }
+    await sleepMs(30)
+    let notif = ctrl.model.notifications.first(where: { $0.paneID == paneE2E.id })
+    let focusKeptOnA = ctrl.model.selected?.id == wsA.id
+    let bgIsNeedsInput: Bool = {
+        if case .needsInput = paneE2E.display { return true }
+        return false
+    }()
+
+    if let notif {
+        ctrl.openNotification(notif)
+    }
+    let switchedToBAndAsk = ctrl.model.selected?.id == wsE2E.id && ctrl.model.inspectorVisible && ctrl.model.inspectorTab == .ask
+
+    if let bgSession {
+        bgSession.draftSelected["qbg"] = ["好"]
+        _ = ctrl.askStore.submit(sessionID: bgSession.id)
+    }
+    let bgRes = await bgTask.value
+    r.check("E2E background workspace lmux ask keeps wsA focus, fires notification card, switches to Ask on click, and delivers answer",
+            focusKeptOnA && bgIsNeedsInput && notif != nil && switchedToBAndAsk && bgRes.status == 0,
+            "focusKept=\(focusKeptOnA) needsInput=\(bgIsNeedsInput) notif=\(notif != nil) switched=\(switchedToBAndAsk) exit=\(bgRes.status)")
 }
