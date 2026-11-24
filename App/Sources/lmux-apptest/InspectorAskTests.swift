@@ -4,6 +4,7 @@ import Foundation
 import AppKit
 import GhosttyKit
 import SwiftUI
+import WebKit
 import LmuxHooks
 @testable import LmuxUI
 
@@ -23,6 +24,7 @@ func runInspectorAsk() async -> Int32 {
     runAskMarkdownParserTests(r)
     await runInspectorTabAndSyncTests(r, ctrl: ctrl)
     runInspectorAskCardsTests(r, ctrl: ctrl)
+    await runInspectorAskViewTests(r, ctrl: ctrl)
 
     print("inspector-ask summary: \(r.passed) passed, \(r.failed) failed")
     return r.failed == 0 ? 0 : 1
@@ -1084,4 +1086,104 @@ private func runInspectorAskCardsTests(_ r: Report, ctrl: LmuxController) {
             pb.string(forType: .string) == mermaidSrc
             && ctrl.previewCoordinator.currentURL == prevURL,
             "currentURL=\(String(describing: ctrl.previewCoordinator.currentURL)) expected=\(prevURL)")
+}
+
+@MainActor
+private func runInspectorAskViewTests(_ r: Report, ctrl: LmuxController) async {
+    let ws = ctrl.model.workspaces.first!
+    let pane = ws.focusedPane!
+    ctrl.select(ws, focusing: pane)
+    defer { ctrl.askStore.markAllLost() }
+
+    guard let tok = ctrl.token(for: pane) else {
+        r.check("InspectorAskView test has pane token", false)
+        return
+    }
+
+    let specObj: [String: Any] = [
+        "title": "UI 表單渲染測試",
+        "eyebrow": "設計決策",
+        "intro": "## 說明\n\n第一段文字。\n\n- 條目\n\n```diff\n@@ -1 +1 @@\n-a\n+b\n```",
+        "questions": [
+            [
+                "id": "q1",
+                "header": "單選",
+                "question": "請擇一方案",
+                "detail": "這是一段肯定超過二十個字的詳細問題背景說明文字内容。",
+                "mermaid": "graph TD\nA-->B",
+                "options": ["方案一 (Recommended)", "方案二"]
+            ],
+            [
+                "id": "q2",
+                "header": "複選",
+                "question": "需要哪些項目？",
+                "detail": "這是一段肯定超過二十個字的多選題背景說明文字內容。",
+                "multiSelect": true,
+                "allowFreeText": true,
+                "options": ["單元測試", "整合測試"]
+            ]
+        ]
+    ]
+    let c1 = ctrl.handleControl(["cmd": "ask-create", "token": tok, "spec": specObj])
+    let c2 = ctrl.handleControl(["cmd": "ask-create", "token": tok, "lenient": true, "spec": [
+        "intro": "第二份排隊表單",
+        "questions": [["id": "q_next", "question": "要緊接確認嗎？", "allowFreeText": true]]
+    ]])
+    let sid1 = c1["sessionId"] as? String ?? ""
+    let sid2 = c2["sessionId"] as? String ?? ""
+    guard let s1 = ctrl.askStore.session(id: sid1) else {
+        r.check("InspectorAskView session created", false, "\(c1)")
+        return
+    }
+
+    // 1. Static Presentation state & disabled submit while unanswered
+    let pres0 = InspectorAskView.presentation(for: s1, queueCount: ctrl.askStore.pendingCount(for: pane.id))
+    r.check("InspectorAskView presentation shows 1 / 2 queue and disables submit until all answered",
+            pres0.queuePosition == 1
+            && pres0.queueCount == 2
+            && pres0.answeredCount == 0
+            && pres0.totalCount == 2
+            && !pres0.canSubmit
+            && pres0.unansweredCount == 2)
+
+    // 2. Host InspectorContainerView and verify ZERO WKWebView is created inside ask UI
+    let host = ctrl.root.rightInspectorHost
+    host.frame = NSRect(x: 0, y: 0, width: 320, height: 700)
+    ctrl.model.inspectorVisible = true
+    ctrl.model.inspectorTab = .ask
+    host.layoutSubtreeIfNeeded()
+    await sleepMs(30)
+
+    func containsWKWebView(_ view: NSView) -> Bool {
+        if view is WKWebView { return true }
+        return view.subviews.contains { containsWKWebView($0) }
+    }
+    r.check("InspectorAskView renders pure SwiftUI with zero WKWebView instances",
+            !containsWKWebView(host))
+
+    // 3. Toggle options (single & multi) and submit/cancel updates AskSessionStore
+    InspectorAskView.toggleOption("方案一", in: s1.spec.questions[0], session: s1)
+    InspectorAskView.toggleOption("單元測試", in: s1.spec.questions[1], session: s1)
+    InspectorAskView.toggleOption("整合測試", in: s1.spec.questions[1], session: s1)
+    s1.draftFreeText["q2"] = "補充需求"
+
+    let pres1 = InspectorAskView.presentation(for: s1, queueCount: ctrl.askStore.pendingCount(for: pane.id))
+    r.check("InspectorAskView toggles single/multi options and enables submit when all answered",
+            pres1.canSubmit
+            && s1.draftSelected["q1"] == ["方案一"]
+            && s1.draftSelected["q2"] == ["單元測試", "整合測試"])
+
+    var waitRes: [String: Any]?
+    _ = ctrl.startAskWait(["cmd": "ask-wait", "sessionId": sid1, "token": tok]) { waitRes = $0 }
+    _ = ctrl.askStore.submit(sessionID: sid1)
+    r.check("InspectorAskView submit advances queue to sid2 and delivers complete answers",
+            (waitRes?["status"] as? String) == "submitted"
+            && ctrl.askStore.activeSession(for: pane.id)?.id == sid2)
+
+    var cancelRes: [String: Any]?
+    _ = ctrl.startAskWait(["cmd": "ask-wait", "sessionId": sid2, "token": tok]) { cancelRes = $0 }
+    ctrl.askStore.cancel(sessionID: sid2)
+    r.check("InspectorAskView cancel updates store and delivers cancelled status",
+            (cancelRes?["status"] as? String) == "cancelled"
+            && ctrl.askStore.pendingCount(for: pane.id) == 0)
 }
